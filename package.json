@@ -2,7 +2,7 @@
   "name": "traffic",
   "version": "0.0.1",
   "description": "A Quasar Project",
-  "productName": "Quasar App",
+  "productName": "AI 智慧交通控制信號-展示介面",
   "author": "KaiFu <powerkaifu@gmail.com>",
   "type": "module",
   "private": true,
