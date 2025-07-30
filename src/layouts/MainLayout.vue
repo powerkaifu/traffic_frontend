@@ -63,7 +63,7 @@
       </div>
     </q-drawer>
 
-    <q-page-container>
+    <q-page-container :style="{ '--light-position': lightPosition }">
       <router-view />
     </q-page-container>
   </q-layout>
@@ -91,6 +91,16 @@ const drawerWidth = computed(() => {
   return 600 // 大螢幕
 })
 
+// 計算光環位置
+const lightPosition = computed(() => {
+  if (rightDrawerOpen.value && $q.screen.gt.md) {
+    // 側邊欄展開時，光環位置需要偏左
+    return '35% 50%'
+  }
+  // 側邊欄收合時，光環在正中央
+  return '50% 50%'
+})
+
 const toggleRightDrawer = () => {
   rightDrawerOpen.value = !rightDrawerOpen.value
 }
@@ -115,7 +125,16 @@ const navigateToVisualization = () => {
 
 .q-page-container {
   box-shadow: inset 0 0 50px 25px rgba(0, 0, 0, 0.5) !important;
-  background-image: linear-gradient(45deg, rgba(0, 0, 30, 0.3) 0%, rgb(0, 0, 70) 100%);
+  background-image:
+    linear-gradient(45deg, rgba(0, 0, 30, 0.3) 0%, rgb(0, 0, 70) 100%),
+    radial-gradient(
+      circle at var(--light-position, 50% 50%),
+      rgba(0, 30, 120, 1) 0%,
+      rgba(0, 15, 100, 1) 8%,
+      rgba(0, 15, 100, 0.5) 15%,
+      rgb(0, 0, 30) 30%
+    );
+  transition: background-image 0.3s ease;
 }
 
 .drawer-content {
