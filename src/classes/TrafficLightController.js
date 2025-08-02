@@ -10,16 +10,16 @@ export default class TrafficLightController {
       north: null, // 往北 (RoadD)
     }
     this.isRunning = false
-    this.currentPhase = 'eastWest' // eastWest 或 northSouth
+    this.currentPhase = 'northSouth' // eastWest 或 northSouth - 一開始以南北向為主
     this.onTimerUpdate = null // 倒數更新回調函數
 
     // 觀察者模式相關
     this.observers = [] // 觀察者列表
     this.currentLightStates = {
-      east: 'green',
-      west: 'green',
-      north: 'red',
-      south: 'red',
+      east: 'red',
+      west: 'red',
+      north: 'green',
+      south: 'green',
     }
 
     // API 相關設定
@@ -28,13 +28,13 @@ export default class TrafficLightController {
 
     // 動態綠燈時間（AI 預測結果）
     this.dynamicTiming = {
-      eastWest: 5, // 東西向綠燈時間（秒）
-      northSouth: 15, // 南北向綠燈時間（秒）- 預設從南北向開始
+      eastWest: 15, // 東西向綠燈時間（秒）
+      northSouth: 15, // 南北向綠燈時間（秒）- 一開始以南北向為主
     }
 
     // 下一輪的時間預測（提前獲取）
     this.nextTiming = {
-      eastWest: 5,
+      eastWest: 15,
       northSouth: 15,
     }
 
@@ -241,7 +241,7 @@ export default class TrafficLightController {
     } catch (error) {
       console.warn('⚠️ API 呼叫失敗，使用預設時間:', error.message)
       // API 失敗時使用預設時間
-      this.nextTiming.eastWest = 5
+      this.nextTiming.eastWest = 15
       this.nextTiming.northSouth = 15
       return null
     }
@@ -261,12 +261,12 @@ export default class TrafficLightController {
     this.lights.south = new TrafficLight(southElement)
     this.lights.north = new TrafficLight(northElement)
 
-    // 設置初始狀態：南北向綠燈，東西向紅燈（從南北向開始）
+    // 設置初始狀態：南北向綠燈，東西向紅燈（一開始以南北向為主）
     this.updateLightState('south', 'green')
     this.updateLightState('north', 'green')
     this.updateLightState('east', 'red')
     this.updateLightState('west', 'red')
-    this.currentPhase = 'northSouth' // 從南北向開始
+    this.currentPhase = 'northSouth' // 一開始以南北向為主
   }
 
   // 開始交通燈控制
@@ -290,20 +290,8 @@ export default class TrafficLightController {
         console.log(`🚥 南北向綠燈開始 - 時間: ${this.dynamicTiming.northSouth}秒`)
         this.updateTimer('南北向 綠燈', this.dynamicTiming.northSouth)
 
-        // 倒數到剩餘 10 秒時請求 API
-        const apiRequestTime = Math.max(this.dynamicTiming.northSouth - 10, 1)
-        if (apiRequestTime > 0) {
-          await this.countdownDelay(apiRequestTime * 1000)
-          // 在剩餘 10 秒時請求下一輪的時間
-          console.log('⏰ 剩餘 10 秒，開始請求下一輪 AI 預測...')
-          this.sendDataToBackend() // 異步請求，不等待結果
-        }
-
-        // 完成剩餘的倒數時間
-        const remainingTime = this.dynamicTiming.northSouth - apiRequestTime
-        if (remainingTime > 0) {
-          await this.countdownDelay(remainingTime * 1000)
-        }
+        // 完整倒數南北向綠燈，在剩餘10秒時發送API
+        await this.countdownDelayWithAPI(this.dynamicTiming.northSouth * 1000, 10)
 
         // 南北向：綠燈 -> 黃燈 -> 紅燈
         this.updateLightState('south', 'yellow')
@@ -324,20 +312,8 @@ export default class TrafficLightController {
         console.log(`🚥 東西向綠燈開始 - 時間: ${this.dynamicTiming.eastWest}秒`)
         this.updateTimer('東西向 綠燈', this.dynamicTiming.eastWest)
 
-        // 倒數到剩餘 10 秒時請求 API
-        const apiRequestTime = Math.max(this.dynamicTiming.eastWest - 10, 1)
-        if (apiRequestTime > 0) {
-          await this.countdownDelay(apiRequestTime * 1000)
-          // 在剩餘 10 秒時請求下一輪的時間
-          console.log('⏰ 剩餘 10 秒，開始請求下一輪 AI 預測...')
-          this.sendDataToBackend() // 異步請求，不等待結果
-        }
-
-        // 完成剩餘的倒數時間
-        const remainingTime = this.dynamicTiming.eastWest - apiRequestTime
-        if (remainingTime > 0) {
-          await this.countdownDelay(remainingTime * 1000)
-        }
+        // 東西向不需要API請求，直接倒數完成
+        await this.countdownDelay(this.dynamicTiming.eastWest * 1000)
 
         // 東西向：綠燈 -> 黃燈 -> 紅燈
         console.log('東西向：綠燈 -> 黃燈')
@@ -378,6 +354,28 @@ export default class TrafficLightController {
         // 只更新倒數秒數，不改變時相描述
         this.onTimerUpdate(null, i)
       }
+      await this.delay(1000)
+    }
+  }
+
+  // 帶API觸發的倒數延遲函數（專用於南北向綠燈）
+  async countdownDelayWithAPI(totalMs, apiTriggerSeconds) {
+    const totalSeconds = Math.floor(totalMs / 1000)
+    let apiTriggered = false
+
+    for (let i = totalSeconds; i > 0; i--) {
+      if (this.onTimerUpdate) {
+        // 只更新倒數秒數，不改變時相描述
+        this.onTimerUpdate(null, i)
+      }
+
+      // 在剩餘指定秒數時觸發API
+      if (i === apiTriggerSeconds && !apiTriggered) {
+        console.log(`⏰ 剩餘 ${apiTriggerSeconds} 秒，開始請求下一輪 AI 預測...`)
+        this.sendDataToBackend() // 異步請求，不等待結果
+        apiTriggered = true
+      }
+
       await this.delay(1000)
     }
   }

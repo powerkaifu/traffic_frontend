@@ -427,7 +427,7 @@ export default class Car {
           const frontCollision = this.checkFrontCollision(allCars)
 
           if (frontCollision) {
-            const { car: frontCar, distance, shouldStop } = frontCollision
+            const { car: frontCar, shouldStop } = frontCollision
 
             // 如果前方車輛停止或距離太近，則停車
             if (frontCar.currentState === 'waiting' || frontCar.currentState === 'waitingForCar' || shouldStop) {

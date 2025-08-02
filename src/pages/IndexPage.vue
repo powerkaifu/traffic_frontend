@@ -53,6 +53,21 @@
       <!-- 停止線 -->
       <!-- 中央參考矩形 - 用於統一計算停止線位置 -->
       <div class="stop-line central-reference"></div>
+
+      <!-- AI 交通預測面板 -->
+      <div class="ai-prediction-panel">
+        <div class="prediction-header">模型預測秒數</div>
+        <div class="prediction-content">
+          <div class="prediction-item">
+            <span class="direction-label">東西向綠燈：</span>
+            <span class="timing-value">{{ aiPrediction.eastWest }} 秒</span>
+          </div>
+          <div class="prediction-item">
+            <span class="direction-label">南北向綠燈：</span>
+            <span class="timing-value">{{ aiPrediction.northSouth }} 秒</span>
+          </div>
+        </div>
+      </div>
     </div>
     <!-- lumo 小機器人助手 -->
     <div class="robot-assistant">
@@ -71,6 +86,12 @@ const trafficController = new TrafficLightController()
 const currentPhase = ref('南北向 綠燈')
 const countdown = ref(15)
 const activeCars = ref([]) // 維護活躍車輛列表
+
+// AI 預測結果
+const aiPrediction = ref({
+  eastWest: 15,
+  northSouth: 15,
+})
 
 onMounted(() => {
   setTimeout(() => {
@@ -121,6 +142,11 @@ onMounted(() => {
           currentPhase.value = phase
         }
         countdown.value = seconds
+      })
+
+      // 設置AI預測更新回調
+      trafficController.setPredictionUpdateCallback((prediction) => {
+        aiPrediction.value = prediction
       })
 
       // 5秒後開始交通燈時相變化
@@ -450,17 +476,18 @@ onMounted(() => {
 
 /* 交通燈倒數計時器 ------------------------------------------------- */
 .timer-display {
+  width: 150px;
+  height: 150px;
+  border: 2px solid rgb(63, 117, 205);
+  border-radius: 15px;
+  padding: 15px 20px;
+  box-shadow: 0 0 20px rgba(30, 30, 100, 0.8);
+  background: linear-gradient(135deg, rgba(35, 80, 150, 0.9), rgba(35, 30, 100, 0.9));
+  backdrop-filter: blur(10px);
+
   position: absolute;
   top: 5%;
   right: 5%;
-  width: 150px;
-  height: 150px;
-  background: linear-gradient(135deg, rgba(35, 80, 150, 0.9), rgba(35, 30, 100, 0.9));
-  border-radius: 15px;
-  border: 2px solid rgb(63, 117, 205);
-  padding: 15px 20px;
-  box-shadow: 0 0 20px rgba(30, 30, 100, 0.8);
-  backdrop-filter: blur(10px);
 }
 
 .timer-content {
@@ -503,24 +530,55 @@ onMounted(() => {
   pointer-events: none; /* 不攔截滑鼠事件 */
 }
 
-/* 車道編號標籤樣式 */
-:deep(.car-lane-label) {
-  font-family: 'Arial', sans-serif;
-  font-size: 12px;
-  font-weight: bold;
-  background: rgba(0, 123, 255, 0.95);
-  color: white;
-  border: 1px solid #0066cc;
-  border-radius: 10px;
-  padding: 2px 6px;
-  min-width: 20px;
-  text-align: center;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  user-select: none;
-  transition: background-color 0.3s ease;
+/* AI 預測面板樣式 ---------------------------------------- */
+.ai-prediction-panel {
+  width: 160px;
+  max-height: 150px;
+  border: 2px solid rgb(63, 117, 205);
+  border-radius: 15px;
+  padding: 16px;
+  box-shadow: 0 0 20px rgba(30, 30, 100, 0.8);
+  background: linear-gradient(135deg, rgba(35, 80, 150, 0.9), rgba(35, 30, 100, 0.9));
+  backdrop-filter: blur(10px);
+
+  position: absolute;
+  bottom: 5%;
+  right: 5%;
+  z-index: 1000;
 }
 
-:deep(.car-lane-label:hover) {
-  background: rgba(0, 123, 255, 1);
+.prediction-header {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: rgb(200, 220, 255);
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.prediction-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.prediction-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  font-size: 14px;
+  padding: 2px 0;
+}
+
+.direction-label {
+  color: rgb(200, 220, 255);
+  font-weight: 500;
+}
+
+.timing-value {
+  color: #00ff88;
+  font-weight: bold;
+  font-size: 16px;
+  text-shadow: 0 0 5px rgba(0, 255, 136, 0.4);
 }
 </style>

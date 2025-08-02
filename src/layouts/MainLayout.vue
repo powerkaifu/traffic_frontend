@@ -183,21 +183,7 @@
 
           <!-- 數據顯示區域 -->
           <div class="data-section-content">
-            <!-- AI 預測結果顯示 -->
-            <div class="prediction-display">
-              <div class="prediction-header">🤖 AI 交通預測</div>
-              <div class="prediction-content">
-                <div class="prediction-item">
-                  <span class="direction-label">東西向綠燈:</span>
-                  <span class="timing-value">{{ aiPrediction.eastWest }}秒</span>
-                </div>
-                <div class="prediction-item">
-                  <span class="direction-label">南北向綠燈:</span>
-                  <span class="timing-value">{{ aiPrediction.northSouth }}秒</span>
-                </div>
-                <div class="prediction-timestamp">更新時間: {{ aiPrediction.timestamp }}</div>
-              </div>
-            </div>
+            <!-- 預留給其他數據顯示 -->
           </div>
         </div>
       </div>
@@ -225,13 +211,6 @@ const selectedScenario = ref('normal') // 對應 '一般'
 const motorcycleCount = ref(5) // Volume_M
 const smallCarCount = ref(8) // Volume_S
 const largeCarCount = ref(3) // Volume_L
-
-// AI 預測結果
-const aiPrediction = ref({
-  eastWest: 5,
-  northSouth: 15,
-  timestamp: '--:--:--',
-})
 
 // 場景預設數據
 const scenarioPresets = {
@@ -267,12 +246,7 @@ watch(selectedScenario, (newScenario) => {
 
 // 全域交通控制器設定
 onMounted(() => {
-  // 設置全域 trafficController 以供其他組件使用
-  if (window.trafficController) {
-    window.trafficController.setPredictionUpdateCallback((prediction) => {
-      aiPrediction.value = prediction
-    })
-  }
+  // 設置全域 trafficController 以供其他組件使用 - 預測回調由IndexPage處理
 })
 
 // 計算當前路由
@@ -587,57 +561,6 @@ const resetVehicleCounts = () => {
   display: flex;
   flex-direction: column;
   justify-content: center;
-}
-
-/* AI 預測結果顯示樣式 */
-.prediction-display {
-  background: rgba(0, 30, 60, 0.8);
-  border-radius: 8px;
-  padding: 12px;
-  border: 1px solid rgba(0, 123, 255, 0.3);
-}
-
-.prediction-header {
-  color: #00ff88;
-  font-size: 14px;
-  font-weight: bold;
-  text-align: center;
-  margin-bottom: 8px;
-  text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
-}
-
-.prediction-content {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.prediction-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: white;
-  font-size: 12px;
-}
-
-.direction-label {
-  color: rgb(200, 220, 255);
-}
-
-.timing-value {
-  color: #00ff88;
-  font-weight: bold;
-  font-size: 14px;
-  text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
-}
-
-.prediction-timestamp {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 10px;
-  margin-top: 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-top: 4px;
 }
 
 .control-button {
