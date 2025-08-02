@@ -78,7 +78,7 @@
 
 <script setup>
 import { onMounted, ref } from 'vue'
-import Car from '../classes/Car.js'
+import Vehicle from '../classes/Vehicle.js'
 import TrafficLightController from '../classes/TrafficLightController.js'
 
 const crossroadContainer = ref(null)
@@ -203,24 +203,24 @@ onMounted(() => {
         const carTypes = ['large', 'small', 'motor']
         const randomCarType = carTypes[Math.floor(Math.random() * carTypes.length)]
 
-        const car = new Car(randomLane.x, randomLane.y, direction, randomCarType, laneNumber)
-        car.addTo(crossroadContainer.value)
+        const vehicle = new Vehicle(randomLane.x, randomLane.y, direction, randomCarType, laneNumber)
+        vehicle.addTo(crossroadContainer.value)
 
         // 添加到活躍車輛列表
-        activeCars.value.push(car)
+        activeCars.value.push(vehicle)
 
         // 立即開始動畫
         setTimeout(async () => {
           // 先淡入車子
-          await car.fadeIn(1)
+          await vehicle.fadeIn(1)
 
           // 計算基於車輛速度的動畫時間
-          const animationDuration = car.calculateAnimationDuration()
+          const animationDuration = vehicle.calculateAnimationDuration()
 
           // 開始移動動畫 - 使用新的紅綠燈控制移動方法（包含碰撞檢測）
           let movePromise
           if (direction === 'east') {
-            movePromise = car.moveToWithTrafficControl(
+            movePromise = vehicle.moveToWithTrafficControl(
               endPosition,
               randomLane.y,
               animationDuration,
@@ -228,7 +228,7 @@ onMounted(() => {
               activeCars.value,
             )
           } else if (direction === 'west') {
-            movePromise = car.moveToWithTrafficControl(
+            movePromise = vehicle.moveToWithTrafficControl(
               endPosition,
               randomLane.y,
               animationDuration,
@@ -236,7 +236,7 @@ onMounted(() => {
               activeCars.value,
             )
           } else if (direction === 'north') {
-            movePromise = car.moveToWithTrafficControl(
+            movePromise = vehicle.moveToWithTrafficControl(
               randomLane.x,
               endPosition,
               animationDuration,
@@ -244,7 +244,7 @@ onMounted(() => {
               activeCars.value,
             )
           } else if (direction === 'south') {
-            movePromise = car.moveToWithTrafficControl(
+            movePromise = vehicle.moveToWithTrafficControl(
               randomLane.x,
               endPosition,
               animationDuration,
@@ -257,14 +257,14 @@ onMounted(() => {
           await movePromise
 
           // 移動完成後開始淡出（車輛已到達終點）
-          await car.fadeOut(3)
+          await vehicle.fadeOut(3)
 
           // 移動完成後從列表中移除並銷毀車子
-          const carIndex = activeCars.value.findIndex((c) => c.id === car.id)
-          if (carIndex > -1) {
-            activeCars.value.splice(carIndex, 1)
+          const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
+          if (vehicleIndex > -1) {
+            activeCars.value.splice(vehicleIndex, 1)
           }
-          car.remove()
+          vehicle.remove()
         }, 100) // 很短的延遲讓車子先出現
       }
 

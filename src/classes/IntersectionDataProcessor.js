@@ -8,7 +8,7 @@ class IntersectionDataProcessor {
     // 不同場景的處理策略
     this.scenarioStrategies = {
       smooth: new SmoothTrafficStrategy(),
-      normal: new NormalTrafficStrategy(),
+      一般: new NormalTrafficStrategy(),
       congested: new CongestedTrafficStrategy(),
     }
 
@@ -29,7 +29,7 @@ class IntersectionDataProcessor {
   processVehicleData(vehicleData, scenario, speedConfig) {
     console.log('📊 開始處理交通數據...', scenario)
 
-    const strategy = this.scenarioStrategies[scenario] || this.scenarioStrategies.normal
+    const strategy = this.scenarioStrategies[scenario] || this.scenarioStrategies.一般
 
     // 1. 合併所有車輛數據
     const allVehicles = [...vehicleData.motorcycles, ...vehicleData.smallCars, ...vehicleData.largeCars]

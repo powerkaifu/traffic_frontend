@@ -40,10 +40,10 @@ export default class TrafficLightController {
 
     // 車輛數據收集
     this.vehicleData = {
-      east: { motorcycle: 0, small: 0, medium: 0, large: 0 },
-      west: { motorcycle: 0, small: 0, medium: 0, large: 0 },
-      south: { motorcycle: 0, small: 0, medium: 0, large: 0 },
-      north: { motorcycle: 0, small: 0, medium: 0, large: 0 },
+      east: { motor: 3, small: 5, large: 2 },
+      west: { motor: 4, small: 6, large: 1 },
+      south: { motor: 2, small: 4, large: 3 },
+      north: { motor: 5, small: 7, large: 2 },
     }
   }
 
@@ -119,11 +119,11 @@ export default class TrafficLightController {
     // 為每個方向生成 VD 數據
     Object.keys(this.vehicleData).forEach((direction, index) => {
       const data = this.vehicleData[direction]
-      const totalVehicles = data.motorcycle + data.small + data.large
+      const totalVehicles = data.motor + data.small + data.large
 
       // 計算平均速度
       const speeds = {
-        motorcycle: this.getAverageSpeed(direction, 'motorcycle'),
+        motor: this.getAverageSpeed(direction, 'motor'),
         small: this.getAverageSpeed(direction, 'small'),
         large: this.getAverageSpeed(direction, 'large'),
       }
@@ -132,30 +132,33 @@ export default class TrafficLightController {
       const overallSpeed =
         totalVehicles > 0
           ? Math.round(
-              (data.motorcycle * speeds.motorcycle + data.small * speeds.small + data.large * speeds.large) /
-                totalVehicles,
+              (data.motor * speeds.motor + data.small * speeds.small + data.large * speeds.large) / totalVehicles,
             )
           : 0
 
+      // 計算占有率
+      const occupancy = Math.round(parseFloat(this.calculateOccupancy(direction)))
+
+      // 按照 API 格式生成數據
       vdData.push({
-        VD_ID: vdMapping[direction],
+        VD_ID: vdMapping[direction] || `VD${direction.toUpperCase()}`,
         DayOfWeek: dayOfWeek,
         Hour: hour,
         Minute: minute,
         Second: second,
         IsPeakHour: isPeakHour,
-        LaneID: index, // 車道ID (0-3)
-        LaneType: 1, // 車道類型，預設為1
+        LaneID: index, // 使用索引作為車道 ID
+        LaneType: 1, // 預設車道類型為 1
         Speed: overallSpeed,
-        Occupancy: parseFloat(this.calculateOccupancy(direction)),
-        Volume_M: data.motorcycle,
-        Speed_M: speeds.motorcycle,
-        Volume_S: data.small,
-        Speed_S: speeds.small,
-        Volume_L: data.large,
-        Speed_L: speeds.large,
-        Volume_T: 0, // 聯結車數量（暫時為0）
-        Speed_T: 0, // 聯結車速度（暫時為0）
+        Occupancy: occupancy,
+        Volume_M: data.motor, // 機車數量
+        Speed_M: speeds.motor, // 機車平均車速
+        Volume_S: data.small, // 小客車數量
+        Speed_S: speeds.small, // 小客車平均車速
+        Volume_L: data.large, // 大客車數量
+        Speed_L: speeds.large, // 大客車平均車速
+        Volume_T: 0, // 聯結車數量（目前設為 0）
+        Speed_T: 0, // 聯結車平均車速（目前設為 0）
       })
     })
 
@@ -165,7 +168,7 @@ export default class TrafficLightController {
   // 獲取各車型的平均速度
   getAverageSpeed(direction, vehicleType) {
     const speedRanges = {
-      motorcycle: { min: 25, max: 45, avg: 35 },
+      motor: { min: 25, max: 45, avg: 35 },
       small: { min: 20, max: 40, avg: 30 },
       large: { min: 15, max: 30, avg: 22 },
     }
@@ -191,7 +194,7 @@ export default class TrafficLightController {
   // 計算路段占有率
   calculateOccupancy(direction) {
     const data = this.vehicleData[direction]
-    const totalVehicles = data.motorcycle + data.small + data.large
+    const totalVehicles = data.motor + data.small + data.large
     // 簡化的占有率計算：基於車輛數量和預估的路段容量
     const maxCapacity = 20 // 每個方向的最大容量
     return Math.min((totalVehicles / maxCapacity) * 100, 100).toFixed(1)
@@ -250,7 +253,7 @@ export default class TrafficLightController {
   // 重置車輛數據
   resetVehicleData() {
     Object.keys(this.vehicleData).forEach((direction) => {
-      this.vehicleData[direction] = { motorcycle: 0, small: 0, medium: 0, large: 0 }
+      this.vehicleData[direction] = { motor: 0, small: 0, large: 0 }
     })
   }
 

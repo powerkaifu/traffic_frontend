@@ -1,25 +1,26 @@
 import { gsap } from 'gsap'
 
-export default class Car {
-  static carCounter = 0 // 靜態計數器，用於車輛編號
+export default class Vehicle {
+  static vehicleCounter = 0 // 靜態計數器，用於車輛編號
 
-  constructor(x, y, direction = 'east', carType = 'large', laneNumber = 1) {
+  constructor(x, y, direction = 'east', vehicleType = 'large', laneNumber = 1, turnDirection = 'straight') {
     this.direction = direction
-    this.carType = carType // 新增：車輛類型
-    this.laneNumber = laneNumber // 新增：車道編號
+    this.vehicleType = vehicleType // 車輛類型（motor, small, large）
+    this.laneNumber = laneNumber // 車道編號
+    this.turnDirection = turnDirection // 轉彎方向（straight, left, right）
     this.element = this.createElement()
     this.currentState = 'waiting' // 初始狀態
     this.movementTimeline = null
     this.isAtStopLine = false
     this.waitingForGreen = false
-    this.hasPassedStopLine = false // 新增：標記是否已經通過停止線
-    this.periodicCheckTimer = null // 新增：定期檢查定時器
-    this.containerPosition = null // 新增：記錄容器位置，用於檢測佈局變化
+    this.hasPassedStopLine = false // 標記是否已經通過停止線
+    this.periodicCheckTimer = null // 定期檢查定時器
+    this.containerPosition = null // 記錄容器位置，用於檢測佈局變化
 
     // 車輛編號系統
-    Car.carCounter++
-    this.carNumber = Car.carCounter
-    this.id = 'car_' + this.carNumber + '_' + Date.now()
+    Vehicle.vehicleCounter++
+    this.vehicleNumber = Vehicle.vehicleCounter
+    this.id = 'vehicle_' + this.vehicleNumber + '_' + Date.now()
 
     gsap.set(this.element, {
       x: x,
@@ -42,10 +43,10 @@ export default class Car {
       const vehicleTypeMapping = {
         large: 'large',
         small: 'small',
-        motor: 'motorcycle',
+        motor: 'motor',
       }
 
-      const mappedType = vehicleTypeMapping[this.carType] || 'small'
+      const mappedType = vehicleTypeMapping[this.vehicleType] || 'small'
       window.trafficController.updateVehicleData(this.direction, mappedType)
     }
   }
@@ -58,7 +59,7 @@ export default class Car {
       motor: { min: 18, max: 30 }, // km/h (降低最高速度)
     }
 
-    const range = speedRanges[this.carType] || speedRanges.small
+    const range = speedRanges[this.vehicleType] || speedRanges.small
     const randomSpeed = range.min + Math.random() * (range.max - range.min)
     return Math.round(randomSpeed)
   }
@@ -80,12 +81,118 @@ export default class Car {
     const maxTime = 18
     const adjustedTime = Math.max(minTime, Math.min(maxTime, theoreticalTime))
 
-    console.log(`🚗 ${this.carType} 車輛速度: ${speed} km/h, 動畫時間: ${adjustedTime.toFixed(1)} 秒`)
+    console.log(`🚗 ${this.vehicleType} 車輛速度: ${speed} km/h, 動畫時間: ${adjustedTime.toFixed(1)} 秒`)
 
     return adjustedTime
-  } // 獲取車輛配置 - 支持不同車輛類型和大小
-  getCarConfig() {
-    const carConfigs = {
+  }
+
+  // 計算轉彎路徑
+  calculateTurnPath() {
+    // 根據轉彎方向計算路徑點
+    const paths = {
+      straight: this.calculateStraightPath(),
+      left: this.calculateLeftTurnPath(),
+      right: this.calculateRightTurnPath(),
+    }
+
+    return paths[this.turnDirection] || paths.straight
+  }
+
+  // 計算直行路徑
+  calculateStraightPath() {
+    const container = document.querySelector('.crossroad-area')
+    if (!container) return []
+
+    const containerRect = container.getBoundingClientRect()
+    let targetX, targetY
+
+    if (this.direction === 'east') {
+      targetX = containerRect.width + 100
+      targetY = gsap.getProperty(this.element, 'y')
+    } else if (this.direction === 'west') {
+      targetX = -100
+      targetY = gsap.getProperty(this.element, 'y')
+    } else if (this.direction === 'north') {
+      targetX = gsap.getProperty(this.element, 'x')
+      targetY = -100
+    } else if (this.direction === 'south') {
+      targetX = gsap.getProperty(this.element, 'x')
+      targetY = containerRect.height + 100
+    }
+
+    return [{ x: targetX, y: targetY }]
+  }
+
+  // 計算左轉路徑
+  calculateLeftTurnPath() {
+    // 實現左轉路徑計算邏輯
+    // 這裡需要根據路口佈局計算轉彎點
+    const currentX = gsap.getProperty(this.element, 'x')
+    const currentY = gsap.getProperty(this.element, 'y')
+
+    // 簡化的左轉路徑
+    if (this.direction === 'east') {
+      // 東向左轉 -> 北向
+      return [
+        { x: currentX + 200, y: currentY },
+        { x: currentX + 250, y: currentY - 50 },
+        { x: currentX + 250, y: -100 },
+      ]
+    }
+    // 其他方向的左轉邏輯...
+
+    return this.calculateStraightPath()
+  }
+
+  // 計算右轉路徑
+  calculateRightTurnPath() {
+    // 實現右轉路徑計算邏輯
+    const currentX = gsap.getProperty(this.element, 'x')
+    const currentY = gsap.getProperty(this.element, 'y')
+
+    // 簡化的右轉路徑
+    if (this.direction === 'east') {
+      // 東向右轉 -> 南向
+      return [
+        { x: currentX + 200, y: currentY },
+        { x: currentX + 250, y: currentY + 50 },
+        { x: currentX + 250, y: 600 },
+      ]
+    }
+    // 其他方向的右轉邏輯...
+
+    return this.calculateStraightPath()
+  }
+
+  // 使用轉彎功能的移動方法
+  moveWithTurning() {
+    const path = this.calculateTurnPath()
+    const duration = this.calculateAnimationDuration()
+
+    if (path.length === 1) {
+      // 直行
+      return this.moveTo(path[0].x, path[0].y, duration)
+    } else {
+      // 轉彎 - 使用多段路徑
+      const timeline = gsap.timeline()
+
+      path.forEach((point, index) => {
+        const segmentDuration = duration / path.length
+        timeline.to(this.element, {
+          x: point.x,
+          y: point.y,
+          duration: segmentDuration,
+          ease: index === 0 ? 'none' : 'power2.inOut',
+        })
+      })
+
+      return timeline
+    }
+  }
+
+  // 獲取車輛配置 - 支持不同車輛類型和大小
+  getVehicleConfig() {
+    const vehicleConfigs = {
       large: {
         east: { width: 35, height: 20, image: '/images/car/lCar_right.png' },
         west: { width: 35, height: 20, image: '/images/car/lCar_left.png' },
@@ -105,7 +212,7 @@ export default class Car {
         south: { width: 35, height: 25, image: '/images/car/mCar_down.png' },
       },
     }
-    return carConfigs[this.carType]?.[this.direction] || carConfigs.large[this.direction]
+    return vehicleConfigs[this.vehicleType]?.[this.direction] || vehicleConfigs.large[this.direction]
   }
 
   getStopLinePosition() {
@@ -188,20 +295,20 @@ export default class Car {
     if (!stopLine.x && !stopLine.y) return false
 
     // 使用車頭位置進行停止線檢測
-    const carHead = this.getCarHeadPosition()
+    const vehicleHead = this.getVehicleHeadPosition()
 
     if (this.direction === 'east') {
       // 車頭在右側，檢查車頭X座標是否到達停止線
-      return carHead.x >= stopLine.x && !this.isAtStopLine
+      return vehicleHead.x >= stopLine.x && !this.isAtStopLine
     } else if (this.direction === 'west') {
       // 車頭在左側，檢查車頭X座標是否到達停止線
-      return carHead.x <= stopLine.x && !this.isAtStopLine
+      return vehicleHead.x <= stopLine.x && !this.isAtStopLine
     } else if (this.direction === 'north') {
       // 車頭在上方，檢查車頭Y座標是否到達停止線
-      return carHead.y <= stopLine.y && !this.isAtStopLine
+      return vehicleHead.y <= stopLine.y && !this.isAtStopLine
     } else if (this.direction === 'south') {
       // 車頭在下方，檢查車頭Y座標是否到達停止線
-      return carHead.y >= stopLine.y && !this.isAtStopLine
+      return vehicleHead.y >= stopLine.y && !this.isAtStopLine
     }
     return false
   }
@@ -215,10 +322,10 @@ export default class Car {
   }
 
   // 獲取車頭位置 - 根據方向和車輛大小計算
-  getCarHeadPosition() {
+  getVehicleHeadPosition() {
     const currentPos = this.getCurrentPosition()
-    const carConfig = this.getCarConfig()
-    const size = { width: carConfig.width, height: carConfig.height }
+    const vehicleConfig = this.getVehicleConfig()
+    const size = { width: vehicleConfig.width, height: vehicleConfig.height }
 
     if (this.direction === 'east') {
       // 東向車頭在右側
@@ -240,8 +347,8 @@ export default class Car {
   // 獲取車輛邊界框
   getBoundingBox() {
     const pos = this.getCurrentPosition()
-    const carConfig = this.getCarConfig()
-    const size = { width: carConfig.width, height: carConfig.height }
+    const vehicleConfig = this.getVehicleConfig()
+    const size = { width: vehicleConfig.width, height: vehicleConfig.height }
 
     return {
       left: pos.x,
@@ -254,52 +361,52 @@ export default class Car {
   }
 
   // 檢查前方是否有車輛（同向車道）- 改進版本
-  checkFrontCollision(allCars) {
+  checkFrontCollision(allVehicles) {
     const currentPos = this.getCurrentPosition()
     const currentBox = this.getBoundingBox()
 
     // 安全跟車距離 - 調整為很小的距離，讓車輛緊接在前車後方
     const safeDistance = 8 // 從50降低到8，讓車輛更緊密跟隨
 
-    for (let car of allCars) {
-      if (car.id === this.id || car.direction !== this.direction) continue
+    for (let vehicle of allVehicles) {
+      if (vehicle.id === this.id || vehicle.direction !== this.direction) continue
 
-      const otherPos = car.getCurrentPosition()
-      const otherBox = car.getBoundingBox()
+      const otherPos = vehicle.getCurrentPosition()
+      const otherBox = vehicle.getBoundingBox()
 
       // 檢查是否在同一車道（更精確的車道檢測）
       let inSameLane = false
       let isFront = false
-      let distanceToFrontCar = 0
+      let distanceToFrontVehicle = 0
 
       if (this.direction === 'east') {
         // 東向：檢查Y軸位置是否在同一車道，X軸是否在前方
         inSameLane = Math.abs(currentPos.y - otherPos.y) < 25 // 車道寬度容錯
         isFront = otherBox.left > currentBox.right // 前車的左邊 > 本車的右邊
-        distanceToFrontCar = otherBox.left - currentBox.right
+        distanceToFrontVehicle = otherBox.left - currentBox.right
       } else if (this.direction === 'west') {
         // 西向：檢查Y軸位置是否在同一車道，X軸是否在前方
         inSameLane = Math.abs(currentPos.y - otherPos.y) < 25
         isFront = otherBox.right < currentBox.left // 前車的右邊 < 本車的左邊
-        distanceToFrontCar = currentBox.left - otherBox.right
+        distanceToFrontVehicle = currentBox.left - otherBox.right
       } else if (this.direction === 'north') {
         // 北向：檢查X軸位置是否在同一車道，Y軸是否在前方
         inSameLane = Math.abs(currentPos.x - otherPos.x) < 25
         isFront = otherBox.bottom < currentBox.top // 前車的底部 < 本車的頂部
-        distanceToFrontCar = currentBox.top - otherBox.bottom
+        distanceToFrontVehicle = currentBox.top - otherBox.bottom
       } else if (this.direction === 'south') {
         // 南向：檢查X軸位置是否在同一車道，Y軸是否在前方
         inSameLane = Math.abs(currentPos.x - otherPos.x) < 25
         isFront = otherBox.top > currentBox.bottom // 前車的頂部 > 本車的底部
-        distanceToFrontCar = otherBox.top - currentBox.bottom
+        distanceToFrontVehicle = otherBox.top - currentBox.bottom
       }
 
       // 如果在同一車道且在前方，且距離小於安全距離
-      if (inSameLane && isFront && distanceToFrontCar < safeDistance) {
+      if (inSameLane && isFront && distanceToFrontVehicle < safeDistance) {
         return {
-          car: car,
-          distance: distanceToFrontCar,
-          shouldStop: distanceToFrontCar < 5, // 從20降低到5，讓車輛能更緊密地跟隨
+          vehicle: vehicle,
+          distance: distanceToFrontVehicle,
+          shouldStop: distanceToFrontVehicle < 5, // 從20降低到5，讓車輛能更緊密地跟隨
         }
       }
     }
@@ -310,19 +417,19 @@ export default class Car {
   stopMovement() {
     if (this.movementTimeline) {
       this.movementTimeline.pause()
-      if (this.currentState !== 'waitingForCar' && this.currentState !== 'waiting') {
+      if (this.currentState !== 'waitingForVehicle' && this.currentState !== 'waiting') {
         this.currentState = 'waiting'
       }
     }
   }
 
   // 恢復移動 - 改進版本
-  resumeMovement(allCars = []) {
-    if (this.movementTimeline && (this.currentState === 'waiting' || this.currentState === 'waitingForCar')) {
+  resumeMovement(allVehicles = []) {
+    if (this.movementTimeline && (this.currentState === 'waiting' || this.currentState === 'waitingForVehicle')) {
       // 再次檢查前方是否還有車輛
-      const frontCollision = this.checkFrontCollision(allCars)
+      const frontCollision = this.checkFrontCollision(allVehicles)
 
-      if (!frontCollision || (!frontCollision.shouldStop && frontCollision.car.currentState === 'moving')) {
+      if (!frontCollision || (!frontCollision.shouldStop && frontCollision.vehicle.currentState === 'moving')) {
         this.movementTimeline.resume()
         this.currentState = 'moving'
         console.log(`車輛 ${this.direction} 恢復移動`)
@@ -331,10 +438,10 @@ export default class Car {
   }
 
   // 新增：強制恢復移動方法（用於綠燈時強制啟動）
-  forceResumeMovement(allCars = []) {
+  forceResumeMovement(allVehicles = []) {
     if (this.movementTimeline) {
       // 檢查前方車輛，但只在距離非常近時才停止
-      const frontCollision = this.checkFrontCollision(allCars)
+      const frontCollision = this.checkFrontCollision(allVehicles)
 
       if (!frontCollision || frontCollision.distance > 3) {
         // 生成隨機延遲時間，讓車輛啟動更生動 (0-2秒)
@@ -359,16 +466,16 @@ export default class Car {
 
   createElement() {
     // 獲取車輛配置（尺寸和圖片）
-    const carConfig = this.getCarConfig()
+    const vehicleConfig = this.getVehicleConfig()
 
     const div = document.createElement('div')
-    div.className = 'car' // 添加類名以便查詢
-    div.carInstance = this // 保存車輛實例的引用
+    div.className = 'vehicle' // 改為 vehicle 類名
+    div.vehicleInstance = this // 保存車輛實例的引用
     div.style.cssText = `
       position: absolute;
-      width: ${carConfig.width}px;
-      height: ${carConfig.height}px;
-      background-image: url('${carConfig.image}');
+      width: ${vehicleConfig.width}px;
+      height: ${vehicleConfig.height}px;
+      background-image: url('${vehicleConfig.image}');
       background-size: contain;
       background-repeat: no-repeat;
       z-index: 10;
@@ -379,7 +486,7 @@ export default class Car {
   // 創建車道編號標籤
   createLaneNumberLabel() {
     const label = document.createElement('div')
-    label.className = 'car-lane-label'
+    label.className = 'vehicle-lane-label' // 改為 vehicle 類名
     label.textContent = this.laneNumber
 
     // 根據車輛方向調整標籤位置
@@ -445,7 +552,7 @@ export default class Car {
   }
 
   // 帶有紅綠燈控制的移動方法 - 改進版本
-  moveToWithTrafficControl(targetX, targetY, duration, trafficController, allCars = []) {
+  moveToWithTrafficControl(targetX, targetY, duration, trafficController, allVehicles = []) {
     return new Promise((resolve) => {
       this.currentState = 'moving'
       this.targetX = targetX
@@ -458,18 +565,18 @@ export default class Car {
           const currentLightState = trafficController.getCurrentLightState(this.direction)
           if (currentLightState === 'green') {
             console.log(`定期檢查發現: 車輛 ${this.direction} 應該移動但被卡住，強制啟動`)
-            this.forceResumeMovement(allCars)
+            this.forceResumeMovement(allVehicles)
             this.isAtStopLine = false
             this.hasPassedStopLine = true
           }
         }
 
         // 如果車輛在等待前車，但前車已經走了，也要檢查
-        if (this.currentState === 'waitingForCar') {
-          const frontCollision = this.checkFrontCollision(allCars)
+        if (this.currentState === 'waitingForVehicle') {
+          const frontCollision = this.checkFrontCollision(allVehicles)
           if (!frontCollision || frontCollision.distance > 10) {
             console.log(`定期檢查發現: 車輛 ${this.direction} 前方已清空，恢復移動`)
-            this.resumeMovement(allCars)
+            this.resumeMovement(allVehicles)
           }
         }
       }, 2000) // 每2秒檢查一次
@@ -481,22 +588,26 @@ export default class Car {
           this.checkLayoutChange()
 
           // 檢查前方車輛碰撞
-          const frontCollision = this.checkFrontCollision(allCars)
+          const frontCollision = this.checkFrontCollision(allVehicles)
 
           if (frontCollision) {
-            const { car: frontCar, shouldStop } = frontCollision
+            const { vehicle: frontVehicle, shouldStop } = frontCollision
 
             // 如果前方車輛停止或距離太近，則停車
-            if (frontCar.currentState === 'waiting' || frontCar.currentState === 'waitingForCar' || shouldStop) {
+            if (
+              frontVehicle.currentState === 'waiting' ||
+              frontVehicle.currentState === 'waitingForVehicle' ||
+              shouldStop
+            ) {
               if (this.currentState === 'moving') {
                 this.stopMovement()
-                this.currentState = 'waitingForCar'
+                this.currentState = 'waitingForVehicle'
               }
               return
             }
-          } else if (this.currentState === 'waitingForCar') {
+          } else if (this.currentState === 'waitingForVehicle') {
             // 如果前方車輛已離開安全距離，恢復移動
-            this.resumeMovement(allCars)
+            this.resumeMovement(allVehicles)
             this.currentState = 'moving'
             console.log(`車輛 ${this.direction} 前方車輛離開，恢復移動`)
           }
@@ -518,7 +629,7 @@ export default class Car {
                   console.log(`車輛 ${this.direction} 準備啟動`)
 
                   // 使用強制恢復移動方法（內含隨機延遲）
-                  this.forceResumeMovement(allCars)
+                  this.forceResumeMovement(allVehicles)
                   this.isAtStopLine = false
                   this.hasPassedStopLine = true // 標記已通過停止線
                   console.log(`車輛 ${this.direction} 綠燈亮起，將隨機延遲啟動`)
@@ -538,7 +649,7 @@ export default class Car {
 
                   if (currentLightState === 'green') {
                     console.log(`超時恢復: 車輛 ${this.direction} 檢測到綠燈，強制啟動`)
-                    this.forceResumeMovement(allCars)
+                    this.forceResumeMovement(allVehicles)
                     this.isAtStopLine = false
                     this.hasPassedStopLine = true
                     trafficController.removeObserver(onLightChange)

@@ -50,7 +50,7 @@ class TrafficDataManager {
    * 主要方法：根據使用者選擇生成完整的交通數據
    * @param {Object} userConfig - 使用者配置
    * @param {string} userConfig.selectedIntersection - 選擇的路口 ('東', '西', '南', '北')
-   * @param {string} userConfig.selectedScenario - 選擇的場景 ('smooth', 'normal', 'congested')
+   * @param {string} userConfig.selectedScenario - 選擇的場景 ('smooth', '一般', 'congested')
    * @param {number} userConfig.motorcycleCount - 機車數量
    * @param {number} userConfig.smallCarCount - 小型車數量
    * @param {number} userConfig.largeCarCount - 大型車數量
@@ -169,11 +169,11 @@ class TrafficDataManager {
   calculateAnimationTiming(scenario) {
     const timingConfig = {
       smooth: { interval: [2000, 4000], delay: [0, 1000] },
-      normal: { interval: [1500, 3000], delay: [0, 1500] },
+      一般: { interval: [1500, 3000], delay: [0, 1500] },
       congested: { interval: [800, 1500], delay: [0, 2000] },
     }
 
-    return timingConfig[scenario] || timingConfig.normal
+    return timingConfig[scenario] || timingConfig.一般
   }
 
   /**

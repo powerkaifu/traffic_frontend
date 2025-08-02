@@ -207,7 +207,7 @@ const $q = useQuasar()
 
 // 場景參數設定的資料定義
 const selectedIntersection = ref('東向路口') // 對應 '東向路口'
-const selectedScenario = ref('normal') // 對應 '一般'
+const selectedScenario = ref('一般') // 對應 '一般'
 const motorcycleCount = ref(5) // Volume_M
 const smallCarCount = ref(8) // Volume_S
 const largeCarCount = ref(3) // Volume_L
@@ -215,7 +215,7 @@ const largeCarCount = ref(3) // Volume_L
 // 場景預設數據
 const scenarioPresets = {
   smooth: { motorcycle: 2, small: 4, large: 1 }, // 流暢
-  normal: { motorcycle: 5, small: 8, large: 3 }, // 一般
+  一般: { motorcycle: 5, small: 8, large: 3 }, // 一般
   congested: { motorcycle: 10, small: 15, large: 6 }, // 擁擠
 }
 
@@ -229,7 +229,7 @@ const intersectionOptions = [
 
 const scenarioOptions = [
   { label: '流暢', value: 'smooth' },
-  { label: '一般', value: 'normal' },
+  { label: '一般', value: '一般' },
   { label: '擁擠', value: 'congested' },
 ]
 
