@@ -50,7 +50,40 @@ export default class Car {
     }
   }
 
-  // 獲取車輛配置 - 支持不同車輛類型和大小
+  // 生成車輛的隨機速度（基於車輛類型）
+  generateRandomSpeed() {
+    const speedRanges = {
+      large: { min: 10, max: 20 }, // km/h (降低速度)
+      small: { min: 15, max: 30 }, // km/h (降低速度)
+      motor: { min: 18, max: 30 }, // km/h (降低最高速度)
+    }
+
+    const range = speedRanges[this.carType] || speedRanges.small
+    const randomSpeed = range.min + Math.random() * (range.max - range.min)
+    return Math.round(randomSpeed)
+  }
+
+  // 計算基於速度的動畫時間
+  calculateAnimationDuration(distance = 800) {
+    // 假設路口通過距離約 800 像素
+    const speed = this.generateRandomSpeed() // km/h
+    const speedMs = (speed * 1000) / 3600 // 轉換為 m/s
+
+    // 假設 100 像素 = 10 米（比例尺）
+    const realDistance = (distance / 100) * 10 // 轉換為實際距離（米）
+
+    // 計算理論時間（秒）
+    const theoreticalTime = realDistance / speedMs
+
+    // 為了視覺效果，將時間控制在合理範圍內（5-18秒，增加時間範圍）
+    const minTime = 5
+    const maxTime = 18
+    const adjustedTime = Math.max(minTime, Math.min(maxTime, theoreticalTime))
+
+    console.log(`🚗 ${this.carType} 車輛速度: ${speed} km/h, 動畫時間: ${adjustedTime.toFixed(1)} 秒`)
+
+    return adjustedTime
+  } // 獲取車輛配置 - 支持不同車輛類型和大小
   getCarConfig() {
     const carConfigs = {
       large: {

@@ -7,29 +7,29 @@ class VehicleDataGenerator {
   constructor() {
     // 車輛類型配置
     this.vehicleTypes = {
-      motorcycle: {
-        name: '機車',
-        length: 2.0, // 米
-        width: 0.8,
-        weight: 250, // kg
-        speedRange: { min: 25, max: 45 }, // km/h
-        accelerationTime: 3, // 秒
+      large: {
+        name: '大型車',
+        length: 12.0,
+        width: 2.5,
+        weight: 15000,
+        speedRange: { min: 10, max: 20 }, // 降低速度
+        accelerationTime: 8,
       },
       small: {
         name: '小型車',
         length: 4.5,
         width: 1.8,
         weight: 1200,
-        speedRange: { min: 20, max: 40 },
+        speedRange: { min: 15, max: 30 }, // 降低速度
         accelerationTime: 5,
       },
-      large: {
-        name: '大型車',
-        length: 12.0,
-        width: 2.5,
-        weight: 15000,
-        speedRange: { min: 15, max: 30 },
-        accelerationTime: 8,
+      motor: {
+        name: '機車',
+        length: 2.0, // 米
+        width: 0.8,
+        weight: 250, // kg
+        speedRange: { min: 18, max: 30 }, // 降低最高速度 km/h
+        accelerationTime: 3, // 秒
       },
     }
   }
@@ -133,9 +133,9 @@ class VehicleDataGenerator {
    */
   calculateFollowDistance(vehicleType, speed) {
     const baseDistance = {
-      motorcycle: 1.5,
-      small: 2.0,
       large: 3.0,
+      small: 2.0,
+      motor: 1.5,
     }
 
     // 距離隨速度增加 (速度越快，安全距離越長)
@@ -159,9 +159,9 @@ class VehicleDataGenerator {
    */
   generateReactionTime(vehicleType) {
     const baseReactionTime = {
-      motorcycle: 0.8, // 機車反應較快
-      small: 1.2,
       large: 1.8, // 大車反應較慢
+      small: 1.2,
+      motor: 0.8, // 機車反應較快
     }
 
     const base = baseReactionTime[vehicleType] || 1.2
@@ -189,6 +189,43 @@ class VehicleDataGenerator {
       avgSpeed: (this.vehicleTypes[type].speedRange.min + this.vehicleTypes[type].speedRange.max) / 2,
       dimensions: this.vehicleTypes[type].length + 'm × ' + this.vehicleTypes[type].width + 'm',
     }))
+  }
+
+  /**
+   * 根據車輛類型生成隨機速度
+   * @param {string} vehicleType - 車輛類型
+   * @returns {number} 隨機速度 (km/h)
+   */
+  generateRandomSpeedForType(vehicleType) {
+    const typeConfig = this.vehicleTypes[vehicleType]
+    if (!typeConfig) {
+      console.warn(`⚠️ 未知的車輛類型: ${vehicleType}`)
+      return 30 // 預設速度
+    }
+
+    return this.generateRealisticSpeed(typeConfig.speedRange)
+  }
+
+  /**
+   * 計算動畫時間（供前端動畫系統使用）
+   * @param {string} vehicleType - 車輛類型
+   * @param {number} distance - 距離（像素）
+   * @returns {number} 動畫時間（秒）
+   */
+  calculateAnimationDuration(vehicleType, distance = 800) {
+    const speed = this.generateRandomSpeedForType(vehicleType)
+    const speedMs = (speed * 1000) / 3600 // 轉換為 m/s
+
+    // 假設 100 像素 = 10 米（比例尺）
+    const realDistance = (distance / 100) * 10
+
+    // 計算理論時間
+    const theoreticalTime = realDistance / speedMs
+
+    // 控制在合理範圍內（5-18秒，增加時間範圍）
+    const minTime = 5
+    const maxTime = 18
+    return Math.max(minTime, Math.min(maxTime, theoreticalTime))
   }
 }
 

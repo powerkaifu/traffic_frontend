@@ -214,13 +214,16 @@ onMounted(() => {
           // 先淡入車子
           await car.fadeIn(1)
 
+          // 計算基於車輛速度的動畫時間
+          const animationDuration = car.calculateAnimationDuration()
+
           // 開始移動動畫 - 使用新的紅綠燈控制移動方法（包含碰撞檢測）
           let movePromise
           if (direction === 'east') {
             movePromise = car.moveToWithTrafficControl(
               endPosition,
               randomLane.y,
-              8,
+              animationDuration,
               trafficController,
               activeCars.value,
             )
@@ -228,7 +231,7 @@ onMounted(() => {
             movePromise = car.moveToWithTrafficControl(
               endPosition,
               randomLane.y,
-              8,
+              animationDuration,
               trafficController,
               activeCars.value,
             )
@@ -236,7 +239,7 @@ onMounted(() => {
             movePromise = car.moveToWithTrafficControl(
               randomLane.x,
               endPosition,
-              8, // 北向車輛速度與其他方向一致
+              animationDuration,
               trafficController,
               activeCars.value,
             )
@@ -244,7 +247,7 @@ onMounted(() => {
             movePromise = car.moveToWithTrafficControl(
               randomLane.x,
               endPosition,
-              8,
+              animationDuration,
               trafficController,
               activeCars.value,
             )
