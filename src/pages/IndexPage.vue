@@ -23,7 +23,7 @@
       <div class="traffic-light bottom-right">
         <img src="/images/light/greenLight.png" alt="往北" />
       </div>
-      
+
       <!-- 交通燈倒數計時器 -->
       <div class="timer-display">
         <div class="timer-content">
