@@ -147,7 +147,6 @@ export default class Car {
       return carHead.x <= stopLine.x && !this.isAtStopLine
     } else if (this.direction === 'north') {
       // 車頭在上方，檢查車頭Y座標是否到達停止線
-      // 北向車輛從下往上移動，當車頭Y座標 <= 停止線Y座標時應該停止
       return carHead.y <= stopLine.y && !this.isAtStopLine
     } else if (this.direction === 'south') {
       // 車頭在下方，檢查車頭Y座標是否到達停止線
@@ -201,22 +200,6 @@ export default class Car {
       centerX: pos.x + size.width / 2,
       centerY: pos.y + size.height / 2,
     }
-  }
-
-  // 檢查與其他車輛的碰撞
-  checkCollisionWith(otherCar) {
-    const thisBox = this.getBoundingBox()
-    const otherBox = otherCar.getBoundingBox()
-
-    // 添加安全距離緩衝區 - 調整為更小的值，讓車輛能更緊密排列
-    const safetyBuffer = 3 // 從15降低到3
-
-    return !(
-      thisBox.right + safetyBuffer < otherBox.left ||
-      thisBox.left - safetyBuffer > otherBox.right ||
-      thisBox.bottom + safetyBuffer < otherBox.top ||
-      thisBox.top - safetyBuffer > otherBox.bottom
-    )
   }
 
   // 檢查前方是否有車輛（同向車道）- 改進版本
@@ -304,47 +287,24 @@ export default class Car {
       const frontCollision = this.checkFrontCollision(allCars)
 
       if (!frontCollision || frontCollision.distance > 3) {
-        this.movementTimeline.resume()
-        this.currentState = 'moving'
-        this.waitingForGreen = false
-        console.log(`車輛 ${this.direction} 綠燈強制恢復移動`)
+        // 生成隨機延遲時間，讓車輛啟動更生動 (0-2秒)
+        const randomDelay = Math.random() * 2
+        console.log(`車輛 ${this.direction} 將在 ${randomDelay.toFixed(2)} 秒後啟動`)
+
+        // 使用 GSAP 的 delayedCall 實現隨機延遲啟動
+        gsap.delayedCall(randomDelay, () => {
+          // 再次檢查車輛狀態，確保仍然需要啟動
+          if (this.waitingForGreen && this.movementTimeline) {
+            this.movementTimeline.resume()
+            this.currentState = 'moving'
+            this.waitingForGreen = false
+            console.log(`車輛 ${this.direction} 延遲 ${randomDelay.toFixed(2)} 秒後綠燈啟動`)
+          }
+        })
       } else {
         console.log(`車輛 ${this.direction} 前方車輛太近，等待空間`)
       }
     }
-  }
-
-  // 獲取各方向的起始點座標
-  static getStartingPoints(direction) {
-    const startingPoints = {
-      east: [
-        { x: 50, y: 200 },
-        // 可在此添加更多東向起始點
-      ],
-      west: [
-        { x: 750, y: 270 }, // 往北移動 10%（從 300 改為 270）
-        // 可在此添加更多西向起始點
-      ],
-      north: [
-        { x: 400, y: 550 },
-        // 可在此添加更多北向起始點
-      ],
-      south: [
-        { x: 300, y: 50 }, // 往南的第一個起始點
-        // 可在此添加更多南向起始點
-      ],
-    }
-    return startingPoints[direction] || []
-  }
-
-  // 從指定方向的起始點創建車輛
-  static createFromStartingPoint(direction, pointIndex = 0) {
-    const points = Car.getStartingPoints(direction)
-    if (points.length > pointIndex) {
-      const point = points[pointIndex]
-      return new Car(point.x, point.y, direction)
-    }
-    throw new Error(`No starting point found for direction: ${direction}, index: ${pointIndex}`)
   }
 
   createElement() {
@@ -366,7 +326,6 @@ export default class Car {
     return div
   }
 
-  // 創建車輛編號標籤
   // 創建車道編號標籤
   createLaneNumberLabel() {
     const label = document.createElement('div')
@@ -401,7 +360,7 @@ export default class Car {
     this.checkLayoutChange()
   }
 
-  moveTo(x, y, duration = 2, ease = 'power2.out') {
+  moveTo(x, y, duration = 2, ease = 'none') {
     return gsap.to(this.element, {
       x: x,
       y: y,
@@ -425,7 +384,6 @@ export default class Car {
           if (currentLightState === 'green') {
             console.log(`定期檢查發現: 車輛 ${this.direction} 應該移動但被卡住，強制啟動`)
             this.forceResumeMovement(allCars)
-            this.waitingForGreen = false
             this.isAtStopLine = false
             this.hasPassedStopLine = true
           }
@@ -491,12 +449,11 @@ export default class Car {
                 if (direction === this.direction && state === 'green' && this.waitingForGreen) {
                   console.log(`車輛 ${this.direction} 準備啟動`)
 
-                  // 使用強制恢復移動方法
+                  // 使用強制恢復移動方法（內含隨機延遲）
                   this.forceResumeMovement(allCars)
-                  this.waitingForGreen = false
                   this.isAtStopLine = false
                   this.hasPassedStopLine = true // 標記已通過停止線
-                  console.log(`車輛 ${this.direction} 綠燈亮起，繼續前進`)
+                  console.log(`車輛 ${this.direction} 綠燈亮起，將隨機延遲啟動`)
 
                   // 移除觀察者
                   trafficController.removeObserver(onLightChange)
@@ -515,7 +472,6 @@ export default class Car {
                   if (currentLightState === 'green') {
                     console.log(`超時恢復: 車輛 ${this.direction} 檢測到綠燈，強制啟動`)
                     this.forceResumeMovement(allCars)
-                    this.waitingForGreen = false
                     this.isAtStopLine = false
                     this.hasPassedStopLine = true
                     trafficController.removeObserver(onLightChange)
@@ -550,12 +506,12 @@ export default class Car {
         },
       })
 
-      // 添加移動動畫
+      // 添加移動動畫 - 使用線性動畫
       this.movementTimeline.to(this.element, {
         x: targetX,
         y: targetY,
         duration: duration,
-        ease: 'none',
+        ease: 'none', // 線性動畫，恆定速度
       })
     })
   }
