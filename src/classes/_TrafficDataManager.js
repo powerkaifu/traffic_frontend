@@ -1,10 +1,29 @@
 /**
+ * TrafficDataManager.js - 交通數據管理器
+ *
+ * 設計模式:
+ * - Factory Pattern (工廠模式): 統一創建和管理交通數據
+ * - Strategy Pattern (策略模式): 不同場景下的數據生成策略
+ * - Facade Pattern (外觀模式): 為複雜的數據處理提供簡化接口
+ * - Observer Pattern (觀察者模式): 監聽和通知數據變化事件
+ * - Template Method Pattern (模板方法模式): 標準化數據處理流程
+ * - Adapter Pattern (適配器模式): 適配不同數據格式和接口
+ *
+ * 系統角色:
+ * - 數據協調器: 統籌管理整個系統的交通數據流
+ * - 場景管理器: 根據不同交通場景調整數據生成策略
+ * - 格式轉換器: 將內部數據格式轉換為 API 需要的格式
+ * - 事件中心: 管理數據更新的事件通知機制
+ * - 性能監控器: 監控和優化數據處理性能
+ * - 配置中心: 管理系統的各種配置參數
+ */
+/**
  * 交通數據管理器 - 使用 Factory Pattern + Strategy Pattern
  * 負責生成、管理和分配交通數據到各個路口
  */
 
-import VehicleDataGenerator from './VehicleDataGenerator.js'
-import IntersectionDataProcessor from './IntersectionDataProcessor.js'
+import VehicleDataGenerator from './_VehicleDataGenerator.js'
+import IntersectionDataProcessor from './_IntersectionDataProcessor.js'
 
 class TrafficDataManager {
   constructor() {

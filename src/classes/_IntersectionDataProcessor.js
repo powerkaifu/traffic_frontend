@@ -1,6 +1,19 @@
 /**
- * 路口數據處理器 - 使用 Strategy Pattern
- * 負責處理和計算交通數據，包含速度、佔用率等統計值
+ * IntersectionDataProcessor.js - 路口數據處理器
+ *
+ * 設計模式:
+ * - Strategy Pattern (策略模式): 不同交通場景的處理策略 (smooth/一般/congested)
+ * - Factory Pattern (工廠模式): 創建不同場景下的數據處理器
+ * - Template Method Pattern (模板方法模式): 標準化數據處理流程
+ * - Builder Pattern (建造者模式): 逐步構建複雜的統計數據
+ * - Command Pattern (命令模式): 將數據處理操作封裝為命令
+ *
+ * 系統角色:
+ * - 數據分析器: 分析和計算交通流量統計數據
+ * - 策略執行器: 根據場景選擇合適的處理策略
+ * - 統計計算器: 計算速度、占有率、密度等交通指標
+ * - 場景適配器: 將原始數據適配到不同交通場景
+ * - 性能評估器: 評估交通流的性能指標
  */
 
 class IntersectionDataProcessor {

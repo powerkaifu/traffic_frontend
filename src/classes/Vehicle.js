@@ -1,3 +1,22 @@
+/**
+ * Vehicle.js - 車輛實體類別
+ *
+ * 設計模式:
+ * - Factory Pattern (工廠模式): 透過參數動態創建不同類型車輛 (motor/small/large)
+ * - State Pattern (狀態模式): 管理車輛狀態 (waiting/moving/waitingForGreen/waitingForVehicle)
+ * - Observer Pattern (觀察者模式): 監聽交通燈變化並相應調整行為
+ * - Strategy Pattern (策略模式): 不同轉彎行為策略 (straight/left/right)
+ * - Command Pattern (命令模式): 將車輛移動封裝為可執行的命令
+ * - Composite Pattern (組合模式): 車輛由多個元件組成 (主體/標籤/動畫)
+ *
+ * 系統角色:
+ * - 交通參與者: 模擬真實道路上的各種車輛行為
+ * - 動畫實體: 負責視覺呈現和動畫效果
+ * - 數據提供者: 向交通控制器回報車輛統計數據
+ * - 碰撞檢測器: 實現車輛間的安全距離控制
+ * - 智能代理: 根據交通狀況做出移動決策
+ * - 轉彎執行器: 實現複雜的車輛轉彎路徑規劃
+ */
 import { gsap } from 'gsap'
 
 export default class Vehicle {
