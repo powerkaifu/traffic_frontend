@@ -23,24 +23,7 @@
       <div class="traffic-light bottom-right">
         <img src="/images/light/greenLight.png" alt="往北" />
       </div>
-      <!-- 西邊起始位置標記點 -->
-      <div class="start-position west-start"></div>
-      <div class="start-position west-start-2"></div>
-      <div class="start-position west-start-3"></div>
-      <div class="start-position west-start-4"></div>
-
-      <!-- 北邊起始位置標記點 -->
-      <div class="start-position north-start"></div>
-      <div class="start-position north-start-2"></div>
-      <div class="start-position north-start-3"></div>
-      <div class="start-position north-start-4"></div>
-
-      <!-- 東邊起始位置標記點 -->
-      <div class="start-position east-start"></div>
-      <div class="start-position east-start-2"></div>
-      <div class="start-position east-start-3"></div>
-      <div class="start-position east-start-4"></div>
-
+      
       <!-- 交通燈倒數計時器 -->
       <div class="timer-display">
         <div class="timer-content">

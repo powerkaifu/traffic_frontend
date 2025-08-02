@@ -5,7 +5,6 @@
  * - Factory Pattern (工廠模式): 透過參數動態創建不同類型車輛 (motor/small/large)
  * - State Pattern (狀態模式): 管理車輛狀態 (waiting/moving/waitingForGreen/waitingForVehicle)
  * - Observer Pattern (觀察者模式): 監聽交通燈變化並相應調整行為
- * - Strategy Pattern (策略模式): 不同轉彎行為策略 (straight/left/right)
  * - Command Pattern (命令模式): 將車輛移動封裝為可執行的命令
  * - Composite Pattern (組合模式): 車輛由多個元件組成 (主體/標籤/動畫)
  *
@@ -15,19 +14,14 @@
  * - 數據提供者: 向交通控制器回報車輛統計數據
  * - 碰撞檢測器: 實現車輛間的安全距離控制
  * - 智能代理: 根據交通狀況做出移動決策
- * - 轉彎執行器: 實現複雜的車輛轉彎路徑規劃
  */
 import { gsap } from 'gsap'
 
 export default class Vehicle {
-  static vehicleCounter = 0 // 靜態計數器，用於車輛編號
-
-  constructor(x, y, direction = 'east', vehicleType = 'large', laneNumber = 1, turnDirection = 'straight') {
+  constructor(x, y, direction = 'east', vehicleType = 'large', laneNumber = 1) {
     this.direction = direction
     this.vehicleType = vehicleType // 車輛類型（motor, small, large）
     this.laneNumber = laneNumber // 車道編號
-    this.turnDirection = turnDirection // 轉彎方向（straight, left, right）
-    this.element = this.createElement()
     this.currentState = 'waiting' // 初始狀態
     this.movementTimeline = null
     this.isAtStopLine = false
@@ -35,11 +29,10 @@ export default class Vehicle {
     this.hasPassedStopLine = false // 標記是否已經通過停止線
     this.periodicCheckTimer = null // 定期檢查定時器
     this.containerPosition = null // 記錄容器位置，用於檢測佈局變化
+    this.element = this.createElement()
 
-    // 車輛編號系統
-    Vehicle.vehicleCounter++
-    this.vehicleNumber = Vehicle.vehicleCounter
-    this.id = 'vehicle_' + this.vehicleNumber + '_' + Date.now()
+    // 生成唯一識別ID（用於碰撞檢測）
+    this.id = 'vehicle_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)
 
     gsap.set(this.element, {
       x: x,
@@ -100,113 +93,79 @@ export default class Vehicle {
     const maxTime = 18
     const adjustedTime = Math.max(minTime, Math.min(maxTime, theoreticalTime))
 
-    console.log(`🚗 ${this.vehicleType} 車輛速度: ${speed} km/h, 動畫時間: ${adjustedTime.toFixed(1)} 秒`)
-
     return adjustedTime
   }
 
-  // 計算轉彎路徑
-  calculateTurnPath() {
-    // 根據轉彎方向計算路徑點
-    const paths = {
-      straight: this.calculateStraightPath(),
-      left: this.calculateLeftTurnPath(),
-      right: this.calculateRightTurnPath(),
-    }
+  createElement() {
+    // 獲取車輛配置（尺寸和圖片）
+    const vehicleConfig = this.getVehicleConfig()
 
-    return paths[this.turnDirection] || paths.straight
+    const div = document.createElement('div')
+    div.className = 'vehicle' // 改為 vehicle 類名
+    div.vehicleInstance = this // 保存車輛實例的引用
+    div.style.cssText = `
+      position: absolute;
+      width: ${vehicleConfig.width}px;
+      height: ${vehicleConfig.height}px;
+      background-image: url('${vehicleConfig.image}');
+      background-size: contain;
+      background-repeat: no-repeat;
+      z-index: 10;
+    `
+    return div
   }
 
-  // 計算直行路徑
-  calculateStraightPath() {
-    const container = document.querySelector('.crossroad-area')
-    if (!container) return []
+  // 創建車道編號標籤
+  createLaneNumberLabel() {
+    const label = document.createElement('div')
+    label.className = 'vehicle-lane-label' // 改為 vehicle 類名
+    label.textContent = this.laneNumber
 
-    const containerRect = container.getBoundingClientRect()
-    let targetX, targetY
-
-    if (this.direction === 'east') {
-      targetX = containerRect.width + 100
-      targetY = gsap.getProperty(this.element, 'y')
-    } else if (this.direction === 'west') {
-      targetX = -100
-      targetY = gsap.getProperty(this.element, 'y')
-    } else if (this.direction === 'north') {
-      targetX = gsap.getProperty(this.element, 'x')
-      targetY = -100
+    // 根據車輛方向調整標籤位置
+    let labelPosition = ''
+    if (this.direction === 'north') {
+      // 北向：標籤放在車輛尾部（下方）
+      labelPosition = `
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin-top: 2px;
+      `
     } else if (this.direction === 'south') {
-      targetX = gsap.getProperty(this.element, 'x')
-      targetY = containerRect.height + 100
-    }
-
-    return [{ x: targetX, y: targetY }]
-  }
-
-  // 計算左轉路徑
-  calculateLeftTurnPath() {
-    // 實現左轉路徑計算邏輯
-    // 這裡需要根據路口佈局計算轉彎點
-    const currentX = gsap.getProperty(this.element, 'x')
-    const currentY = gsap.getProperty(this.element, 'y')
-
-    // 簡化的左轉路徑
-    if (this.direction === 'east') {
-      // 東向左轉 -> 北向
-      return [
-        { x: currentX + 200, y: currentY },
-        { x: currentX + 250, y: currentY - 50 },
-        { x: currentX + 250, y: -100 },
-      ]
-    }
-    // 其他方向的左轉邏輯...
-
-    return this.calculateStraightPath()
-  }
-
-  // 計算右轉路徑
-  calculateRightTurnPath() {
-    // 實現右轉路徑計算邏輯
-    const currentX = gsap.getProperty(this.element, 'x')
-    const currentY = gsap.getProperty(this.element, 'y')
-
-    // 簡化的右轉路徑
-    if (this.direction === 'east') {
-      // 東向右轉 -> 南向
-      return [
-        { x: currentX + 200, y: currentY },
-        { x: currentX + 250, y: currentY + 50 },
-        { x: currentX + 250, y: 600 },
-      ]
-    }
-    // 其他方向的右轉邏輯...
-
-    return this.calculateStraightPath()
-  }
-
-  // 使用轉彎功能的移動方法
-  moveWithTurning() {
-    const path = this.calculateTurnPath()
-    const duration = this.calculateAnimationDuration()
-
-    if (path.length === 1) {
-      // 直行
-      return this.moveTo(path[0].x, path[0].y, duration)
+      // 南向：標籤放在車輛尾部（上方）
+      labelPosition = `
+        top: -18px;
+        left: 50%;
+        transform: translateX(-50%);
+      `
     } else {
-      // 轉彎 - 使用多段路徑
-      const timeline = gsap.timeline()
-
-      path.forEach((point, index) => {
-        const segmentDuration = duration / path.length
-        timeline.to(this.element, {
-          x: point.x,
-          y: point.y,
-          duration: segmentDuration,
-          ease: index === 0 ? 'none' : 'power2.inOut',
-        })
-      })
-
-      return timeline
+      // 水平方向：標籤放在車輛上方
+      labelPosition = `
+        top: -12px;
+        left: 50%;
+        transform: translateX(-50%);
+      `
     }
+
+    label.style.cssText = `
+      position: absolute;
+      ${labelPosition}
+      background: rgba(0, 123, 255, 0.9);
+      color: white;
+      font-size: 9px;
+      font-weight: bold;
+      padding: 1px 5px;
+      border-radius: 7px;
+      border: 1px solid #0066cc;
+      z-index: 20;
+      pointer-events: none;
+      min-width: 16px;
+      text-align: center;
+      font-family: Arial, sans-serif;
+    `
+
+    this.element.appendChild(label)
+    this.laneLabel = label
   }
 
   // 獲取車輛配置 - 支持不同車輛類型和大小
@@ -295,7 +254,6 @@ export default class Vehicle {
       Math.abs(currentRect.height - this.containerPosition.height) > tolerance
 
     if (changed) {
-      console.log(`🔄 檢測到佈局變化，車輛 ${this.direction} 更新容器位置`)
       this.containerPosition = {
         left: currentRect.left,
         top: currentRect.top,
@@ -451,7 +409,6 @@ export default class Vehicle {
       if (!frontCollision || (!frontCollision.shouldStop && frontCollision.vehicle.currentState === 'moving')) {
         this.movementTimeline.resume()
         this.currentState = 'moving'
-        console.log(`車輛 ${this.direction} 恢復移動`)
       }
     }
   }
@@ -465,7 +422,6 @@ export default class Vehicle {
       if (!frontCollision || frontCollision.distance > 3) {
         // 生成隨機延遲時間，讓車輛啟動更生動 (0-2秒)
         const randomDelay = Math.random() * 2
-        console.log(`車輛 ${this.direction} 將在 ${randomDelay.toFixed(2)} 秒後啟動`)
 
         // 使用 GSAP 的 delayedCall 實現隨機延遲啟動
         gsap.delayedCall(randomDelay, () => {
@@ -474,100 +430,18 @@ export default class Vehicle {
             this.movementTimeline.resume()
             this.currentState = 'moving'
             this.waitingForGreen = false
-            console.log(`車輛 ${this.direction} 延遲 ${randomDelay.toFixed(2)} 秒後綠燈啟動`)
           }
         })
       } else {
-        console.log(`車輛 ${this.direction} 前方車輛太近，等待空間`)
+        // 車輛前方太近，等待空間
       }
     }
-  }
-
-  createElement() {
-    // 獲取車輛配置（尺寸和圖片）
-    const vehicleConfig = this.getVehicleConfig()
-
-    const div = document.createElement('div')
-    div.className = 'vehicle' // 改為 vehicle 類名
-    div.vehicleInstance = this // 保存車輛實例的引用
-    div.style.cssText = `
-      position: absolute;
-      width: ${vehicleConfig.width}px;
-      height: ${vehicleConfig.height}px;
-      background-image: url('${vehicleConfig.image}');
-      background-size: contain;
-      background-repeat: no-repeat;
-      z-index: 10;
-    `
-    return div
-  }
-
-  // 創建車道編號標籤
-  createLaneNumberLabel() {
-    const label = document.createElement('div')
-    label.className = 'vehicle-lane-label' // 改為 vehicle 類名
-    label.textContent = this.laneNumber
-
-    // 根據車輛方向調整標籤位置
-    let labelPosition = ''
-    if (this.direction === 'north') {
-      // 北向：標籤放在車輛尾部（下方）
-      labelPosition = `
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        margin-top: 2px;
-      `
-    } else if (this.direction === 'south') {
-      // 南向：標籤放在車輛尾部（上方）
-      labelPosition = `
-        top: -18px;
-        left: 50%;
-        transform: translateX(-50%);
-      `
-    } else {
-      // 水平方向：標籤放在車輛上方
-      labelPosition = `
-        top: -12px;
-        left: 50%;
-        transform: translateX(-50%);
-      `
-    }
-
-    label.style.cssText = `
-      position: absolute;
-      ${labelPosition}
-      background: rgba(0, 123, 255, 0.9);
-      color: white;
-      font-size: 9px;
-      font-weight: bold;
-      padding: 1px 5px;
-      border-radius: 7px;
-      border: 1px solid #0066cc;
-      z-index: 20;
-      pointer-events: none;
-      min-width: 16px;
-      text-align: center;
-      font-family: Arial, sans-serif;
-    `
-
-    this.element.appendChild(label)
-    this.laneLabel = label
   }
 
   addTo(container) {
     container.appendChild(this.element)
     // 初始化時記錄容器位置
     this.checkLayoutChange()
-  }
-
-  moveTo(x, y, duration = 2, ease = 'none') {
-    return gsap.to(this.element, {
-      x: x,
-      y: y,
-      duration: duration,
-      ease: ease,
-    })
   }
 
   // 帶有紅綠燈控制的移動方法 - 改進版本
@@ -583,7 +457,6 @@ export default class Vehicle {
         if (this.waitingForGreen) {
           const currentLightState = trafficController.getCurrentLightState(this.direction)
           if (currentLightState === 'green') {
-            console.log(`定期檢查發現: 車輛 ${this.direction} 應該移動但被卡住，強制啟動`)
             this.forceResumeMovement(allVehicles)
             this.isAtStopLine = false
             this.hasPassedStopLine = true
@@ -594,7 +467,6 @@ export default class Vehicle {
         if (this.currentState === 'waitingForVehicle') {
           const frontCollision = this.checkFrontCollision(allVehicles)
           if (!frontCollision || frontCollision.distance > 10) {
-            console.log(`定期檢查發現: 車輛 ${this.direction} 前方已清空，恢復移動`)
             this.resumeMovement(allVehicles)
           }
         }
@@ -628,7 +500,6 @@ export default class Vehicle {
             // 如果前方車輛已離開安全距離，恢復移動
             this.resumeMovement(allVehicles)
             this.currentState = 'moving'
-            console.log(`車輛 ${this.direction} 前方車輛離開，恢復移動`)
           }
 
           // 檢查是否到達停止線（只有未通過停止線的車輛才檢查）
@@ -645,13 +516,10 @@ export default class Vehicle {
               // 監聽紅綠燈變化 - 改進版本
               const onLightChange = (direction, state) => {
                 if (direction === this.direction && state === 'green' && this.waitingForGreen) {
-                  console.log(`車輛 ${this.direction} 準備啟動`)
-
                   // 使用強制恢復移動方法（內含隨機延遲）
                   this.forceResumeMovement(allVehicles)
                   this.isAtStopLine = false
                   this.hasPassedStopLine = true // 標記已通過停止線
-                  console.log(`車輛 ${this.direction} 綠燈亮起，將隨機延遲啟動`)
 
                   // 移除觀察者
                   trafficController.removeObserver(onLightChange)
@@ -667,7 +535,6 @@ export default class Vehicle {
                   const currentLightState = trafficController.getCurrentLightState(this.direction)
 
                   if (currentLightState === 'green') {
-                    console.log(`超時恢復: 車輛 ${this.direction} 檢測到綠燈，強制啟動`)
                     this.forceResumeMovement(allVehicles)
                     this.isAtStopLine = false
                     this.hasPassedStopLine = true

@@ -20,6 +20,7 @@ import TrafficLight from './TrafficLight.js'
 
 export default class TrafficLightController {
   constructor() {
+    // Strategy Pattern: 不同方向的燈號管理策略
     this.lights = {
       east: null, // 往東 (RoadA)
       west: null, // 往西 (RoadB)
@@ -27,11 +28,13 @@ export default class TrafficLightController {
       north: null, // 往北 (RoadD)
     }
     this.isRunning = false
+    // State Pattern: 當前時相狀態管理
     this.currentPhase = 'northSouth' // eastWest 或 northSouth - 一開始以南北向為主
     this.onTimerUpdate = null // 倒數更新回調函數
 
-    // 觀察者模式相關
+    // Observer Pattern: 觀察者模式相關
     this.observers = [] // 觀察者列表
+    // State Pattern: 管理所有方向的燈號狀態
     this.currentLightStates = {
       east: 'red',
       west: 'red',
@@ -43,13 +46,13 @@ export default class TrafficLightController {
     this.apiEndpoint = 'http://localhost:8000/api/traffic/predict/'
     this.onPredictionUpdate = null // AI 預測更新回調函數
 
-    // 動態綠燈時間（AI 預測結果）
+    // Strategy Pattern: 動態綠燈時間策略（AI 預測結果）
     this.dynamicTiming = {
       eastWest: 15, // 東西向綠燈時間（秒）
       northSouth: 15, // 南北向綠燈時間（秒）- 一開始以南北向為主
     }
 
-    // 下一輪的時間預測（提前獲取）
+    // Strategy Pattern: 下一輪的時間預測策略（提前獲取）
     this.nextTiming = {
       eastWest: 15,
       northSouth: 15,
@@ -64,55 +67,171 @@ export default class TrafficLightController {
     }
   }
 
-  // 添加觀察者
+  // ==========================================
+  // 🔍 Observer Pattern (觀察者模式) 方法群組
+  // ==========================================
+
+  // Observer Pattern: 添加觀察者
   addObserver(callback) {
     this.observers.push(callback)
   }
 
-  // 移除觀察者
+  // Observer Pattern: 移除觀察者
   removeObserver(callback) {
     this.observers = this.observers.filter((obs) => obs !== callback)
   }
 
-  // 通知觀察者
+  // Observer Pattern: 通知所有觀察者
   notifyObservers(direction, state) {
     this.observers.forEach((callback) => {
       callback(direction, state)
     })
   }
 
-  // 獲取當前燈號狀態
+  // ==========================================
+  // 🏭 Factory Pattern (工廠模式) 方法群組
+  // ==========================================
+
+  // Factory Pattern: 初始化所有紅綠燈
+  init(eastElement, westElement, southElement, northElement) {
+    // Factory Pattern: 創建 TrafficLight 實例
+    this.lights.east = new TrafficLight(eastElement)
+    this.lights.west = new TrafficLight(westElement)
+    this.lights.south = new TrafficLight(southElement)
+    this.lights.north = new TrafficLight(northElement)
+
+    // State Pattern: 設置初始狀態：南北向綠燈，東西向紅燈（一開始以南北向為主）
+    this.updateLightState('south', 'green')
+    this.updateLightState('north', 'green')
+    this.updateLightState('east', 'red')
+    this.updateLightState('west', 'red')
+    this.currentPhase = 'northSouth' // 一開始以南北向為主
+  }
+
+  // ==========================================
+  // 🔄 State Pattern (狀態模式) 方法群組
+  // ==========================================
+
+  // State Pattern: 獲取當前燈號狀態
   getCurrentLightState(direction) {
     return this.currentLightStates[direction]
   }
 
-  // 更新燈號狀態
+  // State Pattern: 更新燈號狀態並通知觀察者
   updateLightState(direction, state) {
     this.currentLightStates[direction] = state
     if (this.lights[direction]) {
       this.lights[direction].setState(state)
     }
-    this.notifyObservers(direction, state)
+    this.notifyObservers(direction, state) // Observer Pattern
   }
 
-  // 設置倒數更新回調
-  setTimerUpdateCallback(callback) {
-    this.onTimerUpdate = callback
+  // State Pattern: 獲取當前時相
+  getCurrentPhase() {
+    return this.currentPhase
   }
 
-  // 設置 AI 預測更新回調
-  setPredictionUpdateCallback(callback) {
-    this.onPredictionUpdate = callback
-  }
+  // ==========================================
+  // 📋 Template Method Pattern (模板方法模式) 方法群組
+  // ==========================================
 
-  // 更新車輛數據
-  updateVehicleData(direction, vehicleType) {
-    if (this.vehicleData[direction] && this.vehicleData[direction][vehicleType] !== undefined) {
-      this.vehicleData[direction][vehicleType]++
+  // Template Method Pattern: 運行一個完整的燈號循環
+  async runCycle() {
+    while (this.isRunning) {
+      // State Pattern: 根據當前時相選擇處理策略
+      if (this.currentPhase === 'northSouth') {
+        // Strategy Pattern: 南北向綠燈階段處理策略
+        console.log(`🚥 南北向綠燈開始 - 時間: ${this.dynamicTiming.northSouth}秒`)
+        this.updateTimer('南北向 綠燈', this.dynamicTiming.northSouth)
+
+        // Template Method: 完整倒數南北向綠燈，在剩餘10秒時發送API
+        await this.countdownDelayWithAPI(this.dynamicTiming.northSouth * 1000, 10)
+
+        // Template Method: 南北向：綠燈 -> 黃燈 -> 紅燈
+        this.updateLightState('south', 'yellow')
+        this.updateLightState('north', 'yellow')
+        this.updateTimer('南北向 黃燈', 2)
+        await this.countdownDelay(2000) // 黃燈 2 秒
+
+        this.updateLightState('south', 'red')
+        this.updateLightState('north', 'red')
+        this.updateLightState('east', 'green')
+        this.updateLightState('west', 'green')
+
+        // Strategy Pattern: 更新當前使用的時間為下一輪的時間
+        this.dynamicTiming.eastWest = this.nextTiming.eastWest
+        this.currentPhase = 'eastWest'
+      } else {
+        // Strategy Pattern: 東西向綠燈階段處理策略
+        console.log(`🚥 東西向綠燈開始 - 時間: ${this.dynamicTiming.eastWest}秒`)
+        this.updateTimer('東西向 綠燈', this.dynamicTiming.eastWest)
+
+        // Template Method: 東西向不需要API請求，直接倒數完成
+        await this.countdownDelay(this.dynamicTiming.eastWest * 1000)
+
+        // Template Method: 東西向：綠燈 -> 黃燈 -> 紅燈
+        console.log('東西向：綠燈 -> 黃燈')
+        this.updateLightState('east', 'yellow')
+        this.updateLightState('west', 'yellow')
+        this.updateTimer('東西向 黃燈', 2)
+        await this.countdownDelay(2000) // 黃燈 2 秒
+
+        console.log('東西向：黃燈 -> 紅燈，南北向：紅燈 -> 綠燈')
+        this.updateLightState('east', 'red')
+        this.updateLightState('west', 'red')
+        this.updateLightState('south', 'green')
+        this.updateLightState('north', 'green')
+
+        // Strategy Pattern: 更新當前使用的時間為下一輪的時間
+        this.dynamicTiming.northSouth = this.nextTiming.northSouth
+        this.currentPhase = 'northSouth'
+      }
+
+      // 重置車輛數據以準備下一輪收集
+      this.resetVehicleData()
     }
   }
 
-  // 收集路口數據（VD 格式）
+  // Template Method Pattern: 倒數延遲函數
+  async countdownDelay(totalMs) {
+    const totalSeconds = Math.floor(totalMs / 1000)
+
+    for (let i = totalSeconds; i > 0; i--) {
+      if (this.onTimerUpdate) {
+        // 只更新倒數秒數，不改變時相描述
+        this.onTimerUpdate(null, i)
+      }
+      await this.delay(1000)
+    }
+  }
+
+  // Template Method Pattern: 帶API觸發的倒數延遲函數（專用於南北向綠燈）
+  async countdownDelayWithAPI(totalMs, apiTriggerSeconds) {
+    const totalSeconds = Math.floor(totalMs / 1000)
+    let apiTriggered = false
+
+    for (let i = totalSeconds; i > 0; i--) {
+      if (this.onTimerUpdate) {
+        // 只更新倒數秒數，不改變時相描述
+        this.onTimerUpdate(null, i)
+      }
+
+      // Strategy Pattern: 在剩餘指定秒數時觸發API
+      if (i === apiTriggerSeconds && !apiTriggered) {
+        console.log(`⏰ 剩餘 ${apiTriggerSeconds} 秒，開始請求下一輪 AI 預測...`)
+        this.sendDataToBackend() // 異步請求，不等待結果
+        apiTriggered = true
+      }
+
+      await this.delay(1000)
+    }
+  }
+
+  // ==========================================
+  // 🎯 Strategy Pattern (策略模式) 方法群組
+  // ==========================================
+
+  // Strategy Pattern: 收集路口數據（VD 格式）- 數據收集策略
   collectIntersectionData() {
     const now = new Date()
     const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay() // 週日為7，週一為1
@@ -125,7 +244,7 @@ export default class TrafficLightController {
 
     const vdData = []
 
-    // VD_ID 映射到路段
+    // Strategy Pattern: VD_ID 映射策略
     const vdMapping = {
       east: 'VLRJX20', // 東向
       west: 'VLRJM60', // 西向
@@ -182,8 +301,9 @@ export default class TrafficLightController {
     return vdData
   }
 
-  // 獲取各車型的平均速度
+  // Strategy Pattern: 獲取各車型的平均速度策略
   getAverageSpeed(direction, vehicleType) {
+    // Strategy Pattern: 不同車型的速度範圍策略
     const speedRanges = {
       motor: { min: 25, max: 45, avg: 35 },
       small: { min: 20, max: 40, avg: 30 },
@@ -193,7 +313,7 @@ export default class TrafficLightController {
     const range = speedRanges[vehicleType]
     if (!range) return 30
 
-    // 根據路段占有率調整速度
+    // Strategy Pattern: 根據路段占有率調整速度的策略
     const occupancy = parseFloat(this.calculateOccupancy(direction))
     let speedFactor = 1.0
 
@@ -208,7 +328,7 @@ export default class TrafficLightController {
     return Math.round(range.avg * speedFactor)
   }
 
-  // 計算路段占有率
+  // Strategy Pattern: 計算路段占有率策略
   calculateOccupancy(direction) {
     const data = this.vehicleData[direction]
     const totalVehicles = data.motor + data.small + data.large
@@ -217,7 +337,7 @@ export default class TrafficLightController {
     return Math.min((totalVehicles / maxCapacity) * 100, 100).toFixed(1)
   }
 
-  // 發送數據到後端 API（提前 10 秒請求）
+  // Strategy Pattern: 發送數據到後端 API（提前 10 秒請求）
   async sendDataToBackend() {
     try {
       const vdData = this.collectIntersectionData()
@@ -238,12 +358,12 @@ export default class TrafficLightController {
       const result = await response.json()
       console.log('🤖 AI 預測結果:', result)
 
-      // 更新下一輪的綠燈時間
+      // Strategy Pattern: 更新下一輪的綠燈時間策略
       if (result.east_west_seconds && result.south_north_seconds) {
         this.nextTiming.eastWest = result.east_west_seconds
         this.nextTiming.northSouth = result.south_north_seconds
 
-        // 通知 UI 更新預測結果
+        // Observer Pattern: 通知 UI 更新預測結果
         if (this.onPredictionUpdate) {
           this.onPredictionUpdate({
             eastWest: result.east_west_seconds,
@@ -260,34 +380,16 @@ export default class TrafficLightController {
       return result
     } catch (error) {
       console.warn('⚠️ API 呼叫失敗，使用預設時間:', error.message)
-      // API 失敗時使用預設時間
+      // Strategy Pattern: API 失敗時使用預設時間策略
       this.nextTiming.eastWest = 15
       this.nextTiming.northSouth = 15
       return null
     }
   }
 
-  // 重置車輛數據
-  resetVehicleData() {
-    Object.keys(this.vehicleData).forEach((direction) => {
-      this.vehicleData[direction] = { motor: 0, small: 0, large: 0 }
-    })
-  }
-
-  // 初始化所有紅綠燈
-  init(eastElement, westElement, southElement, northElement) {
-    this.lights.east = new TrafficLight(eastElement)
-    this.lights.west = new TrafficLight(westElement)
-    this.lights.south = new TrafficLight(southElement)
-    this.lights.north = new TrafficLight(northElement)
-
-    // 設置初始狀態：南北向綠燈，東西向紅燈（一開始以南北向為主）
-    this.updateLightState('south', 'green')
-    this.updateLightState('north', 'green')
-    this.updateLightState('east', 'red')
-    this.updateLightState('west', 'red')
-    this.currentPhase = 'northSouth' // 一開始以南北向為主
-  }
+  // ==========================================
+  // 🔧 系統控制和工具方法群組
+  // ==========================================
 
   // 開始交通燈控制
   start() {
@@ -302,60 +404,28 @@ export default class TrafficLightController {
     this.isRunning = false
   }
 
-  // 運行一個完整的燈號循環
-  async runCycle() {
-    while (this.isRunning) {
-      if (this.currentPhase === 'northSouth') {
-        // 南北向綠燈階段
-        console.log(`🚥 南北向綠燈開始 - 時間: ${this.dynamicTiming.northSouth}秒`)
-        this.updateTimer('南北向 綠燈', this.dynamicTiming.northSouth)
+  // 設置倒數更新回調
+  setTimerUpdateCallback(callback) {
+    this.onTimerUpdate = callback
+  }
 
-        // 完整倒數南北向綠燈，在剩餘10秒時發送API
-        await this.countdownDelayWithAPI(this.dynamicTiming.northSouth * 1000, 10)
+  // 設置 AI 預測更新回調
+  setPredictionUpdateCallback(callback) {
+    this.onPredictionUpdate = callback
+  }
 
-        // 南北向：綠燈 -> 黃燈 -> 紅燈
-        this.updateLightState('south', 'yellow')
-        this.updateLightState('north', 'yellow')
-        this.updateTimer('南北向 黃燈', 2)
-        await this.countdownDelay(2000) // 黃燈 2 秒
-
-        this.updateLightState('south', 'red')
-        this.updateLightState('north', 'red')
-        this.updateLightState('east', 'green')
-        this.updateLightState('west', 'green')
-
-        // 更新當前使用的時間為下一輪的時間
-        this.dynamicTiming.eastWest = this.nextTiming.eastWest
-        this.currentPhase = 'eastWest'
-      } else {
-        // 東西向綠燈階段
-        console.log(`🚥 東西向綠燈開始 - 時間: ${this.dynamicTiming.eastWest}秒`)
-        this.updateTimer('東西向 綠燈', this.dynamicTiming.eastWest)
-
-        // 東西向不需要API請求，直接倒數完成
-        await this.countdownDelay(this.dynamicTiming.eastWest * 1000)
-
-        // 東西向：綠燈 -> 黃燈 -> 紅燈
-        console.log('東西向：綠燈 -> 黃燈')
-        this.updateLightState('east', 'yellow')
-        this.updateLightState('west', 'yellow')
-        this.updateTimer('東西向 黃燈', 2)
-        await this.countdownDelay(2000) // 黃燈 2 秒
-
-        console.log('東西向：黃燈 -> 紅燈，南北向：紅燈 -> 綠燈')
-        this.updateLightState('east', 'red')
-        this.updateLightState('west', 'red')
-        this.updateLightState('south', 'green')
-        this.updateLightState('north', 'green')
-
-        // 更新當前使用的時間為下一輪的時間
-        this.dynamicTiming.northSouth = this.nextTiming.northSouth
-        this.currentPhase = 'northSouth'
-      }
-
-      // 重置車輛數據以準備下一輪收集
-      this.resetVehicleData()
+  // 更新車輛數據
+  updateVehicleData(direction, vehicleType) {
+    if (this.vehicleData[direction] && this.vehicleData[direction][vehicleType] !== undefined) {
+      this.vehicleData[direction][vehicleType]++
     }
+  }
+
+  // 重置車輛數據
+  resetVehicleData() {
+    Object.keys(this.vehicleData).forEach((direction) => {
+      this.vehicleData[direction] = { motor: 0, small: 0, large: 0 }
+    })
   }
 
   // 更新計時器顯示
@@ -365,48 +435,8 @@ export default class TrafficLightController {
     }
   }
 
-  // 倒數延遲函數
-  async countdownDelay(totalMs) {
-    const totalSeconds = Math.floor(totalMs / 1000)
-
-    for (let i = totalSeconds; i > 0; i--) {
-      if (this.onTimerUpdate) {
-        // 只更新倒數秒數，不改變時相描述
-        this.onTimerUpdate(null, i)
-      }
-      await this.delay(1000)
-    }
-  }
-
-  // 帶API觸發的倒數延遲函數（專用於南北向綠燈）
-  async countdownDelayWithAPI(totalMs, apiTriggerSeconds) {
-    const totalSeconds = Math.floor(totalMs / 1000)
-    let apiTriggered = false
-
-    for (let i = totalSeconds; i > 0; i--) {
-      if (this.onTimerUpdate) {
-        // 只更新倒數秒數，不改變時相描述
-        this.onTimerUpdate(null, i)
-      }
-
-      // 在剩餘指定秒數時觸發API
-      if (i === apiTriggerSeconds && !apiTriggered) {
-        console.log(`⏰ 剩餘 ${apiTriggerSeconds} 秒，開始請求下一輪 AI 預測...`)
-        this.sendDataToBackend() // 異步請求，不等待結果
-        apiTriggered = true
-      }
-
-      await this.delay(1000)
-    }
-  }
-
   // 延遲函數
   delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms))
-  }
-
-  // 獲取當前時相
-  getCurrentPhase() {
-    return this.currentPhase
   }
 }
