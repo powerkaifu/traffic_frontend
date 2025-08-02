@@ -40,10 +40,9 @@ export default class Car {
     if (window.trafficController) {
       // 將車輛類型映射到正確的格式
       const vehicleTypeMapping = {
-        small: 'small',
-        medium: 'medium',
         large: 'large',
-        motorcycle: 'motorcycle',
+        small: 'small',
+        motor: 'motorcycle',
       }
 
       const mappedType = vehicleTypeMapping[this.carType] || 'small'
@@ -60,17 +59,17 @@ export default class Car {
         north: { width: 60, height: 35, image: '/images/car/lCar_top.png' },
         south: { width: 60, height: 35, image: '/images/car/lCar_down.png' },
       },
-      medium: {
-        east: { width: 30, height: 18, image: '/images/car/mCar_right.png' },
-        west: { width: 30, height: 18, image: '/images/car/mCar_left.png' },
-        north: { width: 50, height: 30, image: '/images/car/mCar_top.png' },
-        south: { width: 50, height: 30, image: '/images/car/mCar_down.png' },
-      },
       small: {
-        east: { width: 25, height: 15, image: '/images/car/sCar_right.png' },
-        west: { width: 25, height: 15, image: '/images/car/sCar_left.png' },
-        north: { width: 40, height: 25, image: '/images/car/sCar_top.png' },
-        south: { width: 40, height: 25, image: '/images/car/sCar_down.png' },
+        east: { width: 30, height: 18, image: '/images/car/sCar_right.png' },
+        west: { width: 30, height: 18, image: '/images/car/sCar_left.png' },
+        north: { width: 50, height: 30, image: '/images/car/sCar_top.png' },
+        south: { width: 50, height: 30, image: '/images/car/sCar_down.png' },
+      },
+      motor: {
+        east: { width: 25, height: 15, image: '/images/car/mCar_right.png' },
+        west: { width: 25, height: 15, image: '/images/car/mCar_left.png' },
+        north: { width: 35, height: 25, image: '/images/car/mCar_top.png' },
+        south: { width: 35, height: 25, image: '/images/car/mCar_down.png' },
       },
     }
     return carConfigs[this.carType]?.[this.direction] || carConfigs.large[this.direction]
@@ -349,21 +348,46 @@ export default class Car {
     const label = document.createElement('div')
     label.className = 'car-lane-label'
     label.textContent = this.laneNumber
+
+    // 根據車輛方向調整標籤位置
+    let labelPosition = ''
+    if (this.direction === 'north') {
+      // 北向：標籤放在車輛尾部（下方）
+      labelPosition = `
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        margin-top: 2px;
+      `
+    } else if (this.direction === 'south') {
+      // 南向：標籤放在車輛尾部（上方）
+      labelPosition = `
+        top: -18px;
+        left: 50%;
+        transform: translateX(-50%);
+      `
+    } else {
+      // 水平方向：標籤放在車輛上方
+      labelPosition = `
+        top: -12px;
+        left: 50%;
+        transform: translateX(-50%);
+      `
+    }
+
     label.style.cssText = `
       position: absolute;
-      top: -20px;
-      left: 50%;
-      transform: translateX(-50%);
+      ${labelPosition}
       background: rgba(0, 123, 255, 0.9);
       color: white;
-      font-size: 12px;
+      font-size: 9px;
       font-weight: bold;
-      padding: 2px 6px;
-      border-radius: 10px;
+      padding: 1px 5px;
+      border-radius: 7px;
       border: 1px solid #0066cc;
       z-index: 20;
       pointer-events: none;
-      min-width: 20px;
+      min-width: 16px;
       text-align: center;
       font-family: Arial, sans-serif;
     `

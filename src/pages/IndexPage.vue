@@ -199,7 +199,11 @@ onMounted(() => {
         const randomLane = lanes[randomLaneIndex]
         const laneNumber = randomLaneIndex + 1 // 車道編號從1開始
 
-        const car = new Car(randomLane.x, randomLane.y, direction, 'large', laneNumber)
+        // 隨機選擇車輛類型
+        const carTypes = ['large', 'small', 'motor']
+        const randomCarType = carTypes[Math.floor(Math.random() * carTypes.length)]
+
+        const car = new Car(randomLane.x, randomLane.y, direction, randomCarType, laneNumber)
         car.addTo(crossroadContainer.value)
 
         // 添加到活躍車輛列表
