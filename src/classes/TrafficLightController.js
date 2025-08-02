@@ -21,6 +21,30 @@ export default class TrafficLightController {
       north: 'red',
       south: 'red',
     }
+
+    // API 相關設定
+    this.apiEndpoint = 'http://localhost:8000/api/traffic/predict/'
+    this.onPredictionUpdate = null // AI 預測更新回調函數
+
+    // 動態綠燈時間（AI 預測結果）
+    this.dynamicTiming = {
+      eastWest: 5, // 東西向綠燈時間（秒）
+      northSouth: 15, // 南北向綠燈時間（秒）- 預設從南北向開始
+    }
+
+    // 下一輪的時間預測（提前獲取）
+    this.nextTiming = {
+      eastWest: 5,
+      northSouth: 15,
+    }
+
+    // 車輛數據收集
+    this.vehicleData = {
+      east: { motorcycle: 0, small: 0, medium: 0, large: 0 },
+      west: { motorcycle: 0, small: 0, medium: 0, large: 0 },
+      south: { motorcycle: 0, small: 0, medium: 0, large: 0 },
+      north: { motorcycle: 0, small: 0, medium: 0, large: 0 },
+    }
   }
 
   // 添加觀察者
@@ -59,6 +83,177 @@ export default class TrafficLightController {
     this.onTimerUpdate = callback
   }
 
+  // 設置 AI 預測更新回調
+  setPredictionUpdateCallback(callback) {
+    this.onPredictionUpdate = callback
+  }
+
+  // 更新車輛數據
+  updateVehicleData(direction, vehicleType) {
+    if (this.vehicleData[direction] && this.vehicleData[direction][vehicleType] !== undefined) {
+      this.vehicleData[direction][vehicleType]++
+    }
+  }
+
+  // 收集路口數據（VD 格式）
+  collectIntersectionData() {
+    const now = new Date()
+    const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay() // 週日為7，週一為1
+    const hour = now.getHours()
+    const minute = now.getMinutes()
+    const second = now.getSeconds()
+
+    // 判斷是否為尖峰時段 (7-9AM, 5-7PM)
+    const isPeakHour = (hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19) ? 1 : 0
+
+    const vdData = []
+
+    // VD_ID 映射到路段
+    const vdMapping = {
+      east: 'VLRJX20', // 東向
+      west: 'VLRJM60', // 西向
+      south: 'VLRJX00', // 南向
+      north: 'VLRJX00', // 北向
+    }
+
+    // 為每個方向生成 VD 數據
+    Object.keys(this.vehicleData).forEach((direction, index) => {
+      const data = this.vehicleData[direction]
+      const totalVehicles = data.motorcycle + data.small + data.large
+
+      // 計算平均速度
+      const speeds = {
+        motorcycle: this.getAverageSpeed(direction, 'motorcycle'),
+        small: this.getAverageSpeed(direction, 'small'),
+        large: this.getAverageSpeed(direction, 'large'),
+      }
+
+      // 計算整體平均速度
+      const overallSpeed =
+        totalVehicles > 0
+          ? Math.round(
+              (data.motorcycle * speeds.motorcycle + data.small * speeds.small + data.large * speeds.large) /
+                totalVehicles,
+            )
+          : 0
+
+      vdData.push({
+        VD_ID: vdMapping[direction],
+        DayOfWeek: dayOfWeek,
+        Hour: hour,
+        Minute: minute,
+        Second: second,
+        IsPeakHour: isPeakHour,
+        LaneID: index, // 車道ID (0-3)
+        LaneType: 1, // 車道類型，預設為1
+        Speed: overallSpeed,
+        Occupancy: parseFloat(this.calculateOccupancy(direction)),
+        Volume_M: data.motorcycle,
+        Speed_M: speeds.motorcycle,
+        Volume_S: data.small,
+        Speed_S: speeds.small,
+        Volume_L: data.large,
+        Speed_L: speeds.large,
+        Volume_T: 0, // 聯結車數量（暫時為0）
+        Speed_T: 0, // 聯結車速度（暫時為0）
+      })
+    })
+
+    return vdData
+  }
+
+  // 獲取各車型的平均速度
+  getAverageSpeed(direction, vehicleType) {
+    const speedRanges = {
+      motorcycle: { min: 25, max: 45, avg: 35 },
+      small: { min: 20, max: 40, avg: 30 },
+      large: { min: 15, max: 30, avg: 22 },
+    }
+
+    const range = speedRanges[vehicleType]
+    if (!range) return 30
+
+    // 根據路段占有率調整速度
+    const occupancy = parseFloat(this.calculateOccupancy(direction))
+    let speedFactor = 1.0
+
+    if (occupancy > 80) {
+      speedFactor = 0.3 // 嚴重擁堵
+    } else if (occupancy > 60) {
+      speedFactor = 0.6 // 中度擁堵
+    } else if (occupancy > 30) {
+      speedFactor = 0.8 // 輕度擁堵
+    }
+
+    return Math.round(range.avg * speedFactor)
+  }
+
+  // 計算路段占有率
+  calculateOccupancy(direction) {
+    const data = this.vehicleData[direction]
+    const totalVehicles = data.motorcycle + data.small + data.large
+    // 簡化的占有率計算：基於車輛數量和預估的路段容量
+    const maxCapacity = 20 // 每個方向的最大容量
+    return Math.min((totalVehicles / maxCapacity) * 100, 100).toFixed(1)
+  }
+
+  // 發送數據到後端 API（提前 10 秒請求）
+  async sendDataToBackend() {
+    try {
+      const vdData = this.collectIntersectionData()
+      console.log('🚦 發送交通數據到 AI 系統:', vdData)
+
+      const response = await fetch(this.apiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(vdData),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+      console.log('🤖 AI 預測結果:', result)
+
+      // 更新下一輪的綠燈時間
+      if (result.east_west_seconds && result.south_north_seconds) {
+        this.nextTiming.eastWest = result.east_west_seconds
+        this.nextTiming.northSouth = result.south_north_seconds
+
+        // 通知 UI 更新預測結果
+        if (this.onPredictionUpdate) {
+          this.onPredictionUpdate({
+            eastWest: result.east_west_seconds,
+            northSouth: result.south_north_seconds,
+            timestamp: new Date().toLocaleTimeString(),
+          })
+        }
+
+        console.log(
+          `✅ 下一輪綠燈時間已更新 - 東西向: ${result.east_west_seconds}秒, 南北向: ${result.south_north_seconds}秒`,
+        )
+      }
+
+      return result
+    } catch (error) {
+      console.warn('⚠️ API 呼叫失敗，使用預設時間:', error.message)
+      // API 失敗時使用預設時間
+      this.nextTiming.eastWest = 5
+      this.nextTiming.northSouth = 15
+      return null
+    }
+  }
+
+  // 重置車輛數據
+  resetVehicleData() {
+    Object.keys(this.vehicleData).forEach((direction) => {
+      this.vehicleData[direction] = { motorcycle: 0, small: 0, medium: 0, large: 0 }
+    })
+  }
+
   // 初始化所有紅綠燈
   init(eastElement, westElement, southElement, northElement) {
     this.lights.east = new TrafficLight(eastElement)
@@ -66,11 +261,12 @@ export default class TrafficLightController {
     this.lights.south = new TrafficLight(southElement)
     this.lights.north = new TrafficLight(northElement)
 
-    // 設置初始狀態：東西向綠燈，南北向紅燈
-    this.updateLightState('east', 'green')
-    this.updateLightState('west', 'green')
-    this.updateLightState('south', 'red')
-    this.updateLightState('north', 'red')
+    // 設置初始狀態：南北向綠燈，東西向紅燈（從南北向開始）
+    this.updateLightState('south', 'green')
+    this.updateLightState('north', 'green')
+    this.updateLightState('east', 'red')
+    this.updateLightState('west', 'red')
+    this.currentPhase = 'northSouth' // 從南北向開始
   }
 
   // 開始交通燈控制
@@ -89,10 +285,59 @@ export default class TrafficLightController {
   // 運行一個完整的燈號循環
   async runCycle() {
     while (this.isRunning) {
-      if (this.currentPhase === 'eastWest') {
-        // 東西向綠燈階段（15秒）
-        this.updateTimer('東西向 綠燈', 15)
-        await this.countdownDelay(15000)
+      if (this.currentPhase === 'northSouth') {
+        // 南北向綠燈階段
+        console.log(`🚥 南北向綠燈開始 - 時間: ${this.dynamicTiming.northSouth}秒`)
+        this.updateTimer('南北向 綠燈', this.dynamicTiming.northSouth)
+
+        // 倒數到剩餘 10 秒時請求 API
+        const apiRequestTime = Math.max(this.dynamicTiming.northSouth - 10, 1)
+        if (apiRequestTime > 0) {
+          await this.countdownDelay(apiRequestTime * 1000)
+          // 在剩餘 10 秒時請求下一輪的時間
+          console.log('⏰ 剩餘 10 秒，開始請求下一輪 AI 預測...')
+          this.sendDataToBackend() // 異步請求，不等待結果
+        }
+
+        // 完成剩餘的倒數時間
+        const remainingTime = this.dynamicTiming.northSouth - apiRequestTime
+        if (remainingTime > 0) {
+          await this.countdownDelay(remainingTime * 1000)
+        }
+
+        // 南北向：綠燈 -> 黃燈 -> 紅燈
+        this.updateLightState('south', 'yellow')
+        this.updateLightState('north', 'yellow')
+        this.updateTimer('南北向 黃燈', 2)
+        await this.countdownDelay(2000) // 黃燈 2 秒
+
+        this.updateLightState('south', 'red')
+        this.updateLightState('north', 'red')
+        this.updateLightState('east', 'green')
+        this.updateLightState('west', 'green')
+
+        // 更新當前使用的時間為下一輪的時間
+        this.dynamicTiming.eastWest = this.nextTiming.eastWest
+        this.currentPhase = 'eastWest'
+      } else {
+        // 東西向綠燈階段
+        console.log(`🚥 東西向綠燈開始 - 時間: ${this.dynamicTiming.eastWest}秒`)
+        this.updateTimer('東西向 綠燈', this.dynamicTiming.eastWest)
+
+        // 倒數到剩餘 10 秒時請求 API
+        const apiRequestTime = Math.max(this.dynamicTiming.eastWest - 10, 1)
+        if (apiRequestTime > 0) {
+          await this.countdownDelay(apiRequestTime * 1000)
+          // 在剩餘 10 秒時請求下一輪的時間
+          console.log('⏰ 剩餘 10 秒，開始請求下一輪 AI 預測...')
+          this.sendDataToBackend() // 異步請求，不等待結果
+        }
+
+        // 完成剩餘的倒數時間
+        const remainingTime = this.dynamicTiming.eastWest - apiRequestTime
+        if (remainingTime > 0) {
+          await this.countdownDelay(remainingTime * 1000)
+        }
 
         // 東西向：綠燈 -> 黃燈 -> 紅燈
         console.log('東西向：綠燈 -> 黃燈')
@@ -107,27 +352,13 @@ export default class TrafficLightController {
         this.updateLightState('south', 'green')
         this.updateLightState('north', 'green')
 
+        // 更新當前使用的時間為下一輪的時間
+        this.dynamicTiming.northSouth = this.nextTiming.northSouth
         this.currentPhase = 'northSouth'
-      } else {
-        // 南北向綠燈階段（15秒）
-        this.updateTimer('南北向 綠燈', 15)
-        await this.countdownDelay(15000)
-
-        // 南北向：綠燈 -> 黃燈 -> 紅燈
-        console.log('南北向：綠燈 -> 黃燈')
-        this.updateLightState('south', 'yellow')
-        this.updateLightState('north', 'yellow')
-        this.updateTimer('南北向 黃燈', 2)
-        await this.countdownDelay(2000) // 黃燈 2 秒
-
-        console.log('南北向：黃燈 -> 紅燈，東西向：紅燈 -> 綠燈')
-        this.updateLightState('south', 'red')
-        this.updateLightState('north', 'red')
-        this.updateLightState('east', 'green')
-        this.updateLightState('west', 'green')
-
-        this.currentPhase = 'eastWest'
       }
+
+      // 重置車輛數據以準備下一輪收集
+      this.resetVehicleData()
     }
   }
 

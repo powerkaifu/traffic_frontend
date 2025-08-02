@@ -30,6 +30,25 @@ export default class Car {
 
     // 創建車道編號標籤
     this.createLaneNumberLabel()
+
+    // 車輛數據收集 - 通知交通控制器
+    this.notifyTrafficController()
+  }
+
+  // 通知交通控制器車輛生成
+  notifyTrafficController() {
+    if (window.trafficController) {
+      // 將車輛類型映射到正確的格式
+      const vehicleTypeMapping = {
+        small: 'small',
+        medium: 'medium',
+        large: 'large',
+        motorcycle: 'motorcycle',
+      }
+
+      const mappedType = vehicleTypeMapping[this.carType] || 'small'
+      window.trafficController.updateVehicleData(this.direction, mappedType)
+    }
   }
 
   // 獲取車輛配置 - 支持不同車輛類型和大小
@@ -261,7 +280,6 @@ export default class Car {
       this.movementTimeline.pause()
       if (this.currentState !== 'waitingForCar' && this.currentState !== 'waiting') {
         this.currentState = 'waiting'
-        console.log(`車輛 ${this.direction} 停止移動`)
       }
     }
   }
@@ -416,7 +434,6 @@ export default class Car {
               if (this.currentState === 'moving') {
                 this.stopMovement()
                 this.currentState = 'waitingForCar'
-                console.log(`車輛 ${this.direction} 因前方車輛停止，距離: ${distance.toFixed(1)}px`)
               }
               return
             }
@@ -433,19 +450,13 @@ export default class Car {
 
             // 檢查紅綠燈狀態
             const lightState = trafficController.getCurrentLightState(this.direction)
-            console.log(`車輛 ${this.direction} 到達停止線，燈號狀態: ${lightState}`)
 
             if (lightState === 'red' || lightState === 'yellow') {
               this.stopMovement()
               this.waitingForGreen = true
-              console.log(`車輛 ${this.direction} 停在停止線等待綠燈`)
 
               // 監聽紅綠燈變化 - 改進版本
               const onLightChange = (direction, state) => {
-                console.log(
-                  `觀察者收到燈號變化: ${direction} -> ${state}, 車輛方向: ${this.direction}, 等待綠燈: ${this.waitingForGreen}`,
-                )
-
                 if (direction === this.direction && state === 'green' && this.waitingForGreen) {
                   console.log(`車輛 ${this.direction} 準備啟動`)
 
@@ -467,7 +478,6 @@ export default class Car {
               setTimeout(() => {
                 if (this.waitingForGreen && this.direction) {
                   const currentLightState = trafficController.getCurrentLightState(this.direction)
-                  console.log(`超時檢查: 車輛 ${this.direction} 當前燈號 ${currentLightState}`)
 
                   if (currentLightState === 'green') {
                     console.log(`超時恢復: 車輛 ${this.direction} 檢測到綠燈，強制啟動`)
@@ -479,7 +489,6 @@ export default class Car {
                 }
               }, 1000) // 1秒後檢查
             } else {
-              console.log(`車輛 ${this.direction} 綠燈通過停止線`)
               // 綠燈時直接通過，標記已通過停止線
               this.isAtStopLine = false
               this.hasPassedStopLine = true

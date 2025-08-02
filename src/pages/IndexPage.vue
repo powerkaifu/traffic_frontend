@@ -9,19 +9,19 @@
       <!-- 四個轉角的紅綠燈 -->
       <!-- RoadA 往東 -->
       <div class="traffic-light bottom-left">
-        <img src="/images/light/greenLight.png" alt="往東" />
+        <img src="/images/light/redLight.png" alt="往東" />
       </div>
       <!-- RoadB 往西 -->
       <div class="traffic-light top-right">
-        <img src="/images/light/greenLight.png" alt="往西" />
+        <img src="/images/light/redLight.png" alt="往西" />
       </div>
       <!-- RoadC 往南 -->
       <div class="traffic-light top-left">
-        <img src="/images/light/redLight.png" alt="往南" />
+        <img src="/images/light/greenLight.png" alt="往南" />
       </div>
       <!-- RoadB 往北 -->
       <div class="traffic-light bottom-right">
-        <img src="/images/light/redLight.png" alt="往北" />
+        <img src="/images/light/greenLight.png" alt="往北" />
       </div>
       <!-- 西邊起始位置標記點 -->
       <div class="start-position west-start"></div>
@@ -68,8 +68,8 @@ import TrafficLightController from '../classes/TrafficLightController.js'
 
 const crossroadContainer = ref(null)
 const trafficController = new TrafficLightController()
-const currentPhase = ref('東西向 綠燈')
-const countdown = ref(5)
+const currentPhase = ref('南北向 綠燈')
+const countdown = ref(15)
 const activeCars = ref([]) // 維護活躍車輛列表
 
 onMounted(() => {
@@ -77,7 +77,6 @@ onMounted(() => {
     if (crossroadContainer.value) {
       // 監聽視窗大小變化和佈局變化
       const handleLayoutChange = () => {
-        console.log('🔄 檢測到佈局變化，重新計算車輛位置')
         // 通知所有活躍車輛佈局發生了變化
         activeCars.value.forEach((car) => {
           if (car.checkLayoutChange) {
@@ -112,6 +111,9 @@ onMounted(() => {
       const northLight = crossroadContainer.value.querySelector('.traffic-light.bottom-right')
 
       trafficController.init(eastLight, westLight, southLight, northLight)
+
+      // 設置全域交通控制器供其他組件使用
+      window.trafficController = trafficController
 
       // 設置倒數更新回調
       trafficController.setTimerUpdateCallback((phase, seconds) => {
@@ -177,16 +179,10 @@ onMounted(() => {
         // 添加到活躍車輛列表
         activeCars.value.push(car)
 
-        // 在控制台顯示車輛創建信息
-        console.log(
-          `🚗 車輛 #${car.carNumber} 已創建 - 方向: ${direction}, 車道: ${laneNumber}, 位置: (${randomLane.x}, ${randomLane.y})`,
-        )
-
         // 立即開始動畫
         setTimeout(async () => {
           // 先淡入車子
           await car.fadeIn(1)
-          console.log(`✨ 車輛 #${car.carNumber} 開始移動`)
 
           // 開始移動動畫 - 使用新的紅綠燈控制移動方法（包含碰撞檢測）
           let movePromise
@@ -226,7 +222,6 @@ onMounted(() => {
 
           // 等待移動完成
           await movePromise
-          console.log(`🏁 車輛 #${car.carNumber} 已到達終點`)
 
           // 移動完成後開始淡出（車輛已到達終點）
           await car.fadeOut(3)
@@ -236,7 +231,6 @@ onMounted(() => {
           if (carIndex > -1) {
             activeCars.value.splice(carIndex, 1)
           }
-          console.log(`🗑️ 車輛 #${car.carNumber} 已清理`)
           car.remove()
         }, 100) // 很短的延遲讓車子先出現
       }
