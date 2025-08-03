@@ -61,14 +61,17 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import Vehicle from '../classes/Vehicle.js'
 import TrafficLightController from '../classes/TrafficLightController.js'
 import AutoTrafficGenerator from '../classes/AutoTrafficGenerator.js'
+import TrafficDataCollector from '../classes/TrafficDataCollector.js'
+import '../utils/apiTest.js' // 導入 API 測試腳本
 
 const crossroadContainer = ref(null)
 const trafficController = new TrafficLightController()
 const autoTrafficGenerator = new AutoTrafficGenerator(trafficController)
+const trafficDataCollector = new TrafficDataCollector()
 const currentPhase = ref('南北向 綠燈')
 const countdown = ref(15)
 const activeCars = ref([]) // 維護活躍車輛列表
@@ -178,8 +181,61 @@ onMounted(() => {
           }),
         )
 
-        // 立即開始動畫
-        vehicle.moveToWithTrafficControl(trafficController.getEndPosition(direction))
+        // 立即開始動畫並處理完成後的清理
+        const startVehicleAnimation = async () => {
+          try {
+            // 淡入車輛
+            await vehicle.fadeIn(1)
+
+            // 計算動畫時間
+            const animationDuration = vehicle.calculateAnimationDuration()
+            const endPosition = trafficController.getEndPosition(direction)
+
+            // 開始移動動畫
+            await vehicle.moveToWithTrafficControl(
+              endPosition.x,
+              endPosition.y,
+              animationDuration,
+              trafficController,
+              activeCars.value,
+            )
+
+            console.log(`🏁 車輛 ${vehicle.id} 動畫完成，開始清理流程`)
+
+            // 立即從活躍列表移除，避免繼續參與碰撞檢測
+            const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
+            if (vehicleIndex > -1) {
+              activeCars.value.splice(vehicleIndex, 1)
+              console.log(`📋 車輛 ${vehicle.id} 已從活躍列表移除，剩餘: ${activeCars.value.length}`)
+            }
+
+            // 動畫完成後快速淡出
+            await vehicle.fadeOut(1.5) // 縮短淡出時間
+
+            // 銷毀車輛元素
+            vehicle.remove()
+
+            // 發送車輛移除事件
+            window.dispatchEvent(
+              new CustomEvent('vehicleRemoved', {
+                detail: { direction, type: vehicleType },
+              }),
+            )
+
+            console.log(`🗑️ 自動生成車輛已清理，剩餘活躍車輛數：${activeCars.value.length}`)
+          } catch (error) {
+            console.error('❌ 自動生成車輛動畫錯誤:', error)
+            // 確保即使出錯也要清理車輛
+            const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
+            if (vehicleIndex > -1) {
+              activeCars.value.splice(vehicleIndex, 1)
+            }
+            vehicle.remove()
+          }
+        }
+
+        // 啟動車輛動畫（非阻塞）
+        startVehicleAnimation()
       }
 
       // 監聽自動產生車輛事件
@@ -268,14 +324,19 @@ onMounted(() => {
           // 等待移動完成
           await movePromise
 
-          // 移動完成後開始淡出（車輛已到達終點）
-          await vehicle.fadeOut(3)
+          console.log(`🏁 手動車輛 ${vehicle.id} 動畫完成，開始清理流程`)
 
-          // 移動完成後從列表中移除並銷毀車子
+          // 立即從活躍列表移除，避免繼續參與碰撞檢測
           const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
           if (vehicleIndex > -1) {
             activeCars.value.splice(vehicleIndex, 1)
+            console.log(`📋 手動車輛 ${vehicle.id} 已從活躍列表移除，剩餘: ${activeCars.value.length}`)
           }
+
+          // 移動完成後快速淡出（車輛已到達終點）
+          await vehicle.fadeOut(1.5) // 縮短淡出時間
+
+          // 銷毀車輛元素
           vehicle.remove()
 
           // 發送車輛移除事件
@@ -326,8 +387,92 @@ onMounted(() => {
         console.log('🔄 開始持續生成車輛...')
         startRandomCarGeneration()
       }, 500) // 500ms後開始持續生成
+
+      // 定期清理超時車輛機制
+      const cleanupInterval = setInterval(() => {
+        const beforeCount = activeCars.value.length
+
+        // 清理可能已經完成但沒有正確清理的車輛
+        activeCars.value = activeCars.value.filter((vehicle) => {
+          // 檢查車輛是否還在DOM中
+          if (!vehicle.element || !vehicle.element.parentNode) {
+            console.log(`🗑️ 清理孤立車輛: ${vehicle.id}`)
+            return false
+          }
+
+          // 檢查車輛是否長時間停滯在終點附近
+          const currentPos = vehicle.getCurrentPosition()
+          const endPos = trafficController.getEndPosition(vehicle.direction)
+          const distance = Math.sqrt(Math.pow(currentPos.x - endPos.x, 2) + Math.pow(currentPos.y - endPos.y, 2))
+
+          // 如果車輛在終點附近，進行清理
+          if (distance < 30) {
+            console.log(`🗑️ 清理到達終點車輛: ${vehicle.id} (距離: ${Math.round(distance)}px)`)
+            vehicle.remove()
+            return false
+          }
+
+          // 如果車輛狀態是 completed 或 nearComplete，也要清理
+          if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
+            console.log(`🗑️ 清理已完成車輛: ${vehicle.id} (狀態: ${vehicle.currentState})`)
+            vehicle.remove()
+            return false
+          }
+
+          // 如果車輛超出螢幕範圍，也要清理
+          if (currentPos.x < -100 || currentPos.x > 1000 || currentPos.y < -100 || currentPos.y > 800) {
+            console.log(
+              `🗑️ 清理超出範圍車輛: ${vehicle.id} (位置: ${Math.round(currentPos.x)}, ${Math.round(currentPos.y)})`,
+            )
+            vehicle.remove()
+            return false
+          }
+
+          return true
+        })
+
+        const afterCount = activeCars.value.length
+        if (beforeCount !== afterCount) {
+          console.log(`🧹 定期清理完成：清理了 ${beforeCount - afterCount} 輛車，剩餘 ${afterCount} 輛`)
+        }
+      }, 5000) // 改為每5秒清理一次，更頻繁
+
+      // 在組件卸載時清理定時器
+      window.cleanupVehicleInterval = cleanupInterval
+
+      // 初始化並啟動交通數據收集器
+      console.log('📊 啟動交通數據收集器...')
+      trafficDataCollector.start()
+
+      // 設置全域交通數據收集器
+      window.trafficDataCollector = trafficDataCollector
+
+      console.log('✅ 所有系統已初始化完成')
     }
   }, 500)
+})
+
+// 組件卸載時清理資源
+onUnmounted(() => {
+  // 停止交通數據收集器
+  if (trafficDataCollector) {
+    console.log('📊 停止交通數據收集器...')
+    trafficDataCollector.stop()
+  }
+
+  // 清理車輛清理定時器
+  if (window.cleanupVehicleInterval) {
+    clearInterval(window.cleanupVehicleInterval)
+    window.cleanupVehicleInterval = null
+  }
+
+  // 清理所有活躍車輛
+  activeCars.value.forEach((vehicle) => {
+    vehicle.remove()
+  })
+  activeCars.value = []
+
+  console.log('🧹 IndexPage 資源清理完成')
 })
 </script>
 

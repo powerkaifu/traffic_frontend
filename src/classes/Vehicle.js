@@ -34,6 +34,16 @@ export default class Vehicle {
     this.containerPosition = null // 記錄容器位置，用於檢測佈局變化
     this.justCreated = true // 新增：標記車輛剛創建，避免立即檢測碰撞
 
+    // 數據收集相關屬性
+    this.createdAt = new Date().toISOString()
+    this.startPosition = { x, y }
+    this.currentSpeed = 0
+    this.maxSpeed = 0
+    this.totalDistance = 0
+    this.movementStartTime = null
+    this.movementEndTime = null
+    this.initialSpeed = this.generateRandomSpeed() // 車輛的目標速度
+
     // Composite Pattern: 車輛由多個元件組成（主體元素）
     this.element = this.createElement()
 
@@ -60,7 +70,7 @@ export default class Vehicle {
     }, 200) // 200毫秒後才開始正常碰撞檢測
   }
 
-  // Observer Pattern: 實現觀察者模式，通知交通控制器
+  // Observer Pattern: 實現觀察者模式，通知交通控制器和數據收集器
   notifyTrafficController() {
     if (window.trafficController) {
       // Strategy Pattern: 車輛類型映射策略
@@ -73,6 +83,33 @@ export default class Vehicle {
       const mappedType = vehicleTypeMapping[this.vehicleType] || 'small'
       window.trafficController.updateVehicleData(this.direction, mappedType)
     }
+
+    // 通知數據收集器車輛已創建
+    this.notifyDataCollector('added')
+  }
+
+  // 通知數據收集器
+  notifyDataCollector(action, additionalData = {}) {
+    const eventData = {
+      vehicleId: this.id,
+      direction: this.direction,
+      type: this.vehicleType,
+      speed: this.currentSpeed || this.initialSpeed,
+      timestamp: new Date().toISOString(),
+      laneNumber: this.laneNumber,
+      position: this.getCurrentPosition(),
+      ...additionalData,
+    }
+
+    const eventName = action === 'added' ? 'vehicleAdded' : 'vehicleRemoved'
+
+    window.dispatchEvent(
+      new CustomEvent(eventName, {
+        detail: eventData,
+      }),
+    )
+
+    console.log(`📊 ${eventName}: ${this.direction} 方向 ${this.vehicleType} 車輛 (ID: ${this.id})`, eventData)
   }
 
   // Strategy Pattern: 基於車輛類型的速度生成策略
@@ -548,6 +585,18 @@ export default class Vehicle {
   moveToWithTrafficControl(targetX, targetY, duration, trafficController, allVehicles = []) {
     // Command Pattern: 將複雜的移動邏輯封裝為可執行的命令
     return new Promise((resolve) => {
+      // 記錄移動開始時間和初始化數據
+      this.movementStartTime = new Date().toISOString()
+      this.currentSpeed = this.initialSpeed
+      this.maxSpeed = this.initialSpeed
+
+      // 計算總距離
+      const startPos = this.getCurrentPosition()
+      this.totalDistance = Math.sqrt(Math.pow(targetX - startPos.x, 2) + Math.pow(targetY - startPos.y, 2))
+
+      let lastPosition = startPos
+      let lastTime = Date.now()
+
       // Strategy Pattern: 使用延遲策略避免剛生成就被碰撞檢測影響
       setTimeout(() => {
         this.currentState = 'moving'
@@ -579,8 +628,41 @@ export default class Vehicle {
         // Template Method Pattern: 創建移動時間線模板
         this.movementTimeline = gsap.timeline({
           onUpdate: () => {
+            // 計算當前速度
+            const currentPos = this.getCurrentPosition()
+            const currentTime = Date.now()
+            const deltaTime = (currentTime - lastTime) / 1000 // 轉換為秒
+
+            if (deltaTime > 0) {
+              const deltaDistance = Math.sqrt(
+                Math.pow(currentPos.x - lastPosition.x, 2) + Math.pow(currentPos.y - lastPosition.y, 2),
+              )
+
+              // 計算像素/秒速度，然後轉換為 km/h (假設100像素 = 15米)
+              const pixelSpeed = deltaDistance / deltaTime
+              const meterSpeed = (pixelSpeed / 100) * 15 // 轉換為 m/s
+              const kmhSpeed = meterSpeed * 3.6 // 轉換為 km/h
+
+              this.currentSpeed = Math.round(kmhSpeed)
+              this.maxSpeed = Math.max(this.maxSpeed, this.currentSpeed)
+
+              lastPosition = currentPos
+              lastTime = currentTime
+            }
+
             // Observer Pattern: 檢測佈局變化（抽屜開關等）
             this.checkLayoutChange()
+
+            // 檢查是否接近終點 - 提前標記為完成狀態
+            const distanceToTarget = Math.sqrt(
+              Math.pow(currentPos.x - this.targetX, 2) + Math.pow(currentPos.y - this.targetY, 2),
+            )
+
+            // 如果距離終點很近，標記為即將完成
+            if (distanceToTarget < 20 && this.currentState !== 'nearComplete') {
+              this.currentState = 'nearComplete'
+              console.log(`🎯 車輛 ${this.id} 接近終點，距離: ${Math.round(distanceToTarget)}px`)
+            }
 
             // Template Method Pattern: 前方車輛碰撞檢測流程
             const frontCollision = this.checkFrontCollision(allVehicles)
@@ -669,16 +751,10 @@ export default class Vehicle {
               this.periodicCheckTimer = null
             }
 
-            // 只有當真正到達目標位置時才完成
-            const currentPos = this.getCurrentPosition()
-            const tolerance = 5 // 允許5px的誤差
-
-            if (
-              Math.abs(currentPos.x - this.targetX) <= tolerance &&
-              Math.abs(currentPos.y - this.targetY) <= tolerance
-            ) {
-              resolve()
-            }
+            // 強制完成 - 避免精度問題導致Promise不resolve
+            console.log(`🏁 車輛 ${this.id} 移動動畫完成`)
+            this.currentState = 'completed'
+            resolve()
           },
         })
 
@@ -717,6 +793,24 @@ export default class Vehicle {
 
   // Template Method Pattern: 移除車輛的清理模板方法
   remove() {
+    // 記錄移除時間
+    this.movementEndTime = new Date().toISOString()
+
+    // 計算行駛數據
+    const travelTime = this.movementStartTime
+      ? (new Date(this.movementEndTime) - new Date(this.movementStartTime)) / 1000
+      : 0
+
+    // 通知數據收集器車輛已移除
+    this.notifyDataCollector('removed', {
+      finalSpeed: this.currentSpeed,
+      maxSpeed: this.maxSpeed,
+      totalDistance: this.totalDistance,
+      travelTime: travelTime,
+      startPosition: this.startPosition,
+      finalPosition: this.getCurrentPosition(),
+    })
+
     // Template Method Pattern: 定義車輛移除的標準清理流程
     // 清理定時器
     if (this.periodicCheckTimer) {

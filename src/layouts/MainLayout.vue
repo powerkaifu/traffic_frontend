@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <q-layout view="hHh lpR fFf">
     <q-header elevated class="text-white bg-transparent">
       <q-toolbar class="header-toolbar">
@@ -41,12 +41,12 @@
         <!-- 場景參數設定區域 - setWindow.png 背景 -->
         <div class="set-window-section">
           <div class="section-content">
-            <!-- 智能時段自動分派系統 -->
+            <!-- 智能車流情境分派系統 -->
             <div class="compact-dispatch-system">
               <!-- 系統標題與狀態 -->
               <div class="system-header">
                 <div class="system-info">
-                  <span class="system-title">智能時段分派</span>
+                  <span class="system-title">智能車流情境分派系統</span>
                   <div class="system-status" :class="{ active: isSystemRunning }">
                     <div class="status-dot"></div>
                     <span class="status-text">{{ systemStatusText }}</span>
@@ -318,86 +318,135 @@ const manualFrequency = ref(2.5)
 const totalGenerated = ref(0)
 const currentInterval = ref(2.5)
 
-// 時段場景配置
+// 智能車流情境分派系統 - 三大時段配置
 const timeScenarios = ref([
+  // 尖峰時段 (早晚通勤高峰)
   {
-    key: 'morning_rush',
-    name: '早晨尖峰',
-    shortName: '早峰',
-    icon: '🌅',
-    timeRange: '07:00-09:30',
-    hours: [7, 8, 9],
+    key: 'peak_hours',
+    name: '尖峰時段',
+    shortName: '尖峰',
+    icon: '🚀',
+    timeRange: '07:00-09:00, 17:00-19:00',
+    hours: [7, 8, 17, 18],
+    scenarioType: 'peak',
     config: {
-      interval: { min: 1000, max: 2000, normal: 1500 },
+      // 高頻率生成 - 通勤車流密集
+      interval: { min: 800, max: 1800, normal: 1200 },
+
+      // 車輛類型比例 - 通勤為主
       vehicleTypes: [
-        { type: 'motor', weight: 40, priority: 1 },
-        { type: 'small', weight: 55, priority: 2 },
-        { type: 'large', weight: 5, priority: 3 },
+        { type: 'motor', weight: 45, priority: 1 }, // 45% 機車 (通勤首選)
+        { type: 'small', weight: 50, priority: 2 }, // 50% 小型車 (上班族)
+        { type: 'large', weight: 5, priority: 3 }, // 5% 大型車 (避開尖峰)
       ],
+
+      // 密度管理 - 高容忍度
+      densityThresholds: {
+        light: 15, // 輕度交通
+        moderate: 30, // 中度交通
+        heavy: 45, // 重度交通
+        congested: 60, // 擁堵閾值
+      },
+
+      // 方向性流量偏好
+      directionBias: {
+        morning: { east: 1.4, west: 0.7, north: 1.1, south: 0.9 },
+        evening: { east: 0.7, west: 1.4, north: 0.9, south: 1.1 },
+      },
+
+      // 時段特性
+      characteristics: {
+        description: '通勤高峰期，車流密集，以機車和小型車為主',
+        avgSpeed: 25,
+        peakMultiplier: 2.2,
+        congestionTolerance: 'high',
+      },
     },
   },
+
+  // 🌞 離峰時段 (日間正常流量)
   {
-    key: 'normal',
-    name: '日間正常',
-    shortName: '日間',
+    key: 'off_peak',
+    name: '離峰時段',
+    shortName: '離峰',
     icon: '🌞',
-    timeRange: '09:30-17:00',
-    hours: [10, 11, 12, 13, 14, 15, 16],
+    timeRange: '09:00-17:00, 19:00-23:00',
+    hours: [9, 10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22],
+    scenarioType: 'offpeak',
     config: {
-      interval: { min: 2000, max: 4000, normal: 2500 },
+      // 中等頻率生成 - 正常日間活動
+      interval: { min: 2500, max: 4500, normal: 3200 },
+
+      // 車輛類型比例 - 多元化用途
       vehicleTypes: [
-        { type: 'motor', weight: 35, priority: 1 },
-        { type: 'small', weight: 50, priority: 2 },
-        { type: 'large', weight: 15, priority: 3 },
+        { type: 'motor', weight: 30, priority: 1 }, // 30% 機車 (短程代步)
+        { type: 'small', weight: 55, priority: 2 }, // 55% 小型車 (購物、洽公)
+        { type: 'large', weight: 15, priority: 3 }, // 15% 大型車 (貨運配送)
       ],
+
+      // 密度管理 - 標準容忍度
+      densityThresholds: {
+        light: 8, // 輕度交通
+        moderate: 18, // 中度交通
+        heavy: 28, // 重度交通
+        congested: 38, // 擁堵閾值
+      },
+
+      // 方向性流量偏好 - 較為均衡
+      directionBias: {
+        all: { east: 1.0, west: 1.0, north: 1.0, south: 1.0 },
+      },
+
+      // 時段特性
+      characteristics: {
+        description: '日間正常流量，用途多元化，各車型比例較平均',
+        avgSpeed: 35,
+        peakMultiplier: 1.0,
+        congestionTolerance: 'normal',
+      },
     },
   },
-  {
-    key: 'evening_rush',
-    name: '晚間尖峰',
-    shortName: '晚峰',
-    icon: '🌆',
-    timeRange: '17:00-19:30',
-    hours: [17, 18, 19],
-    config: {
-      interval: { min: 1000, max: 2500, normal: 1800 },
-      vehicleTypes: [
-        { type: 'motor', weight: 45, priority: 1 },
-        { type: 'small', weight: 50, priority: 2 },
-        { type: 'large', weight: 5, priority: 3 },
-      ],
-    },
-  },
-  {
-    key: 'night_light',
-    name: '夜間離峰',
-    shortName: '夜間',
-    icon: '🌙',
-    timeRange: '19:30-23:00',
-    hours: [20, 21, 22],
-    config: {
-      interval: { min: 4000, max: 8000, normal: 6000 },
-      vehicleTypes: [
-        { type: 'motor', weight: 30, priority: 1 },
-        { type: 'small', weight: 65, priority: 2 },
-        { type: 'large', weight: 5, priority: 3 },
-      ],
-    },
-  },
+
+  // 🌙 凌晨時段 (深夜低流量)
   {
     key: 'late_night',
-    name: '深夜凌晨',
+    name: '凌晨時段',
     shortName: '凌晨',
-    icon: '🌌',
+    icon: '🌙',
     timeRange: '23:00-07:00',
     hours: [23, 0, 1, 2, 3, 4, 5, 6],
+    scenarioType: 'latenight',
     config: {
-      interval: { min: 8000, max: 20000, normal: 12000 },
+      // 低頻率生成 - 夜間稀少車流
+      interval: { min: 8000, max: 18000, normal: 12000 },
+
+      // 車輛類型比例 - 機車主導
       vehicleTypes: [
-        { type: 'motor', weight: 70, priority: 1 },
-        { type: 'small', weight: 25, priority: 2 },
-        { type: 'large', weight: 5, priority: 3 },
+        { type: 'motor', weight: 70, priority: 1 }, // 70% 機車 (夜班、外送)
+        { type: 'small', weight: 25, priority: 2 }, // 25% 小型車 (夜歸、值班)
+        { type: 'large', weight: 5, priority: 3 }, // 5% 大型車 (夜間運輸)
       ],
+
+      // 密度管理 - 低容忍度
+      densityThresholds: {
+        light: 3, // 輕度交通
+        moderate: 6, // 中度交通
+        heavy: 10, // 重度交通
+        congested: 15, // 擁堵閾值
+      },
+
+      // 方向性流量偏好 - 特定路線
+      directionBias: {
+        all: { east: 0.8, west: 1.2, north: 0.9, south: 1.1 },
+      },
+
+      // 時段特性
+      characteristics: {
+        description: '深夜凌晨時段，車流稀少，以機車為主要交通工具',
+        avgSpeed: 45,
+        peakMultiplier: 0.3,
+        congestionTolerance: 'low',
+      },
     },
   },
 ])
@@ -564,12 +613,34 @@ const getTrafficControllerConfig = () => {
 const config = computed(() => getTrafficControllerConfig())
 const scenarioPresets = computed(() => config.value.scenarioPresets)
 
-// 從 TrafficLightController 獲取交通數據
+// 從 TrafficDataCollector 獲取即時交通數據
 const getTrafficData = (direction) => {
   // 觸發響應式更新（使用 forceUpdateTrigger）
   forceUpdateTrigger.value
 
-  // 顯示實時數據
+  // 優先使用數據收集器的即時數據
+  if (window.trafficDataCollector) {
+    const realTimeData = window.trafficDataCollector.getRealTimeData()
+
+    if (realTimeData && realTimeData.totalCount && realTimeData.totalCount[direction]) {
+      const directionData = realTimeData.totalCount[direction]
+      const speedData = realTimeData.averageSpeed[direction]
+      const occupancy = realTimeData.occupancy[direction]
+
+      return {
+        averageSpeed: speedData.overall || 0,
+        occupancy: occupancy || 0,
+        motorFlow: directionData.motor || 0,
+        smallCarFlow: directionData.small || 0,
+        largeCarFlow: directionData.large || 0,
+        motorSpeed: speedData.motor || 0,
+        smallCarSpeed: speedData.small || 0,
+        largeCarSpeed: speedData.large || 0,
+      }
+    }
+  }
+
+  // 後備：使用 TrafficLightController 的數據（僅累加數據）
   if (window.trafficController) {
     const vehicleData = window.trafficController.getDirectionVehicleData(direction)
     if (vehicleData) {
@@ -600,16 +671,16 @@ const getTrafficData = (direction) => {
     }
   }
 
-  // 預設數據（如果 TrafficController 尚未初始化）
+  // 預設數據（如果兩個系統都尚未初始化）
   return {
-    averageSpeed: 30,
-    occupancy: 22.0,
-    motorFlow: 5,
-    smallCarFlow: 8,
-    largeCarFlow: 3,
-    motorSpeed: 35,
-    smallCarSpeed: 30,
-    largeCarSpeed: 22,
+    averageSpeed: 0,
+    occupancy: 0,
+    motorFlow: 0,
+    smallCarFlow: 0,
+    largeCarFlow: 0,
+    motorSpeed: 0,
+    smallCarSpeed: 0,
+    largeCarSpeed: 0,
   }
 }
 
@@ -667,15 +738,23 @@ const listenForVehicleChanges = () => {
     forceUpdateTrigger.value++
   }
 
+  // 監聽數據收集器的數據更新事件
+  const handleTrafficDataUpdate = () => {
+    console.log('📊 交通數據已更新，觸發UI更新')
+    forceUpdateTrigger.value++
+  }
+
   // 添加事件監聽器
   window.addEventListener('vehicleAdded', handleVehicleChange)
   window.addEventListener('vehicleRemoved', handleVehicleChange)
   window.addEventListener('trafficDataChanged', handleVehicleChange)
+  window.addEventListener('trafficDataUpdated', handleTrafficDataUpdate)
 
   return () => {
     window.removeEventListener('vehicleAdded', handleVehicleChange)
     window.removeEventListener('vehicleRemoved', handleVehicleChange)
     window.removeEventListener('trafficDataChanged', handleVehicleChange)
+    window.removeEventListener('trafficDataUpdated', handleTrafficDataUpdate)
   }
 }
 
