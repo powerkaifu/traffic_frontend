@@ -192,7 +192,21 @@ export default class TrafficLightController {
 
   // 獲取指定方向的終點位置
   getEndPosition(direction) {
-    return this.endPositions[direction] || 0
+    const endValue = this.endPositions[direction] || 0
+
+    // 根據方向返回對應的座標對象
+    switch (direction) {
+      case 'east':
+        return { x: endValue, y: this.lanePositions.east[0].y } // 使用第一車道的Y座標
+      case 'west':
+        return { x: endValue, y: this.lanePositions.west[0].y }
+      case 'north':
+        return { x: this.lanePositions.north[0].x, y: endValue } // 使用第一車道的X座標
+      case 'south':
+        return { x: this.lanePositions.south[0].x, y: endValue }
+      default:
+        return { x: 0, y: 0 }
+    }
   }
 
   // 獲取所有方向的車道配置（用於調試或管理）
@@ -504,8 +518,22 @@ export default class TrafficLightController {
 
       // Strategy Pattern: 在剩餘指定秒數時觸發API
       if (i === apiTriggerSeconds && !apiTriggered) {
-        console.log(`⏰ 剩餘 ${apiTriggerSeconds} 秒，開始請求下一輪 AI 預測...`)
-        this.sendDataToBackend() // 異步請求，不等待結果
+        console.log(`⏰ 剩餘 ${apiTriggerSeconds} 秒，開始 AI 預測流程...`)
+
+        // 1. 收集當前週期的完整數據
+        const currentCycleData = this.collectIntersectionData()
+
+        // 2. 發送到 AI 後端（異步）
+        this.sendDataToBackend(currentCycleData)
+
+        // 3. 立即更新特徵模擬數據顯示
+        this.updateFeatureSimulationDisplay(currentCycleData)
+
+        // 4. 標記準備重置數據（3秒後執行，避免突然清空）
+        setTimeout(() => {
+          this.resetTrafficDataForNextCycle()
+        }, 3000)
+
         apiTriggered = true
       }
 
@@ -626,10 +654,11 @@ export default class TrafficLightController {
   }
 
   // Strategy Pattern: 發送數據到後端 API（提前 10 秒請求）
-  async sendDataToBackend() {
+  async sendDataToBackend(vdData = null) {
     try {
-      const vdData = this.collectIntersectionData()
-      console.log('🚦 發送交通數據到 AI 系統:', vdData)
+      // 如果沒有提供數據，則收集當前數據
+      const dataToSend = vdData || this.collectIntersectionData()
+      console.log('🚦 發送交通數據到 AI 系統:', dataToSend)
 
       // 發送 API 開始事件到 MainLayout
       window.dispatchEvent(
@@ -687,7 +716,7 @@ export default class TrafficLightController {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(vdData),
+        body: JSON.stringify(dataToSend),
       })
 
       if (!response.ok) {
@@ -794,6 +823,126 @@ export default class TrafficLightController {
     Object.keys(this.vehicleData).forEach((direction) => {
       this.vehicleData[direction] = { motor: 0, small: 0, large: 0 }
     })
+    console.log('🔄 車輛數據已重置')
+  }
+
+  // ==========================================
+  // 🔄 AI週期數據管理系統
+  // ==========================================
+
+  // 更新特徵模擬數據顯示
+  updateFeatureSimulationDisplay(currentCycleData) {
+    console.log('📊 更新特徵模擬數據顯示')
+
+    // 立即觸發UI更新事件
+    window.dispatchEvent(
+      new CustomEvent('trafficDataUpdated', {
+        detail: {
+          data: currentCycleData,
+          source: 'ai_cycle',
+          timestamp: new Date().toISOString(),
+        },
+      }),
+    )
+
+    // 通知MainLayout強制更新顯示
+    window.dispatchEvent(
+      new CustomEvent('trafficDataChanged', {
+        detail: {
+          reason: 'api_triggered_update',
+          timestamp: new Date().toISOString(),
+        },
+      }),
+    )
+  }
+
+  // 為下一輪重置交通數據
+  resetTrafficDataForNextCycle() {
+    console.log('🔄 開始新週期，重置交通數據...')
+
+    // 1. 保存當前週期數據到歷史記錄
+    this.saveCurrentCycleToHistory()
+
+    // 2. 重置TrafficLightController的車輛計數器
+    this.resetVehicleData()
+
+    // 3. 重置TrafficDataCollector
+    if (window.trafficDataCollector) {
+      console.log('🔄 重置TrafficDataCollector數據')
+      window.trafficDataCollector.resetCurrentPeriod()
+    }
+
+    // 4. 通知自動車流生成器週期重置
+    if (window.autoTrafficGenerator) {
+      console.log('🔄 通知AutoTrafficGenerator週期重置')
+      window.autoTrafficGenerator.onCycleReset()
+    }
+
+    // 5. 觸發週期重置事件
+    window.dispatchEvent(
+      new CustomEvent('trafficCycleReset', {
+        detail: {
+          timestamp: new Date().toISOString(),
+          reason: 'ai_prediction_cycle',
+        },
+      }),
+    )
+
+    console.log('✅ 交通數據重置完成，開始新週期收集')
+  }
+
+  // 保存當前週期數據到歷史記錄
+  saveCurrentCycleToHistory() {
+    const currentData = {
+      timestamp: new Date().toISOString(),
+      vehicleData: JSON.parse(JSON.stringify(this.vehicleData)),
+      totalVehicles: this.calculateTotalVehicles(),
+      averageSpeeds: this.calculateAverageSpeeds(),
+    }
+
+    // 初始化歷史記錄陣列
+    if (!this.historyData) {
+      this.historyData = []
+    }
+
+    this.historyData.push(currentData)
+
+    // 只保留最近20筆記錄
+    if (this.historyData.length > 20) {
+      this.historyData = this.historyData.slice(-20)
+    }
+
+    console.log('📚 已保存當前週期數據到歷史記錄')
+  }
+
+  // 計算總車輛數
+  calculateTotalVehicles() {
+    let total = 0
+    Object.keys(this.vehicleData).forEach((direction) => {
+      const data = this.vehicleData[direction]
+      total += data.motor + data.small + data.large
+    })
+    return total
+  }
+
+  // 計算各方向平均速度
+  calculateAverageSpeeds() {
+    const speeds = {}
+    Object.keys(this.vehicleData).forEach((direction) => {
+      speeds[direction] = {
+        motor: this.getAverageSpeed(direction, 'motor'),
+        small: this.getAverageSpeed(direction, 'small'),
+        large: this.getAverageSpeed(direction, 'large'),
+        overall: this.getAverageSpeed(direction, 'small'), // 使用小型車作為整體代表
+      }
+    })
+    return speeds
+  }
+
+  // 獲取歷史數據
+  getHistoryData(limit = 10) {
+    if (!this.historyData) return []
+    return this.historyData.slice(-limit)
   }
 
   // 更新計時器顯示

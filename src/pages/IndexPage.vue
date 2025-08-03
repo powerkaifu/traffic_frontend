@@ -167,6 +167,20 @@ onMounted(() => {
         }
 
         const { position: randomLane, laneNumber } = laneInfo
+
+        // 檢查起始位置是否有其他車輛，避免重疊生成
+        const isPositionOccupied = activeCars.value.some((car) => {
+          if (car.direction !== direction) return false
+          const carPos = car.getCurrentPosition()
+          const distance = Math.sqrt(Math.pow(carPos.x - randomLane.x, 2) + Math.pow(carPos.y - randomLane.y, 2))
+          return distance < 50 // 如果距離小於50px，認為位置被佔用
+        })
+
+        if (isPositionOccupied) {
+          console.log(`⚠️ 起始位置被佔用，跳過生成車輛：方向 ${direction}`)
+          return
+        }
+
         const vehicle = new Vehicle(randomLane.x, randomLane.y, direction, vehicleType, laneNumber)
         vehicle.addTo(crossroadContainer.value)
 
@@ -174,10 +188,16 @@ onMounted(() => {
         activeCars.value.push(vehicle)
         console.log(`✅ 自動產生車輛已添加，目前活躍車輛數：${activeCars.value.length}`)
 
-        // 發送車輛添加事件
+        // 發送車輛添加事件 - 包含TrafficDataCollector需要的完整信息
         window.dispatchEvent(
           new CustomEvent('vehicleAdded', {
-            detail: { direction, type: vehicleType },
+            detail: {
+              direction,
+              type: vehicleType,
+              vehicleId: vehicle.id,
+              speed: vehicle.currentSpeed || 0,
+              timestamp: new Date().toISOString(),
+            },
           }),
         )
 
@@ -215,10 +235,16 @@ onMounted(() => {
             // 銷毀車輛元素
             vehicle.remove()
 
-            // 發送車輛移除事件
+            // 發送車輛移除事件 - 包含TrafficDataCollector需要的完整信息
             window.dispatchEvent(
               new CustomEvent('vehicleRemoved', {
-                detail: { direction, type: vehicleType },
+                detail: {
+                  direction,
+                  type: vehicleType,
+                  vehicleId: vehicle.id,
+                  finalSpeed: vehicle.currentSpeed || 0,
+                  travelTime: vehicle.travelTime || 0,
+                },
               }),
             )
 
@@ -257,7 +283,21 @@ onMounted(() => {
         }
 
         const { position: randomLane, laneNumber } = laneInfo
-        const endPosition = trafficController.getEndPosition(direction)
+
+        // 檢查起始位置是否有其他車輛，避免重疊生成
+        const isPositionOccupied = activeCars.value.some((car) => {
+          if (car.direction !== direction) return false
+          const carPos = car.getCurrentPosition()
+          const distance = Math.sqrt(Math.pow(carPos.x - randomLane.x, 2) + Math.pow(carPos.y - randomLane.y, 2))
+          return distance < 50 // 如果距離小於50px，認為位置被佔用
+        })
+
+        if (isPositionOccupied) {
+          console.log(`⚠️ 起始位置被佔用，跳過生成車輛：方向 ${direction}`)
+          return
+        }
+
+        const endPosObj = trafficController.getEndPosition(direction)
 
         // 隨機選擇車輛類型
         const carTypes = ['large', 'small', 'motor']
@@ -270,10 +310,16 @@ onMounted(() => {
         activeCars.value.push(vehicle)
         console.log(`✅ 車輛已添加，目前活躍車輛數：${activeCars.value.length}`)
 
-        // 發送車輛添加事件
+        // 發送車輛添加事件 - 包含TrafficDataCollector需要的完整信息
         window.dispatchEvent(
           new CustomEvent('vehicleAdded', {
-            detail: { direction, type: randomCarType },
+            detail: {
+              direction,
+              type: randomCarType,
+              vehicleId: vehicle.id,
+              speed: vehicle.currentSpeed || 0,
+              timestamp: new Date().toISOString(),
+            },
           }),
         )
 
@@ -289,32 +335,32 @@ onMounted(() => {
           let movePromise
           if (direction === 'east') {
             movePromise = vehicle.moveToWithTrafficControl(
-              endPosition,
-              randomLane.y,
+              endPosObj.x,
+              endPosObj.y,
               animationDuration,
               trafficController,
               activeCars.value,
             )
           } else if (direction === 'west') {
             movePromise = vehicle.moveToWithTrafficControl(
-              endPosition,
-              randomLane.y,
+              endPosObj.x,
+              endPosObj.y,
               animationDuration,
               trafficController,
               activeCars.value,
             )
           } else if (direction === 'north') {
             movePromise = vehicle.moveToWithTrafficControl(
-              randomLane.x,
-              endPosition,
+              endPosObj.x,
+              endPosObj.y,
               animationDuration,
               trafficController,
               activeCars.value,
             )
           } else if (direction === 'south') {
             movePromise = vehicle.moveToWithTrafficControl(
-              randomLane.x,
-              endPosition,
+              endPosObj.x,
+              endPosObj.y,
               animationDuration,
               trafficController,
               activeCars.value,
@@ -339,10 +385,16 @@ onMounted(() => {
           // 銷毀車輛元素
           vehicle.remove()
 
-          // 發送車輛移除事件
+          // 發送車輛移除事件 - 包含TrafficDataCollector需要的完整信息
           window.dispatchEvent(
             new CustomEvent('vehicleRemoved', {
-              detail: { direction, type: randomCarType },
+              detail: {
+                direction,
+                type: randomCarType,
+                vehicleId: vehicle.id,
+                finalSpeed: vehicle.currentSpeed || 0,
+                travelTime: vehicle.travelTime || 0,
+              },
             }),
           )
         }, 100) // 很短的延遲讓車子先出現
@@ -405,9 +457,20 @@ onMounted(() => {
           const endPos = trafficController.getEndPosition(vehicle.direction)
           const distance = Math.sqrt(Math.pow(currentPos.x - endPos.x, 2) + Math.pow(currentPos.y - endPos.y, 2))
 
-          // 如果車輛在終點附近，進行清理
+          // 檢查車輛存在時間，避免剛創建的車輛被誤清理
+          const vehicleAge = Date.now() - new Date(vehicle.createdAt).getTime()
+          const isNewVehicle = vehicleAge < 5000 // 5秒內的車輛視為新車輛
+
+          // 保護剛創建的車輛，避免被誤清理
+          if (vehicle.justCreated || isNewVehicle) {
+            return true // 跳過清理，保留車輛
+          }
+
+          // 只有非新車輛且接近終點才清理，避免誤清理剛生成的車輛
           if (distance < 30) {
-            console.log(`🗑️ 清理到達終點車輛: ${vehicle.id} (距離: ${Math.round(distance)}px)`)
+            console.log(
+              `🗑️ 清理接近終點車輛: ${vehicle.id} (距離: ${Math.round(distance)}px, 存在時間: ${Math.round(vehicleAge / 1000)}s)`,
+            )
             vehicle.remove()
             return false
           }
@@ -419,8 +482,11 @@ onMounted(() => {
             return false
           }
 
-          // 如果車輛超出螢幕範圍，也要清理
-          if (currentPos.x < -100 || currentPos.x > 1000 || currentPos.y < -100 || currentPos.y > 800) {
+          // 如果車輛超出螢幕範圍，也要清理（但保護新車輛）
+          if (
+            !isNewVehicle &&
+            (currentPos.x < -100 || currentPos.x > 1100 || currentPos.y < -100 || currentPos.y > 700)
+          ) {
             console.log(
               `🗑️ 清理超出範圍車輛: ${vehicle.id} (位置: ${Math.round(currentPos.x)}, ${Math.round(currentPos.y)})`,
             )
@@ -435,7 +501,7 @@ onMounted(() => {
         if (beforeCount !== afterCount) {
           console.log(`🧹 定期清理完成：清理了 ${beforeCount - afterCount} 輛車，剩餘 ${afterCount} 輛`)
         }
-      }, 5000) // 改為每5秒清理一次，更頻繁
+      }, 2000) // 改為每2秒清理一次，更頻繁地處理終點車輛
 
       // 在組件卸載時清理定時器
       window.cleanupVehicleInterval = cleanupInterval
@@ -494,7 +560,7 @@ onUnmounted(() => {
   background-repeat: no-repeat;
   border-radius: 8px;
   position: relative;
-  overflow: hidden;
+  /* overflow: hidden; */
   /* border: 3px dashed rgba(255, 255, 255, 0.1); */
 }
 

@@ -67,6 +67,24 @@ export default class AutoTrafficGenerator {
       lastGenerationTime: null,
     }
 
+    // 初始化週期管理數據
+    this.generationStats = {
+      totalGenerated: 0,
+      byDirection: {
+        east: { motor: 0, small: 0, large: 0, total: 0 },
+        west: { motor: 0, small: 0, large: 0, total: 0 },
+        south: { motor: 0, small: 0, large: 0, total: 0 },
+        north: { motor: 0, small: 0, large: 0, total: 0 },
+      },
+      byType: {
+        motor: 0,
+        small: 0,
+        large: 0,
+      },
+      startTime: new Date().toISOString(),
+    }
+    this.cycleHistory = []
+
     // Observer Pattern: 事件監聽器
     this.initEventListeners()
   }
@@ -409,12 +427,21 @@ export default class AutoTrafficGenerator {
     }
   }
 
-  // 更新統計數據
+  // 更新統計數據（增強版，同時更新週期統計）
   updateStatistics(direction, vehicleType) {
+    // 更新原有統計
     this.statistics.totalGenerated++
     this.statistics.byDirection[direction]++
     this.statistics.byType[vehicleType]++
     this.statistics.lastGenerationTime = Date.now()
+
+    // 更新週期統計
+    if (this.generationStats) {
+      this.generationStats.totalGenerated++
+      this.generationStats.byDirection[direction][vehicleType]++
+      this.generationStats.byDirection[direction].total++
+      this.generationStats.byType[vehicleType]++
+    }
   }
 
   // 獲取統計數據
@@ -485,5 +512,118 @@ export default class AutoTrafficGenerator {
   // 獲取當前配置
   getConfig() {
     return { ...this.generationConfig }
+  }
+
+  // ==========================================
+  // 🔄 AI週期管理系統
+  // ==========================================
+
+  // 處理AI週期重置
+  onCycleReset() {
+    console.log('🔄 AutoTrafficGenerator: 接收到週期重置通知')
+
+    // 1. 記錄當前週期的生成統計
+    if (this.generationStats) {
+      this.cycleHistory = this.cycleHistory || []
+      this.cycleHistory.push({
+        timestamp: new Date().toISOString(),
+        stats: { ...this.generationStats },
+        config: { ...this.generationConfig },
+      })
+
+      // 只保留最近10個週期的記錄
+      if (this.cycleHistory.length > 10) {
+        this.cycleHistory = this.cycleHistory.slice(-10)
+      }
+    }
+
+    // 2. 重置生成統計
+    this.resetGenerationStats()
+
+    // 3. 調整下一週期的生成策略（基於歷史數據）
+    this.adaptToNewCycle()
+
+    // 4. 觸發週期重置完成事件
+    window.dispatchEvent(
+      new CustomEvent('autoGeneratorCycleReset', {
+        detail: {
+          timestamp: new Date().toISOString(),
+          newConfig: this.generationConfig,
+        },
+      }),
+    )
+
+    console.log('✅ AutoTrafficGenerator: 週期重置完成')
+  }
+
+  // 重置生成統計
+  resetGenerationStats() {
+    this.generationStats = {
+      totalGenerated: 0,
+      byDirection: {
+        east: { motor: 0, small: 0, large: 0, total: 0 },
+        west: { motor: 0, small: 0, large: 0, total: 0 },
+        south: { motor: 0, small: 0, large: 0, total: 0 },
+        north: { motor: 0, small: 0, large: 0, total: 0 },
+      },
+      byType: {
+        motor: 0,
+        small: 0,
+        large: 0,
+      },
+      startTime: new Date().toISOString(),
+    }
+
+    console.log('📊 生成統計已重置')
+  }
+
+  // 適應新週期
+  adaptToNewCycle() {
+    console.log('🧠 AutoTrafficGenerator: 分析歷史數據，調整新週期策略')
+
+    if (!this.cycleHistory || this.cycleHistory.length === 0) {
+      console.log('📋 無歷史數據，使用預設配置')
+      return
+    }
+
+    // 分析最近3個週期的數據
+    const recentCycles = this.cycleHistory.slice(-3)
+    const avgGenerationRate =
+      recentCycles.reduce((sum, cycle) => {
+        return sum + (cycle.stats.totalGenerated || 0)
+      }, 0) / recentCycles.length
+
+    // 根據歷史生成率調整間隔
+    if (avgGenerationRate > 50) {
+      // 生成率過高，延長間隔
+      this.generationConfig.interval.normal = Math.min(
+        this.generationConfig.interval.normal * 1.1,
+        this.generationConfig.interval.max,
+      )
+      console.log('📈 檢測到高生成率，延長生成間隔')
+    } else if (avgGenerationRate < 20) {
+      // 生成率過低，縮短間隔
+      this.generationConfig.interval.normal = Math.max(
+        this.generationConfig.interval.normal * 0.9,
+        this.generationConfig.interval.min,
+      )
+      console.log('📉 檢測到低生成率，縮短生成間隔')
+    }
+
+    console.log(`⚙️ 新週期配置: 間隔 ${this.generationConfig.interval.normal}ms`)
+  }
+
+  // 獲取週期歷史數據
+  getCycleHistory(limit = 5) {
+    if (!this.cycleHistory) return []
+    return this.cycleHistory.slice(-limit)
+  }
+
+  // 獲取當前週期統計
+  getCurrentCycleStats() {
+    return {
+      ...this.generationStats,
+      uptime: this.generationStats.startTime ? (new Date() - new Date(this.generationStats.startTime)) / 1000 : 0,
+    }
   }
 }

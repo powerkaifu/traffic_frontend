@@ -67,7 +67,7 @@ export default class Vehicle {
     // Strategy Pattern: 使用延遲策略避免剛生成就被卡住
     setTimeout(() => {
       this.justCreated = false
-    }, 200) // 200毫秒後才開始正常碰撞檢測
+    }, 1000) // 增加到1000毫秒，確保車輛有足夠時間啟動移動
   }
 
   // Observer Pattern: 實現觀察者模式，通知交通控制器和數據收集器
@@ -328,6 +328,31 @@ export default class Vehicle {
     return changed
   }
 
+  // Strategy Pattern: 檢查車輛是否已離開畫面邊界
+  checkOutOfBounds(position) {
+    // 定義畫面邊界（包含安全邊距）
+    const bounds = {
+      left: -50, // 縮小左邊界，讓車輛更容易觸發完成
+      right: 1050, // 縮小右邊界
+      top: -50, // 縮小上邊界
+      bottom: 650, // 縮小下邊界
+    }
+
+    // 根據方向檢查是否已完全離開對應邊界
+    switch (this.direction) {
+      case 'east':
+        return position.x >= bounds.right
+      case 'west':
+        return position.x <= bounds.left
+      case 'north':
+        return position.y <= bounds.top
+      case 'south':
+        return position.y >= bounds.bottom
+      default:
+        return false
+    }
+  }
+
   // Template Method Pattern: 檢查是否到達停止線的模板方法
   checkStopLine() {
     // Template Method Pattern: 定義停止線檢查的標準流程
@@ -439,13 +464,19 @@ export default class Vehicle {
       return null
     }
 
+    // 新增：如果車輛剛開始移動且移動時間少於2秒，放寬碰撞檢測
+    const isJustStartedMoving =
+      this.currentState === 'moving' &&
+      this.movementStartTime &&
+      Date.now() - new Date(this.movementStartTime).getTime() < 2000
+
     // Template Method Pattern: 定義碰撞檢測的標準流程
     const currentPos = this.getCurrentPosition()
     const currentBox = this.getBoundingBox()
 
-    // 安全跟車距離 - 增加距離以防止重疊
-    const safeDistance = 10 // 增加到20px，確保足夠的安全距離
-    const stopDistance = 5 // 停止距離設為15px，防止重疊
+    // 安全跟車距離 - 根據車輛狀態動態調整
+    const safeDistance = isJustStartedMoving ? 5 : 10 // 剛開始移動時放寬距離要求
+    const stopDistance = isJustStartedMoving ? 2 : 5 // 剛開始移動時放寬停止距離
 
     for (let vehicle of allVehicles) {
       if (vehicle.id === this.id || vehicle.direction !== this.direction) continue
@@ -590,9 +621,26 @@ export default class Vehicle {
       this.currentSpeed = this.initialSpeed
       this.maxSpeed = this.initialSpeed
 
-      // 計算總距離
+      // 計算總距離 - 根據車輛方向確保正交移動
       const startPos = this.getCurrentPosition()
-      this.totalDistance = Math.sqrt(Math.pow(targetX - startPos.x, 2) + Math.pow(targetY - startPos.y, 2))
+
+      // 根據車輛方向調整目標位置，確保只能90度或180度移動
+      let finalTargetX, finalTargetY
+      if (this.direction === 'east' || this.direction === 'west') {
+        // 東西方向：只允許X軸移動，Y軸保持起始位置
+        finalTargetX = targetX
+        finalTargetY = startPos.y
+      } else if (this.direction === 'north' || this.direction === 'south') {
+        // 南北方向：只允許Y軸移動，X軸保持起始位置
+        finalTargetX = startPos.x
+        finalTargetY = targetY
+      } else {
+        // 預設情況：保持原有邏輯
+        finalTargetX = targetX
+        finalTargetY = targetY
+      }
+
+      this.totalDistance = Math.sqrt(Math.pow(finalTargetX - startPos.x, 2) + Math.pow(finalTargetY - startPos.y, 2))
 
       let lastPosition = startPos
       let lastTime = Date.now()
@@ -600,8 +648,13 @@ export default class Vehicle {
       // Strategy Pattern: 使用延遲策略避免剛生成就被碰撞檢測影響
       setTimeout(() => {
         this.currentState = 'moving'
-        this.targetX = targetX
-        this.targetY = targetY
+        this.targetX = finalTargetX
+        this.targetY = finalTargetY
+
+        // 重要：強制清除可能的等待狀態，確保新生成的車輛能夠開始移動
+        this.waitingForGreen = false
+        this.isAtStopLine = false
+        this.hasPassedStopLine = false
 
         // Observer Pattern: 定期檢查機制，防止車輛卡住
         this.periodicCheckTimer = setInterval(() => {
@@ -653,6 +706,14 @@ export default class Vehicle {
             // Observer Pattern: 檢測佈局變化（抽屜開關等）
             this.checkLayoutChange()
 
+            // Strategy Pattern: 檢查車輛是否已離開畫面邊界
+            const isOutOfBounds = this.checkOutOfBounds(currentPos)
+            if (isOutOfBounds) {
+              console.log(`🚪 車輛 ${this.id} 已離開畫面邊界，強制完成動畫`)
+              this.movementTimeline.progress(1) // 強制完成動畫
+              return
+            }
+
             // 檢查是否接近終點 - 提前標記為完成狀態
             const distanceToTarget = Math.sqrt(
               Math.pow(currentPos.x - this.targetX, 2) + Math.pow(currentPos.y - this.targetY, 2),
@@ -664,32 +725,42 @@ export default class Vehicle {
               console.log(`🎯 車輛 ${this.id} 接近終點，距離: ${Math.round(distanceToTarget)}px`)
             }
 
+            // 如果非常接近終點（小於10px），強制完成動畫避免卡住
+            if (distanceToTarget < 10) {
+              console.log(`🏁 車輛 ${this.id} 極接近終點，強制完成避免塞車，距離: ${Math.round(distanceToTarget)}px`)
+              this.movementTimeline.progress(1) // 強制完成動畫
+              return
+            }
+
             // Template Method Pattern: 前方車輛碰撞檢測流程
-            const frontCollision = this.checkFrontCollision(allVehicles)
+            // 接近終點的車輛跳過碰撞檢測，直接通過到邊界
+            if (this.currentState !== 'nearComplete') {
+              const frontCollision = this.checkFrontCollision(allVehicles)
 
-            if (frontCollision) {
-              const { vehicle: frontVehicle, shouldStop, isOverlapping } = frontCollision
+              if (frontCollision) {
+                const { vehicle: frontVehicle, shouldStop, isOverlapping } = frontCollision
 
-              // 如果有重疊，立即停車
-              if (isOverlapping) {
-                if (this.currentState === 'moving') {
-                  this.stopMovement()
-                  this.currentState = 'waitingForVehicle'
+                // 如果有重疊，立即停車
+                if (isOverlapping) {
+                  if (this.currentState === 'moving') {
+                    this.stopMovement()
+                    this.currentState = 'waitingForVehicle'
+                  }
+                  return
                 }
-                return
-              }
 
-              // 如果前方車輛停止或距離太近，則停車
-              if (
-                frontVehicle.currentState === 'waiting' ||
-                frontVehicle.currentState === 'waitingForVehicle' ||
-                shouldStop
-              ) {
-                if (this.currentState === 'moving') {
-                  this.stopMovement()
-                  this.currentState = 'waitingForVehicle'
+                // 如果前方車輛停止或距離太近，則停車
+                if (
+                  frontVehicle.currentState === 'waiting' ||
+                  frontVehicle.currentState === 'waitingForVehicle' ||
+                  shouldStop
+                ) {
+                  if (this.currentState === 'moving') {
+                    this.stopMovement()
+                    this.currentState = 'waitingForVehicle'
+                  }
+                  return
                 }
-                return
               }
             } else if (this.currentState === 'waitingForVehicle') {
               // 如果前方車輛已離開安全距離，恢復移動
@@ -758,13 +829,34 @@ export default class Vehicle {
           },
         })
 
-        // Command Pattern: 添加移動動畫命令
-        this.movementTimeline.to(this.element, {
-          x: targetX,
-          y: targetY,
-          duration: duration,
-          ease: 'none', // 線性動畫，恆定速度
-        })
+        // Command Pattern: 添加移動動畫命令 - 確保車輛只能沿正交方向移動
+
+        // 根據車輛方向決定移動路徑，確保只能90度或180度直線移動
+        if (this.direction === 'east' || this.direction === 'west') {
+          // 東西方向：只沿X軸移動，Y軸保持不變
+          this.movementTimeline.to(this.element, {
+            x: finalTargetX,
+            y: finalTargetY, // 實際上等於起始Y位置，確保水平直線移動
+            duration: duration,
+            ease: 'none', // 線性動畫，恆定速度
+          })
+        } else if (this.direction === 'north' || this.direction === 'south') {
+          // 南北方向：只沿Y軸移動，X軸保持不變
+          this.movementTimeline.to(this.element, {
+            x: finalTargetX, // 實際上等於起始X位置，確保垂直直線移動
+            y: finalTargetY,
+            duration: duration,
+            ease: 'none', // 線性動畫，恆定速度
+          })
+        } else {
+          // 預設情況：保持原有邏輯（向後相容）
+          this.movementTimeline.to(this.element, {
+            x: finalTargetX,
+            y: finalTargetY,
+            duration: duration,
+            ease: 'none', // 線性動畫，恆定速度
+          })
+        }
       }, 100) // 延遲100毫秒開始移動，讓車輛有時間初始化
     })
   }
@@ -797,7 +889,7 @@ export default class Vehicle {
     this.movementEndTime = new Date().toISOString()
 
     // 計算行駛數據
-    const travelTime = this.movementStartTime
+    this.travelTime = this.movementStartTime
       ? (new Date(this.movementEndTime) - new Date(this.movementStartTime)) / 1000
       : 0
 
@@ -806,7 +898,7 @@ export default class Vehicle {
       finalSpeed: this.currentSpeed,
       maxSpeed: this.maxSpeed,
       totalDistance: this.totalDistance,
-      travelTime: travelTime,
+      travelTime: this.travelTime,
       startPosition: this.startPosition,
       finalPosition: this.getCurrentPosition(),
     })

@@ -65,7 +65,7 @@
                     'scenario-btn-compact',
                     {
                       active: currentTimeScenario === scenario.key,
-                      auto: isAutoTimeMode && scenario.key === getAutoTimeScenario(),
+                      // 移除自動時間模式的顯示邏輯
                     },
                   ]"
                   :title="`${scenario.name} (${scenario.timeRange})`"
@@ -77,7 +77,8 @@
 
               <!-- 控制與統計 -->
               <div class="control-stats-row">
-                <!-- 自動模式切換 -->
+                <!-- 自動模式切換 (已隱藏 - 改為純手動模式) -->
+                <!--
                 <button
                   @click="toggleAutoTimeMode"
                   :class="['auto-toggle-compact', { active: isAutoTimeMode }]"
@@ -86,6 +87,7 @@
                   <span class="toggle-icon">{{ isAutoTimeMode ? '🤖' : '✋' }}</span>
                   <span class="toggle-label">{{ isAutoTimeMode ? '自動' : '手動' }}</span>
                 </button>
+                -->
 
                 <!-- 頻率調整 (僅手動模式顯示) -->
                 <div class="frequency-control" v-show="!isAutoTimeMode">
@@ -124,7 +126,6 @@
           <div class="data-section-buttons">
             <div class="top-buttons">
               <img src="/images/button/setDataBtnOn.png" alt="特徵模擬數據" class="control-button" />
-              <img src="/images/button/stateDataBtnOff.png" alt="路口動態數據" class="control-button" />
             </div>
           </div>
 
@@ -312,8 +313,8 @@ const largeCarCount = ref(3) // Volume_L
 
 // 智能時段自動分派系統狀態
 const isSystemRunning = ref(true)
-const isAutoTimeMode = ref(true) // 預設開啟自動時段模式
-const currentTimeScenario = ref('normal')
+const isAutoTimeMode = ref(false) // 預設關閉自動時段模式，改為手動選擇
+const currentTimeScenario = ref('normal') // 預設為一般情境
 const manualFrequency = ref(2.5)
 const totalGenerated = ref(0)
 const currentInterval = ref(2.5)
@@ -468,17 +469,8 @@ const systemStatusText = computed(() => {
 })
 
 // 根據當前時間自動判斷場景
-const getAutoTimeScenario = () => {
-  const currentHour = new Date().getHours()
-
-  for (const scenario of timeScenarios.value) {
-    if (scenario.hours.includes(currentHour)) {
-      return scenario.key
-    }
-  }
-
-  return 'normal' // 預設場景
-}
+// 移除自動時間場景判斷函數，改為純手動模式
+// 用戶可以直接點選任何情境按鈕來切換流量場景
 
 // 切換到指定時段場景
 const switchToTimeScenario = (scenarioKey) => {
@@ -487,10 +479,8 @@ const switchToTimeScenario = (scenarioKey) => {
 
   currentTimeScenario.value = scenarioKey
 
-  // 如果是手動模式，關閉自動時段
-  if (isAutoTimeMode.value && scenarioKey !== getAutoTimeScenario()) {
-    isAutoTimeMode.value = false
-  }
+  // 移除自動時間檢測邏輯，純手動選擇模式
+  // 點選任何情境按鈕都會直接切換到該情境
 
   // 應用場景配置到自動交通產生器
   if (window.autoTrafficGenerator) {
@@ -511,30 +501,21 @@ const switchToTimeScenario = (scenarioKey) => {
   console.log(`🕐 時段場景切換: ${scenario.name}`, scenario.config)
 }
 
-// 切換自動時段模式
+// 切換自動時段模式 (已移除，改為純手動模式)
+// 所有場景切換都通過手動點選按鈕進行
+/*
 const toggleAutoTimeMode = () => {
-  isAutoTimeMode.value = !isAutoTimeMode.value
+  // 移除自動時間邏輯，保持手動模式
+  isAutoTimeMode.value = false
 
-  if (isAutoTimeMode.value) {
-    // 開啟自動模式，立即切換到對應時段
-    const autoScenario = getAutoTimeScenario()
-    switchToTimeScenario(autoScenario)
-
-    $q.notify({
-      type: 'info',
-      message: '已啟用自動時段模式',
-      position: 'top',
-      timeout: 1500,
-    })
-  } else {
-    $q.notify({
-      type: 'info',
-      message: '已切換到手動控制模式',
-      position: 'top',
-      timeout: 1500,
-    })
-  }
+  $q.notify({
+    type: 'info',
+    message: '使用手動控制模式 - 請點選情境按鈕切換',
+    position: 'top',
+    timeout: 1500,
+  })
 }
+*/
 
 // 手動頻率調整
 const updateManualFrequency = () => {
@@ -555,19 +536,10 @@ const updateManualFrequency = () => {
 // 自動時段檢查定時器
 const autoTimeCheckInterval = ref(null)
 
-// 啟動自動時段檢查
+// 移除自動時段檢查 (改為純手動模式)
 const startAutoTimeCheck = () => {
-  if (autoTimeCheckInterval.value) return
-
-  autoTimeCheckInterval.value = setInterval(() => {
-    if (isAutoTimeMode.value) {
-      const autoScenario = getAutoTimeScenario()
-      if (autoScenario !== currentTimeScenario.value) {
-        console.log(`🕐 自動時段切換: ${autoScenario}`)
-        switchToTimeScenario(autoScenario)
-      }
-    }
-  }, 60000) // 每分鐘檢查一次
+  // 不再需要自動時段檢查，所有切換都通過手動操作
+  console.log('使用手動模式，無需自動時段檢查')
 }
 
 // 停止自動時段檢查
@@ -744,17 +716,47 @@ const listenForVehicleChanges = () => {
     forceUpdateTrigger.value++
   }
 
+  // 監聽AI週期相關事件
+  const handleTrafficCycleReset = (event) => {
+    console.log('🔄 AI週期重置，重新整理數據顯示', event.detail)
+    forceUpdateTrigger.value++
+    // 可以在這裡重置總生成計數器
+    totalGenerated.value = 0
+  }
+
+  const handleTrafficApiSending = (event) => {
+    console.log('🚀 API發送中...', event.detail)
+    // 可以顯示載入狀態
+  }
+
+  const handleTrafficApiComplete = (event) => {
+    console.log('✅ API響應完成', event.detail)
+    forceUpdateTrigger.value++
+  }
+
+  const handleTrafficApiError = (event) => {
+    console.log('❌ API發送失敗', event.detail)
+  }
+
   // 添加事件監聽器
   window.addEventListener('vehicleAdded', handleVehicleChange)
   window.addEventListener('vehicleRemoved', handleVehicleChange)
   window.addEventListener('trafficDataChanged', handleVehicleChange)
   window.addEventListener('trafficDataUpdated', handleTrafficDataUpdate)
+  window.addEventListener('trafficCycleReset', handleTrafficCycleReset)
+  window.addEventListener('trafficApiSending', handleTrafficApiSending)
+  window.addEventListener('trafficApiComplete', handleTrafficApiComplete)
+  window.addEventListener('trafficApiError', handleTrafficApiError)
 
   return () => {
     window.removeEventListener('vehicleAdded', handleVehicleChange)
     window.removeEventListener('vehicleRemoved', handleVehicleChange)
     window.removeEventListener('trafficDataChanged', handleVehicleChange)
     window.removeEventListener('trafficDataUpdated', handleTrafficDataUpdate)
+    window.removeEventListener('trafficCycleReset', handleTrafficCycleReset)
+    window.removeEventListener('trafficApiSending', handleTrafficApiSending)
+    window.removeEventListener('trafficApiComplete', handleTrafficApiComplete)
+    window.removeEventListener('trafficApiError', handleTrafficApiError)
   }
 }
 
@@ -776,16 +778,12 @@ onMounted(() => {
   // 監聽車輛變化事件
   const removeVehicleListeners = listenForVehicleChanges()
 
-  // 初始化時段場景系統
+  // 初始化時段場景系統 (改為手動模式)
   setTimeout(() => {
-    if (isAutoTimeMode.value) {
-      const autoScenario = getAutoTimeScenario()
-      switchToTimeScenario(autoScenario)
-    } else {
-      switchToTimeScenario('normal')
-    }
+    // 移除自動時間邏輯，直接設置為正常情境
+    switchToTimeScenario('normal')
 
-    // 啟動自動時段檢查
+    // 啟動手動模式 (不需要自動時段檢查)
     startAutoTimeCheck()
 
     // 監聽車輛生成統計

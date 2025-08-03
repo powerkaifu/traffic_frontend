@@ -485,7 +485,17 @@ export default class TrafficDataCollector {
       },
     }
 
-    console.log('🔄 當前期間數據已重置')
+    console.log('🔄 TrafficDataCollector: 當前期間數據已重置')
+
+    // 觸發數據重置事件
+    window.dispatchEvent(
+      new CustomEvent('trafficDataReset', {
+        detail: {
+          timestamp: new Date().toISOString(),
+          source: 'data_collector_reset',
+        },
+      }),
+    )
   }
 
   /**
