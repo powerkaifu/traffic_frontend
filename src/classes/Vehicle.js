@@ -42,7 +42,7 @@ export default class Vehicle {
     })
 
     // 創建車道編號標籤
-    this.createLaneNumberLabel()
+    // this.createLaneNumberLabel()
 
     // 車輛數據收集 - 通知交通控制器
     this.notifyTrafficController()
@@ -290,6 +290,30 @@ export default class Vehicle {
     return false
   }
 
+  // 新增：計算車輛到停止線的距離
+  getDistanceToStopLine() {
+    const stopLine = this.getStopLinePosition()
+    if (!stopLine.x && !stopLine.y) return null
+
+    const vehicleHead = this.getVehicleHeadPosition()
+
+    if (this.direction === 'east') {
+      // 東向：車頭到停止線的X軸距離
+      return stopLine.x - vehicleHead.x
+    } else if (this.direction === 'west') {
+      // 西向：車頭到停止線的X軸距離
+      return vehicleHead.x - stopLine.x
+    } else if (this.direction === 'north') {
+      // 北向：車頭到停止線的Y軸距離
+      return vehicleHead.y - stopLine.y
+    } else if (this.direction === 'south') {
+      // 南向：車頭到停止線的Y軸距離
+      return stopLine.y - vehicleHead.y
+    }
+
+    return null
+  }
+
   // 獲取當前位置
   getCurrentPosition() {
     return {
@@ -342,8 +366,9 @@ export default class Vehicle {
     const currentPos = this.getCurrentPosition()
     const currentBox = this.getBoundingBox()
 
-    // 安全跟車距離 - 調整為很小的距離，讓車輛緊接在前車後方
-    const safeDistance = 8 // 從50降低到8，讓車輛更緊密跟隨
+    // 安全跟車距離 - 增加距離以防止重疊
+    const safeDistance = 10 // 增加到20px，確保足夠的安全距離
+    const stopDistance = 5 // 停止距離設為15px，防止重疊
 
     for (let vehicle of allVehicles) {
       if (vehicle.id === this.id || vehicle.direction !== this.direction) continue
@@ -378,12 +403,33 @@ export default class Vehicle {
         distanceToFrontVehicle = otherBox.top - currentBox.bottom
       }
 
+      // 檢查是否有重疊或距離太近
+      let isOverlapping = false
+      if (this.direction === 'east' || this.direction === 'west') {
+        // 水平方向：檢查X軸重疊
+        isOverlapping = !(currentBox.right <= otherBox.left || currentBox.left >= otherBox.right) && inSameLane
+      } else {
+        // 垂直方向：檢查Y軸重疊
+        isOverlapping = !(currentBox.bottom <= otherBox.top || currentBox.top >= otherBox.bottom) && inSameLane
+      }
+
+      // 如果重疊，立即停止
+      if (isOverlapping) {
+        return {
+          vehicle: vehicle,
+          distance: 0,
+          shouldStop: true,
+          isOverlapping: true,
+        }
+      }
+
       // 如果在同一車道且在前方，且距離小於安全距離
       if (inSameLane && isFront && distanceToFrontVehicle < safeDistance) {
         return {
           vehicle: vehicle,
           distance: distanceToFrontVehicle,
-          shouldStop: distanceToFrontVehicle < 5, // 從20降低到5，讓車輛能更緊密地跟隨
+          shouldStop: distanceToFrontVehicle < stopDistance,
+          isOverlapping: false,
         }
       }
     }
@@ -406,7 +452,13 @@ export default class Vehicle {
       // 再次檢查前方是否還有車輛
       const frontCollision = this.checkFrontCollision(allVehicles)
 
-      if (!frontCollision || (!frontCollision.shouldStop && frontCollision.vehicle.currentState === 'moving')) {
+      // 如果沒有碰撞，或者沒有重疊且不需要停止，且前車在移動，則可以恢復移動
+      if (
+        !frontCollision ||
+        (!frontCollision.isOverlapping &&
+          !frontCollision.shouldStop &&
+          frontCollision.vehicle.currentState === 'moving')
+      ) {
         this.movementTimeline.resume()
         this.currentState = 'moving'
       }
@@ -416,10 +468,11 @@ export default class Vehicle {
   // 新增：強制恢復移動方法（用於綠燈時強制啟動）
   forceResumeMovement(allVehicles = []) {
     if (this.movementTimeline) {
-      // 檢查前方車輛，但只在距離非常近時才停止
+      // 檢查前方車輛，確保沒有重疊
       const frontCollision = this.checkFrontCollision(allVehicles)
 
-      if (!frontCollision || frontCollision.distance > 3) {
+      // 只有在沒有重疊且距離足夠時才恢復移動
+      if (!frontCollision || (!frontCollision.isOverlapping && frontCollision.distance > 10)) {
         // 生成隨機延遲時間，讓車輛啟動更生動 (0-2秒)
         const randomDelay = Math.random() * 2
 
@@ -466,7 +519,8 @@ export default class Vehicle {
         // 如果車輛在等待前車，但前車已經走了，也要檢查
         if (this.currentState === 'waitingForVehicle') {
           const frontCollision = this.checkFrontCollision(allVehicles)
-          if (!frontCollision || frontCollision.distance > 10) {
+          // 確保沒有重疊且距離足夠才恢復移動
+          if (!frontCollision || (!frontCollision.isOverlapping && frontCollision.distance > 15)) {
             this.resumeMovement(allVehicles)
           }
         }
@@ -482,7 +536,16 @@ export default class Vehicle {
           const frontCollision = this.checkFrontCollision(allVehicles)
 
           if (frontCollision) {
-            const { vehicle: frontVehicle, shouldStop } = frontCollision
+            const { vehicle: frontVehicle, shouldStop, isOverlapping } = frontCollision
+
+            // 如果有重疊，立即停車
+            if (isOverlapping) {
+              if (this.currentState === 'moving') {
+                this.stopMovement()
+                this.currentState = 'waitingForVehicle'
+              }
+              return
+            }
 
             // 如果前方車輛停止或距離太近，則停車
             if (
@@ -499,7 +562,6 @@ export default class Vehicle {
           } else if (this.currentState === 'waitingForVehicle') {
             // 如果前方車輛已離開安全距離，恢復移動
             this.resumeMovement(allVehicles)
-            this.currentState = 'moving'
           }
 
           // 檢查是否到達停止線（只有未通過停止線的車輛才檢查）

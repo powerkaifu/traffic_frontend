@@ -2,6 +2,7 @@
   <q-page class="simulation-page">
     <!-- 十字路口場景模擬頁面內容 -->
     <div ref="crossroadContainer" class="crossroad-area">
+      <!-- 道路標籤背景 -->
       <div class="road-label">
         <div class="road-label-bg"></div>
       </div>
@@ -114,6 +115,9 @@ onMounted(() => {
       const southLight = crossroadContainer.value.querySelector('.traffic-light.top-left')
       const northLight = crossroadContainer.value.querySelector('.traffic-light.bottom-right')
 
+      console.log('🚥 初始化交通燈控制器...')
+      console.log('交通燈元素:', { eastLight, westLight, southLight, northLight })
+
       trafficController.init(eastLight, westLight, southLight, northLight)
 
       // 設置全域交通控制器供其他組件使用
@@ -132,10 +136,9 @@ onMounted(() => {
         aiPrediction.value = prediction
       })
 
-      // 5秒後開始交通燈時相變化
-      setTimeout(() => {
-        trafficController.start()
-      }, 100)
+      // 立即開始交通燈時相變化（移除延遲）
+      console.log('🚥 啟動交通燈控制器...')
+      trafficController.start()
 
       // 車輛終點位置 (車輛完全離開畫面) - 讓動畫更自然
       const endY = -200 // 往北車輛的Y終點：完全離開上邊界
@@ -177,6 +180,8 @@ onMounted(() => {
 
       // 創建車輛生成器函數
       const createRandomCar = (direction, lanes, endPosition) => {
+        console.log(`🚗 創建車輛：方向 ${direction}`)
+
         // 隨機選擇一個車道
         const randomLaneIndex = Math.floor(Math.random() * lanes.length)
         const randomLane = lanes[randomLaneIndex]
@@ -191,6 +196,7 @@ onMounted(() => {
 
         // 添加到活躍車輛列表
         activeCars.value.push(vehicle)
+        console.log(`✅ 車輛已添加，目前活躍車輛數：${activeCars.value.length}`)
 
         // 立即開始動畫
         setTimeout(async () => {
@@ -289,15 +295,17 @@ onMounted(() => {
         })
       }
 
-      // 立即生成初始車輛
+      // 立即生成初始車輛（縮短延遲）
       setTimeout(() => {
+        console.log('🚀 開始生成初始車輛...')
         generateInitialCars()
-      }, 200) // 200ms後生成初始車輛
+      }, 100) // 100ms後生成初始車輛
 
-      // 開始隨機生成車輛
+      // 開始隨機生成車輛（縮短延遲）
       setTimeout(() => {
+        console.log('🔄 開始持續生成車輛...')
         startRandomCarGeneration()
-      }, 1000) // 1秒後開始持續生成
+      }, 500) // 500ms後開始持續生成
     }
   }, 500)
 })

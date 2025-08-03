@@ -12,7 +12,37 @@
  * - 核心控制器: 統一管理整個路口的交通流量
  * - 數據收集中心: 收集車輛數據並格式化為 API 格式
  * - AI 整合橋樑: 與後端 AI 系統通訊，獲取智能燈號時間
- * - 事件調度器: 協調車輛移動與燈號狀態的同步
+ * - 事件調度   }
+
+  // ==========================================
+  // � 系統控制和工具方法群組
+  // ==========================================
+
+  // 開始交通燈控制
+  start() {檢測機制 (Intersection Clearance Detection)
+  // ==========================================
+
+  // 設置車輛列表引用（用於路口清空檢測）
+  setAllVehicles(vehicles) {
+    this.allVehicles = vehicles
+  }
+
+  // 獲取所有車輛列表（支援響應式陣列）
+  getAllVehicles() {
+    // 如果是 Vue 的響應式陣列，需要取得其值
+    if (this.allVehicles && this.allVehicles.value) {
+      console.log(`🚗 獲取車輛列表：${this.allVehicles.value.length} 輛車 (響應式陣列)`)
+      return this.allVehicles.value
+    }
+    if (this.allVehicles && Array.isArray(this.allVehicles)) {
+      console.log(`🚗 獲取車輛列表：${this.allVehicles.length} 輛車 (普通陣列)`)
+      return this.allVehicles
+    }
+    console.log('📋 無車輛列表可用')
+    return []
+  }
+
+  // 獲取路口中央區域範圍調車輛移動與燈號狀態的同步
  * - 時間管理器: 控制燈號切換的精確時序
  */
 // TrafficLightController.js - 交通燈控制系統
@@ -137,58 +167,61 @@ export default class TrafficLightController {
 
   // Template Method Pattern: 運行一個完整的燈號循環
   async runCycle() {
+    console.log('🔄 開始交通燈循環...')
+
     while (this.isRunning) {
-      // State Pattern: 根據當前時相選擇處理策略
-      if (this.currentPhase === 'northSouth') {
-        // Strategy Pattern: 南北向綠燈階段處理策略
-        console.log(`🚥 南北向綠燈開始 - 時間: ${this.dynamicTiming.northSouth}秒`)
-        this.updateTimer('南北向 綠燈', this.dynamicTiming.northSouth)
+      try {
+        // State Pattern: 根據當前時相選擇處理策略
+        if (this.currentPhase === 'northSouth') {
+          // Strategy Pattern: 南北向綠燈階段處理策略
+          console.log(`🚥 南北向綠燈開始 - 時間: ${this.dynamicTiming.northSouth}秒`)
+          this.updateTimer('南北向 綠燈', this.dynamicTiming.northSouth)
 
-        // Template Method: 完整倒數南北向綠燈，在剩餘10秒時發送API
-        await this.countdownDelayWithAPI(this.dynamicTiming.northSouth * 1000, 10)
+          // Template Method: 完整倒數南北向綠燈，在剩餘10秒時發送API
+          await this.countdownDelayWithAPI(this.dynamicTiming.northSouth * 1000, 10)
 
-        // Template Method: 南北向：綠燈 -> 黃燈 -> 紅燈
-        this.updateLightState('south', 'yellow')
-        this.updateLightState('north', 'yellow')
-        this.updateTimer('南北向 黃燈', 2)
-        await this.countdownDelay(2000) // 黃燈 2 秒
+          // Template Method: 南北向：綠燈 -> 黃燈 -> 紅燈
+          this.updateLightState('south', 'yellow')
+          this.updateLightState('north', 'yellow')
+          this.updateTimer('南北向 黃燈', 2)
+          await this.countdownDelay(2000) // 黃燈 2 秒
 
-        this.updateLightState('south', 'red')
-        this.updateLightState('north', 'red')
-        this.updateLightState('east', 'green')
-        this.updateLightState('west', 'green')
+          this.updateLightState('south', 'red')
+          this.updateLightState('north', 'red')
+          this.updateLightState('east', 'green')
+          this.updateLightState('west', 'green') // Strategy Pattern: 更新當前使用的時間為下一輪的時間
+          this.dynamicTiming.eastWest = this.nextTiming.eastWest
+          this.currentPhase = 'eastWest'
+        } else {
+          // Strategy Pattern: 東西向綠燈階段處理策略
+          console.log(`🚥 東西向綠燈開始 - 時間: ${this.dynamicTiming.eastWest}秒`)
+          this.updateTimer('東西向 綠燈', this.dynamicTiming.eastWest)
 
-        // Strategy Pattern: 更新當前使用的時間為下一輪的時間
-        this.dynamicTiming.eastWest = this.nextTiming.eastWest
-        this.currentPhase = 'eastWest'
-      } else {
-        // Strategy Pattern: 東西向綠燈階段處理策略
-        console.log(`🚥 東西向綠燈開始 - 時間: ${this.dynamicTiming.eastWest}秒`)
-        this.updateTimer('東西向 綠燈', this.dynamicTiming.eastWest)
+          // Template Method: 東西向不需要API請求，直接倒數完成
+          await this.countdownDelay(this.dynamicTiming.eastWest * 1000)
 
-        // Template Method: 東西向不需要API請求，直接倒數完成
-        await this.countdownDelay(this.dynamicTiming.eastWest * 1000)
+          // Template Method: 東西向：綠燈 -> 黃燈 -> 紅燈
+          console.log('東西向：綠燈 -> 黃燈')
+          this.updateLightState('east', 'yellow')
+          this.updateLightState('west', 'yellow')
+          this.updateTimer('東西向 黃燈', 2)
+          await this.countdownDelay(2000) // 黃燈 2 秒
 
-        // Template Method: 東西向：綠燈 -> 黃燈 -> 紅燈
-        console.log('東西向：綠燈 -> 黃燈')
-        this.updateLightState('east', 'yellow')
-        this.updateLightState('west', 'yellow')
-        this.updateTimer('東西向 黃燈', 2)
-        await this.countdownDelay(2000) // 黃燈 2 秒
+          this.updateLightState('east', 'red')
+          this.updateLightState('west', 'red')
+          this.updateLightState('south', 'green')
+          this.updateLightState('north', 'green') // Strategy Pattern: 更新當前使用的時間為下一輪的時間
+          this.dynamicTiming.northSouth = this.nextTiming.northSouth
+          this.currentPhase = 'northSouth'
+        }
 
-        console.log('東西向：黃燈 -> 紅燈，南北向：紅燈 -> 綠燈')
-        this.updateLightState('east', 'red')
-        this.updateLightState('west', 'red')
-        this.updateLightState('south', 'green')
-        this.updateLightState('north', 'green')
-
-        // Strategy Pattern: 更新當前使用的時間為下一輪的時間
-        this.dynamicTiming.northSouth = this.nextTiming.northSouth
-        this.currentPhase = 'northSouth'
+        // 重置車輛數據以準備下一輪收集
+        this.resetVehicleData()
+      } catch (error) {
+        console.error('🚨 交通燈循環出現錯誤:', error)
+        // 等待1秒後繼續，避免系統完全停止
+        await this.delay(1000)
       }
-
-      // 重置車輛數據以準備下一輪收集
-      this.resetVehicleData()
     }
   }
 
@@ -313,16 +346,19 @@ export default class TrafficLightController {
     const range = speedRanges[vehicleType]
     if (!range) return 30
 
+    // Strategy Pattern: 路口速度調整因子（比一般道路慢）
+    const intersectionFactor = 0.3 // 路口速度的基礎因子（30%）
+
     // Strategy Pattern: 根據路段占有率調整速度的策略
     const occupancy = parseFloat(this.calculateOccupancy(direction))
-    let speedFactor = 1.0
+    let speedFactor = intersectionFactor // 基礎就是路口速度
 
     if (occupancy > 80) {
-      speedFactor = 0.3 // 嚴重擁堵
+      speedFactor *= 0.5 // 嚴重擁堵時更慢（路口速度的一半）
     } else if (occupancy > 60) {
-      speedFactor = 0.6 // 中度擁堵
+      speedFactor *= 0.7 // 中度擁堵（路口速度的70%）
     } else if (occupancy > 30) {
-      speedFactor = 0.8 // 輕度擁堵
+      speedFactor *= 0.9 // 輕度擁堵（路口速度的90%）
     }
 
     return Math.round(range.avg * speedFactor)
@@ -388,13 +424,21 @@ export default class TrafficLightController {
   }
 
   // ==========================================
-  // 🔧 系統控制和工具方法群組
+  // �️ 路口清空檢測機制 (Intersection Clearance Detection)
+  // ==========================================
+
+  // ==========================================
+  // �🔧 系統控制和工具方法群組
   // ==========================================
 
   // 開始交通燈控制
   start() {
-    if (this.isRunning) return
+    if (this.isRunning) {
+      console.log('⚠️ 交通燈控制器已在運行中')
+      return
+    }
 
+    console.log('🚥 開始交通燈控制器...')
     this.isRunning = true
     this.runCycle()
   }
