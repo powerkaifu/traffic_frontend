@@ -19,9 +19,12 @@ import { gsap } from 'gsap'
 
 export default class Vehicle {
   constructor(x, y, direction = 'east', vehicleType = 'large', laneNumber = 1) {
+    // Factory Pattern: 根據不同參數創建不同類型的車輛實例
     this.direction = direction
     this.vehicleType = vehicleType // 車輛類型（motor, small, large）
     this.laneNumber = laneNumber // 車道編號
+
+    // State Pattern: 定義車輛的各種狀態
     this.currentState = 'waiting' // 初始狀態
     this.movementTimeline = null
     this.isAtStopLine = false
@@ -29,11 +32,15 @@ export default class Vehicle {
     this.hasPassedStopLine = false // 標記是否已經通過停止線
     this.periodicCheckTimer = null // 定期檢查定時器
     this.containerPosition = null // 記錄容器位置，用於檢測佈局變化
+    this.justCreated = true // 新增：標記車輛剛創建，避免立即檢測碰撞
+
+    // Composite Pattern: 車輛由多個元件組成（主體元素）
     this.element = this.createElement()
 
-    // 生成唯一識別ID（用於碰撞檢測）
+    // Factory Pattern: 生成唯一識別ID
     this.id = 'vehicle_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)
 
+    // Composite Pattern: 設置車輛的初始視覺屬性
     gsap.set(this.element, {
       x: x,
       y: y,
@@ -44,14 +51,19 @@ export default class Vehicle {
     // 創建車道編號標籤
     // this.createLaneNumberLabel()
 
-    // 車輛數據收集 - 通知交通控制器
+    // Observer Pattern: 通知交通控制器車輛生成事件
     this.notifyTrafficController()
+
+    // Strategy Pattern: 使用延遲策略避免剛生成就被卡住
+    setTimeout(() => {
+      this.justCreated = false
+    }, 200) // 200毫秒後才開始正常碰撞檢測
   }
 
-  // 通知交通控制器車輛生成
+  // Observer Pattern: 實現觀察者模式，通知交通控制器
   notifyTrafficController() {
     if (window.trafficController) {
-      // 將車輛類型映射到正確的格式
+      // Strategy Pattern: 車輛類型映射策略
       const vehicleTypeMapping = {
         large: 'large',
         small: 'small',
@@ -63,12 +75,13 @@ export default class Vehicle {
     }
   }
 
-  // 生成車輛的隨機速度（基於車輛類型）
+  // Strategy Pattern: 基於車輛類型的速度生成策略
   generateRandomSpeed() {
+    // Strategy Pattern: 不同車輛類型使用不同速度策略
     const speedRanges = {
-      large: { min: 10, max: 20 }, // km/h (降低速度)
-      small: { min: 15, max: 30 }, // km/h (降低速度)
-      motor: { min: 18, max: 30 }, // km/h (降低最高速度)
+      large: { min: 25, max: 35 }, // km/h (降低速度)
+      small: { min: 30, max: 45 }, // km/h (降低速度)
+      motor: { min: 35, max: 60 }, // km/h (降低最高速度)
     }
 
     const range = speedRanges[this.vehicleType] || speedRanges.small
@@ -76,28 +89,34 @@ export default class Vehicle {
     return Math.round(randomSpeed)
   }
 
-  // 計算基於速度的動畫時間
+  // Template Method Pattern: 計算動畫持續時間的模板方法
   calculateAnimationDuration(distance = 800) {
+    // Template Method Pattern: 定義計算動畫時間的標準流程
     // 假設路口通過距離約 800 像素
     const speed = this.generateRandomSpeed() // km/h
     const speedMs = (speed * 1000) / 3600 // 轉換為 m/s
 
-    // 假設 100 像素 = 10 米（比例尺）
-    const realDistance = (distance / 100) * 10 // 轉換為實際距離（米）
+    // 假設 100 像素 = 15 米（調整比例尺，讓距離感更真實）
+    const realDistance = (distance / 100) * 15 // 轉換為實際距離（米）
 
     // 計算理論時間（秒）
     const theoreticalTime = realDistance / speedMs
 
-    // 為了視覺效果，將時間控制在合理範圍內（5-18秒，增加時間範圍）
-    const minTime = 5
-    const maxTime = 18
-    const adjustedTime = Math.max(minTime, Math.min(maxTime, theoreticalTime))
+    // 增加動畫持續時間倍數，讓車輛移動更自然
+    const timeMultiplier = 2.5 // 將時間增加2.5倍，讓動畫更慢更自然
+    const adjustedTheoretical = theoreticalTime * timeMultiplier
+
+    // 為了視覺效果，將時間控制在合理範圍內（7-24秒，調快1秒）
+    const minTime = 7 // 最短7秒
+    const maxTime = 24 // 最長24秒
+    const adjustedTime = Math.max(minTime, Math.min(maxTime, adjustedTheoretical))
 
     return adjustedTime
   }
 
+  // Factory Pattern: 創建車輛DOM元素的工廠方法
   createElement() {
-    // 獲取車輛配置（尺寸和圖片）
+    // Factory Pattern: 根據車輛配置創建對應的DOM元素
     const vehicleConfig = this.getVehicleConfig()
 
     const div = document.createElement('div')
@@ -115,13 +134,14 @@ export default class Vehicle {
     return div
   }
 
-  // 創建車道編號標籤
+  // Composite Pattern: 創建車道編號標籤組件
   createLaneNumberLabel() {
+    // Composite Pattern: 為車輛添加子組件（標籤）
     const label = document.createElement('div')
     label.className = 'vehicle-lane-label' // 改為 vehicle 類名
     label.textContent = this.laneNumber
 
-    // 根據車輛方向調整標籤位置
+    // Strategy Pattern: 根據車輛方向使用不同的標籤定位策略
     let labelPosition = ''
     if (this.direction === 'north') {
       // 北向：標籤放在車輛尾部（下方）
@@ -168,32 +188,36 @@ export default class Vehicle {
     this.laneLabel = label
   }
 
-  // 獲取車輛配置 - 支持不同車輛類型和大小
+  // Factory Pattern + Strategy Pattern: 獲取車輛配置的工廠策略方法
   getVehicleConfig() {
+    // Factory Pattern: 基於車輛類型和方向創建配置
+    // Strategy Pattern: 每種車輛類型和方向組合都有不同的策略
     const vehicleConfigs = {
       large: {
         east: { width: 35, height: 20, image: '/images/car/lCar_right.png' },
         west: { width: 35, height: 20, image: '/images/car/lCar_left.png' },
-        north: { width: 60, height: 35, image: '/images/car/lCar_top.png' },
-        south: { width: 60, height: 35, image: '/images/car/lCar_down.png' },
+        north: { width: 20, height: 35, image: '/images/car/lCar_top.png' },
+        south: { width: 20, height: 35, image: '/images/car/lCar_down.png' },
       },
       small: {
         east: { width: 30, height: 18, image: '/images/car/sCar_right.png' },
         west: { width: 30, height: 18, image: '/images/car/sCar_left.png' },
-        north: { width: 50, height: 30, image: '/images/car/sCar_top.png' },
-        south: { width: 50, height: 30, image: '/images/car/sCar_down.png' },
+        north: { width: 18, height: 30, image: '/images/car/sCar_top.png' },
+        south: { width: 18, height: 30, image: '/images/car/sCar_down.png' },
       },
       motor: {
         east: { width: 25, height: 15, image: '/images/car/mCar_right.png' },
         west: { width: 25, height: 15, image: '/images/car/mCar_left.png' },
-        north: { width: 35, height: 25, image: '/images/car/mCar_top.png' },
-        south: { width: 35, height: 25, image: '/images/car/mCar_down.png' },
+        north: { width: 15, height: 25, image: '/images/car/mCar_top.png' },
+        south: { width: 15, height: 25, image: '/images/car/mCar_down.png' },
       },
     }
     return vehicleConfigs[this.vehicleType]?.[this.direction] || vehicleConfigs.large[this.direction]
   }
 
+  // Strategy Pattern: 根據方向計算停止線位置的策略方法
   getStopLinePosition() {
+    // Strategy Pattern: 每個方向都有不同的停止線計算策略
     // 使用中央參考矩形來統一計算停止線位置
     const centralRef = document.querySelector('.central-reference')
     if (!centralRef) return { x: null, y: null }
@@ -212,6 +236,7 @@ export default class Vehicle {
     const centralHeight = centralRect.height
 
     // 根據方向計算停止線位置（基於中央矩形的邊緣）
+    // Strategy Pattern: 不同方向使用不同的停止線定位策略
     if (this.direction === 'east') {
       return { x: centralX, y: null }
     } else if (this.direction === 'west') {
@@ -227,8 +252,9 @@ export default class Vehicle {
     return { x: null, y: null }
   }
 
-  // 檢測容器位置是否發生變化（抽屜開關等）
+  // Observer Pattern: 檢測容器位置變化的觀察者方法
   checkLayoutChange() {
+    // Observer Pattern: 監控容器位置變化（抽屜開關等）
     const container = document.querySelector('.crossroad-area')
     if (!container) return false
 
@@ -265,8 +291,9 @@ export default class Vehicle {
     return changed
   }
 
-  // 檢查是否到達停止線 - 使用實際停止線位置
+  // Template Method Pattern: 檢查是否到達停止線的模板方法
   checkStopLine() {
+    // Template Method Pattern: 定義停止線檢查的標準流程
     const stopLine = this.getStopLinePosition() // 這裡會獲取實際的停止線位置
 
     if (!stopLine.x && !stopLine.y) return false
@@ -274,6 +301,7 @@ export default class Vehicle {
     // 使用車頭位置進行停止線檢測
     const vehicleHead = this.getVehicleHeadPosition()
 
+    // Strategy Pattern: 不同方向使用不同的停止線檢查策略
     if (this.direction === 'east') {
       // 車頭在右側，檢查車頭X座標是否到達停止線
       return vehicleHead.x >= stopLine.x && !this.isAtStopLine
@@ -290,13 +318,15 @@ export default class Vehicle {
     return false
   }
 
-  // 新增：計算車輛到停止線的距離
+  // Template Method Pattern: 計算車輛到停止線距離的模板方法
   getDistanceToStopLine() {
+    // Template Method Pattern: 定義距離計算的標準流程
     const stopLine = this.getStopLinePosition()
     if (!stopLine.x && !stopLine.y) return null
 
     const vehicleHead = this.getVehicleHeadPosition()
 
+    // Strategy Pattern: 根據方向使用不同的距離計算策略
     if (this.direction === 'east') {
       // 東向：車頭到停止線的X軸距離
       return stopLine.x - vehicleHead.x
@@ -314,20 +344,23 @@ export default class Vehicle {
     return null
   }
 
-  // 獲取當前位置
+  // Adapter Pattern: 獲取當前位置的適配器方法
   getCurrentPosition() {
+    // Adapter Pattern: 將GSAP的座標系統適配為標準座標
     return {
       x: gsap.getProperty(this.element, 'x'),
       y: gsap.getProperty(this.element, 'y'),
     }
   }
 
-  // 獲取車頭位置 - 根據方向和車輛大小計算
+  // Strategy Pattern: 根據方向計算車頭位置的策略方法
   getVehicleHeadPosition() {
+    // Strategy Pattern: 每個方向都有不同的車頭位置計算策略
     const currentPos = this.getCurrentPosition()
     const vehicleConfig = this.getVehicleConfig()
     const size = { width: vehicleConfig.width, height: vehicleConfig.height }
 
+    // Strategy Pattern: 根據車輛行駛方向決定車頭位置
     if (this.direction === 'east') {
       // 東向車頭在右側
       return { x: currentPos.x + size.width, y: currentPos.y + size.height / 2 }
@@ -345,8 +378,9 @@ export default class Vehicle {
     return currentPos // 預設返回左上角位置
   }
 
-  // 獲取車輛邊界框
+  // Factory Pattern: 獲取車輛邊界框的工廠方法
   getBoundingBox() {
+    // Factory Pattern: 根據當前位置和車輛配置創建邊界框對象
     const pos = this.getCurrentPosition()
     const vehicleConfig = this.getVehicleConfig()
     const size = { width: vehicleConfig.width, height: vehicleConfig.height }
@@ -361,8 +395,14 @@ export default class Vehicle {
     }
   }
 
-  // 檢查前方是否有車輛（同向車道）- 改進版本
+  // Template Method Pattern + Strategy Pattern: 前方碰撞檢測的模板策略方法
   checkFrontCollision(allVehicles) {
+    // Strategy Pattern: 剛創建的車輛使用跳過檢測的策略
+    if (this.justCreated) {
+      return null
+    }
+
+    // Template Method Pattern: 定義碰撞檢測的標準流程
     const currentPos = this.getCurrentPosition()
     const currentBox = this.getBoundingBox()
 
@@ -377,6 +417,7 @@ export default class Vehicle {
       const otherBox = vehicle.getBoundingBox()
 
       // 檢查是否在同一車道（更精確的車道檢測）
+      // Strategy Pattern: 每個方向使用不同的車道檢測和距離計算策略
       let inSameLane = false
       let isFront = false
       let distanceToFrontVehicle = 0
@@ -436,8 +477,9 @@ export default class Vehicle {
     return null
   }
 
-  // 停止移動 - 改進版本
+  // State Pattern: 停止移動狀態控制方法
   stopMovement() {
+    // State Pattern: 管理車輛從移動狀態轉換為等待狀態
     if (this.movementTimeline) {
       this.movementTimeline.pause()
       if (this.currentState !== 'waitingForVehicle' && this.currentState !== 'waiting') {
@@ -446,8 +488,9 @@ export default class Vehicle {
     }
   }
 
-  // 恢復移動 - 改進版本
+  // State Pattern: 恢復移動狀態控制方法
   resumeMovement(allVehicles = []) {
+    // State Pattern: 管理車輛從等待狀態轉換為移動狀態
     if (this.movementTimeline && (this.currentState === 'waiting' || this.currentState === 'waitingForVehicle')) {
       // 再次檢查前方是否還有車輛
       const frontCollision = this.checkFrontCollision(allVehicles)
@@ -465,18 +508,20 @@ export default class Vehicle {
     }
   }
 
-  // 新增：強制恢復移動方法（用於綠燈時強制啟動）
+  // Command Pattern + State Pattern: 強制恢復移動命令
   forceResumeMovement(allVehicles = []) {
+    // Command Pattern: 將強制啟動封裝為可執行的命令
+    // State Pattern: 強制狀態轉換，用於綠燈時的啟動
     if (this.movementTimeline) {
       // 檢查前方車輛，確保沒有重疊
       const frontCollision = this.checkFrontCollision(allVehicles)
 
       // 只有在沒有重疊且距離足夠時才恢復移動
       if (!frontCollision || (!frontCollision.isOverlapping && frontCollision.distance > 10)) {
-        // 生成隨機延遲時間，讓車輛啟動更生動 (0-2秒)
+        // Strategy Pattern: 使用隨機延遲策略讓車輛啟動更生動
         const randomDelay = Math.random() * 2
 
-        // 使用 GSAP 的 delayedCall 實現隨機延遲啟動
+        // Command Pattern: 使用 GSAP 的 delayedCall 實現延遲命令執行
         gsap.delayedCall(randomDelay, () => {
           // 再次檢查車輛狀態，確保仍然需要啟動
           if (this.waitingForGreen && this.movementTimeline) {
@@ -491,157 +536,166 @@ export default class Vehicle {
     }
   }
 
+  // Composite Pattern: 將車輛添加到容器的組合方法
   addTo(container) {
+    // Composite Pattern: 將車輛元素添加到容器中，形成組合結構
     container.appendChild(this.element)
     // 初始化時記錄容器位置
     this.checkLayoutChange()
   }
 
-  // 帶有紅綠燈控制的移動方法 - 改進版本
+  // Command Pattern + Observer Pattern: 帶有交通燈控制的移動命令
   moveToWithTrafficControl(targetX, targetY, duration, trafficController, allVehicles = []) {
+    // Command Pattern: 將複雜的移動邏輯封裝為可執行的命令
     return new Promise((resolve) => {
-      this.currentState = 'moving'
-      this.targetX = targetX
-      this.targetY = targetY
+      // Strategy Pattern: 使用延遲策略避免剛生成就被碰撞檢測影響
+      setTimeout(() => {
+        this.currentState = 'moving'
+        this.targetX = targetX
+        this.targetY = targetY
 
-      // 定期檢查機制，防止車輛卡住
-      this.periodicCheckTimer = setInterval(() => {
-        // 如果車輛在等待綠燈，但實際上是綠燈，則強制啟動
-        if (this.waitingForGreen) {
-          const currentLightState = trafficController.getCurrentLightState(this.direction)
-          if (currentLightState === 'green') {
-            this.forceResumeMovement(allVehicles)
-            this.isAtStopLine = false
-            this.hasPassedStopLine = true
-          }
-        }
-
-        // 如果車輛在等待前車，但前車已經走了，也要檢查
-        if (this.currentState === 'waitingForVehicle') {
-          const frontCollision = this.checkFrontCollision(allVehicles)
-          // 確保沒有重疊且距離足夠才恢復移動
-          if (!frontCollision || (!frontCollision.isOverlapping && frontCollision.distance > 15)) {
-            this.resumeMovement(allVehicles)
-          }
-        }
-      }, 2000) // 每2秒檢查一次
-
-      // 創建移動時間線
-      this.movementTimeline = gsap.timeline({
-        onUpdate: () => {
-          // 檢測佈局變化（抽屜開關等）
-          this.checkLayoutChange()
-
-          // 檢查前方車輛碰撞
-          const frontCollision = this.checkFrontCollision(allVehicles)
-
-          if (frontCollision) {
-            const { vehicle: frontVehicle, shouldStop, isOverlapping } = frontCollision
-
-            // 如果有重疊，立即停車
-            if (isOverlapping) {
-              if (this.currentState === 'moving') {
-                this.stopMovement()
-                this.currentState = 'waitingForVehicle'
-              }
-              return
-            }
-
-            // 如果前方車輛停止或距離太近，則停車
-            if (
-              frontVehicle.currentState === 'waiting' ||
-              frontVehicle.currentState === 'waitingForVehicle' ||
-              shouldStop
-            ) {
-              if (this.currentState === 'moving') {
-                this.stopMovement()
-                this.currentState = 'waitingForVehicle'
-              }
-              return
-            }
-          } else if (this.currentState === 'waitingForVehicle') {
-            // 如果前方車輛已離開安全距離，恢復移動
-            this.resumeMovement(allVehicles)
-          }
-
-          // 檢查是否到達停止線（只有未通過停止線的車輛才檢查）
-          if (!this.hasPassedStopLine && this.checkStopLine() && !this.waitingForGreen && !this.isAtStopLine) {
-            this.isAtStopLine = true
-
-            // 檢查紅綠燈狀態
-            const lightState = trafficController.getCurrentLightState(this.direction)
-
-            if (lightState === 'red' || lightState === 'yellow') {
-              this.stopMovement()
-              this.waitingForGreen = true
-
-              // 監聽紅綠燈變化 - 改進版本
-              const onLightChange = (direction, state) => {
-                if (direction === this.direction && state === 'green' && this.waitingForGreen) {
-                  // 使用強制恢復移動方法（內含隨機延遲）
-                  this.forceResumeMovement(allVehicles)
-                  this.isAtStopLine = false
-                  this.hasPassedStopLine = true // 標記已通過停止線
-
-                  // 移除觀察者
-                  trafficController.removeObserver(onLightChange)
-                }
-              }
-
-              // 添加觀察者
-              trafficController.addObserver(onLightChange)
-
-              // 設置超時機制，防止觀察者失效
-              setTimeout(() => {
-                if (this.waitingForGreen && this.direction) {
-                  const currentLightState = trafficController.getCurrentLightState(this.direction)
-
-                  if (currentLightState === 'green') {
-                    this.forceResumeMovement(allVehicles)
-                    this.isAtStopLine = false
-                    this.hasPassedStopLine = true
-                    trafficController.removeObserver(onLightChange)
-                  }
-                }
-              }, 1000) // 1秒後檢查
-            } else {
-              // 綠燈時直接通過，標記已通過停止線
+        // Observer Pattern: 定期檢查機制，防止車輛卡住
+        this.periodicCheckTimer = setInterval(() => {
+          // 如果車輛在等待綠燈，但實際上是綠燈，則強制啟動
+          if (this.waitingForGreen) {
+            const currentLightState = trafficController.getCurrentLightState(this.direction)
+            if (currentLightState === 'green') {
+              this.forceResumeMovement(allVehicles)
               this.isAtStopLine = false
               this.hasPassedStopLine = true
             }
           }
-        },
-        onComplete: () => {
-          // 清理定期檢查定時器
-          if (this.periodicCheckTimer) {
-            clearInterval(this.periodicCheckTimer)
-            this.periodicCheckTimer = null
+
+          // 如果車輛在等待前車，但前車已經走了，也要檢查
+          if (this.currentState === 'waitingForVehicle') {
+            const frontCollision = this.checkFrontCollision(allVehicles)
+            // 確保沒有重疊且距離足夠才恢復移動
+            if (!frontCollision || (!frontCollision.isOverlapping && frontCollision.distance > 15)) {
+              this.resumeMovement(allVehicles)
+            }
           }
+        }, 2000) // 每2秒檢查一次
 
-          // 只有當真正到達目標位置時才完成
-          const currentPos = this.getCurrentPosition()
-          const tolerance = 5 // 允許5px的誤差
+        // Template Method Pattern: 創建移動時間線模板
+        this.movementTimeline = gsap.timeline({
+          onUpdate: () => {
+            // Observer Pattern: 檢測佈局變化（抽屜開關等）
+            this.checkLayoutChange()
 
-          if (
-            Math.abs(currentPos.x - this.targetX) <= tolerance &&
-            Math.abs(currentPos.y - this.targetY) <= tolerance
-          ) {
-            resolve()
-          }
-        },
-      })
+            // Template Method Pattern: 前方車輛碰撞檢測流程
+            const frontCollision = this.checkFrontCollision(allVehicles)
 
-      // 添加移動動畫 - 使用線性動畫
-      this.movementTimeline.to(this.element, {
-        x: targetX,
-        y: targetY,
-        duration: duration,
-        ease: 'none', // 線性動畫，恆定速度
-      })
+            if (frontCollision) {
+              const { vehicle: frontVehicle, shouldStop, isOverlapping } = frontCollision
+
+              // 如果有重疊，立即停車
+              if (isOverlapping) {
+                if (this.currentState === 'moving') {
+                  this.stopMovement()
+                  this.currentState = 'waitingForVehicle'
+                }
+                return
+              }
+
+              // 如果前方車輛停止或距離太近，則停車
+              if (
+                frontVehicle.currentState === 'waiting' ||
+                frontVehicle.currentState === 'waitingForVehicle' ||
+                shouldStop
+              ) {
+                if (this.currentState === 'moving') {
+                  this.stopMovement()
+                  this.currentState = 'waitingForVehicle'
+                }
+                return
+              }
+            } else if (this.currentState === 'waitingForVehicle') {
+              // 如果前方車輛已離開安全距離，恢復移動
+              this.resumeMovement(allVehicles)
+            }
+
+            // Template Method Pattern: 停止線檢查和紅綠燈控制流程
+            if (!this.hasPassedStopLine && this.checkStopLine() && !this.waitingForGreen && !this.isAtStopLine) {
+              this.isAtStopLine = true
+
+              // 檢查紅綠燈狀態
+              const lightState = trafficController.getCurrentLightState(this.direction)
+
+              if (lightState === 'red' || lightState === 'yellow') {
+                this.stopMovement()
+                this.waitingForGreen = true
+
+                // Observer Pattern: 監聽紅綠燈變化的觀察者實現
+                const onLightChange = (direction, state) => {
+                  if (direction === this.direction && state === 'green' && this.waitingForGreen) {
+                    // 使用強制恢復移動方法（內含隨機延遲）
+                    this.forceResumeMovement(allVehicles)
+                    this.isAtStopLine = false
+                    this.hasPassedStopLine = true // 標記已通過停止線
+
+                    // 移除觀察者
+                    trafficController.removeObserver(onLightChange)
+                  }
+                }
+
+                // Observer Pattern: 添加觀察者
+                trafficController.addObserver(onLightChange)
+
+                // Strategy Pattern: 設置超時機制，防止觀察者失效
+                setTimeout(() => {
+                  if (this.waitingForGreen && this.direction) {
+                    const currentLightState = trafficController.getCurrentLightState(this.direction)
+
+                    if (currentLightState === 'green') {
+                      this.forceResumeMovement(allVehicles)
+                      this.isAtStopLine = false
+                      this.hasPassedStopLine = true
+                      trafficController.removeObserver(onLightChange)
+                    }
+                  }
+                }, 1000) // 1秒後檢查
+              } else {
+                // 綠燈時直接通過，標記已通過停止線
+                this.isAtStopLine = false
+                this.hasPassedStopLine = true
+              }
+            }
+          },
+          onComplete: () => {
+            // Template Method Pattern: 完成時的清理模板
+            // 清理定期檢查定時器
+            if (this.periodicCheckTimer) {
+              clearInterval(this.periodicCheckTimer)
+              this.periodicCheckTimer = null
+            }
+
+            // 只有當真正到達目標位置時才完成
+            const currentPos = this.getCurrentPosition()
+            const tolerance = 5 // 允許5px的誤差
+
+            if (
+              Math.abs(currentPos.x - this.targetX) <= tolerance &&
+              Math.abs(currentPos.y - this.targetY) <= tolerance
+            ) {
+              resolve()
+            }
+          },
+        })
+
+        // Command Pattern: 添加移動動畫命令
+        this.movementTimeline.to(this.element, {
+          x: targetX,
+          y: targetY,
+          duration: duration,
+          ease: 'none', // 線性動畫，恆定速度
+        })
+      }, 100) // 延遲100毫秒開始移動，讓車輛有時間初始化
     })
   }
 
+  // Command Pattern: 淡出動畫命令
   fadeOut(duration = 1) {
+    // Command Pattern: 將淡出動畫封裝為可執行的命令
     return gsap.to(this.element, {
       opacity: 0,
       scale: 0.8,
@@ -650,7 +704,9 @@ export default class Vehicle {
     })
   }
 
+  // Command Pattern: 淡入動畫命令
   fadeIn(duration = 1) {
+    // Command Pattern: 將淡入動畫封裝為可執行的命令
     return gsap.to(this.element, {
       opacity: 1,
       scale: 1,
@@ -659,7 +715,9 @@ export default class Vehicle {
     })
   }
 
+  // Template Method Pattern: 移除車輛的清理模板方法
   remove() {
+    // Template Method Pattern: 定義車輛移除的標準清理流程
     // 清理定時器
     if (this.periodicCheckTimer) {
       clearInterval(this.periodicCheckTimer)

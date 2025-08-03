@@ -123,6 +123,9 @@ onMounted(() => {
       // 設置全域交通控制器供其他組件使用
       window.trafficController = trafficController
 
+      // 輸出車道統計信息（調試用）
+      console.log('🛣️ 車道統計信息：', trafficController.getLaneStatistics())
+
       // 設置倒數更新回調
       trafficController.setTimerUpdateCallback((phase, seconds) => {
         if (phase !== null) {
@@ -140,52 +143,19 @@ onMounted(() => {
       console.log('🚥 啟動交通燈控制器...')
       trafficController.start()
 
-      // 車輛終點位置 (車輛完全離開畫面) - 讓動畫更自然
-      const endY = -200 // 往北車輛的Y終點：完全離開上邊界
-      const endX = 1200 // 往東車輛的X終點：完全離開右邊界 (1000px + 200px緩衝)
-      const westEndX = -200 // 往西車輛的X終點：完全離開左邊界
-      const southEndY = 800 // 往南車輛的Y終點：完全離開下邊界 (估計容器高度600-700px + 100-200px緩衝)
-
-      // 往東四個車道的位置
-      const eastLanes = [
-        { x: -100, y: 259 }, // 第一車道
-        { x: -100, y: 286 }, // 第二車道
-        { x: -100, y: 317 }, // 第三車道
-        { x: -100, y: 342 }, // 第四車道
-      ]
-
-      // 往西車道的位置 (基於東邊起始點的最下方點)
-      const westLanes = [
-        { x: 1125, y: 229 }, // 第一車道
-        { x: 1125, y: 202 }, // 第二車道
-        { x: 1125, y: 174 }, // 第三車道
-        { x: 1125, y: 150 }, // 第四車道
-      ]
-
-      // 往南車道的位置
-      const southLanes = [
-        { x: 477, y: -185 }, // 第一車道
-        { x: 449, y: -185 }, // 第二車道
-        { x: 422, y: -185 }, // 第三車道
-        { x: 393, y: -185 }, // 第四車道
-      ]
-
-      // 往北四個車道的位置 (使用簡單絕對數值)
-      const northLanes = [
-        { x: 504, y: 700 }, // 第一車道
-        { x: 533, y: 700 }, // 第二車道
-        { x: 562, y: 700 }, // 第三車道
-        { x: 590, y: 700 }, // 第四車道
-      ]
-
-      // 創建車輛生成器函數
-      const createRandomCar = (direction, lanes, endPosition) => {
+      // 創建車輛生成器函數 - 使用 TrafficLightController 的車道管理
+      const createRandomCar = (direction) => {
         console.log(`🚗 創建車輛：方向 ${direction}`)
 
-        // 隨機選擇一個車道
-        const randomLaneIndex = Math.floor(Math.random() * lanes.length)
-        const randomLane = lanes[randomLaneIndex]
-        const laneNumber = randomLaneIndex + 1 // 車道編號從1開始
+        // 使用 TrafficLightController 獲取隨機車道位置
+        const laneInfo = trafficController.getRandomLanePosition(direction)
+        if (!laneInfo) {
+          console.error(`❌ 無法獲取方向 ${direction} 的車道位置`)
+          return
+        }
+
+        const { position: randomLane, laneNumber } = laneInfo
+        const endPosition = trafficController.getEndPosition(direction)
 
         // 隨機選擇車輛類型
         const carTypes = ['large', 'small', 'motor']
@@ -261,15 +231,10 @@ onMounted(() => {
       const startRandomCarGeneration = () => {
         const generateCar = () => {
           // 隨機選擇一個方向
-          const directions = [
-            { name: 'east', lanes: eastLanes, endPos: endX },
-            { name: 'west', lanes: westLanes, endPos: westEndX },
-            { name: 'north', lanes: northLanes, endPos: endY },
-            { name: 'south', lanes: southLanes, endPos: southEndY },
-          ]
-
+          const directions = ['east', 'west', 'north', 'south']
           const randomDirection = directions[Math.floor(Math.random() * directions.length)]
-          createRandomCar(randomDirection.name, randomDirection.lanes, randomDirection.endPos)
+
+          createRandomCar(randomDirection)
 
           // 隨機間隔時間生成下一台車 (1-3秒)
           const nextCarDelay = Math.random() * 2000 + 1000 // 1000-3000ms
@@ -282,16 +247,11 @@ onMounted(() => {
 
       // 立即生成初始車輛
       const generateInitialCars = () => {
-        const directions = [
-          { name: 'east', lanes: eastLanes, endPos: endX },
-          { name: 'west', lanes: westLanes, endPos: westEndX },
-          { name: 'north', lanes: northLanes, endPos: endY },
-          { name: 'south', lanes: southLanes, endPos: southEndY },
-        ]
+        const directions = ['east', 'west', 'north', 'south']
 
         // 每個方向生成1台車
         directions.forEach((direction) => {
-          createRandomCar(direction.name, direction.lanes, direction.endPos)
+          createRandomCar(direction)
         })
       }
 

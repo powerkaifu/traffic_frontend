@@ -56,7 +56,7 @@
                       dense
                       dark
                       class="intersection-select"
-                      option-value="value"
+                      option-value="label"
                       option-label="label"
                       emit-value
                       map-options
@@ -183,7 +183,160 @@
 
           <!-- 數據顯示區域 -->
           <div class="data-section-content">
-            <!-- 預留給其他數據顯示 -->
+            <!-- 四個區域的數據顯示 -->
+            <div class="traffic-data-grid">
+              <!-- 左上：往東 -->
+              <div class="traffic-zone east-zone">
+                <div class="zone-data">
+                  <div class="data-row main-stats">
+                    <span class="data-label">平均車速</span>
+                    <span class="data-value">{{ eastData.averageSpeed }} km/h</span>
+                  </div>
+                  <div class="data-row main-stats">
+                    <span class="data-label">占用率</span>
+                    <span class="data-value">{{ eastData.occupancy }} %</span>
+                  </div>
+                  <div class="data-row">
+                    <span class="data-label">機車流量</span>
+                    <span class="data-value">{{ eastData.motorFlow }} 輛</span>
+                  </div>
+                  <div class="data-row">
+                    <span class="data-label">小型車流量</span>
+                    <span class="data-value">{{ eastData.smallCarFlow }} 輛</span>
+                  </div>
+                  <div class="data-row">
+                    <span class="data-label">大型車流量</span>
+                    <span class="data-value">{{ eastData.largeCarFlow }} 輛</span>
+                  </div>
+                  <div class="data-row speed-stat">
+                    <span class="data-label">機車平均速率</span>
+                    <span class="data-value">{{ eastData.motorSpeed }} km/h</span>
+                  </div>
+                  <div class="data-row speed-stat">
+                    <span class="data-label">小型車平均速率</span>
+                    <span class="data-value">{{ eastData.smallCarSpeed }} km/h</span>
+                  </div>
+                  <div class="data-row speed-stat">
+                    <span class="data-label">大型車平均速率</span>
+                    <span class="data-value">{{ eastData.largeCarSpeed }} km/h</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 右上：往西 -->
+              <div class="traffic-zone west-zone">
+                <div class="zone-data">
+                  <div class="data-row main-stats">
+                    <span class="data-label">平均車速</span>
+                    <span class="data-value">{{ westData.averageSpeed }} km/h</span>
+                  </div>
+                  <div class="data-row main-stats">
+                    <span class="data-label">占用率</span>
+                    <span class="data-value">{{ westData.occupancy }} %</span>
+                  </div>
+                  <div class="data-row">
+                    <span class="data-label">機車流量</span>
+                    <span class="data-value">{{ westData.motorFlow }} 輛</span>
+                  </div>
+                  <div class="data-row">
+                    <span class="data-label">小型車流量</span>
+                    <span class="data-value">{{ westData.smallCarFlow }} 輛</span>
+                  </div>
+                  <div class="data-row">
+                    <span class="data-label">大型車流量</span>
+                    <span class="data-value">{{ westData.largeCarFlow }} 輛</span>
+                  </div>
+                  <div class="data-row speed-stat">
+                    <span class="data-label">機車平均速率</span>
+                    <span class="data-value">{{ westData.motorSpeed }} km/h</span>
+                  </div>
+                  <div class="data-row speed-stat">
+                    <span class="data-label">小型車平均速率</span>
+                    <span class="data-value">{{ westData.smallCarSpeed }} km/h</span>
+                  </div>
+                  <div class="data-row speed-stat">
+                    <span class="data-label">大型車平均速率</span>
+                    <span class="data-value">{{ westData.largeCarSpeed }} km/h</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 左下：往南 -->
+              <div class="traffic-zone south-zone">
+                <div class="zone-data">
+                  <div class="data-row main-stats">
+                    <span class="data-label">平均車速</span>
+                    <span class="data-value">{{ southData.averageSpeed }} km/h</span>
+                  </div>
+                  <div class="data-row main-stats">
+                    <span class="data-label">占用率</span>
+                    <span class="data-value">{{ southData.occupancy }} %</span>
+                  </div>
+                  <div class="data-row">
+                    <span class="data-label">機車流量</span>
+                    <span class="data-value">{{ southData.motorFlow }} 輛</span>
+                  </div>
+                  <div class="data-row">
+                    <span class="data-label">小型車流量</span>
+                    <span class="data-value">{{ southData.smallCarFlow }} 輛</span>
+                  </div>
+                  <div class="data-row">
+                    <span class="data-label">大型車流量</span>
+                    <span class="data-value">{{ southData.largeCarFlow }} 輛</span>
+                  </div>
+                  <div class="data-row speed-stat">
+                    <span class="data-label">機車平均速率</span>
+                    <span class="data-value">{{ southData.motorSpeed }} km/h</span>
+                  </div>
+                  <div class="data-row speed-stat">
+                    <span class="data-label">小型車平均速率</span>
+                    <span class="data-value">{{ southData.smallCarSpeed }} km/h</span>
+                  </div>
+                  <div class="data-row speed-stat">
+                    <span class="data-label">大型車平均速率</span>
+                    <span class="data-value">{{ southData.largeCarSpeed }} km/h</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 右下：往北 -->
+              <div class="traffic-zone north-zone">
+                <div class="zone-data">
+                  <div class="data-row main-stats">
+                    <span class="data-label">平均車速</span>
+                    <span class="data-value">{{ northData.averageSpeed }} km/h</span>
+                  </div>
+                  <div class="data-row main-stats">
+                    <span class="data-label">占用率</span>
+                    <span class="data-value">{{ northData.occupancy }} %</span>
+                  </div>
+                  <div class="data-row">
+                    <span class="data-label">機車流量</span>
+                    <span class="data-value">{{ northData.motorFlow }} 輛</span>
+                  </div>
+                  <div class="data-row">
+                    <span class="data-label">小型車流量</span>
+                    <span class="data-value">{{ northData.smallCarFlow }} 輛</span>
+                  </div>
+                  <div class="data-row">
+                    <span class="data-label">大型車流量</span>
+                    <span class="data-value">{{ northData.largeCarFlow }} 輛</span>
+                  </div>
+                  <div class="data-row speed-stat">
+                    <span class="data-label">機車平均速率</span>
+                    <span class="data-value">{{ northData.motorSpeed }} km/h</span>
+                  </div>
+                  <div class="data-row speed-stat">
+                    <span class="data-label">小型車平均速率</span>
+                    <span class="data-value">{{ northData.smallCarSpeed }} km/h</span>
+                  </div>
+                  <div class="data-row speed-stat">
+                    <span class="data-label">大型車平均速率</span>
+                    <span class="data-value">{{ northData.largeCarSpeed }} km/h</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -196,7 +349,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 
@@ -212,31 +365,124 @@ const motorcycleCount = ref(5) // Volume_M
 const smallCarCount = ref(8) // Volume_S
 const largeCarCount = ref(3) // Volume_L
 
-// 場景預設數據
-const scenarioPresets = {
-  smooth: { motorcycle: 2, small: 4, large: 1 }, // 流暢
-  一般: { motorcycle: 5, small: 8, large: 3 }, // 一般
-  congested: { motorcycle: 10, small: 15, large: 6 }, // 擁擠
+// 從 TrafficLightController 獲取配置數據
+const getTrafficControllerConfig = () => {
+  if (window.trafficController) {
+    return {
+      scenarioPresets: window.trafficController.getScenarioPresets(),
+      intersectionOptions: window.trafficController.getIntersectionOptions(),
+      scenarioOptions: window.trafficController.getScenarioOptions(),
+    }
+  }
+
+  // 後備配置（如果 TrafficLightController 尚未初始化）
+  return {
+    scenarioPresets: {
+      smooth: { motorcycle: 2, small: 4, large: 1 },
+      一般: { motorcycle: 5, small: 8, large: 3 },
+      congested: { motorcycle: 10, small: 15, large: 6 },
+    },
+    intersectionOptions: [
+      { label: '東向路口', value: 'east' },
+      { label: '西向路口', value: 'west' },
+      { label: '南向路口', value: 'south' },
+      { label: '北向路口', value: 'north' },
+    ],
+    scenarioOptions: [
+      { label: '流暢', value: 'smooth' },
+      { label: '一般', value: '一般' },
+      { label: '擁擠', value: 'congested' },
+    ],
+  }
 }
 
-// 選項資料
-const intersectionOptions = [
-  { label: '東向路口', value: '東' },
-  { label: '西向路口', value: '西' },
-  { label: '南向路口', value: '南' },
-  { label: '北向路口', value: '北' },
-]
+// 響應式配置數據
+const config = computed(() => getTrafficControllerConfig())
+const scenarioPresets = computed(() => config.value.scenarioPresets)
+const intersectionOptions = computed(() => config.value.intersectionOptions)
+const scenarioOptions = computed(() => config.value.scenarioOptions)
 
-const scenarioOptions = [
-  { label: '流暢', value: 'smooth' },
-  { label: '一般', value: '一般' },
-  { label: '擁擠', value: 'congested' },
-]
+// 從 TrafficLightController 獲取交通數據
+const getTrafficData = (direction) => {
+  if (window.trafficController) {
+    const vehicleData = window.trafficController.getDirectionVehicleData(direction)
+    if (vehicleData) {
+      // 使用 TrafficLightController 的方法計算各項數據
+      const averageSpeed = window.trafficController.getAverageSpeed
+        ? window.trafficController.getAverageSpeed(direction, 'small')
+        : 30
+      const occupancy = window.trafficController.calculateOccupancy
+        ? parseFloat(window.trafficController.calculateOccupancy(direction))
+        : 22
+
+      return {
+        averageSpeed: Math.round(averageSpeed),
+        occupancy: Math.round(occupancy * 10) / 10,
+        motorFlow: vehicleData.motor || 0,
+        smallCarFlow: vehicleData.small || 0,
+        largeCarFlow: vehicleData.large || 0,
+        motorSpeed: window.trafficController.getAverageSpeed
+          ? Math.round(window.trafficController.getAverageSpeed(direction, 'motor'))
+          : 35,
+        smallCarSpeed: window.trafficController.getAverageSpeed
+          ? Math.round(window.trafficController.getAverageSpeed(direction, 'small'))
+          : 30,
+        largeCarSpeed: window.trafficController.getAverageSpeed
+          ? Math.round(window.trafficController.getAverageSpeed(direction, 'large'))
+          : 22,
+      }
+    }
+  }
+
+  // 預設數據（如果 TrafficController 尚未初始化）
+  return {
+    averageSpeed: 30,
+    occupancy: 22.0,
+    motorFlow: 5,
+    smallCarFlow: 8,
+    largeCarFlow: 3,
+    motorSpeed: 35,
+    smallCarSpeed: 30,
+    largeCarSpeed: 22,
+  }
+}
+
+// 各方向的交通數據
+const eastData = computed(() => getTrafficData('east'))
+const westData = computed(() => getTrafficData('west'))
+const southData = computed(() => getTrafficData('south'))
+const northData = computed(() => getTrafficData('north'))
+
+// 數據更新定時器
+const dataUpdateInterval = ref(null)
+
+// 開始數據更新定時器
+const startDataUpdate = () => {
+  if (dataUpdateInterval.value) {
+    clearInterval(dataUpdateInterval.value)
+  }
+
+  dataUpdateInterval.value = setInterval(() => {
+    // 觸發響應式數據更新
+    if (window.trafficController) {
+      console.log('🔄 更新交通數據顯示')
+    }
+  }, 3000) // 每3秒更新一次
+}
+
+// 停止數據更新定時器
+const stopDataUpdate = () => {
+  if (dataUpdateInterval.value) {
+    clearInterval(dataUpdateInterval.value)
+    dataUpdateInterval.value = null
+  }
+}
 
 // 場景預設監聽器
 watch(selectedScenario, (newScenario) => {
-  if (scenarioPresets[newScenario]) {
-    const preset = scenarioPresets[newScenario]
+  const currentPresets = scenarioPresets.value
+  if (currentPresets[newScenario]) {
+    const preset = currentPresets[newScenario]
     motorcycleCount.value = preset.motorcycle
     smallCarCount.value = preset.small
     largeCarCount.value = preset.large
@@ -247,6 +493,22 @@ watch(selectedScenario, (newScenario) => {
 // 全域交通控制器設定
 onMounted(() => {
   // 設置全域 trafficController 以供其他組件使用 - 預測回調由IndexPage處理
+
+  // 當 TrafficController 初始化後，打印系統狀態
+  setTimeout(() => {
+    if (window.trafficController) {
+      console.log('🎛️ MainLayout: TrafficController 已連接')
+      window.trafficController.printSystemStatus()
+    }
+  }, 1000)
+
+  // 啟動數據更新定時器
+  startDataUpdate()
+})
+
+// 組件卸載時清理資源
+onUnmounted(() => {
+  stopDataUpdate()
 })
 
 // 計算當前路由
@@ -296,25 +558,45 @@ const submitTrafficData = () => {
 
   // 通知全域交通控制器更新車輛數據
   if (window.trafficController) {
-    // 根據選擇的路口方向更新車輛數據
-    const direction =
-      selectedIntersection.value === '東'
-        ? 'east'
-        : selectedIntersection.value === '西'
-          ? 'west'
-          : selectedIntersection.value === '南'
-            ? 'south'
-            : 'north'
+    // 使用 TrafficLightController 的新方法來處理方向轉換
+    const direction = window.trafficController.normalizeDirection(selectedIntersection.value.replace('向路口', ''))
 
-    // 更新車輛數據到交通控制器
-    window.trafficController.vehicleData[direction] = {
-      motorcycle: motorcycleCount.value,
-      small: smallCarCount.value,
-      medium: 0, // 中型車暫時設為0
-      large: largeCarCount.value,
+    if (direction) {
+      // 使用 TrafficLightController 的車輛數據更新方法
+      const vehicleData = {
+        motorcycle: motorcycleCount.value,
+        small: smallCarCount.value,
+        large: largeCarCount.value,
+      }
+
+      const success = window.trafficController.updateDirectionVehicleData(direction, vehicleData)
+
+      if (success) {
+        console.log(`✅ 已更新 ${direction} 方向車輛數據`)
+        // 顯示成功提示
+        $q.notify({
+          type: 'positive',
+          message: `已更新 ${selectedIntersection.value} 車輛數據`,
+          position: 'top',
+        })
+      } else {
+        console.error(`❌ 更新 ${direction} 方向車輛數據失敗`)
+        $q.notify({
+          type: 'negative',
+          message: '更新車輛數據失敗',
+          position: 'top',
+        })
+      }
+    } else {
+      console.error(`❌ 無效的路口選擇: ${selectedIntersection.value}`)
     }
-
-    console.log(`✅ 已更新 ${direction} 方向車輛數據:`, window.trafficController.vehicleData[direction])
+  } else {
+    console.warn('⚠️ TrafficController 尚未初始化')
+    $q.notify({
+      type: 'warning',
+      message: 'TrafficController 尚未初始化',
+      position: 'top',
+    })
   }
 }
 
@@ -323,7 +605,24 @@ const resetVehicleCounts = () => {
   motorcycleCount.value = 0
   smallCarCount.value = 0
   largeCarCount.value = 0
-  console.log('已重置所有車輛數量')
+
+  // 同時重置 TrafficController 中對應方向的數據
+  if (window.trafficController) {
+    const direction = window.trafficController.normalizeDirection(selectedIntersection.value.replace('向路口', ''))
+
+    if (direction) {
+      window.trafficController.resetDirectionVehicleData(direction)
+      console.log(`🔄 已重置 ${direction} 方向的車輛數量`)
+
+      $q.notify({
+        type: 'info',
+        message: `已重置 ${selectedIntersection.value} 車輛數量`,
+        position: 'top',
+      })
+    }
+  } else {
+    console.log('🔄 已重置本地車輛數量')
+  }
 }
 </script>
 
@@ -354,7 +653,7 @@ const resetVehicleCounts = () => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 20px 0;
+  padding: 0 0 10px 0;
 }
 
 /* 場景參數設定 - 響應式 */
@@ -555,12 +854,110 @@ const resetVehicleCounts = () => {
   background-position: center;
   background-repeat: no-repeat;
   min-height: 150px;
-  margin-top: -1px;
   border-radius: 0 0 8px 8px;
   padding: 20px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+/* 交通數據網格佈局 */
+.traffic-data-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 5px 10px;
+}
+
+/* 交通區域樣式 */
+.traffic-zone {
+  padding: 5px 10px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+/* 各區域微調位置 */
+.east-zone {
+  position: relative;
+  top: 0px;
+  left: -3px;
+}
+
+.west-zone {
+  position: relative;
+  top: 0px;
+  left: 13px;
+}
+
+.south-zone {
+  position: relative;
+  top: 42px;
+  left: -4px;
+}
+
+.north-zone {
+  position: relative;
+  top: 42px;
+  left: 14px;
+}
+
+/* 區域數據 */
+.zone-data {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  /* padding-top: 5px; */
+}
+
+/* 數據行 */
+.data-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: bold;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 10px;
+  border-radius: 4px;
+  margin-bottom: 2px;
+}
+
+.data-row.main-stats {
+  font-weight: bold;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-bottom: 2px;
+}
+
+.data-row.speed-stat {
+  font-size: 12px;
+  font-weight: bold;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-bottom: 2px;
+  opacity: 1;
+}
+
+.data-label {
+  color: white;
+  flex: 1;
+}
+
+.data-value {
+  color: white;
+  font-weight: 600;
+  text-align: right;
+  min-width: 50px;
+  font-size: 13px;
+}
+
+.main-stats .data-value {
+  color: white;
+  font-size: 13px;
 }
 
 .control-button {
@@ -658,6 +1055,28 @@ const resetVehicleCounts = () => {
   .q-toolbar-title img {
     width: 150px;
   }
+
+  /* 數據區域響應式調整 */
+  .traffic-data-grid {
+    gap: 10px;
+    min-height: 250px;
+  }
+
+  .traffic-zone {
+    padding: 8px;
+  }
+
+  .data-row {
+    font-size: 11px;
+  }
+
+  .data-row.main-stats {
+    font-size: 11px;
+  }
+
+  .data-row.speed-stat {
+    font-size: 11px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -682,6 +1101,34 @@ const resetVehicleCounts = () => {
     gap: 10px;
     padding: 10px;
   }
+
+  /* 數據區域響應式調整 */
+  .traffic-data-grid {
+    gap: 8px;
+    min-height: 200px;
+  }
+
+  .traffic-zone {
+    padding: 6px;
+  }
+
+  .data-row {
+    font-size: 10px;
+    padding: 2px 0;
+  }
+
+  .data-row.main-stats {
+    font-size: 10px;
+    padding: 3px 4px;
+  }
+
+  .data-row.speed-stat {
+    font-size: 10px;
+  }
+
+  .data-value {
+    min-width: 40px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -692,6 +1139,38 @@ const resetVehicleCounts = () => {
   .nav-button {
     height: 25px;
     max-width: 60px;
+  }
+
+  /* 小螢幕數據區域調整 */
+  .traffic-data-grid {
+    gap: 6px;
+    min-height: 180px;
+  }
+
+  .traffic-zone {
+    padding: 4px;
+  }
+
+  .data-row {
+    font-size: 9px;
+    padding: 1px 0;
+  }
+
+  .data-row.main-stats {
+    font-size: 9px;
+    padding: 2px 3px;
+  }
+
+  .data-row.speed-stat {
+    font-size: 9px;
+  }
+
+  .data-value {
+    min-width: 35px;
+  }
+
+  .main-stats .data-value {
+    font-size: 9px;
   }
 }
 </style>

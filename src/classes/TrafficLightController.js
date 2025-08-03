@@ -95,6 +95,53 @@ export default class TrafficLightController {
       south: { motor: 2, small: 4, large: 3 },
       north: { motor: 5, small: 7, large: 2 },
     }
+
+    // ==========================================
+    // 🛣️ 車道位置管理 (Lane Management)
+    // ==========================================
+
+    // 車道位置配置 - 集中管理所有方向的車道起始位置
+    this.lanePositions = {
+      // 往東四個車道的位置
+      east: [
+        { x: -100, y: 261 }, // 第一車道
+        { x: -100, y: 288 }, // 第二車道
+        { x: -100, y: 318 }, // 第三車道
+        { x: -100, y: 344 }, // 第四車道
+      ],
+
+      // 往西車道的位置 (基於東邊起始點的最下方點)
+      west: [
+        { x: 1125, y: 230 }, // 第一車道
+        { x: 1125, y: 204 }, // 第二車道
+        { x: 1125, y: 177 }, // 第三車道
+        { x: 1125, y: 153 }, // 第四車道
+      ],
+
+      // 往南車道的位置
+      south: [
+        { x: 477, y: -185 }, // 第一車道
+        { x: 449, y: -185 }, // 第二車道
+        { x: 422, y: -185 }, // 第三車道
+        { x: 393, y: -185 }, // 第四車道
+      ],
+
+      // 往北四個車道的位置 (使用簡單絕對數值)
+      north: [
+        { x: 505, y: 700 }, // 第一車道
+        { x: 534, y: 700 }, // 第二車道
+        { x: 562, y: 700 }, // 第三車道
+        { x: 591, y: 700 }, // 第四車道
+      ],
+    }
+
+    // 車輛終點位置配置 - 車輛完全離開畫面的位置
+    this.endPositions = {
+      east: 1200, // 往東車輛的X終點：完全離開右邊界
+      west: -200, // 往西車輛的X終點：完全離開左邊界
+      north: -200, // 往北車輛的Y終點：完全離開上邊界
+      south: 800, // 往南車輛的Y終點：完全離開下邊界
+    }
   }
 
   // ==========================================
@@ -116,6 +163,212 @@ export default class TrafficLightController {
     this.observers.forEach((callback) => {
       callback(direction, state)
     })
+  }
+
+  // ==========================================
+  // 🛣️ 車道管理系統 (Lane Management System)
+  // ==========================================
+
+  // 獲取指定方向的所有車道位置
+  getLanePositions(direction) {
+    if (!this.lanePositions[direction]) {
+      console.warn(`⚠️ 未找到方向 ${direction} 的車道配置`)
+      return []
+    }
+    return this.lanePositions[direction]
+  }
+
+  // 獲取指定方向的隨機車道位置
+  getRandomLanePosition(direction) {
+    const lanes = this.getLanePositions(direction)
+    if (lanes.length === 0) return null
+
+    const randomIndex = Math.floor(Math.random() * lanes.length)
+    return {
+      position: lanes[randomIndex],
+      laneNumber: randomIndex + 1, // 車道編號從1開始
+    }
+  }
+
+  // 獲取指定方向的終點位置
+  getEndPosition(direction) {
+    return this.endPositions[direction] || 0
+  }
+
+  // 獲取所有方向的車道配置（用於調試或管理）
+  getAllLanePositions() {
+    return this.lanePositions
+  }
+
+  // 更新車道位置配置（動態調整）
+  updateLanePosition(direction, laneIndex, newPosition) {
+    if (this.lanePositions[direction] && this.lanePositions[direction][laneIndex]) {
+      this.lanePositions[direction][laneIndex] = newPosition
+      console.log(`🛣️ 更新車道位置：${direction} 車道 ${laneIndex + 1} -> (${newPosition.x}, ${newPosition.y})`)
+    }
+  }
+
+  // 獲取車道統計信息
+  getLaneStatistics() {
+    const stats = {}
+    Object.keys(this.lanePositions).forEach((direction) => {
+      stats[direction] = {
+        totalLanes: this.lanePositions[direction].length,
+        startPositions: this.lanePositions[direction],
+        endPosition: this.endPositions[direction],
+      }
+    })
+    return stats
+  }
+
+  // ==========================================
+  // 🎛️ 場景管理系統 (Scenario Management System)
+  // ==========================================
+
+  // 場景預設數據配置
+  getScenarioPresets() {
+    return {
+      smooth: { motorcycle: 2, small: 4, large: 1 }, // 流暢
+      一般: { motorcycle: 5, small: 8, large: 3 }, // 一般
+      congested: { motorcycle: 10, small: 15, large: 6 }, // 擁擠
+    }
+  }
+
+  // 路口選項配置
+  getIntersectionOptions() {
+    return [
+      { label: '東向路口', value: 'east' },
+      { label: '西向路口', value: 'west' },
+      { label: '南向路口', value: 'south' },
+      { label: '北向路口', value: 'north' },
+    ]
+  }
+
+  // 場景選項配置
+  getScenarioOptions() {
+    return [
+      { label: '流暢', value: 'smooth' },
+      { label: '一般', value: '一般' },
+      { label: '擁擠', value: 'congested' },
+    ]
+  }
+
+  // 應用場景預設到指定方向
+  applyScenarioPreset(direction, scenarioType) {
+    const presets = this.getScenarioPresets()
+
+    if (!presets[scenarioType]) {
+      console.warn(`⚠️ 未找到場景類型: ${scenarioType}`)
+      return false
+    }
+
+    if (!this.vehicleData[direction]) {
+      console.warn(`⚠️ 未找到方向: ${direction}`)
+      return false
+    }
+
+    const preset = presets[scenarioType]
+    this.vehicleData[direction] = {
+      motor: preset.motorcycle,
+      small: preset.small,
+      medium: 0, // 中型車暫時設為0
+      large: preset.large,
+    }
+
+    console.log(`✅ 已應用 ${scenarioType} 場景到 ${direction} 方向:`, this.vehicleData[direction])
+    return true
+  }
+
+  // 更新指定方向的車輛數據
+  updateDirectionVehicleData(direction, vehicleData) {
+    if (!this.vehicleData[direction]) {
+      console.warn(`⚠️ 未找到方向: ${direction}`)
+      return false
+    }
+
+    this.vehicleData[direction] = {
+      motor: vehicleData.motorcycle || vehicleData.motor || 0,
+      small: vehicleData.small || 0,
+      medium: vehicleData.medium || 0,
+      large: vehicleData.large || 0,
+    }
+
+    console.log(`🔄 已更新 ${direction} 方向車輛數據:`, this.vehicleData[direction])
+    return true
+  }
+
+  // 獲取指定方向的車輛數據
+  getDirectionVehicleData(direction) {
+    return this.vehicleData[direction] || null
+  }
+
+  // 獲取所有方向的車輛數據
+  getAllVehicleData() {
+    return this.vehicleData
+  }
+
+  // 重置指定方向的車輛數據
+  resetDirectionVehicleData(direction) {
+    if (this.vehicleData[direction]) {
+      this.vehicleData[direction] = {
+        motor: 0,
+        small: 0,
+        medium: 0,
+        large: 0,
+      }
+      console.log(`🔄 已重置 ${direction} 方向車輛數據`)
+      return true
+    }
+    return false
+  }
+
+  // 重置所有方向的車輛數據
+  resetAllVehicleData() {
+    Object.keys(this.vehicleData).forEach((direction) => {
+      this.resetDirectionVehicleData(direction)
+    })
+    console.log('🔄 已重置所有方向車輛數據')
+  }
+
+  // 驗證路口值並轉換為內部格式
+  normalizeDirection(intersectionValue) {
+    const directionMap = {
+      東: 'east',
+      西: 'west',
+      南: 'south',
+      北: 'north',
+      east: 'east',
+      west: 'west',
+      south: 'south',
+      north: 'north',
+    }
+
+    return directionMap[intersectionValue] || null
+  }
+
+  // ==========================================
+  // 🔧 調試和管理工具 (Debug & Management Tools)
+  // ==========================================
+
+  // 獲取交通控制器完整狀態（調試用）
+  getSystemStatus() {
+    return {
+      isRunning: this.isRunning,
+      currentPhase: this.currentPhase,
+      currentLightStates: this.currentLightStates,
+      dynamicTiming: this.dynamicTiming,
+      vehicleData: this.vehicleData,
+      laneStatistics: this.getLaneStatistics(),
+      scenarioPresets: this.getScenarioPresets(),
+      intersectionOptions: this.getIntersectionOptions(),
+      scenarioOptions: this.getScenarioOptions(),
+    }
+  }
+
+  // 打印系統狀態到控制台
+  printSystemStatus() {
+    console.log('🎛️ TrafficLightController 系統狀態:')
+    console.table(this.getSystemStatus())
   }
 
   // ==========================================
