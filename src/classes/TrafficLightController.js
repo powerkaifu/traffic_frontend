@@ -589,29 +589,28 @@ export default class TrafficLightController {
 
   // Strategy Pattern: 獲取各車型的平均速度策略
   getAverageSpeed(direction, vehicleType) {
-    // Strategy Pattern: 不同車型的速度範圍策略
+    // Strategy Pattern: 不同車型的速度範圍策略 - 與 Vehicle.js 保持一致
     const speedRanges = {
-      motor: { min: 25, max: 45, avg: 35 },
-      small: { min: 20, max: 40, avg: 30 },
-      large: { min: 15, max: 30, avg: 22 },
+      motor: { min: 35, max: 60, avg: 47 }, // 平均 (35+60)/2 ≈ 47
+      small: { min: 30, max: 45, avg: 37 }, // 平均 (30+45)/2 ≈ 37
+      large: { min: 25, max: 35, avg: 30 }, // 平均 (25+35)/2 = 30
     }
 
     const range = speedRanges[vehicleType]
     if (!range) return 30
 
-    // Strategy Pattern: 路口速度調整因子（比一般道路慢）
-    const intersectionFactor = 0.3 // 路口速度的基礎因子（30%）
-
     // Strategy Pattern: 根據路段占有率調整速度的策略
     const occupancy = parseFloat(this.calculateOccupancy(direction))
-    let speedFactor = intersectionFactor // 基礎就是路口速度
+    let speedFactor = 1.0 // 基礎速度因子，不再強制降低到路口速度
 
     if (occupancy > 80) {
-      speedFactor *= 0.5 // 嚴重擁堵時更慢（路口速度的一半）
+      speedFactor *= 0.4 // 嚴重擁堵時大幅降速
     } else if (occupancy > 60) {
-      speedFactor *= 0.7 // 中度擁堵（路口速度的70%）
+      speedFactor *= 0.6 // 中度擁堵
     } else if (occupancy > 30) {
-      speedFactor *= 0.9 // 輕度擁堵（路口速度的90%）
+      speedFactor *= 0.8 // 輕度擁堵
+    } else {
+      speedFactor *= 0.9 // 正常情況下稍微降速（模擬路口減速）
     }
 
     return Math.round(range.avg * speedFactor)
@@ -632,6 +631,57 @@ export default class TrafficLightController {
       const vdData = this.collectIntersectionData()
       console.log('🚦 發送交通數據到 AI 系統:', vdData)
 
+      // 發送 API 開始事件到 MainLayout
+      window.dispatchEvent(
+        new CustomEvent('trafficApiSending', {
+          detail: {
+            timestamp: new Date().toISOString(),
+            data: {
+              east: {
+                averageSpeed: this.getAverageSpeed('east', 'small'),
+                occupancy: parseFloat(this.calculateOccupancy('east')),
+                motorFlow: this.getDirectionVehicleData('east').motor,
+                smallCarFlow: this.getDirectionVehicleData('east').small,
+                largeCarFlow: this.getDirectionVehicleData('east').large,
+                motorSpeed: this.getAverageSpeed('east', 'motor'),
+                smallCarSpeed: this.getAverageSpeed('east', 'small'),
+                largeCarSpeed: this.getAverageSpeed('east', 'large'),
+              },
+              west: {
+                averageSpeed: this.getAverageSpeed('west', 'small'),
+                occupancy: parseFloat(this.calculateOccupancy('west')),
+                motorFlow: this.getDirectionVehicleData('west').motor,
+                smallCarFlow: this.getDirectionVehicleData('west').small,
+                largeCarFlow: this.getDirectionVehicleData('west').large,
+                motorSpeed: this.getAverageSpeed('west', 'motor'),
+                smallCarSpeed: this.getAverageSpeed('west', 'small'),
+                largeCarSpeed: this.getAverageSpeed('west', 'large'),
+              },
+              south: {
+                averageSpeed: this.getAverageSpeed('south', 'small'),
+                occupancy: parseFloat(this.calculateOccupancy('south')),
+                motorFlow: this.getDirectionVehicleData('south').motor,
+                smallCarFlow: this.getDirectionVehicleData('south').small,
+                largeCarFlow: this.getDirectionVehicleData('south').large,
+                motorSpeed: this.getAverageSpeed('south', 'motor'),
+                smallCarSpeed: this.getAverageSpeed('south', 'small'),
+                largeCarSpeed: this.getAverageSpeed('south', 'large'),
+              },
+              north: {
+                averageSpeed: this.getAverageSpeed('north', 'small'),
+                occupancy: parseFloat(this.calculateOccupancy('north')),
+                motorFlow: this.getDirectionVehicleData('north').motor,
+                smallCarFlow: this.getDirectionVehicleData('north').small,
+                largeCarFlow: this.getDirectionVehicleData('north').large,
+                motorSpeed: this.getAverageSpeed('north', 'motor'),
+                smallCarSpeed: this.getAverageSpeed('north', 'small'),
+                largeCarSpeed: this.getAverageSpeed('north', 'large'),
+              },
+            },
+          },
+        }),
+      )
+
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
         headers: {
@@ -646,6 +696,16 @@ export default class TrafficLightController {
 
       const result = await response.json()
       console.log('🤖 AI 預測結果:', result)
+
+      // 發送 API 完成事件到 MainLayout
+      window.dispatchEvent(
+        new CustomEvent('trafficApiComplete', {
+          detail: {
+            timestamp: new Date().toISOString(),
+            response: result,
+          },
+        }),
+      )
 
       // Strategy Pattern: 更新下一輪的綠燈時間策略
       if (result.east_west_seconds && result.south_north_seconds) {
@@ -669,6 +729,17 @@ export default class TrafficLightController {
       return result
     } catch (error) {
       console.warn('⚠️ API 呼叫失敗，使用預設時間:', error.message)
+
+      // 發送 API 錯誤事件到 MainLayout
+      window.dispatchEvent(
+        new CustomEvent('trafficApiError', {
+          detail: {
+            timestamp: new Date().toISOString(),
+            error: error.message,
+          },
+        }),
+      )
+
       // Strategy Pattern: API 失敗時使用預設時間策略
       this.nextTiming.eastWest = 15
       this.nextTiming.northSouth = 15

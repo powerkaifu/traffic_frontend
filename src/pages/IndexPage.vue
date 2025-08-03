@@ -64,9 +64,11 @@
 import { onMounted, ref } from 'vue'
 import Vehicle from '../classes/Vehicle.js'
 import TrafficLightController from '../classes/TrafficLightController.js'
+import AutoTrafficGenerator from '../classes/AutoTrafficGenerator.js'
 
 const crossroadContainer = ref(null)
 const trafficController = new TrafficLightController()
+const autoTrafficGenerator = new AutoTrafficGenerator(trafficController)
 const currentPhase = ref('南北向 綠燈')
 const countdown = ref(15)
 const activeCars = ref([]) // 維護活躍車輛列表
@@ -104,7 +106,10 @@ onMounted(() => {
       // 在組件卸載時清理監聽器
       const cleanup = () => {
         window.removeEventListener('resize', handleLayoutChange)
+        window.removeEventListener('generateVehicle', handleAutoGenerate)
         observer.disconnect()
+        autoTrafficGenerator.stop()
+        console.log('🤖 自動交通產生器已停止')
       }
 
       // 將清理函數保存到 window 對象，以便在需要時調用
@@ -143,6 +148,47 @@ onMounted(() => {
       console.log('🚥 啟動交通燈控制器...')
       trafficController.start()
 
+      // 初始化自動交通產生器
+      console.log('🚦 初始化自動交通產生器...')
+
+      // 自動產生車輛的事件處理函數
+      const handleAutoGenerate = (event) => {
+        const { direction, vehicleType } = event.detail
+        console.log(`🤖 自動產生車輛：方向 ${direction}, 類型 ${vehicleType}`)
+
+        // 使用現有的車輛創建邏輯
+        const laneInfo = trafficController.getRandomLanePosition(direction)
+        if (!laneInfo) {
+          console.error(`❌ 無法獲取方向 ${direction} 的車道位置`)
+          return
+        }
+
+        const { position: randomLane, laneNumber } = laneInfo
+        const vehicle = new Vehicle(randomLane.x, randomLane.y, direction, vehicleType, laneNumber)
+        vehicle.addTo(crossroadContainer.value)
+
+        // 添加到活躍車輛列表
+        activeCars.value.push(vehicle)
+        console.log(`✅ 自動產生車輛已添加，目前活躍車輛數：${activeCars.value.length}`)
+
+        // 發送車輛添加事件
+        window.dispatchEvent(
+          new CustomEvent('vehicleAdded', {
+            detail: { direction, type: vehicleType },
+          }),
+        )
+
+        // 立即開始動畫
+        vehicle.moveToWithTrafficControl(trafficController.getEndPosition(direction))
+      }
+
+      // 監聽自動產生車輛事件
+      window.addEventListener('generateVehicle', handleAutoGenerate)
+
+      // 啟動自動交通產生器
+      autoTrafficGenerator.start()
+      console.log('🤖 自動交通產生器已啟動')
+
       // 創建車輛生成器函數 - 使用 TrafficLightController 的車道管理
       const createRandomCar = (direction) => {
         console.log(`🚗 創建車輛：方向 ${direction}`)
@@ -167,6 +213,13 @@ onMounted(() => {
         // 添加到活躍車輛列表
         activeCars.value.push(vehicle)
         console.log(`✅ 車輛已添加，目前活躍車輛數：${activeCars.value.length}`)
+
+        // 發送車輛添加事件
+        window.dispatchEvent(
+          new CustomEvent('vehicleAdded', {
+            detail: { direction, type: randomCarType },
+          }),
+        )
 
         // 立即開始動畫
         setTimeout(async () => {
@@ -224,6 +277,13 @@ onMounted(() => {
             activeCars.value.splice(vehicleIndex, 1)
           }
           vehicle.remove()
+
+          // 發送車輛移除事件
+          window.dispatchEvent(
+            new CustomEvent('vehicleRemoved', {
+              detail: { direction, type: randomCarType },
+            }),
+          )
         }, 100) // 很短的延遲讓車子先出現
       }
 
