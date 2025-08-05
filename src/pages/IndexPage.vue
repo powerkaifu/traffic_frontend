@@ -61,12 +61,19 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import Vehicle from '../classes/Vehicle.js'
 import TrafficLightController from '../classes/TrafficLightController.js'
 import AutoTrafficGenerator from '../classes/AutoTrafficGenerator.js'
 import TrafficDataCollector from '../classes/TrafficDataCollector.js'
-import '../utils/apiTest.js' // 導入 API 測試腳本
+
+// 提升 handleScenarioChange 作用域，讓 onUnmounted 可移除
+const handleScenarioChange = (event) => {
+  if (window.autoTrafficGenerator && event.detail && event.detail.config) {
+    window.autoTrafficGenerator.updateConfig(event.detail.config)
+    console.log('[IndexPage] 已套用新情境 config:', event.detail.config)
+  }
+}
 
 const crossroadContainer = ref(null)
 const trafficController = new TrafficLightController()
@@ -85,6 +92,8 @@ const aiPrediction = ref({
 onMounted(() => {
   setTimeout(() => {
     if (crossroadContainer.value) {
+      // 監聽情境切換事件（由 MainLayout 發出）
+      window.addEventListener('scenarioChanged', handleScenarioChange)
       // 監聽視窗大小變化和佈局變化
       const handleLayoutChange = () => {
         // 通知所有活躍車輛佈局發生了變化
@@ -269,8 +278,6 @@ onMounted(() => {
 
       // 創建車輛生成器函數 - 使用 TrafficLightController 的車道管理
       const createRandomCar = (direction) => {
-        console.log(`🚗 創建車輛：方向 ${direction}`)
-
         // 使用 TrafficLightController 獲取隨機車道位置
         const laneInfo = trafficController.getRandomLanePosition(direction)
         if (!laneInfo) {
@@ -438,8 +445,6 @@ onMounted(() => {
 
       // 定期清理超時車輛機制
       const cleanupInterval = setInterval(() => {
-        const beforeCount = activeCars.value.length
-
         // 清理可能已經完成但沒有正確清理的車輛
         activeCars.value = activeCars.value.filter((vehicle) => {
           // 檢查車輛是否還在DOM中
@@ -492,11 +497,6 @@ onMounted(() => {
 
           return true
         })
-
-        const afterCount = activeCars.value.length
-        if (beforeCount !== afterCount) {
-          console.log(`🧹 定期清理完成：清理了 ${beforeCount - afterCount} 輛車，剩餘 ${afterCount} 輛`)
-        }
       }, 2000) // 改為每2秒清理一次，更頻繁地處理終點車輛
 
       // 在組件卸載時清理定時器
@@ -521,6 +521,9 @@ onUnmounted(() => {
     console.log('📊 停止交通數據收集器...')
     trafficDataCollector.stop()
   }
+
+  // 移除情境切換事件監聽
+  window.removeEventListener('scenarioChanged', handleScenarioChange)
 
   // 清理車輛清理定時器
   if (window.cleanupVehicleInterval) {

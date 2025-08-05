@@ -349,12 +349,6 @@ export default class TrafficLightController {
     }
   }
 
-  // 打印系統狀態到控制台
-  printSystemStatus() {
-    console.log('🎛️ TrafficLightController 系統狀態:')
-    console.table(this.getSystemStatus())
-  }
-
   // ==========================================
   // 🏭 Factory Pattern (工廠模式) 方法群組
   // ==========================================
@@ -623,66 +617,15 @@ export default class TrafficLightController {
   // Strategy Pattern: 發送數據到後端 API（提前 10 秒請求）
   async sendDataToBackend(vdData = null) {
     try {
-      // 如果沒有提供數據，則收集當前數據
       const dataToSend = vdData || this.collectIntersectionData()
-      console.log('🚦 發送交通數據到 AI 系統:', dataToSend)
+      console.log('🚦 發送真實交通數據到後端 AI 系統:', dataToSend)
 
-      // 發送 API 開始事件到 MainLayout
-      window.dispatchEvent(
-        new CustomEvent('trafficApiSending', {
-          detail: {
-            timestamp: new Date().toISOString(),
-            data: {
-              east: {
-                averageSpeed: this.getAverageSpeed('east', 'small'),
-                occupancy: parseFloat(this.calculateOccupancy('east')),
-                motorFlow: this.getDirectionVehicleData('east').motor,
-                smallCarFlow: this.getDirectionVehicleData('east').small,
-                largeCarFlow: this.getDirectionVehicleData('east').large,
-                motorSpeed: this.getAverageSpeed('east', 'motor'),
-                smallCarSpeed: this.getAverageSpeed('east', 'small'),
-                largeCarSpeed: this.getAverageSpeed('east', 'large'),
-              },
-              west: {
-                averageSpeed: this.getAverageSpeed('west', 'small'),
-                occupancy: parseFloat(this.calculateOccupancy('west')),
-                motorFlow: this.getDirectionVehicleData('west').motor,
-                smallCarFlow: this.getDirectionVehicleData('west').small,
-                largeCarFlow: this.getDirectionVehicleData('west').large,
-                motorSpeed: this.getAverageSpeed('west', 'motor'),
-                smallCarSpeed: this.getAverageSpeed('west', 'small'),
-                largeCarSpeed: this.getAverageSpeed('west', 'large'),
-              },
-              south: {
-                averageSpeed: this.getAverageSpeed('south', 'small'),
-                occupancy: parseFloat(this.calculateOccupancy('south')),
-                motorFlow: this.getDirectionVehicleData('south').motor,
-                smallCarFlow: this.getDirectionVehicleData('south').small,
-                largeCarFlow: this.getDirectionVehicleData('south').large,
-                motorSpeed: this.getAverageSpeed('south', 'motor'),
-                smallCarSpeed: this.getAverageSpeed('south', 'small'),
-                largeCarSpeed: this.getAverageSpeed('south', 'large'),
-              },
-              north: {
-                averageSpeed: this.getAverageSpeed('north', 'small'),
-                occupancy: parseFloat(this.calculateOccupancy('north')),
-                motorFlow: this.getDirectionVehicleData('north').motor,
-                smallCarFlow: this.getDirectionVehicleData('north').small,
-                largeCarFlow: this.getDirectionVehicleData('north').large,
-                motorSpeed: this.getAverageSpeed('north', 'motor'),
-                smallCarSpeed: this.getAverageSpeed('north', 'small'),
-                largeCarSpeed: this.getAverageSpeed('north', 'large'),
-              },
-            },
-          },
-        }),
-      )
+      // 發送 API 開始事件
+      window.dispatchEvent(new CustomEvent('trafficApiSending', { detail: { timestamp: new Date().toISOString() } }))
 
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSend),
       })
 
@@ -691,24 +634,16 @@ export default class TrafficLightController {
       }
 
       const result = await response.json()
-      console.log('🤖 AI 預測結果:', result)
+      console.log('🤖 收到真實 AI 預測結果:', result)
 
-      // 發送 API 完成事件到 MainLayout
-      window.dispatchEvent(
-        new CustomEvent('trafficApiComplete', {
-          detail: {
-            timestamp: new Date().toISOString(),
-            response: result,
-          },
-        }),
-      )
+      // 發送 API 完成事件
+      window.dispatchEvent(new CustomEvent('trafficApiComplete', { detail: { timestamp: new Date().toISOString(), response: result } }))
 
-      // Strategy Pattern: 更新下一輪的綠燈時間策略
+      // 更新下一輪的綠燈時間
       if (result.east_west_seconds && result.south_north_seconds) {
         this.nextTiming.eastWest = result.east_west_seconds
         this.nextTiming.northSouth = result.south_north_seconds
 
-        // Observer Pattern: 通知 UI 更新預測結果
         if (this.onPredictionUpdate) {
           this.onPredictionUpdate({
             eastWest: result.east_west_seconds,
@@ -716,31 +651,85 @@ export default class TrafficLightController {
             timestamp: new Date().toLocaleTimeString(),
           })
         }
-
-        console.log(
-          `✅ 下一輪綠燈時間已更新 - 東西向: ${result.east_west_seconds}秒, 南北向: ${result.south_north_seconds}秒`,
-        )
+        console.log(`✅ 下一輪綠燈時間已更新 - 東西向: ${result.east_west_seconds}秒, 南北向: ${result.south_north_seconds}秒`)
       }
-
       return result
     } catch (error) {
-      console.warn('⚠️ API 呼叫失敗，使用預設時間:', error.message)
+      console.warn('⚠️ 真實 API 呼叫失敗:', error.message)
+      console.log('🔄 啟用本地模擬 AI 作為備援方案...')
 
-      // 發送 API 錯誤事件到 MainLayout
-      window.dispatchEvent(
-        new CustomEvent('trafficApiError', {
-          detail: {
-            timestamp: new Date().toISOString(),
-            error: error.message,
-          },
-        }),
-      )
+      // *** 備援方案：呼叫本地模擬 AI ***
+      const dataToSend = vdData || this.collectIntersectionData()
+      const result = this.getAISuggestion(dataToSend)
 
-      // Strategy Pattern: API 失敗時使用預設時間策略
-      this.nextTiming.eastWest = 15
-      this.nextTiming.northSouth = 15
+      // 發送 API 錯誤事件
+      window.dispatchEvent(new CustomEvent('trafficApiError', { detail: { timestamp: new Date().toISOString(), error: error.message } }))
+
+      // 更新下一輪的綠燈時間
+      if (result.east_west_seconds && result.south_north_seconds) {
+        this.nextTiming.eastWest = result.east_west_seconds
+        this.nextTiming.northSouth = result.south_north_seconds
+
+        if (this.onPredictionUpdate) {
+          this.onPredictionUpdate({
+            eastWest: result.east_west_seconds,
+            northSouth: result.south_north_seconds,
+            timestamp: new Date().toLocaleTimeString(),
+          })
+        }
+        console.log(`✅ (備援) 下一輪綠燈時間已更新 - 東西向: ${result.east_west_seconds}秒, 南北向: ${result.south_north_seconds}秒`)
+      }
       return null
     }
+  }
+
+  // ==========================================
+  // 🤖 AI 決策模擬系統 (AI Decision Simulation)
+  // ==========================================
+
+  // 模擬 AI 獲取建議
+  getAISuggestion(currentData) {
+    console.log('🧠 模擬 AI 正在分析數據:', currentData)
+
+    let northSouthTotal = 0
+    let eastWestTotal = 0
+
+    // 計算南北向和東西向的總車流量
+    currentData.forEach((data) => {
+      const totalVehicles = data.Volume_M + data.Volume_S + data.Volume_L
+      if (data.VD_ID.includes('VLRJX00')) {
+        // 南北向
+        northSouthTotal += totalVehicles
+      } else if (data.VD_ID.includes('VLRJX20') || data.VD_ID.includes('VLRJM60')) {
+        // 東西向
+        eastWestTotal += totalVehicles
+      }
+    })
+
+    console.log(`📈 AI 分析結果 - 南北向車流: ${northSouthTotal}, 東西向車流: ${eastWestTotal}`)
+
+    // 基礎秒數
+    const baseTime = 10 // 基礎綠燈時間
+    const extraTimePerCar = 1 // 每多一輛車增加的秒數
+
+    // 計算建議秒數
+    let northSouthSeconds = baseTime + northSouthTotal * extraTimePerCar
+    let eastWestSeconds = baseTime + eastWestTotal * extraTimePerCar
+
+    // 設定秒數上下限
+    const minTime = 8 // 最短綠燈時間
+    const maxTime = 45 // 最長綠燈時間
+    northSouthSeconds = Math.max(minTime, Math.min(northSouthSeconds, maxTime))
+    eastWestSeconds = Math.max(minTime, Math.min(eastWestSeconds, maxTime))
+
+    const suggestion = {
+      east_west_seconds: Math.round(eastWestSeconds),
+      south_north_seconds: Math.round(northSouthSeconds),
+      reasoning: `南北向 ${northSouthTotal} 輛 vs 東西向 ${eastWestTotal} 輛`,
+    }
+
+    console.log('💡 AI 產生建議:', suggestion)
+    return suggestion
   }
 
   // ==========================================

@@ -103,6 +103,7 @@
                   />
                   <span class="freq-value">{{ manualFrequency }}s</span>
                 </div>
+
                 <div class="stats-compact">
                   <div class="stat-item">
                     <span class="stat-label">生成</span>
@@ -512,9 +513,19 @@ const switchToTimeScenario = (scenarioKey) => {
   // 應用場景配置到自動交通產生器
   if (window.autoTrafficGenerator) {
     window.autoTrafficGenerator.updateConfig(scenario.config)
+    // 立即 log 出 autoTrafficGenerator.config 以確認設定已被應用
+    console.log('[分派設定] autoTrafficGenerator.config:', window.autoTrafficGenerator.config)
     // 重置統計計數器（切換場景時重新開始計算）
     // totalGenerated.value = 0
   }
+
+  // 發送情境切換事件給其他頁面（如 IndexPage）
+  // 增加 isManualMode: false，表示這是情境切換，而非手動調整
+  window.dispatchEvent(
+    new CustomEvent('scenarioChanged', { detail: { key: scenarioKey, config: { ...scenario.config, isManualMode: false } } }),
+  )
+  // log 訊息
+  console.log(`[MainLayout] 已切換情境：${scenarioKey}，config:`, scenario.config)
 }
 
 // 手動頻率調整
@@ -524,15 +535,20 @@ const updateManualFrequency = () => {
   // 立刻更新UI上的「間隔」數值，與滑桿同步
   currentInterval.value = manualFrequency.value
 
+  // 新增 log，方便除錯
+  console.log('[頻率調整] manualFrequency:', manualFrequency.value)
+
   const interval = {
     min: manualFrequency.value * 600,
     max: manualFrequency.value * 1200,
     normal: manualFrequency.value * 1000,
   }
 
-  if (window.autoTrafficGenerator) {
-    window.autoTrafficGenerator.updateConfig({ interval })
-  }
+  // 使用現有的 scenarioChanged 事件來傳遞設定，避免直接依賴 window.autoTrafficGenerator
+  // 增加 isManualMode: true，表示這是手動調整
+  const config = { interval, isManualMode: true }
+  window.dispatchEvent(new CustomEvent('scenarioChanged', { detail: { key: 'manual', config } }))
+  console.log(`[MainLayout] 手動調整頻率，config:`, config)
 }
 
 // 自動時段檢查定時器
@@ -746,14 +762,6 @@ const listenForVehicleChanges = () => {
 // 全域交通控制器設定
 onMounted(() => {
   // 設置全域 trafficController 以供其他組件使用 - 預測回調由IndexPage處理
-
-  // 當 TrafficController 初始化後，打印系統狀態
-  setTimeout(() => {
-    if (window.trafficController) {
-      window.trafficController.printSystemStatus()
-    }
-  }, 1000)
-
   // 啟動數據更新定時器
   startDataUpdate()
 

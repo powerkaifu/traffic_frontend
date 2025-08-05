@@ -23,40 +23,22 @@ export default class AutoTrafficGenerator {
     this.generationTimer = null
     this.monitoringTimer = null
 
-    // Strategy Pattern: 可配置的生成策略
-    this.generationConfig = {
-      // 基礎時間間隔配置
-      interval: {
-        min: 1500, // 最短1.5秒
-        max: 4000, // 最長4秒
-        normal: 2500, // 正常2.5秒
-      },
-
-      // 方向配置
+    // 儲存一份預設設定，用於手動模式的重置
+    this.defaultConfig = {
+      interval: { min: 1500, max: 4000, normal: 2500 },
       directions: ['east', 'west', 'north', 'south'],
-
-      // 車輛類型權重配置 (總和應為100)
       vehicleTypes: [
-        { type: 'motor', weight: 35, priority: 1 }, // 35% 機車 (優先級高)
-        { type: 'small', weight: 50, priority: 2 }, // 50% 小型車 (優先級中)
-        { type: 'large', weight: 15, priority: 3 }, // 15% 大型車 (優先級低)
+        { type: 'motor', weight: 35, priority: 1 },
+        { type: 'small', weight: 50, priority: 2 },
+        { type: 'large', weight: 15, priority: 3 },
       ],
-
-      // 交通密度閾值
-      densityThresholds: {
-        light: 8, // 輕度交通
-        moderate: 16, // 中度交通
-        heavy: 24, // 重度交通
-        congested: 32, // 擁堵
-      },
-
-      // 時段影響因子
-      timeFactors: {
-        rush: 1.5, // 尖峰時段 (1.5倍車流)
-        normal: 1.0, // 正常時段
-        light: 0.6, // 離峰時段 (0.6倍車流)
-      },
+      densityThresholds: { light: 8, moderate: 16, heavy: 24, congested: 32 },
+      timeFactors: { rush: 1.5, normal: 1.0, light: 0.6 },
+      isManualMode: false,
     }
+
+    // Strategy Pattern: 可配置的生成策略
+    this.generationConfig = { ...this.defaultConfig }
 
     // 統計數據
     this.statistics = {
@@ -185,9 +167,18 @@ export default class AutoTrafficGenerator {
 
   // Strategy Pattern: 計算自適應生成間隔的策略方法
   calculateAdaptiveInterval() {
+    const { min, max, normal } = this.generationConfig.interval
+
+    // 如果是手動模式，直接使用 normal 值，並加入微小隨機變化
+    if (this.generationConfig.isManualMode) {
+      const randomFactor = 0.9 + Math.random() * 0.2 // ±10% 的隨機變化
+      const finalInterval = Math.round(normal * randomFactor)
+      return finalInterval
+    }
+
+    // --- 以下為自動情境模式的智能判斷 ---
     const currentDensity = this.getCurrentTrafficDensity()
     const timeFactor = this.getTimeBasedFactor()
-    const { min, max, normal } = this.generationConfig.interval
     const { light, moderate, heavy, congested } = this.generationConfig.densityThresholds
 
     let baseInterval = normal
@@ -286,32 +277,14 @@ export default class AutoTrafficGenerator {
 
   // Strategy Pattern: 選擇車輛類型的策略方法
   selectVehicleType() {
-    const currentHour = new Date().getHours()
     let vehicleTypes = [...this.generationConfig.vehicleTypes]
-
-    // Strategy Pattern: 根據時段調整車輛類型比例
-    if (currentHour >= 7 && currentHour <= 9) {
-      // 早上尖峰：更多小型車和機車
-      vehicleTypes.forEach((type) => {
-        if (type.type === 'small') type.weight *= 1.3
-        if (type.type === 'motor') type.weight *= 1.2
-        if (type.type === 'large') type.weight *= 0.6
-      })
-    } else if (currentHour >= 17 && currentHour <= 19) {
-      // 傍晚尖峰：更多小型車
-      vehicleTypes.forEach((type) => {
-        if (type.type === 'small') type.weight *= 1.4
-        if (type.type === 'large') type.weight *= 0.7
-      })
-    } else if (currentHour >= 10 && currentHour <= 16) {
-      // 白天：更多大型車 (貨運)
-      vehicleTypes.forEach((type) => {
-        if (type.type === 'large') type.weight *= 1.5
-      })
-    }
 
     // 正規化權重
     const totalWeight = vehicleTypes.reduce((sum, type) => sum + type.weight, 0)
+    if (totalWeight === 0) {
+      // 如果總權重為0，返回預設值避免除以0
+      return 'small'
+    }
     vehicleTypes.forEach((type) => (type.normalizedWeight = (type.weight / totalWeight) * 100))
 
     // 加權隨機選擇
@@ -383,6 +356,11 @@ export default class AutoTrafficGenerator {
 
   // Strategy Pattern: 獲取基於時段的生成因子
   getTimeBasedFactor() {
+    // 改為從 generationConfig 中讀取 peakMultiplier，如果不存在則預設為 1.0
+    if (this.generationConfig.characteristics && this.generationConfig.characteristics.peakMultiplier) {
+      return this.generationConfig.characteristics.peakMultiplier
+    }
+    // Fallback to old timeFactors if characteristics is not present
     const currentHour = new Date().getHours()
     const { rush, normal, light } = this.generationConfig.timeFactors
 
@@ -498,10 +476,28 @@ export default class AutoTrafficGenerator {
 
   // 動態調整配置
   updateConfig(newConfig) {
-    this.generationConfig = { ...this.generationConfig, ...newConfig }
-    console.log('⚙️ 車流生成配置已更新:', newConfig)
+    if (newConfig.isManualMode) {
+      // 進入手動模式：重置為預設設定，然後只套用新的 interval
+      this.generationConfig = {
+        ...this.defaultConfig,
+        interval: {
+          ...this.defaultConfig.interval,
+          ...newConfig.interval,
+        },
+        isManualMode: true,
+      }
+      console.log('⚙️ 已切換到手動模式，並重置設定')
+    } else {
+      // 進入自動情境模式：完全用新的情境設定覆蓋
+      this.generationConfig = {
+        ...this.defaultConfig, // 確保有基礎欄位
+        ...newConfig,
+        isManualMode: false,
+      }
+      console.log('⚙️ 已切換到自動情境模式')
+    }
 
-    // 發送配置更新事件
+    console.log('⚙️ 車流生成配置已更新:', this.generationConfig)
     window.dispatchEvent(
       new CustomEvent('trafficGeneratorConfigUpdated', {
         detail: { config: this.generationConfig },
