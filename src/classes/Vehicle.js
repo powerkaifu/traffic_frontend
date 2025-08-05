@@ -607,10 +607,6 @@ export default class Vehicle {
   // Composite Pattern: 將車輛添加到容器的組合方法
   addTo(container) {
     // Composite Pattern: 將車輛元素添加到容器中，形成組合結構
-    if (!container) {
-      console.warn('Vehicle.addTo: container 為 null，無法加入車輛元素。', this)
-      return
-    }
     container.appendChild(this.element)
     // 初始化時記錄容器位置
     this.checkLayoutChange()
@@ -713,7 +709,6 @@ export default class Vehicle {
             // Strategy Pattern: 檢查車輛是否已離開畫面邊界
             const isOutOfBounds = this.checkOutOfBounds(currentPos)
             if (isOutOfBounds) {
-              console.log(`🚪 車輛 ${this.id} 已離開畫面邊界，強制完成動畫`)
               // this.movementTimeline.progress(1) // 強制完成動畫
               return
             }
@@ -726,12 +721,10 @@ export default class Vehicle {
             // 如果距離終點很近，標記為即將完成
             if (distanceToTarget < 20 && this.currentState !== 'nearComplete') {
               this.currentState = 'nearComplete'
-              // console.log(`🎯 車輛 ${this.id} 接近終點，距離: ${Math.round(distanceToTarget)}px`)
             }
 
             // 僅東西向車輛才會因極接近終點強制結束，南北向讓動畫自然結束
             if ((this.direction === 'east' || this.direction === 'west') && distanceToTarget < 10) {
-              // console.log(`🏁 車輛 ${this.id} (EW) 極接近終點，強制完成避免塞車，距離: ${Math.round(distanceToTarget)}px`)
               this.movementTimeline.progress(1) // 強制完成動畫
               return
             }

@@ -124,7 +124,7 @@
                   >
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">機/小/大車 (%):</span>
+                  <span class="detail-label">機車/小型車/大型車 (%):</span>
                   <span class="detail-value">{{ currentScenarioDetails.ratios }}</span>
                 </div>
               </div>
@@ -345,7 +345,8 @@ const timeScenarios = ref([
     scenarioType: 'peak',
     config: {
       // 高頻率生成 - 通勤車流密集
-      interval: { min: 5000, max: 10000, normal: 7500 },
+      // interval: { min: 5000, max: 10000, normal: 7500 },
+      interval: { min: 2000, max: 5000, normal: 3000 },
 
       // 車輛類型比例 - 通勤為主
       vehicleTypes: [
@@ -354,7 +355,7 @@ const timeScenarios = ref([
         { type: 'large', weight: 5, priority: 3 }, // 5% 大型車 (避開尖峰)
       ],
 
-      // 密度管理 - 高容忍度
+      // 密度管理 - 高容忍度，指四個方向總車流量來判斷
       densityThresholds: {
         light: 15, // 輕度交通
         moderate: 30, // 中度交通
@@ -363,6 +364,7 @@ const timeScenarios = ref([
       },
 
       // 方向性流量偏好
+      // 反映早上東向、北向車流比較多，晚上西向、南向車流較多
       directionBias: {
         morning: { east: 1.4, west: 0.7, north: 1.1, south: 0.9 },
         evening: { east: 0.7, west: 1.4, north: 0.9, south: 1.1 },
@@ -389,7 +391,7 @@ const timeScenarios = ref([
     scenarioType: 'offpeak',
     config: {
       // 中等頻率生成 - 正常日間活動
-      interval: { min: 10000, max: 20000, normal: 15000 },
+      interval: { min: 4000, max: 6000, normal: 5000 },
 
       // 車輛類型比例 - 多元化用途
       vehicleTypes: [
@@ -400,10 +402,10 @@ const timeScenarios = ref([
 
       // 密度管理 - 標準容忍度
       densityThresholds: {
-        light: 8, // 輕度交通
-        moderate: 18, // 中度交通
-        heavy: 28, // 重度交通
-        congested: 38, // 擁堵閾值
+        light: 4, // 輕度交通
+        moderate: 9, // 中度交通
+        heavy: 14, // 重度交通
+        congested: 19, // 擁堵閾值
       },
 
       // 方向性流量偏好 - 較為均衡
@@ -432,7 +434,7 @@ const timeScenarios = ref([
     scenarioType: 'latenight',
     config: {
       // 低頻率生成 - 夜間稀少車流
-      interval: { min: 10000, max: 30000, normal: 20000 },
+      interval: { min: 10000, max: 20000, normal: 15000 },
 
       // 車輛類型比例 - 機車主導
       vehicleTypes: [
@@ -443,8 +445,8 @@ const timeScenarios = ref([
 
       // 密度管理 - 低容忍度
       densityThresholds: {
-        light: 3, // 輕度交通
-        moderate: 6, // 中度交通
+        light: 2, // 輕度交通
+        moderate: 5, // 中度交通
         heavy: 10, // 重度交通
         congested: 15, // 擁堵閾值
       },
@@ -513,25 +515,7 @@ const switchToTimeScenario = (scenarioKey) => {
     // 重置統計計數器（切換場景時重新開始計算）
     // totalGenerated.value = 0
   }
-
-  // console.log(`🕐 時段場景切換: ${scenario.name}`, scenario.config)
 }
-
-// 切換自動時段模式 (已移除，改為純手動模式)
-// 所有場景切換都通過手動點選按鈕進行
-/*
-const toggleAutoTimeMode = () => {
-  // 移除自動時間邏輯，保持手動模式
-  isAutoTimeMode.value = false
-
-  $q.notify({
-    type: 'info',
-    message: '使用手動控制模式 - 請點選情境按鈕切換',
-    position: 'top',
-    timeout: 1500,
-  })
-}
-*/
 
 // 手動頻率調整
 const updateManualFrequency = () => {
@@ -553,12 +537,6 @@ const updateManualFrequency = () => {
 
 // 自動時段檢查定時器
 const autoTimeCheckInterval = ref(null)
-
-// 移除自動時段檢查 (改為純手動模式)
-const startAutoTimeCheck = () => {
-  // 不再需要自動時段檢查，所有切換都通過手動操作
-  // console.log('使用手動模式，無需自動時段檢查')
-}
 
 // 停止自動時段檢查
 const stopAutoTimeCheck = () => {
@@ -693,7 +671,6 @@ const startDataUpdate = () => {
   dataUpdateInterval.value = setInterval(() => {
     // 觸發響應式數據更新
     if (window.trafficController) {
-      // console.log('🔄 更新交通數據顯示')
       // 強制觸發響應式更新
       forceUpdateTrigger.value++
     }
@@ -716,7 +693,6 @@ watch(selectedScenario, (newScenario) => {
     motorcycleCount.value = preset.motorcycle
     smallCarCount.value = preset.small
     largeCarCount.value = preset.large
-    // console.log(`🎯 場景已切換至: ${newScenario}`, preset)
   }
 })
 
@@ -724,13 +700,11 @@ watch(selectedScenario, (newScenario) => {
 const listenForVehicleChanges = () => {
   // 監聽車輛添加事件
   const handleVehicleChange = () => {
-    // console.log('🚗 車輛狀態變化，觸發數據更新')
     forceUpdateTrigger.value++
   }
 
   // 監聽數據收集器的數據更新事件
   const handleTrafficDataUpdate = () => {
-    // console.log('📊 交通數據已更新，觸發UI更新')
     forceUpdateTrigger.value++
   }
 
@@ -749,10 +723,6 @@ const listenForVehicleChanges = () => {
     forceUpdateTrigger.value++
   }
 
-  const handleTrafficApiError = () => {
-    // console.log('❌ API發送失敗', event.detail)
-  }
-
   // 添加事件監聽器
   window.addEventListener('vehicleAdded', handleVehicleChange)
   window.addEventListener('vehicleRemoved', handleVehicleChange)
@@ -761,7 +731,6 @@ const listenForVehicleChanges = () => {
   window.addEventListener('trafficCycleReset', handleTrafficCycleReset)
   window.addEventListener('trafficApiSending', handleTrafficApiSending)
   window.addEventListener('trafficApiComplete', handleTrafficApiComplete)
-  window.addEventListener('trafficApiError', handleTrafficApiError)
 
   return () => {
     window.removeEventListener('vehicleAdded', handleVehicleChange)
@@ -771,7 +740,6 @@ const listenForVehicleChanges = () => {
     window.removeEventListener('trafficCycleReset', handleTrafficCycleReset)
     window.removeEventListener('trafficApiSending', handleTrafficApiSending)
     window.removeEventListener('trafficApiComplete', handleTrafficApiComplete)
-    window.removeEventListener('trafficApiError', handleTrafficApiError)
   }
 }
 
@@ -782,7 +750,6 @@ onMounted(() => {
   // 當 TrafficController 初始化後，打印系統狀態
   setTimeout(() => {
     if (window.trafficController) {
-      // console.log('🎛️ MainLayout: TrafficController 已連接')
       window.trafficController.printSystemStatus()
     }
   }, 1000)
@@ -798,17 +765,11 @@ onMounted(() => {
     // 移除自動時間邏輯，直接設置為正常情境
     switchToTimeScenario('off_peak')
 
-    // 啟動手動模式 (不需要自動時段檢查)
-    startAutoTimeCheck()
-
     // 監聽車輛生成統計
     const handleVehicleGenerated = () => {
       totalGenerated.value++
-      // console.log(`🚗 車輛統計更新: ${totalGenerated.value}`)
     }
     window.addEventListener('vehicleAdded', handleVehicleGenerated)
-
-    // console.log('🕐 時段場景系統已初始化')
 
     // 保存統計監聽器清理函數
     window.vehicleStatsCleanup = () => {

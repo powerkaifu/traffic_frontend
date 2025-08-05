@@ -13,36 +13,6 @@
  * - 數據收集中心: 收集車輛數據並格式化為 API 格式
  * - AI 整合橋樑: 與後端 AI 系統通訊，獲取智能燈號時間
  * - 事件調度   }
-
-  // ==========================================
-  // � 系統控制和工具方法群組
-  // ==========================================
-
-  // 開始交通燈控制
-  start() {檢測機制 (Intersection Clearance Detection)
-  // ==========================================
-
-  // 設置車輛列表引用（用於路口清空檢測）
-  setAllVehicles(vehicles) {
-    this.allVehicles = vehicles
-  }
-
-  // 獲取所有車輛列表（支援響應式陣列）
-  getAllVehicles() {
-    // 如果是 Vue 的響應式陣列，需要取得其值
-    if (this.allVehicles && this.allVehicles.value) {
-      console.log(`🚗 獲取車輛列表：${this.allVehicles.value.length} 輛車 (響應式陣列)`)
-      return this.allVehicles.value
-    }
-    if (this.allVehicles && Array.isArray(this.allVehicles)) {
-      console.log(`🚗 獲取車輛列表：${this.allVehicles.length} 輛車 (普通陣列)`)
-      return this.allVehicles
-    }
-    console.log('📋 無車輛列表可用')
-    return []
-  }
-
-  // 獲取路口中央區域範圍調車輛移動與燈號狀態的同步
  * - 時間管理器: 控制燈號切換的精確時序
  */
 // TrafficLightController.js - 交通燈控制系統
@@ -104,17 +74,17 @@ export default class TrafficLightController {
     this.lanePositions = {
       // 往東四個車道的位置
       east: [
-        { x: -100, y: 261 }, // 第一車道
-        { x: -100, y: 288 }, // 第二車道
-        { x: -100, y: 318 }, // 第三車道
-        { x: -100, y: 344 }, // 第四車道
+        { x: -100, y: 263 }, // 第一車道
+        { x: -100, y: 290 }, // 第二車道
+        { x: -100, y: 320 }, // 第三車道
+        { x: -100, y: 348 }, // 第四車道
       ],
 
       // 往西車道的位置 (基於東邊起始點的最下方點)
       west: [
-        { x: 1125, y: 230 }, // 第一車道
-        { x: 1125, y: 204 }, // 第二車道
-        { x: 1125, y: 177 }, // 第三車道
+        { x: 1125, y: 234 }, // 第一車道
+        { x: 1125, y: 206 }, // 第二車道
+        { x: 1125, y: 179 }, // 第三車道
         { x: 1125, y: 153 }, // 第四車道
       ],
 
@@ -441,7 +411,6 @@ export default class TrafficLightController {
         // State Pattern: 根據當前時相選擇處理策略
         if (this.currentPhase === 'northSouth') {
           // Strategy Pattern: 南北向綠燈階段處理策略
-          console.log(`🚥 南北向綠燈開始 - 時間: ${this.dynamicTiming.northSouth}秒`)
           this.updateTimer('南北向 綠燈', this.dynamicTiming.northSouth)
 
           // Template Method: 完整倒數南北向綠燈，在剩餘10秒時發送API
@@ -461,14 +430,12 @@ export default class TrafficLightController {
           this.currentPhase = 'eastWest'
         } else {
           // Strategy Pattern: 東西向綠燈階段處理策略
-          console.log(`🚥 東西向綠燈開始 - 時間: ${this.dynamicTiming.eastWest}秒`)
           this.updateTimer('東西向 綠燈', this.dynamicTiming.eastWest)
 
           // Template Method: 東西向不需要API請求，直接倒數完成
           await this.countdownDelay(this.dynamicTiming.eastWest * 1000)
 
           // Template Method: 東西向：綠燈 -> 黃燈 -> 紅燈
-          console.log('東西向：綠燈 -> 黃燈')
           this.updateLightState('east', 'yellow')
           this.updateLightState('west', 'yellow')
           this.updateTimer('東西向 黃燈', 2)

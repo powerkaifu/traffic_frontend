@@ -112,7 +112,6 @@ onMounted(() => {
         window.removeEventListener('generateVehicle', handleAutoGenerate)
         observer.disconnect()
         autoTrafficGenerator.stop()
-        console.log('🤖 自動交通產生器已停止')
       }
 
       // 將清理函數保存到 window 對象，以便在需要時調用
@@ -122,9 +121,6 @@ onMounted(() => {
       const westLight = crossroadContainer.value.querySelector('.traffic-light.top-right')
       const southLight = crossroadContainer.value.querySelector('.traffic-light.top-left')
       const northLight = crossroadContainer.value.querySelector('.traffic-light.bottom-right')
-
-      console.log('🚥 初始化交通燈控制器...')
-      console.log('交通燈元素:', { eastLight, westLight, southLight, northLight })
 
       trafficController.init(eastLight, westLight, southLight, northLight)
 

@@ -187,8 +187,6 @@ export default class TrafficDataCollector {
       this.currentPeriodData.totalCount[direction][type]++
       this.currentPeriodData.totalCount[direction].total++
     }
-
-    console.log(`📝 記錄車輛數據: ${direction} 方向 ${type} 車輛 (${vehicleData.action})`)
   }
 
   /**
