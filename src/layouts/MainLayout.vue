@@ -77,8 +77,7 @@
 
               <!-- 控制與統計 -->
               <div class="control-stats-row">
-                <!-- 自動模式切換 (已隱藏 - 改為純手動模式) -->
-                <!--
+                <!-- 自動模式切換 -->
                 <button
                   @click="toggleAutoTimeMode"
                   :class="['auto-toggle-compact', { active: isAutoTimeMode }]"
@@ -87,7 +86,6 @@
                   <span class="toggle-icon">{{ isAutoTimeMode ? '🤖' : '✋' }}</span>
                   <span class="toggle-label">{{ isAutoTimeMode ? '自動' : '手動' }}</span>
                 </button>
-                -->
 
                 <!-- 頻率調整 (僅手動模式顯示) -->
                 <div class="frequency-control" v-show="!isAutoTimeMode">
@@ -520,10 +518,7 @@ const switchToTimeScenario = (scenarioKey) => {
   }
 
   // 發送情境切換事件給其他頁面（如 IndexPage）
-  // 增加 isManualMode: false，表示這是情境切換，而非手動調整
-  window.dispatchEvent(
-    new CustomEvent('scenarioChanged', { detail: { key: scenarioKey, config: { ...scenario.config, isManualMode: false } } }),
-  )
+  window.dispatchEvent(new CustomEvent('scenarioChanged', { detail: { key: scenarioKey, config: scenario.config } }))
   // log 訊息
   console.log(`[MainLayout] 已切換情境：${scenarioKey}，config:`, scenario.config)
 }
@@ -543,12 +538,18 @@ const updateManualFrequency = () => {
     max: manualFrequency.value * 1200,
     normal: manualFrequency.value * 1000,
   }
+  if (!window.autoTrafficGenerator) {
+    console.warn('[警告] autoTrafficGenerator 尚未初始化，請稍後再試！')
+    return
+  }
+  window.autoTrafficGenerator.updateConfig({ interval })
+  // 新增 log，檢查 autoTrafficGenerator 內部 interval
+  console.log('[分派設定] autoTrafficGenerator.interval:', window.autoTrafficGenerator.config.interval)
+}
 
-  // 使用現有的 scenarioChanged 事件來傳遞設定，避免直接依賴 window.autoTrafficGenerator
-  // 增加 isManualMode: true，表示這是手動調整
-  const config = { interval, isManualMode: true }
-  window.dispatchEvent(new CustomEvent('scenarioChanged', { detail: { key: 'manual', config } }))
-  console.log(`[MainLayout] 手動調整頻率，config:`, config)
+const toggleAutoTimeMode = () => {
+  isAutoTimeMode.value = !isAutoTimeMode.value
+  console.log(`[MainLayout] 自動時段模式已切換為: ${isAutoTimeMode.value}`)
 }
 
 // 自動時段檢查定時器
