@@ -96,15 +96,13 @@
                     type="range"
                     v-model="manualFrequency"
                     :min="0.5"
-                    :max="15"
+                    :max="60"
                     :step="0.5"
                     @input="updateManualFrequency"
                     class="freq-slider"
                   />
                   <span class="freq-value">{{ manualFrequency }}s</span>
                 </div>
-
-                <!-- 統計資訊 -->
                 <div class="stats-compact">
                   <div class="stat-item">
                     <span class="stat-label">生成</span>
@@ -114,6 +112,20 @@
                     <span class="stat-label">間隔</span>
                     <span class="stat-value">{{ currentInterval }}s</span>
                   </div>
+                </div>
+              </div>
+
+              <!-- 當前情境參數顯示 -->
+              <div v-if="currentScenarioDetails" class="scenario-details">
+                <div class="detail-item">
+                  <span class="detail-label">頻率 (秒):</span>
+                  <span class="detail-value"
+                    >{{ currentScenarioDetails.interval.min }}/{{ currentScenarioDetails.interval.max }}</span
+                  >
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">機/小/大車 (%):</span>
+                  <span class="detail-value">{{ currentScenarioDetails.ratios }}</span>
                 </div>
               </div>
             </div>
@@ -318,6 +330,7 @@ const currentTimeScenario = ref('normal') // 預設為一般情境
 const manualFrequency = ref(2.5)
 const totalGenerated = ref(0)
 const currentInterval = ref(2.5)
+const currentScenarioDetails = ref(null)
 
 // 智能車流情境分派系統 - 三大時段配置
 const timeScenarios = ref([
@@ -332,7 +345,7 @@ const timeScenarios = ref([
     scenarioType: 'peak',
     config: {
       // 高頻率生成 - 通勤車流密集
-      interval: { min: 800, max: 1800, normal: 1200 },
+      interval: { min: 5000, max: 10000, normal: 7500 },
 
       // 車輛類型比例 - 通勤為主
       vehicleTypes: [
@@ -376,7 +389,7 @@ const timeScenarios = ref([
     scenarioType: 'offpeak',
     config: {
       // 中等頻率生成 - 正常日間活動
-      interval: { min: 2500, max: 4500, normal: 3200 },
+      interval: { min: 10000, max: 20000, normal: 15000 },
 
       // 車輛類型比例 - 多元化用途
       vehicleTypes: [
@@ -419,12 +432,12 @@ const timeScenarios = ref([
     scenarioType: 'latenight',
     config: {
       // 低頻率生成 - 夜間稀少車流
-      interval: { min: 8000, max: 18000, normal: 12000 },
+      interval: { min: 10000, max: 30000, normal: 20000 },
 
       // 車輛類型比例 - 機車主導
       vehicleTypes: [
-        { type: 'motor', weight: 70, priority: 1 }, // 70% 機車 (夜班、外送)
-        { type: 'small', weight: 25, priority: 2 }, // 25% 小型車 (夜歸、值班)
+        { type: 'motor', weight: 80, priority: 1 }, // 70% 機車 (夜班、外送)
+        { type: 'small', weight: 15, priority: 2 }, // 25% 小型車 (夜歸、值班)
         { type: 'large', weight: 5, priority: 3 }, // 5% 大型車 (夜間運輸)
       ],
 
@@ -479,26 +492,29 @@ const switchToTimeScenario = (scenarioKey) => {
 
   currentTimeScenario.value = scenarioKey
 
-  // 移除自動時間檢測邏輯，純手動選擇模式
-  // 點選任何情境按鈕都會直接切換到該情境
+  // 立即更新UI顯示的數值，無需等待 autoTrafficGenerator
+  const newInterval = scenario.config.interval.normal / 1000
+  currentInterval.value = newInterval
+  manualFrequency.value = newInterval // 同步更新滑桿的值
+
+  // 更新顯示的參數
+  const vehicleRatios = scenario.config.vehicleTypes.map((v) => v.weight).join(' / ')
+  currentScenarioDetails.value = {
+    interval: {
+      min: scenario.config.interval.min / 1000,
+      max: scenario.config.interval.max / 1000,
+    },
+    ratios: vehicleRatios,
+  }
 
   // 應用場景配置到自動交通產生器
   if (window.autoTrafficGenerator) {
     window.autoTrafficGenerator.updateConfig(scenario.config)
-    currentInterval.value = scenario.config.interval.normal / 1000
-
     // 重置統計計數器（切換場景時重新開始計算）
     // totalGenerated.value = 0
   }
 
-  $q.notify({
-    type: 'positive',
-    message: `已切換到 ${scenario.name} 場景`,
-    position: 'top',
-    timeout: 1500,
-  })
-
-  console.log(`🕐 時段場景切換: ${scenario.name}`, scenario.config)
+  // console.log(`🕐 時段場景切換: ${scenario.name}`, scenario.config)
 }
 
 // 切換自動時段模式 (已移除，改為純手動模式)
@@ -521,6 +537,9 @@ const toggleAutoTimeMode = () => {
 const updateManualFrequency = () => {
   if (isAutoTimeMode.value) return
 
+  // 立刻更新UI上的「間隔」數值，與滑桿同步
+  currentInterval.value = manualFrequency.value
+
   const interval = {
     min: manualFrequency.value * 600,
     max: manualFrequency.value * 1200,
@@ -529,7 +548,6 @@ const updateManualFrequency = () => {
 
   if (window.autoTrafficGenerator) {
     window.autoTrafficGenerator.updateConfig({ interval })
-    currentInterval.value = manualFrequency.value
   }
 }
 
@@ -539,7 +557,7 @@ const autoTimeCheckInterval = ref(null)
 // 移除自動時段檢查 (改為純手動模式)
 const startAutoTimeCheck = () => {
   // 不再需要自動時段檢查，所有切換都通過手動操作
-  console.log('使用手動模式，無需自動時段檢查')
+  // console.log('使用手動模式，無需自動時段檢查')
 }
 
 // 停止自動時段檢查
@@ -675,7 +693,7 @@ const startDataUpdate = () => {
   dataUpdateInterval.value = setInterval(() => {
     // 觸發響應式數據更新
     if (window.trafficController) {
-      console.log('🔄 更新交通數據顯示')
+      // console.log('🔄 更新交通數據顯示')
       // 強制觸發響應式更新
       forceUpdateTrigger.value++
     }
@@ -698,7 +716,7 @@ watch(selectedScenario, (newScenario) => {
     motorcycleCount.value = preset.motorcycle
     smallCarCount.value = preset.small
     largeCarCount.value = preset.large
-    console.log(`🎯 場景已切換至: ${newScenario}`, preset)
+    // console.log(`🎯 場景已切換至: ${newScenario}`, preset)
   }
 })
 
@@ -706,36 +724,33 @@ watch(selectedScenario, (newScenario) => {
 const listenForVehicleChanges = () => {
   // 監聽車輛添加事件
   const handleVehicleChange = () => {
-    console.log('🚗 車輛狀態變化，觸發數據更新')
+    // console.log('🚗 車輛狀態變化，觸發數據更新')
     forceUpdateTrigger.value++
   }
 
   // 監聽數據收集器的數據更新事件
   const handleTrafficDataUpdate = () => {
-    console.log('📊 交通數據已更新，觸發UI更新')
+    // console.log('📊 交通數據已更新，觸發UI更新')
     forceUpdateTrigger.value++
   }
 
   // 監聽AI週期相關事件
-  const handleTrafficCycleReset = (event) => {
-    console.log('🔄 AI週期重置，重新整理數據顯示', event.detail)
+  const handleTrafficCycleReset = () => {
     forceUpdateTrigger.value++
     // 可以在這裡重置總生成計數器
     totalGenerated.value = 0
   }
 
-  const handleTrafficApiSending = (event) => {
-    console.log('🚀 API發送中...', event.detail)
+  const handleTrafficApiSending = () => {
     // 可以顯示載入狀態
   }
 
-  const handleTrafficApiComplete = (event) => {
-    console.log('✅ API響應完成', event.detail)
+  const handleTrafficApiComplete = () => {
     forceUpdateTrigger.value++
   }
 
-  const handleTrafficApiError = (event) => {
-    console.log('❌ API發送失敗', event.detail)
+  const handleTrafficApiError = () => {
+    // console.log('❌ API發送失敗', event.detail)
   }
 
   // 添加事件監聽器
@@ -767,7 +782,7 @@ onMounted(() => {
   // 當 TrafficController 初始化後，打印系統狀態
   setTimeout(() => {
     if (window.trafficController) {
-      console.log('🎛️ MainLayout: TrafficController 已連接')
+      // console.log('🎛️ MainLayout: TrafficController 已連接')
       window.trafficController.printSystemStatus()
     }
   }, 1000)
@@ -781,7 +796,7 @@ onMounted(() => {
   // 初始化時段場景系統 (改為手動模式)
   setTimeout(() => {
     // 移除自動時間邏輯，直接設置為正常情境
-    switchToTimeScenario('normal')
+    switchToTimeScenario('off_peak')
 
     // 啟動手動模式 (不需要自動時段檢查)
     startAutoTimeCheck()
@@ -789,11 +804,11 @@ onMounted(() => {
     // 監聽車輛生成統計
     const handleVehicleGenerated = () => {
       totalGenerated.value++
-      console.log(`🚗 車輛統計更新: ${totalGenerated.value}`)
+      // console.log(`🚗 車輛統計更新: ${totalGenerated.value}`)
     }
     window.addEventListener('vehicleAdded', handleVehicleGenerated)
 
-    console.log('🕐 時段場景系統已初始化')
+    // console.log('🕐 時段場景系統已初始化')
 
     // 保存統計監聽器清理函數
     window.vehicleStatsCleanup = () => {
@@ -919,7 +934,6 @@ const navigateToVisualization = () => {
   display: flex;
   flex-direction: column;
   color: white;
-  font-size: 11px;
   gap: 8px;
   padding: 8px 12px;
 }
@@ -930,6 +944,11 @@ const navigateToVisualization = () => {
   align-items: center;
   height: 24px;
   flex-shrink: 0;
+  position: absolute;
+  right: 0;
+  top: 15px;
+  left: 160px;
+  width: 50%;
 }
 
 .system-info {
@@ -988,18 +1007,15 @@ const navigateToVisualization = () => {
 .scenario-btn-compact {
   flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 4px 2px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 6px;
   color: white;
   cursor: pointer;
   transition: all 0.3s;
-  font-size: 9px;
   position: relative;
 }
 
@@ -1036,19 +1052,20 @@ const navigateToVisualization = () => {
 }
 
 .scenario-icon {
-  font-size: 14px;
+  font-size: 18px;
   line-height: 1;
 }
 
 .scenario-name {
   font-weight: bold;
-  font-size: 9px;
+  font-size: 16px;
   line-height: 1;
   text-align: center;
 }
 
 /* 控制與統計行 - 緊湊版 */
 .control-stats-row {
+  font-size: 12px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1103,7 +1120,6 @@ const navigateToVisualization = () => {
 }
 
 .freq-label {
-  font-size: 9px;
   color: rgba(255, 255, 255, 0.8);
   flex-shrink: 0;
 }
@@ -1115,7 +1131,6 @@ const navigateToVisualization = () => {
   border-radius: 2px;
   outline: none;
   appearance: none;
-  min-width: 60px;
 }
 
 .freq-slider::-webkit-slider-thumb {
@@ -1128,7 +1143,6 @@ const navigateToVisualization = () => {
 }
 
 .freq-value {
-  font-size: 9px;
   color: #81c784;
   font-weight: bold;
   min-width: 20px;
@@ -1152,18 +1166,40 @@ const navigateToVisualization = () => {
 }
 
 .stat-label {
-  font-size: 8px;
   color: rgba(255, 255, 255, 0.6);
   line-height: 1;
 }
 
 .stat-value {
-  font-size: 10px;
   color: #64b5f6;
   font-weight: bold;
   line-height: 1;
 }
 
+/* 當前情境參數顯示 */
+.scenario-details {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 4px;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+}
+
+.detail-label {
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.detail-value {
+  color: #81c784; /* 亮綠色以突顯 */
+  font-weight: bold;
+}
 /* 響應式調整 - 確保在小螢幕上仍然可用 */
 @media (max-width: 1024px) {
   .compact-dispatch-system {
@@ -1179,7 +1215,6 @@ const navigateToVisualization = () => {
 
   .scenario-btn-compact {
     font-size: 8px;
-    padding: 3px 1px;
   }
 
   .scenario-icon {

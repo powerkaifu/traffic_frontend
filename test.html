@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+
+  <h2>99乘法表</h2>
+  <div id="multiplication-table"></div>
+
+  <script>
+    let html = '<table border="1" cellpadding="5" style="border-collapse:collapse;">';
+    for (let i = 1; i <= 9; i++) {
+      html += '<tr>';
+      for (let j = 1; j <= 9; j++) {
+        html += `<td>${i} × ${j} = ${i * j}</td>`;
+      }
+      html += '</tr>';
+    }
+    html += '</table>';
+    document.getElementById('multiplication-table').innerHTML = html;
+  </script>
+
+</body>
+
+</html>
