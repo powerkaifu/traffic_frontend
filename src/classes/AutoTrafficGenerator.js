@@ -39,6 +39,8 @@ export default class AutoTrafficGenerator {
 
     // Strategy Pattern: 可配置的生成策略
     this.generationConfig = { ...this.defaultConfig }
+    // 保證 config 屬性存在且與 generationConfig 同步
+    this.config = { ...this.generationConfig }
 
     // 統計數據
     this.statistics = {
@@ -76,11 +78,6 @@ export default class AutoTrafficGenerator {
     // 監聽交通燈變化
     window.addEventListener('lightStateChanged', (event) => {
       this.onLightStateChanged(event.detail)
-    })
-
-    // 監聽車輛移除事件
-    window.addEventListener('vehicleRemoved', (event) => {
-      this.onVehicleRemoved(event.detail)
     })
 
     // 監聽擁堵狀況
@@ -152,7 +149,7 @@ export default class AutoTrafficGenerator {
     if (!this.isRunning) return
 
     const interval = this.calculateAdaptiveInterval()
-
+    console.log(`⏳ 下一次車輛生成排程: ${interval} 毫秒--------------------------------------`)
     this.generationTimer = setTimeout(() => {
       try {
         this.generateVehicle()
@@ -168,7 +165,7 @@ export default class AutoTrafficGenerator {
   // Strategy Pattern: 計算自適應生成間隔的策略方法
   calculateAdaptiveInterval() {
     const { min, max, normal } = this.generationConfig.interval
-
+    console.log(`計算自適應生成間隔: min=${min}, max=${max}, normal=${normal}`)
     // 如果是手動模式，直接使用 normal 值，並加入微小隨機變化
     if (this.generationConfig.isManualMode) {
       const randomFactor = 0.9 + Math.random() * 0.2 // ±10% 的隨機變化
@@ -237,7 +234,7 @@ export default class AutoTrafficGenerator {
     // 5. 更新統計數據
     this.updateStatistics(direction, vehicleType)
 
-    console.log(`🚗 自動生成: ${direction} 方向 ${vehicleType} 車輛 (密度: ${this.getCurrentTrafficDensity()})`)
+    // console.log(`🚗 自動生成: ${direction} 方向 ${vehicleType} 車輛 (密度: ${this.getCurrentTrafficDensity()})`)
 
     return true
   }
@@ -458,13 +455,6 @@ export default class AutoTrafficGenerator {
     }
   }
 
-  onVehicleRemoved(detail) {
-    const { direction, vehicleType } = detail
-    console.log(`🚗 車輛離開: ${direction} 方向 ${vehicleType}`)
-
-    // 車輛離開後可以適當增加該方向的生成頻率
-  }
-
   onTrafficCongestion(detail) {
     const { direction, level } = detail
 
@@ -476,7 +466,9 @@ export default class AutoTrafficGenerator {
 
   // 動態調整配置
   updateConfig(newConfig) {
-    if (newConfig.isManualMode) {
+    // 自動判斷：只有 interval 欄位就視為手動模式
+    const isManual = Object.keys(newConfig).length === 1 && Object.prototype.hasOwnProperty.call(newConfig, 'interval')
+    if (newConfig.isManualMode || isManual) {
       // 進入手動模式：重置為預設設定，然後只套用新的 interval
       this.generationConfig = {
         ...this.defaultConfig,
@@ -496,6 +488,8 @@ export default class AutoTrafficGenerator {
       }
       console.log('⚙️ 已切換到自動情境模式')
     }
+    // 同步 config 屬性，確保外部可讀
+    this.config = { ...this.generationConfig }
 
     console.log('⚙️ 車流生成配置已更新:', this.generationConfig)
     window.dispatchEvent(

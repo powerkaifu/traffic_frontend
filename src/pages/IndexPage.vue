@@ -70,8 +70,14 @@ import TrafficDataCollector from '../classes/TrafficDataCollector.js'
 // 提升 handleScenarioChange 作用域，讓 onUnmounted 可移除
 const handleScenarioChange = (event) => {
   if (window.autoTrafficGenerator && event.detail && event.detail.config) {
-    window.autoTrafficGenerator.updateConfig(event.detail.config)
-    console.log('[IndexPage] 已套用新情境 config:', event.detail.config)
+    const config = event.detail.config
+    // 如果只有 interval 欄位，補上 isManualMode: true
+    const isManual = Object.keys(config).length === 1 && Object.prototype.hasOwnProperty.call(config, 'interval')
+    if (isManual) {
+      window.autoTrafficGenerator.updateConfig({ ...config, isManualMode: true })
+    } else {
+      window.autoTrafficGenerator.updateConfig(config)
+    }
   }
 }
 
@@ -162,7 +168,6 @@ onMounted(() => {
       // 自動產生車輛的事件處理函數
       const handleAutoGenerate = (event) => {
         const { direction, vehicleType } = event.detail
-        console.log(`🤖 自動產生車輛：方向 ${direction}, 類型 ${vehicleType}`)
 
         // 使用現有的車輛創建邏輯
         const laneInfo = trafficController.getRandomLanePosition(direction)
@@ -191,7 +196,6 @@ onMounted(() => {
 
         // 添加到活躍車輛列表
         activeCars.value.push(vehicle)
-        console.log(`✅ 自動產生車輛已添加，目前活躍車輛數：${activeCars.value.length}`)
 
         // 發送車輛添加事件 - 包含TrafficDataCollector需要的完整信息
         window.dispatchEvent(
@@ -311,7 +315,6 @@ onMounted(() => {
 
         // 添加到活躍車輛列表
         activeCars.value.push(vehicle)
-        console.log(`✅ 車輛已添加，目前活躍車輛數：${activeCars.value.length}`)
 
         // 發送車輛添加事件 - 包含TrafficDataCollector需要的完整信息
         window.dispatchEvent(

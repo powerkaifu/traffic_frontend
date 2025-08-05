@@ -75,6 +75,20 @@
                 </button>
               </div>
 
+              <!-- 當前情境參數顯示 -->
+              <div v-if="currentScenarioDetails" class="scenario-details">
+                <div class="detail-item">
+                  <span class="detail-label">頻率 (秒):</span>
+                  <span class="detail-value"
+                    >{{ currentScenarioDetails.interval.min }}/{{ currentScenarioDetails.interval.max }}</span
+                  >
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">機車/小型車/大型車 (%):</span>
+                  <span class="detail-value">{{ currentScenarioDetails.ratios }}</span>
+                </div>
+              </div>
+
               <!-- 控制與統計 -->
               <div class="control-stats-row">
                 <!-- 自動模式切換 -->
@@ -87,21 +101,21 @@
                   <span class="toggle-label">{{ isAutoTimeMode ? '自動' : '手動' }}</span>
                 </button>
 
-                <!-- 頻率調整 (僅手動模式顯示) -->
                 <div class="frequency-control" v-show="!isAutoTimeMode">
                   <span class="freq-label">頻率</span>
                   <input
                     type="range"
                     v-model="manualFrequency"
-                    :min="0.5"
-                    :max="60"
-                    :step="0.5"
+                    :min="1"
+                    :max="100"
+                    :step="1"
                     @input="updateManualFrequency"
                     class="freq-slider"
                   />
                   <span class="freq-value">{{ manualFrequency }}s</span>
                 </div>
 
+                <!-- 頻率調整 (僅手動模式顯示) -->
                 <div class="stats-compact">
                   <div class="stat-item">
                     <span class="stat-label">生成</span>
@@ -111,20 +125,6 @@
                     <span class="stat-label">間隔</span>
                     <span class="stat-value">{{ currentInterval }}s</span>
                   </div>
-                </div>
-              </div>
-
-              <!-- 當前情境參數顯示 -->
-              <div v-if="currentScenarioDetails" class="scenario-details">
-                <div class="detail-item">
-                  <span class="detail-label">頻率 (秒):</span>
-                  <span class="detail-value"
-                    >{{ currentScenarioDetails.interval.min }}/{{ currentScenarioDetails.interval.max }}</span
-                  >
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">機車/小型車/大型車 (%):</span>
-                  <span class="detail-value">{{ currentScenarioDetails.ratios }}</span>
                 </div>
               </div>
             </div>
@@ -487,7 +487,7 @@ const systemStatusText = computed(() => {
 // 用戶可以直接點選任何情境按鈕來切換流量場景
 
 // 切換到指定時段場景
-const switchToTimeScenario = (scenarioKey) => {
+const switchToTimeScenario = async (scenarioKey) => {
   const scenario = timeScenarios.value.find((s) => s.key === scenarioKey)
   if (!scenario) return
 
@@ -513,7 +513,6 @@ const switchToTimeScenario = (scenarioKey) => {
     window.autoTrafficGenerator.updateConfig(scenario.config)
     // 立即 log 出 autoTrafficGenerator.config 以確認設定已被應用
     console.log('[分派設定] autoTrafficGenerator.config:', window.autoTrafficGenerator.config)
-    // 重置統計計數器（切換場景時重新開始計算）
     // totalGenerated.value = 0
   }
 
@@ -538,13 +537,31 @@ const updateManualFrequency = () => {
     max: manualFrequency.value * 1200,
     normal: manualFrequency.value * 1000,
   }
+
   if (!window.autoTrafficGenerator) {
     console.warn('[警告] autoTrafficGenerator 尚未初始化，請稍後再試！')
     return
   }
-  window.autoTrafficGenerator.updateConfig({ interval })
-  // 新增 log，檢查 autoTrafficGenerator 內部 interval
-  console.log('[分派設定] autoTrafficGenerator.interval:', window.autoTrafficGenerator.config.interval)
+  // 直接發送 scenarioChanged 事件，帶上 isManualMode: true
+  window.dispatchEvent(
+    new CustomEvent('scenarioChanged', {
+      detail: {
+        key: 'manual',
+        config: { interval },
+        isManualMode: true,
+      },
+    })
+  )
+  // 防呆：log config 與 interval，避免 TypeError
+  if (
+    window.autoTrafficGenerator.config &&
+    typeof window.autoTrafficGenerator.config === 'object' &&
+    'interval' in window.autoTrafficGenerator.config
+  ) {
+    console.log('[分派設定] autoTrafficGenerator.interval:', window.autoTrafficGenerator.config.interval)
+  } else {
+    console.log('[分派設定] autoTrafficGenerator.config:', window.autoTrafficGenerator.config)
+  }
 }
 
 const toggleAutoTimeMode = () => {
@@ -761,32 +778,56 @@ const listenForVehicleChanges = () => {
 }
 
 // 全域交通控制器設定
-onMounted(() => {
-  // 設置全域 trafficController 以供其他組件使用 - 預測回調由IndexPage處理
+onMounted(async () => {
   // 啟動數據更新定時器
   startDataUpdate()
+
+  // --- Polling 等待 trafficController 及其方法可用 ---
+  let generatorInitTries = 0
+  const maxTries = 30 // 最多等 30 次（約 3 秒）
+  const pollInterval = 100 // ms
+
+  async function tryInitAutoTrafficGenerator() {
+    generatorInitTries++
+    if (
+      !window.autoTrafficGenerator &&
+      window.trafficController &&
+      typeof window.trafficController.getDirectionVehicleData === 'function'
+    ) {
+      try {
+        const AutoTrafficGenerator = (await import('../classes/AutoTrafficGenerator.js')).default
+        window.autoTrafficGenerator = new AutoTrafficGenerator(window.trafficController)
+        window.autoTrafficGenerator.start()
+        console.log('[MainLayout] autoTrafficGenerator 已初始化並啟動 ')
+      } catch (e) {
+        console.warn('[MainLayout] autoTrafficGenerator 初始化失敗:', e)
+      }
+      return
+    }
+    if (!window.autoTrafficGenerator && generatorInitTries < maxTries) {
+      setTimeout(tryInitAutoTrafficGenerator, pollInterval)
+    } else if (!window.autoTrafficGenerator) {
+      console.warn('[MainLayout] autoTrafficGenerator 初始化超時，trafficController 尚未就緒')
+    }
+  }
+
+  tryInitAutoTrafficGenerator()
 
   // 監聽車輛變化事件
   const removeVehicleListeners = listenForVehicleChanges()
 
   // 初始化時段場景系統 (改為手動模式)
   setTimeout(() => {
-    // 移除自動時間邏輯，直接設置為正常情境
     switchToTimeScenario('off_peak')
-
-    // 監聽車輛生成統計
     const handleVehicleGenerated = () => {
       totalGenerated.value++
     }
     window.addEventListener('vehicleAdded', handleVehicleGenerated)
-
-    // 保存統計監聽器清理函數
     window.vehicleStatsCleanup = () => {
       window.removeEventListener('vehicleAdded', handleVehicleGenerated)
     }
   }, 1500)
 
-  // 保存清理函數
   window.mainLayoutCleanup = removeVehicleListeners
 })
 

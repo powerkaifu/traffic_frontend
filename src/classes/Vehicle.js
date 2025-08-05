@@ -108,8 +108,6 @@ export default class Vehicle {
         detail: eventData,
       }),
     )
-
-    console.log(`📊 ${eventName}: ${this.direction} 方向 ${this.vehicleType} 車輛 (ID: ${this.id})`, eventData)
   }
 
   // Strategy Pattern: 基於車輛類型的速度生成策略
@@ -606,6 +604,11 @@ export default class Vehicle {
 
   // Composite Pattern: 將車輛添加到容器的組合方法
   addTo(container) {
+    // 防呆：檢查容器是否存在
+    if (!container) {
+      console.warn('[Vehicle] addTo: 目標容器不存在，無法加入車輛！', container)
+      return
+    }
     // Composite Pattern: 將車輛元素添加到容器中，形成組合結構
     container.appendChild(this.element)
     // 初始化時記錄容器位置
