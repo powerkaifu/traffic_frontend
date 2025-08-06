@@ -809,7 +809,6 @@ export default class Vehicle {
             }
 
             // 強制完成 - 避免精度問題導致Promise不resolve
-            console.log(`🏁 車輛 ${this.id} 移動動畫完成`)
             this.currentState = 'completed'
             resolve()
           },

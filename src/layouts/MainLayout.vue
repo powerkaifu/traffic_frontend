@@ -500,15 +500,11 @@ const switchToTimeScenario = async (scenarioKey) => {
   // 應用場景配置到自動交通產生器
   if (window.autoTrafficGenerator) {
     window.autoTrafficGenerator.updateConfig(scenario.config)
-    // 立即 log 出 autoTrafficGenerator.config 以確認設定已被應用
-    console.log('[分派設定] autoTrafficGenerator.config:', window.autoTrafficGenerator.config)
     // totalGenerated.value = 0
   }
 
   // 發送情境切換事件給其他頁面（如 IndexPage）
   window.dispatchEvent(new CustomEvent('scenarioChanged', { detail: { key: scenarioKey, config: scenario.config } }))
-  // log 訊息
-  console.log(`[MainLayout] 已切換情境：${scenarioKey}，config:`, scenario.config)
 }
 
 // 手動流量調整
@@ -776,7 +772,6 @@ onMounted(async () => {
         const AutoTrafficGenerator = (await import('../classes/AutoTrafficGenerator.js')).default
         window.autoTrafficGenerator = new AutoTrafficGenerator(window.trafficController)
         window.autoTrafficGenerator.start()
-        console.log('[MainLayout] autoTrafficGenerator 已初始化並啟動 ')
       } catch (e) {
         console.warn('[MainLayout] autoTrafficGenerator 初始化失敗:', e)
       }

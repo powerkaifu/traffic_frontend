@@ -159,7 +159,6 @@ onMounted(() => {
       })
 
       // 立即開始交通燈時相變化（移除延遲）
-      console.log('🚥 啟動交通燈控制器...')
       trafficController.start()
 
       // 初始化自動交通產生器
@@ -278,7 +277,7 @@ onMounted(() => {
 
       // 啟動自動交通產生器
       autoTrafficGenerator.start()
-      console.log('🤖 自動交通產生器已啟動')
+      console.log('--------------------- 🤖 自動交通產生器已啟動 ---------------------')
 
       // 創建車輛生成器函數 - 使用 TrafficLightController 的車道管理
       const createRandomCar = (direction) => {
@@ -376,13 +375,10 @@ onMounted(() => {
           // 等待移動完成
           await movePromise
 
-          console.log(`🏁 手動車輛 ${vehicle.id} 動畫完成，開始清理流程`)
-
           // 立即從活躍列表移除，避免繼續參與碰撞檢測
           const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
           if (vehicleIndex > -1) {
             activeCars.value.splice(vehicleIndex, 1)
-            console.log(`📋 手動車輛 ${vehicle.id} 已從活躍列表移除，剩餘: ${activeCars.value.length}`)
           }
 
           // 移動完成後快速淡出（車輛已到達終點）
@@ -436,15 +432,13 @@ onMounted(() => {
 
       // 立即生成初始車輛（縮短延遲）
       setTimeout(() => {
-        console.log('🚀 開始生成初始車輛...')
         generateInitialCars()
-      }, 100) // 100ms後生成初始車輛
+      }, 500) // 100ms後生成初始車輛
 
       // 開始隨機生成車輛（縮短延遲）
       setTimeout(() => {
-        console.log('🔄 開始持續生成車輛...')
         startRandomCarGeneration()
-      }, 500) // 500ms後開始持續生成
+      }, 1000) // 500ms後開始持續生成
 
       // 定期清理超時車輛機制
       const cleanupInterval = setInterval(() => {
@@ -487,9 +481,6 @@ onMounted(() => {
             !isNewVehicle &&
             (currentPos.x < -100 || currentPos.x > 1100 || currentPos.y < -100 || currentPos.y > 700)
           ) {
-            console.log(
-              `🗑️ 清理超出範圍車輛: ${vehicle.id} (位置: ${Math.round(currentPos.x)}, ${Math.round(currentPos.y)})`,
-            )
             vehicle.remove()
             return false
           }

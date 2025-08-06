@@ -11,7 +11,7 @@ export default class AutoTrafficGenerator {
 
     // 儲存一份預設設定，用於手動模式的重置
     this.defaultConfig = {
-      interval: { min: 1500, max: 4000, normal: 2500 },
+      interval: { min: 4000, max: 10000, normal: 7000 },
       directions: ['east', 'west', 'north', 'south'],
       vehicleTypes: [
         { type: 'motor', weight: 35, priority: 1 },
@@ -88,8 +88,7 @@ export default class AutoTrafficGenerator {
     // 開始監控系統
     this.startMonitoring()
 
-    console.log('🚗 自動車流生成系統已啟動')
-    console.log('📊 生成配置:', this.generationConfig)
+    console.log('--------------------- 🚗 自動車流生成系統已啟動 ---------------------')
 
     // 發送啟動事件
     window.dispatchEvent(
@@ -135,7 +134,7 @@ export default class AutoTrafficGenerator {
     if (!this.isRunning) return
 
     const interval = this.calculateAdaptiveInterval()
-    console.log(`⏳ 下一次車輛生成排程: ${interval} 毫秒--------------------------------------`)
+    console.log(`⏳ 下一次車輛生成排程: ${interval} 毫秒 `)
     this.generationTimer = setTimeout(() => {
       try {
         this.generateVehicle()
@@ -252,8 +251,6 @@ export default class AutoTrafficGenerator {
     // 加入隨機性：70% 選擇最佳，30% 選擇次佳
     const selectedIndex = Math.random() < 0.7 ? 0 : 1
     const selectedDirection = directionScores[Math.min(selectedIndex, directionScores.length - 1)]
-
-    console.log(`📍 方向選擇: ${selectedDirection.direction} (評分: ${selectedDirection.score.toFixed(1)})`)
 
     return selectedDirection.direction
   }
@@ -454,11 +451,9 @@ export default class AutoTrafficGenerator {
       ...newConfig,
       isManualMode: true,
     }
-    console.log('⚙️ 僅手動模式，已套用新設定')
     // 同步 config 屬性，確保外部可讀
     this.config = { ...this.generationConfig }
 
-    console.log('⚙️ 車流生成配置已更新:', this.generationConfig)
     window.dispatchEvent(
       new CustomEvent('trafficGeneratorConfigUpdated', {
         detail: { config: this.generationConfig },
