@@ -1,19 +1,5 @@
 /**
  * AutoTrafficGenerator.js - 自動車流分派系統
- *
- * 設計模式:
- * - Factory Pattern (工廠模式): 動態創建不同類型的車輛
- * - Strategy Pattern (策略模式): 可切換的車流生成策略
- * - Observer Pattern (觀察者模式): 監聽交通狀況變化
- * - Singleton Pattern (單例模式): 確保只有一個車流生成器實例
- * - Template Method Pattern (模板方法模式): 定義車輛生成的標準流程
- *
- * 系統功能:
- * - 智能車流分派: 根據各方向車流密度自動平衡
- * - 自適應生成頻率: 根據當前交通狀況調整生成間隔
- * - 多種車輛類型: 按比例生成機車、小型車、大型車
- * - 實時監控: 持續監控交通狀況並調整策略
- * - 事件驅動: 響應交通燈變化和擁堵情況
  */
 
 export default class AutoTrafficGenerator {

@@ -1,11 +1,5 @@
 /**
  * TrafficDataCollector.js - 交通數據收集器
- *
- * 功能：
- * 1. 收集即時交通流量數據（非累加）
- * 2. 定期傳送數據到後端API
- * 3. 提供不同時間窗口的統計數據
- * 4. 支援數據重置和清理
  */
 
 export default class TrafficDataCollector {

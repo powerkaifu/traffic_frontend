@@ -1,19 +1,5 @@
 /**
  * TrafficLightController.js - 交通燈控制系統
- *
- * 設計模式:
- * - Observer Pattern (觀察者模式): 管理車輛對燈號變化的監聽
- * - Singleton Pattern (單例模式): 全域唯一的交通控制器實例
- * - State Pattern (狀態模式): 管理交通燈的狀態轉換 (red/yellow/green)
- * - Template Method Pattern (模板方法模式): 定義燈號循環的標準流程
- * - Strategy Pattern (策略模式): 不同時相的處理策略 (南北向/東西向)
- *
- * 系統角色:
- * - 核心控制器: 統一管理整個路口的交通流量
- * - 數據收集中心: 收集車輛數據並格式化為 API 格式
- * - AI 整合橋樑: 與後端 AI 系統通訊，獲取智能燈號時間
- * - 事件調度   }
- * - 時間管理器: 控制燈號切換的精確時序
  */
 // TrafficLightController.js - 交通燈控制系統
 import TrafficLight from './TrafficLight.js'
@@ -637,7 +623,9 @@ export default class TrafficLightController {
       console.log('🤖 收到真實 AI 預測結果:', result)
 
       // 發送 API 完成事件
-      window.dispatchEvent(new CustomEvent('trafficApiComplete', { detail: { timestamp: new Date().toISOString(), response: result } }))
+      window.dispatchEvent(
+        new CustomEvent('trafficApiComplete', { detail: { timestamp: new Date().toISOString(), response: result } }),
+      )
 
       // 更新下一輪的綠燈時間
       if (result.east_west_seconds && result.south_north_seconds) {
@@ -651,7 +639,9 @@ export default class TrafficLightController {
             timestamp: new Date().toLocaleTimeString(),
           })
         }
-        console.log(`✅ 下一輪綠燈時間已更新 - 東西向: ${result.east_west_seconds}秒, 南北向: ${result.south_north_seconds}秒`)
+        console.log(
+          `✅ 下一輪綠燈時間已更新 - 東西向: ${result.east_west_seconds}秒, 南北向: ${result.south_north_seconds}秒`,
+        )
       }
       return result
     } catch (error) {
@@ -663,7 +653,9 @@ export default class TrafficLightController {
       const result = this.getAISuggestion(dataToSend)
 
       // 發送 API 錯誤事件
-      window.dispatchEvent(new CustomEvent('trafficApiError', { detail: { timestamp: new Date().toISOString(), error: error.message } }))
+      window.dispatchEvent(
+        new CustomEvent('trafficApiError', { detail: { timestamp: new Date().toISOString(), error: error.message } }),
+      )
 
       // 更新下一輪的綠燈時間
       if (result.east_west_seconds && result.south_north_seconds) {
@@ -677,7 +669,9 @@ export default class TrafficLightController {
             timestamp: new Date().toLocaleTimeString(),
           })
         }
-        console.log(`✅ (備援) 下一輪綠燈時間已更新 - 東西向: ${result.east_west_seconds}秒, 南北向: ${result.south_north_seconds}秒`)
+        console.log(
+          `✅ (備援) 下一輪綠燈時間已更新 - 東西向: ${result.east_west_seconds}秒, 南北向: ${result.south_north_seconds}秒`,
+        )
       }
       return null
     }
