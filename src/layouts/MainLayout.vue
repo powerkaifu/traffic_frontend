@@ -97,7 +97,7 @@
                     type="range"
                     v-model="manualPeakMultiplier"
                     :min="0.1"
-                    :max="30.0"
+                    :max="50.0"
                     :step="0.1"
                     @input="updateManualPeakMultiplier"
                     class="freq-slider"
@@ -328,13 +328,13 @@ const timeScenarios = ref([
     name: '尖峰時段',
     shortName: '尖峰',
     icon: '🚀',
-    timeRange: '07:00-09:00, 17:00-19:00',
+    timeRange: '07:00-08:00, 17:00-18:00',
     hours: [7, 8, 17, 18],
     scenarioType: 'peak',
     config: {
       // 高頻率生成 - 通勤車流密集
       // interval: { min: 5000, max: 10000, normal: 7500 },
-      interval: { min: 2000, max: 5000, normal: 3000 },
+      interval: { min: 2000, max: 6000, normal: 4000 },
 
       // 車輛類型比例 - 通勤為主
       vehicleTypes: [
@@ -362,7 +362,7 @@ const timeScenarios = ref([
       characteristics: {
         description: '通勤高峰期，車流密集，以機車和小型車為主',
         avgSpeed: 25,
-        peakMultiplier: 20.0,
+        peakMultiplier: 30.0,
         congestionTolerance: 'high',
       },
     },
@@ -374,12 +374,12 @@ const timeScenarios = ref([
     name: '離峰時段',
     shortName: '離峰',
     icon: '🌞',
-    timeRange: '09:00-17:00, 19:00-23:00',
+    timeRange: '09:00-16:00, 19:00-22:00',
     hours: [9, 10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22],
     scenarioType: 'offpeak',
     config: {
       // 中等頻率生成 - 正常日間活動
-      interval: { min: 4000, max: 6000, normal: 5000 },
+      interval: { min: 4000, max: 10000, normal: 7000 },
 
       // 車輛類型比例 - 多元化用途
       vehicleTypes: [
@@ -417,12 +417,12 @@ const timeScenarios = ref([
     name: '凌晨時段',
     shortName: '凌晨',
     icon: '🌙',
-    timeRange: '23:00-07:00',
+    timeRange: '23:00-06:00',
     hours: [23, 0, 1, 2, 3, 4, 5, 6],
     scenarioType: 'latenight',
     config: {
       // 低頻率生成 - 夜間稀少車流
-      interval: { min: 10000, max: 20000, normal: 15000 },
+      interval: { min: 20000, max: 60000, normal: 35000 },
 
       // 車輛類型比例 - 機車主導
       vehicleTypes: [
@@ -448,7 +448,7 @@ const timeScenarios = ref([
       characteristics: {
         description: '深夜凌晨時段，車流稀少，以機車為主要交通工具',
         avgSpeed: 45,
-        peakMultiplier: 0.3,
+        peakMultiplier: 1,
         congestionTolerance: 'low',
       },
     },

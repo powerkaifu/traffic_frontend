@@ -228,13 +228,10 @@ onMounted(() => {
               activeCars.value,
             )
 
-            console.log(`🏁 車輛 ${vehicle.id} 動畫完成，開始清理流程`)
-
             // 立即從活躍列表移除，避免繼續參與碰撞檢測
             const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
             if (vehicleIndex > -1) {
               activeCars.value.splice(vehicleIndex, 1)
-              console.log(`📋 車輛 ${vehicle.id} 已從活躍列表移除，剩餘: ${activeCars.value.length}`)
             }
 
             // 動畫完成後快速淡出
@@ -255,8 +252,6 @@ onMounted(() => {
                 },
               }),
             )
-
-            console.log(`🗑️ 自動生成車輛已清理，剩餘活躍車輛數：${activeCars.value.length}`)
           } catch (error) {
             console.error('❌ 自動生成車輛動畫錯誤:', error)
             // 確保即使出錯也要清理車輛
@@ -299,7 +294,6 @@ onMounted(() => {
         })
 
         if (isPositionOccupied) {
-          console.log(`⚠️ 起始位置被佔用，跳過生成車輛：方向 ${direction}`)
           return
         }
 
