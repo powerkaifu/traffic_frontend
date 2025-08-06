@@ -472,16 +472,12 @@ onMounted(() => {
 
           // 只有非新車輛且接近終點才清理，避免誤清理剛生成的車輛
           if (distance < 30) {
-            console.log(
-              `🗑️ 清理接近終點車輛: ${vehicle.id} (距離: ${Math.round(distance)}px, 存在時間: ${Math.round(vehicleAge / 1000)}s)`,
-            )
             vehicle.remove()
             return false
           }
 
           // 如果車輛狀態是 completed 或 nearComplete，也要清理
           if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
-            console.log(`🗑️ 清理已完成車輛: ${vehicle.id} (狀態: ${vehicle.currentState})`)
             vehicle.remove()
             return false
           }

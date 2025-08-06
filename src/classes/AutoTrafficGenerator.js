@@ -462,28 +462,13 @@ export default class AutoTrafficGenerator {
 
   // 動態調整配置
   updateConfig(newConfig) {
-    // 自動判斷：只有 interval 欄位就視為手動模式
-    const isManual = Object.keys(newConfig).length === 1 && Object.prototype.hasOwnProperty.call(newConfig, 'interval')
-    if (newConfig.isManualMode || isManual) {
-      // 進入手動模式：重置為預設設定，然後只套用新的 interval
-      this.generationConfig = {
-        ...this.defaultConfig,
-        interval: {
-          ...this.defaultConfig.interval,
-          ...newConfig.interval,
-        },
-        isManualMode: true,
-      }
-      console.log('⚙️ 已切換到手動模式，並重置設定')
-    } else {
-      // 進入自動情境模式：完全用新的情境設定覆蓋
-      this.generationConfig = {
-        ...this.defaultConfig, // 確保有基礎欄位
-        ...newConfig,
-        isManualMode: false,
-      }
-      console.log('⚙️ 已切換到自動情境模式')
+    // 一律進入手動模式，完全移除自動情境模式
+    this.generationConfig = {
+      ...this.defaultConfig,
+      ...newConfig,
+      isManualMode: true,
     }
+    console.log('⚙️ 僅手動模式，已套用新設定')
     // 同步 config 屬性，確保外部可讀
     this.config = { ...this.generationConfig }
 

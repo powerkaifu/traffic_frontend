@@ -97,7 +97,7 @@
                     type="range"
                     v-model="manualPeakMultiplier"
                     :min="0.1"
-                    :max="30"
+                    :max="30.0"
                     :step="0.1"
                     @input="updateManualPeakMultiplier"
                     class="freq-slider"
@@ -362,7 +362,7 @@ const timeScenarios = ref([
       characteristics: {
         description: '通勤高峰期，車流密集，以機車和小型車為主',
         avgSpeed: 25,
-        peakMultiplier: 2.2,
+        peakMultiplier: 20.0,
         congestionTolerance: 'high',
       },
     },
@@ -405,7 +405,7 @@ const timeScenarios = ref([
       characteristics: {
         description: '日間正常流量，用途多元化，各車型比例較平均',
         avgSpeed: 35,
-        peakMultiplier: 1.0,
+        peakMultiplier: 10.0,
         congestionTolerance: 'normal',
       },
     },
