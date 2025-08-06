@@ -309,11 +309,7 @@ export default class AutoTrafficGenerator {
     }
 
     // 檢查該方向是否有足夠空間
-    const queueLength = this.getDirectionQueueLength(direction)
-    if (queueLength >= 8) {
-      // 最多8台車排隊
-      return false
-    }
+    // 已移除排隊上限，允許無限排隊
 
     return true
   }

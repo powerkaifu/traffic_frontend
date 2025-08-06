@@ -91,28 +91,18 @@
 
               <!-- 控制與統計 -->
               <div class="control-stats-row">
-                <!-- 自動模式切換 -->
-                <button
-                  @click="toggleAutoTimeMode"
-                  :class="['auto-toggle-compact', { active: isAutoTimeMode }]"
-                  title="切換自動/手動模式"
-                >
-                  <span class="toggle-icon">{{ isAutoTimeMode ? '🤖' : '✋' }}</span>
-                  <span class="toggle-label">{{ isAutoTimeMode ? '自動' : '手動' }}</span>
-                </button>
-
-                <div class="frequency-control" v-show="!isAutoTimeMode">
-                  <span class="freq-label">頻率</span>
+                <div class="frequency-control">
+                  <span class="freq-label">流量</span>
                   <input
                     type="range"
-                    v-model="manualFrequency"
-                    :min="1"
-                    :max="100"
-                    :step="1"
-                    @input="updateManualFrequency"
+                    v-model="manualPeakMultiplier"
+                    :min="0.1"
+                    :max="30"
+                    :step="0.1"
+                    @input="updateManualPeakMultiplier"
                     class="freq-slider"
                   />
-                  <span class="freq-value">{{ manualFrequency }}s</span>
+                  <span class="freq-value">{{ manualPeakMultiplier }}</span>
                 </div>
 
                 <!-- 頻率調整 (僅手動模式顯示) -->
@@ -324,9 +314,8 @@ const largeCarCount = ref(3) // Volume_L
 
 // 智能時段自動分派系統狀態
 const isSystemRunning = ref(true)
-const isAutoTimeMode = ref(false) // 預設關閉自動時段模式，改為手動選擇
 const currentTimeScenario = ref('normal') // 預設為一般情境
-const manualFrequency = ref(2.5)
+const manualPeakMultiplier = ref(1.0)
 const totalGenerated = ref(0)
 const currentInterval = ref(2.5)
 const currentScenarioDetails = ref(null)
@@ -479,7 +468,7 @@ const currentTimeDisplay = computed(() => {
 // 系統狀態文字
 const systemStatusText = computed(() => {
   if (!isSystemRunning.value) return '已停止'
-  return isAutoTimeMode.value ? '自動模式' : '手動模式'
+  return '手動模式'
 })
 
 // 根據當前時間自動判斷場景
@@ -496,7 +485,7 @@ const switchToTimeScenario = async (scenarioKey) => {
   // 立即更新UI顯示的數值，無需等待 autoTrafficGenerator
   const newInterval = scenario.config.interval.normal / 1000
   currentInterval.value = newInterval
-  manualFrequency.value = newInterval // 同步更新滑桿的值
+  // manualFrequency.value = newInterval // 已移除頻率滑桿
 
   // 更新顯示的參數
   const vehicleRatios = scenario.config.vehicleTypes.map((v) => v.weight).join(' / ')
@@ -522,51 +511,40 @@ const switchToTimeScenario = async (scenarioKey) => {
   console.log(`[MainLayout] 已切換情境：${scenarioKey}，config:`, scenario.config)
 }
 
-// 手動頻率調整
-const updateManualFrequency = () => {
-  if (isAutoTimeMode.value) return
-
-  // 立刻更新UI上的「間隔」數值，與滑桿同步
-  currentInterval.value = manualFrequency.value
-
-  // 新增 log，方便除錯
-  console.log('[頻率調整] manualFrequency:', manualFrequency.value)
-
-  const interval = {
-    min: manualFrequency.value * 600,
-    max: manualFrequency.value * 1200,
-    normal: manualFrequency.value * 1000,
-  }
+// 手動流量調整
+const updateManualPeakMultiplier = () => {
+  // 立刻更新UI上的「流量」數值，與滑桿同步
+  console.log('[流量調整] manualPeakMultiplier:', manualPeakMultiplier.value)
 
   if (!window.autoTrafficGenerator) {
     console.warn('[警告] autoTrafficGenerator 尚未初始化，請稍後再試！')
     return
   }
+
   // 直接發送 scenarioChanged 事件，帶上 isManualMode: true
   window.dispatchEvent(
     new CustomEvent('scenarioChanged', {
       detail: {
         key: 'manual',
-        config: { interval },
+        config: { characteristics: { peakMultiplier: manualPeakMultiplier.value } },
         isManualMode: true,
       },
-    })
+    }),
   )
-  // 防呆：log config 與 interval，避免 TypeError
+  // 防呆：log config 與 peakMultiplier
   if (
     window.autoTrafficGenerator.config &&
     typeof window.autoTrafficGenerator.config === 'object' &&
-    'interval' in window.autoTrafficGenerator.config
+    window.autoTrafficGenerator.config.characteristics &&
+    'peakMultiplier' in window.autoTrafficGenerator.config.characteristics
   ) {
-    console.log('[分派設定] autoTrafficGenerator.interval:', window.autoTrafficGenerator.config.interval)
+    console.log(
+      '[分派設定] autoTrafficGenerator.peakMultiplier:',
+      window.autoTrafficGenerator.config.characteristics.peakMultiplier,
+    )
   } else {
     console.log('[分派設定] autoTrafficGenerator.config:', window.autoTrafficGenerator.config)
   }
-}
-
-const toggleAutoTimeMode = () => {
-  isAutoTimeMode.value = !isAutoTimeMode.value
-  console.log(`[MainLayout] 自動時段模式已切換為: ${isAutoTimeMode.value}`)
 }
 
 // 自動時段檢查定時器
