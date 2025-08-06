@@ -1,7 +1,6 @@
 /**
  * TrafficLightController.js - 交通燈控制系統
  */
-// TrafficLightController.js - 交通燈控制系統
 import TrafficLight from './TrafficLight.js'
 
 export default class TrafficLightController {

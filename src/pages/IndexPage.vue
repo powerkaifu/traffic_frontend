@@ -186,7 +186,6 @@ onMounted(() => {
         })
 
         if (isPositionOccupied) {
-          console.log(`⚠️ 起始位置被佔用，跳過生成車輛：方向 ${direction}`)
           return
         }
 

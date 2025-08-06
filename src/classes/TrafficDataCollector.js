@@ -3,8 +3,7 @@
  */
 
 export default class TrafficDataCollector {
-  constructor(apiEndpoint = 'http://localhost:8000/api/traffic/data/') {
-    this.apiEndpoint = apiEndpoint
+  constructor() {
     this.isCollecting = false
 
     // 數據收集配置
@@ -50,7 +49,7 @@ export default class TrafficDataCollector {
 
     // 定時器
     this.collectionTimer = null
-    this.apiSendTimer = null
+    // this.apiSendTimer = null // 不再需要 API 傳送定時器
 
     // 事件監聽器
     this.vehicleAddedListener = null
@@ -77,8 +76,7 @@ export default class TrafficDataCollector {
     // 開始定期數據收集
     this.startPeriodicCollection()
 
-    // 開始定期API傳送
-    this.startPeriodicApiSend()
+    // 不再啟動 API 傳送定時器
 
     console.log('🚀 交通數據收集器已啟動')
     console.log(`📋 收集間隔: ${this.config.collectionInterval / 1000}秒`)
@@ -102,10 +100,7 @@ export default class TrafficDataCollector {
       this.collectionTimer = null
     }
 
-    if (this.apiSendTimer) {
-      clearInterval(this.apiSendTimer)
-      this.apiSendTimer = null
-    }
+    // 不再需要 API 傳送定時器
 
     // 停止事件監聽
     this.stopVehicleEventListening()
@@ -193,13 +188,9 @@ export default class TrafficDataCollector {
   }
 
   /**
-   * 開始定期API傳送
+   * (已移除) 定期API傳送功能
    */
-  startPeriodicApiSend() {
-    this.apiSendTimer = setInterval(() => {
-      this.finalizeCurrentPeriodAndSend()
-    }, this.config.apiSendInterval)
-  }
+  // 已移除 startPeriodicApiSend()
 
   /**
    * 收集當前交通狀態
