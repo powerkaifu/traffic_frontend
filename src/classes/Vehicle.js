@@ -592,7 +592,7 @@ export default class Vehicle {
   addTo(container) {
     // 防呆：檢查容器是否存在
     if (!container) {
-      console.warn('[Vehicle] addTo: 目標容器不存在，無法加入車輛！', container)
+      // console.warn('[Vehicle] addTo: 目標容器不存在，無法加入車輛！', container)
       return
     }
     // Composite Pattern: 將車輛元素添加到容器中，形成組合結構

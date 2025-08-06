@@ -824,7 +824,6 @@ export default class TrafficLightController {
     // 4. 通知自動車流生成器週期重置
     if (window.autoTrafficGenerator) {
       console.log('🔄 通知AutoTrafficGenerator週期重置')
-      window.autoTrafficGenerator.onCycleReset()
     }
 
     // 5. 觸發週期重置事件

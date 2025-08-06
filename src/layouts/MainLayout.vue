@@ -297,357 +297,155 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useRouter, useRoute } from 'vue-router'
 
-const rightDrawerOpen = ref(false)
 const router = useRouter()
 const route = useRoute()
+
+function navigateToSimulation() {
+  router.push('/')
+}
+
+function navigateToVisualization() {
+  router.push('/visualization')
+}
+
+const currentRoute = computed(() => route.path)
+
+// 補上側邊欄收合方法
+function toggleRightDrawer() {
+  rightDrawerOpen.value = !rightDrawerOpen.value
+}
+
+// 基本狀態
+const rightDrawerOpen = ref(false)
 const $q = useQuasar()
 
-// 場景參數設定的資料定義 - 暫時保留基本變數供後續自動分派系統使用
-const selectedScenario = ref('一般') // 對應 '一般'
-const motorcycleCount = ref(5) // Volume_M
-const smallCarCount = ref(8) // Volume_S
-const largeCarCount = ref(3) // Volume_L
-
-// 智能時段自動分派系統狀態
+// 系統狀態與統計
 const isSystemRunning = ref(true)
-const currentTimeScenario = ref('normal') // 預設為一般情境
+const currentTimeScenario = ref('off_peak')
 const manualPeakMultiplier = ref(1.0)
 const totalGenerated = ref(0)
-const currentInterval = ref(2.5)
-const currentScenarioDetails = ref(null)
+const currentInterval = ref(7.0)
 
-// 智能車流情境分派系統 - 三大時段配置
-const timeScenarios = ref([
-  // 尖峰時段 (早晚通勤高峰)
+// 場景配置
+const timeScenarios = [
   {
     key: 'peak_hours',
     name: '尖峰時段',
     shortName: '尖峰',
     icon: '🚀',
-    timeRange: '07:00-08:00, 17:00-18:00',
-    hours: [7, 8, 17, 18],
-    scenarioType: 'peak',
+    timeRange: '07:00-08:00,17:00-18:00',
     config: {
-      // 高頻率生成 - 通勤車流密集
-      // interval: { min: 5000, max: 10000, normal: 7500 },
-      interval: { min: 2000, max: 6000, normal: 4000 },
-
-      // 車輛類型比例 - 通勤為主
+      interval: { min: 1000, max: 4000, normal: 2000 },
       vehicleTypes: [
-        { type: 'motor', weight: 45, priority: 1 }, // 45% 機車 (通勤首選)
-        { type: 'small', weight: 50, priority: 2 }, // 50% 小型車 (上班族)
-        { type: 'large', weight: 5, priority: 3 }, // 5% 大型車 (避開尖峰)
+        { type: 'motor', weight: 45 },
+        { type: 'small', weight: 50 },
+        { type: 'large', weight: 5 },
       ],
-
-      // 密度管理 - 高容忍度，指四個方向總車流量來判斷
-      densityThresholds: {
-        light: 15, // 輕度交通
-        moderate: 30, // 中度交通
-        heavy: 45, // 重度交通
-        congested: 60, // 擁堵閾值
-      },
-
-      // 方向性流量偏好
-      // 反映早上東向、北向車流比較多，晚上西向、南向車流較多
-      directionBias: {
-        morning: { east: 1.4, west: 0.7, north: 1.1, south: 0.9 },
-        evening: { east: 0.7, west: 1.4, north: 0.9, south: 1.1 },
-      },
-
-      // 時段特性
-      characteristics: {
-        description: '通勤高峰期，車流密集，以機車和小型車為主',
-        avgSpeed: 25,
-        peakMultiplier: 30.0,
-        congestionTolerance: 'high',
-      },
+      characteristics: { peakMultiplier: 30 },
     },
   },
-
-  // 🌞 離峰時段 (日間正常流量)
   {
     key: 'off_peak',
     name: '離峰時段',
     shortName: '離峰',
     icon: '🌞',
-    timeRange: '09:00-16:00, 19:00-22:00',
-    hours: [9, 10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22],
-    scenarioType: 'offpeak',
+    timeRange: '09:00-16:00,19:00-22:00',
     config: {
-      // 中等頻率生成 - 正常日間活動
       interval: { min: 4000, max: 10000, normal: 7000 },
-
-      // 車輛類型比例 - 多元化用途
       vehicleTypes: [
-        { type: 'motor', weight: 30, priority: 1 }, // 30% 機車 (短程代步)
-        { type: 'small', weight: 55, priority: 2 }, // 55% 小型車 (購物、洽公)
-        { type: 'large', weight: 15, priority: 3 }, // 15% 大型車 (貨運配送)
+        { type: 'motor', weight: 30 },
+        { type: 'small', weight: 55 },
+        { type: 'large', weight: 15 },
       ],
-
-      // 密度管理 - 標準容忍度
-      densityThresholds: {
-        light: 4, // 輕度交通
-        moderate: 9, // 中度交通
-        heavy: 14, // 重度交通
-        congested: 19, // 擁堵閾值
-      },
-
-      // 方向性流量偏好 - 較為均衡
-      directionBias: {
-        all: { east: 1.0, west: 1.0, north: 1.0, south: 1.0 },
-      },
-
-      // 時段特性
-      characteristics: {
-        description: '日間正常流量，用途多元化，各車型比例較平均',
-        avgSpeed: 35,
-        peakMultiplier: 10.0,
-        congestionTolerance: 'normal',
-      },
+      characteristics: { peakMultiplier: 10 },
     },
   },
-
-  // 🌙 凌晨時段 (深夜低流量)
   {
     key: 'late_night',
     name: '凌晨時段',
     shortName: '凌晨',
     icon: '🌙',
     timeRange: '23:00-06:00',
-    hours: [23, 0, 1, 2, 3, 4, 5, 6],
-    scenarioType: 'latenight',
     config: {
-      // 低頻率生成 - 夜間稀少車流
       interval: { min: 20000, max: 60000, normal: 35000 },
-
-      // 車輛類型比例 - 機車主導
       vehicleTypes: [
-        { type: 'motor', weight: 80, priority: 1 }, // 70% 機車 (夜班、外送)
-        { type: 'small', weight: 15, priority: 2 }, // 25% 小型車 (夜歸、值班)
-        { type: 'large', weight: 5, priority: 3 }, // 5% 大型車 (夜間運輸)
+        { type: 'motor', weight: 80 },
+        { type: 'small', weight: 15 },
+        { type: 'large', weight: 5 },
       ],
-
-      // 密度管理 - 低容忍度
-      densityThresholds: {
-        light: 2, // 輕度交通
-        moderate: 5, // 中度交通
-        heavy: 10, // 重度交通
-        congested: 15, // 擁堵閾值
-      },
-
-      // 方向性流量偏好 - 特定路線
-      directionBias: {
-        all: { east: 0.8, west: 1.2, north: 0.9, south: 1.1 },
-      },
-
-      // 時段特性
-      characteristics: {
-        description: '深夜凌晨時段，車流稀少，以機車為主要交通工具',
-        avgSpeed: 45,
-        peakMultiplier: 1,
-        congestionTolerance: 'low',
-      },
+      characteristics: { peakMultiplier: 1 },
     },
   },
-])
+]
 
-// 當前時間顯示
-const currentTimeDisplay = computed(() => {
-  const now = new Date()
-  return now.toLocaleTimeString('zh-TW', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
-})
-
-// 系統狀態文字
-const systemStatusText = computed(() => {
-  if (!isSystemRunning.value) return '已停止'
-  return '手動模式'
-})
-
-// 根據當前時間自動判斷場景
-// 移除自動時間場景判斷函數，改為純手動模式
-// 用戶可以直接點選任何情境按鈕來切換流量場景
-
-// 切換到指定時段場景
-const switchToTimeScenario = async (scenarioKey) => {
-  const scenario = timeScenarios.value.find((s) => s.key === scenarioKey)
-  if (!scenario) return
-
-  currentTimeScenario.value = scenarioKey
-
-  // 立即更新UI顯示的數值，無需等待 autoTrafficGenerator
-  const newInterval = scenario.config.interval.normal / 1000
-  currentInterval.value = newInterval
-  // manualFrequency.value = newInterval // 已移除頻率滑桿
-
-  // 更新顯示的參數
-  const vehicleRatios = scenario.config.vehicleTypes.map((v) => v.weight).join(' / ')
-  currentScenarioDetails.value = {
-    interval: {
-      min: scenario.config.interval.min / 1000,
-      max: scenario.config.interval.max / 1000,
-    },
-    ratios: vehicleRatios,
-  }
-
-  // 應用場景配置到自動交通產生器
-  if (window.autoTrafficGenerator) {
-    window.autoTrafficGenerator.updateConfig(scenario.config)
-    // totalGenerated.value = 0
-  }
-
-  // 發送情境切換事件給其他頁面（如 IndexPage）
-  window.dispatchEvent(new CustomEvent('scenarioChanged', { detail: { key: scenarioKey, config: scenario.config } }))
-}
-
-// 手動流量調整
-const updateManualPeakMultiplier = () => {
-  // 立刻更新UI上的「流量」數值，與滑桿同步
-  console.log('[流量調整] manualPeakMultiplier:', manualPeakMultiplier.value)
-
-  if (!window.autoTrafficGenerator) {
-    console.warn('[警告] autoTrafficGenerator 尚未初始化，請稍後再試！')
-    return
-  }
-
-  // 直接發送 scenarioChanged 事件，帶上 isManualMode: true
-  window.dispatchEvent(
-    new CustomEvent('scenarioChanged', {
-      detail: {
-        key: 'manual',
-        config: { characteristics: { peakMultiplier: manualPeakMultiplier.value } },
-        isManualMode: true,
-      },
-    }),
-  )
-  // 防呆：log config 與 peakMultiplier
-  if (
-    window.autoTrafficGenerator.config &&
-    typeof window.autoTrafficGenerator.config === 'object' &&
-    window.autoTrafficGenerator.config.characteristics &&
-    'peakMultiplier' in window.autoTrafficGenerator.config.characteristics
-  ) {
-    console.log(
-      '[分派設定] autoTrafficGenerator.peakMultiplier:',
-      window.autoTrafficGenerator.config.characteristics.peakMultiplier,
-    )
-  } else {
-    console.log('[分派設定] autoTrafficGenerator.config:', window.autoTrafficGenerator.config)
-  }
-}
-
-// 自動時段檢查定時器
-const autoTimeCheckInterval = ref(null)
-
-// 停止自動時段檢查
-const stopAutoTimeCheck = () => {
-  if (autoTimeCheckInterval.value) {
-    clearInterval(autoTimeCheckInterval.value)
-    autoTimeCheckInterval.value = null
-  }
-}
-
-// 從 TrafficLightController 獲取配置數據
-const getTrafficControllerConfig = () => {
-  if (window.trafficController) {
-    return {
-      scenarioPresets: window.trafficController.getScenarioPresets(),
-      intersectionOptions: window.trafficController.getIntersectionOptions(),
-      scenarioOptions: window.trafficController.getScenarioOptions(),
-    }
-  }
-
-  // 後備配置（如果 TrafficLightController 尚未初始化）
+// 計算屬性
+const currentTimeDisplay = computed(() =>
+  new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false }),
+)
+const systemStatusText = computed(() => (isSystemRunning.value ? '手動模式' : '已停止'))
+const currentScenarioDetails = computed(() => {
+  const s = timeScenarios.find((s) => s.key === currentTimeScenario.value)
+  if (!s) return null
   return {
-    scenarioPresets: {
-      smooth: { motorcycle: 2, small: 4, large: 1 },
-      一般: { motorcycle: 5, small: 8, large: 3 },
-      congested: { motorcycle: 10, small: 15, large: 6 },
-    },
-    intersectionOptions: [
-      { label: '東向路口', value: 'east' },
-      { label: '西向路口', value: 'west' },
-      { label: '南向路口', value: 'south' },
-      { label: '北向路口', value: 'north' },
-    ],
-    scenarioOptions: [
-      { label: '流暢', value: 'smooth' },
-      { label: '一般', value: '一般' },
-      { label: '擁擠', value: 'congested' },
-    ],
+    interval: { min: s.config.interval.min, max: s.config.interval.max },
+    ratios: s.config.vehicleTypes.map((v) => v.weight).join(' / '),
   }
+})
+
+// 側欄寬度與背景光環
+const drawerWidth = computed(() => {
+  if ($q.screen.xs) return 280
+  if ($q.screen.sm) return 350
+  if ($q.screen.md) return 450
+  if ($q.screen.lg) return 550
+  return 600
+})
+const lightPosition = computed(() => (rightDrawerOpen.value && $q.screen.gt.md ? '35% 50%' : '50% 50%'))
+
+// 觸發更新
+const forceUpdateTrigger = ref(0)
+const startDataUpdate = () => {
+  const id = setInterval(() => forceUpdateTrigger.value++, 3000)
+  return () => clearInterval(id)
 }
 
-// 響應式配置數據 - 暫時保留供後續使用
-const config = computed(() => getTrafficControllerConfig())
-const scenarioPresets = computed(() => config.value.scenarioPresets)
-
-// 從 TrafficDataCollector 獲取即時交通數據
-const getTrafficData = (direction) => {
-  // 觸發響應式更新（使用 forceUpdateTrigger）
+// 取得交通數據
+function getTrafficData(dir) {
   forceUpdateTrigger.value
-
-  // 優先使用數據收集器的即時數據
   if (window.trafficDataCollector) {
-    const realTimeData = window.trafficDataCollector.getRealTimeData()
-
-    if (realTimeData && realTimeData.totalCount && realTimeData.totalCount[direction]) {
-      const directionData = realTimeData.totalCount[direction]
-      const speedData = realTimeData.averageSpeed[direction]
-      const occupancy = realTimeData.occupancy[direction]
-
-      return {
-        averageSpeed: speedData.overall || 0,
-        occupancy: occupancy || 0,
-        motorFlow: directionData.motor || 0,
-        smallCarFlow: directionData.small || 0,
-        largeCarFlow: directionData.large || 0,
-        motorSpeed: speedData.motor || 0,
-        smallCarSpeed: speedData.small || 0,
-        largeCarSpeed: speedData.large || 0,
-      }
+    const rt = window.trafficDataCollector.getRealTimeData()
+    const d = rt.totalCount[dir] || {}
+    const sp = rt.averageSpeed[dir] || {}
+    return {
+      averageSpeed: sp.overall || 0,
+      occupancy: rt.occupancy[dir] || 0,
+      motorFlow: d.motor || 0,
+      smallCarFlow: d.small || 0,
+      largeCarFlow: d.large || 0,
+      motorSpeed: sp.motor || 0,
+      smallCarSpeed: sp.small || 0,
+      largeCarSpeed: sp.large || 0,
     }
   }
-
-  // 後備：使用 TrafficLightController 的數據（僅累加數據）
   if (window.trafficController) {
-    const vehicleData = window.trafficController.getDirectionVehicleData(direction)
-    if (vehicleData) {
-      // 使用 TrafficLightController 的方法計算各項數據
-      const averageSpeed = window.trafficController.getAverageSpeed
-        ? window.trafficController.getAverageSpeed(direction, 'small')
-        : 30
-      const occupancy = window.trafficController.calculateOccupancy
-        ? parseFloat(window.trafficController.calculateOccupancy(direction))
-        : 22
-
-      return {
-        averageSpeed: Math.round(averageSpeed),
-        occupancy: Math.round(occupancy * 10) / 10,
-        motorFlow: vehicleData.motor || 0,
-        smallCarFlow: vehicleData.small || 0,
-        largeCarFlow: vehicleData.large || 0,
-        motorSpeed: window.trafficController.getAverageSpeed
-          ? Math.round(window.trafficController.getAverageSpeed(direction, 'motor'))
-          : 35,
-        smallCarSpeed: window.trafficController.getAverageSpeed
-          ? Math.round(window.trafficController.getAverageSpeed(direction, 'small'))
-          : 30,
-        largeCarSpeed: window.trafficController.getAverageSpeed
-          ? Math.round(window.trafficController.getAverageSpeed(direction, 'large'))
-          : 22,
-      }
+    const vd = window.trafficController.getDirectionVehicleData(dir) || {}
+    const avg = window.trafficController.getAverageSpeed?.(dir, 'small') || 0
+    const occ = parseFloat(window.trafficController.calculateOccupancy?.(dir) || '0')
+    return {
+      averageSpeed: Math.round(avg),
+      occupancy: Math.round(occ * 10) / 10,
+      motorFlow: vd.motor || 0,
+      smallCarFlow: vd.small || 0,
+      largeCarFlow: vd.large || 0,
+      motorSpeed: window.trafficController.getAverageSpeed?.(dir, 'motor') || 0,
+      smallCarSpeed: window.trafficController.getAverageSpeed?.(dir, 'small') || 0,
+      largeCarSpeed: window.trafficController.getAverageSpeed?.(dir, 'large') || 0,
     }
   }
-
-  // 預設數據（如果兩個系統都尚未初始化）
   return {
     averageSpeed: 0,
     occupancy: 0,
@@ -659,202 +457,83 @@ const getTrafficData = (direction) => {
     largeCarSpeed: 0,
   }
 }
-
-// 各方向的交通數據
 const eastData = computed(() => getTrafficData('east'))
 const westData = computed(() => getTrafficData('west'))
 const southData = computed(() => getTrafficData('south'))
 const northData = computed(() => getTrafficData('north'))
 
-// 數據更新定時器
-const dataUpdateInterval = ref(null)
-const forceUpdateTrigger = ref(0) // 強制更新觸發器
-
-// 開始數據更新定時器
-const startDataUpdate = () => {
-  if (dataUpdateInterval.value) {
-    clearInterval(dataUpdateInterval.value)
-  }
-
-  dataUpdateInterval.value = setInterval(() => {
-    // 觸發響應式數據更新
-    if (window.trafficController) {
-      // 強制觸發響應式更新
-      forceUpdateTrigger.value++
-    }
-  }, 3000) // 每3秒更新一次
-}
-
-// 停止數據更新定時器
-const stopDataUpdate = () => {
-  if (dataUpdateInterval.value) {
-    clearInterval(dataUpdateInterval.value)
-    dataUpdateInterval.value = null
-  }
-}
-
-// 場景預設監聽器
-watch(selectedScenario, (newScenario) => {
-  const currentPresets = scenarioPresets.value
-  if (currentPresets[newScenario]) {
-    const preset = currentPresets[newScenario]
-    motorcycleCount.value = preset.motorcycle
-    smallCarCount.value = preset.small
-    largeCarCount.value = preset.large
-  }
-})
-
-// 監聽車輛變化事件
-const listenForVehicleChanges = () => {
-  // 監聽車輛添加事件
-  const handleVehicleChange = () => {
+// 事件監聽
+function setupListeners() {
+  const incGen = () => totalGenerated.value++
+  const upd = () => forceUpdateTrigger.value++
+  window.addEventListener('generateVehicle', incGen)
+  window.addEventListener('vehicleAdded', upd)
+  window.addEventListener('trafficDataUpdated', upd)
+  window.addEventListener('trafficCycleReset', () => {
     forceUpdateTrigger.value++
-  }
-
-  // 監聽數據收集器的數據更新事件
-  const handleTrafficDataUpdate = () => {
-    forceUpdateTrigger.value++
-  }
-
-  // 監聽AI週期相關事件
-  const handleTrafficCycleReset = () => {
-    forceUpdateTrigger.value++
-    // 可以在這裡重置總生成計數器
     totalGenerated.value = 0
-  }
-
-  const handleTrafficApiSending = () => {
-    // 可以顯示載入狀態
-  }
-
-  const handleTrafficApiComplete = () => {
-    forceUpdateTrigger.value++
-  }
-
-  // 添加事件監聽器
-  window.addEventListener('vehicleAdded', handleVehicleChange)
-  window.addEventListener('vehicleRemoved', handleVehicleChange)
-  window.addEventListener('trafficDataChanged', handleVehicleChange)
-  window.addEventListener('trafficDataUpdated', handleTrafficDataUpdate)
-  window.addEventListener('trafficCycleReset', handleTrafficCycleReset)
-  window.addEventListener('trafficApiSending', handleTrafficApiSending)
-  window.addEventListener('trafficApiComplete', handleTrafficApiComplete)
-
+  })
   return () => {
-    window.removeEventListener('vehicleAdded', handleVehicleChange)
-    window.removeEventListener('vehicleRemoved', handleVehicleChange)
-    window.removeEventListener('trafficDataChanged', handleVehicleChange)
-    window.removeEventListener('trafficDataUpdated', handleTrafficDataUpdate)
-    window.removeEventListener('trafficCycleReset', handleTrafficCycleReset)
-    window.removeEventListener('trafficApiSending', handleTrafficApiSending)
-    window.removeEventListener('trafficApiComplete', handleTrafficApiComplete)
+    window.removeEventListener('generateVehicle', incGen)
+    window.removeEventListener('vehicleAdded', upd)
+    window.removeEventListener('trafficDataUpdated', upd)
+    window.removeEventListener('trafficCycleReset', () => {})
   }
 }
 
-// 全域交通控制器設定
-onMounted(async () => {
-  // 啟動數據更新定時器
-  startDataUpdate()
+// 切換場景
+function switchToTimeScenario(key) {
+  const s = timeScenarios.find((s) => s.key === key)
+  if (!s) return
+  currentTimeScenario.value = key
+  currentInterval.value = s.config.interval.normal
+  if (window.autoTrafficGenerator) window.autoTrafficGenerator.updateConfig(s.config)
+}
 
-  // --- Polling 等待 trafficController 及其方法可用 ---
-  let generatorInitTries = 0
-  const maxTries = 30 // 最多等 30 次（約 3 秒）
-  const pollInterval = 100 // ms
+// 手動流量調整
+function updateManualPeakMultiplier() {
+  if (!window.autoTrafficGenerator) return
+  window.dispatchEvent(
+    new CustomEvent('scenarioChanged', {
+      detail: {
+        key: 'manual',
+        config: { characteristics: { peakMultiplier: manualPeakMultiplier.value } },
+        isManualMode: true,
+      },
+    }),
+  )
+}
 
-  async function tryInitAutoTrafficGenerator() {
-    generatorInitTries++
-    if (
-      !window.autoTrafficGenerator &&
-      window.trafficController &&
-      typeof window.trafficController.getDirectionVehicleData === 'function'
-    ) {
-      try {
-        const AutoTrafficGenerator = (await import('../classes/AutoTrafficGenerator.js')).default
-        window.autoTrafficGenerator = new AutoTrafficGenerator(window.trafficController)
-        window.autoTrafficGenerator.start()
-      } catch (e) {
-        console.warn('[MainLayout] autoTrafficGenerator 初始化失敗:', e)
-      }
-      return
-    }
-    if (!window.autoTrafficGenerator && generatorInitTries < maxTries) {
-      setTimeout(tryInitAutoTrafficGenerator, pollInterval)
-    } else if (!window.autoTrafficGenerator) {
-      console.warn('[MainLayout] autoTrafficGenerator 初始化超時，trafficController 尚未就緒')
+// 生命週期
+onMounted(() => {
+  const stopUpdate = startDataUpdate()
+  const cleanup = setupListeners()
+
+  // 初始化產生器
+  let tries = 0
+  const tryInit = async () => {
+    if (window.trafficController && !window.autoTrafficGenerator) {
+      const AutoGen = (await import('../classes/AutoTrafficGenerator.js')).default
+      window.autoTrafficGenerator = new AutoGen(window.trafficController)
+      window.autoTrafficGenerator.start()
+    } else if (tries++ < 30) {
+      setTimeout(tryInit, 100)
     }
   }
+  tryInit()
 
-  tryInitAutoTrafficGenerator()
+  // 預設離峰
+  setTimeout(() => switchToTimeScenario('off_peak'), 500)
 
-  // 監聽車輛變化事件
-  const removeVehicleListeners = listenForVehicleChanges()
-
-  // 初始化時段場景系統 (改為手動模式)
-  setTimeout(() => {
-    switchToTimeScenario('off_peak')
-    const handleVehicleGenerated = () => {
-      totalGenerated.value++
-    }
-    window.addEventListener('vehicleAdded', handleVehicleGenerated)
-    window.vehicleStatsCleanup = () => {
-      window.removeEventListener('vehicleAdded', handleVehicleGenerated)
-    }
-  }, 1500)
-
-  window.mainLayoutCleanup = removeVehicleListeners
+  window.mainLayoutCleanup = () => {
+    stopUpdate()
+    cleanup()
+  }
 })
 
-// 組件卸載時清理資源
 onUnmounted(() => {
-  stopDataUpdate()
-
-  // 清理時段場景系統
-  stopAutoTimeCheck()
-
-  // 清理車輛統計監聽器
-  if (window.vehicleStatsCleanup) {
-    window.vehicleStatsCleanup()
-  }
-
-  // 清理車輛事件監聽器
-  if (window.mainLayoutCleanup) {
-    window.mainLayoutCleanup()
-  }
+  window.mainLayoutCleanup?.()
 })
-
-// 計算當前路由
-const currentRoute = computed(() => route.path)
-
-// 響應式側邊欄寬度
-const drawerWidth = computed(() => {
-  if ($q.screen.xs) return 280 // 手機
-  if ($q.screen.sm) return 350 // 平板
-  if ($q.screen.md) return 450 // 小型筆電
-  if ($q.screen.lg) return 550 // 桌機
-  return 600 // 大螢幕
-})
-
-// 計算光環位置
-const lightPosition = computed(() => {
-  if (rightDrawerOpen.value && $q.screen.gt.md) {
-    // 側邊欄展開時，光環位置需要偏左
-    return '35% 50%'
-  }
-  // 側邊欄收合時，光環在正中央
-  return '50% 50%'
-})
-
-const toggleRightDrawer = () => {
-  rightDrawerOpen.value = !rightDrawerOpen.value
-}
-
-const navigateToSimulation = () => {
-  router.push('/')
-}
-
-const navigateToVisualization = () => {
-  router.push('/visualization')
-}
 </script>
 
 <style>
