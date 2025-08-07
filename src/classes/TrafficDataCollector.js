@@ -5,16 +5,12 @@
 export default class TrafficDataCollector {
   constructor() {
     this.isCollecting = false
-
-    // 數據收集配置
     this.config = {
-      collectionInterval: 30000, // 30秒收集一次數據
-      apiSendInterval: 60000, // 60秒傳送一次到API
-      dataWindowSize: 300000, // 5分鐘的數據窗口
-      maxHistorySize: 100, // 最多保存100筆歷史記錄
+      collectionInterval: 30000,
+      apiSendInterval: 60000,
+      dataWindowSize: 300000,
+      maxHistorySize: 100,
     }
-
-    // 即時交通數據 (當前收集窗口)
     this.currentPeriodData = {
       startTime: null,
       endTime: null,
@@ -43,18 +39,15 @@ export default class TrafficDataCollector {
         north: 0,
       },
     }
-
-    // 歷史數據
     this.historyData = []
-
-    // 定時器
     this.collectionTimer = null
-    // this.apiSendTimer = null // 不再需要 API 傳送定時器
-
-    // 事件監聽器
     this.vehicleAddedListener = null
     this.vehicleRemovedListener = null
-
+    // 綠燈週期收集
+    this.greenLightActive = false
+    this.greenLightListenerStart = null
+    this.greenLightListenerEnd = null
+    // API endpoint 統一由 controller 管理
     console.log('📊 交通數據收集器已初始化')
   }
 
@@ -70,17 +63,26 @@ export default class TrafficDataCollector {
     this.isCollecting = true
     this.resetCurrentPeriod()
 
-    // 開始監聽車輛事件
-    this.startVehicleEventListening()
+    // 綠燈事件監聽
+    this.greenLightListenerStart = () => {
+      console.log('🟢 綠燈開始，啟動車輛事件收集')
+      this.greenLightActive = true
+      this.resetCurrentPeriod()
+      this.startVehicleEventListening()
+    }
+    this.greenLightListenerEnd = () => {
+      console.log('� 綠燈結束，停止收集並送出 API')
+      this.greenLightActive = false
+      this.stopVehicleEventListening()
+      this.finalizeCurrentPeriodAndSend()
+    }
+    window.addEventListener('greenLightStarted', this.greenLightListenerStart)
+    window.addEventListener('greenLightEnded', this.greenLightListenerEnd)
 
-    // 開始定期數據收集
-    this.startPeriodicCollection()
+    // 若要保留原本定時收集，可選擇啟用
+    // this.startPeriodicCollection()
 
-    // 不再啟動 API 傳送定時器
-
-    console.log('🚀 交通數據收集器已啟動')
-    console.log(`📋 收集間隔: ${this.config.collectionInterval / 1000}秒`)
-    console.log(`🌐 API傳送間隔: ${this.config.apiSendInterval / 1000}秒`)
+    console.log('🚀 交通數據收集器已啟動 (綠燈週期模式)')
   }
 
   /**
@@ -100,7 +102,15 @@ export default class TrafficDataCollector {
       this.collectionTimer = null
     }
 
-    // 不再需要 API 傳送定時器
+    // 移除綠燈事件監聽
+    if (this.greenLightListenerStart) {
+      window.removeEventListener('greenLightStarted', this.greenLightListenerStart)
+      this.greenLightListenerStart = null
+    }
+    if (this.greenLightListenerEnd) {
+      window.removeEventListener('greenLightEnded', this.greenLightListenerEnd)
+      this.greenLightListenerEnd = null
+    }
 
     // 停止事件監聽
     this.stopVehicleEventListening()
@@ -115,6 +125,8 @@ export default class TrafficDataCollector {
    * 開始監聽車輛事件
    */
   startVehicleEventListening() {
+    // 僅在綠燈期間啟用
+    if (!this.greenLightActive) return
     this.vehicleAddedListener = (event) => {
       const { direction, type, vehicleId, speed, timestamp } = event.detail
       this.recordVehicleData(direction, type, {
@@ -139,7 +151,7 @@ export default class TrafficDataCollector {
     window.addEventListener('vehicleAdded', this.vehicleAddedListener)
     window.addEventListener('vehicleRemoved', this.vehicleRemovedListener)
 
-    console.log('🎧 開始監聽車輛事件')
+    console.log('🎧 開始監聽車輛事件 (綠燈期間)')
   }
 
   /**
@@ -270,7 +282,7 @@ export default class TrafficDataCollector {
    * 完成當前期間並傳送數據
    */
   async finalizeCurrentPeriodAndSend() {
-    console.log('📤 準備傳送當前期間數據...')
+    console.log('📤 完成當前期間數據收集...')
 
     // 設置結束時間
     this.currentPeriodData.endTime = new Date().toISOString()
@@ -278,23 +290,13 @@ export default class TrafficDataCollector {
     // 最後一次狀態收集
     this.collectCurrentTrafficState()
 
-    // 準備API數據
-    const apiData = this.prepareApiData()
-
-    // 傳送到API
-    try {
-      await this.sendToAPI(apiData)
-    } catch (error) {
-      console.error('❌ API傳送失敗:', error)
-    }
-
     // 保存到歷史記錄
     this.saveToHistory()
 
     // 重置當前期間
     this.resetCurrentPeriod()
 
-    console.log('✅ 數據期間完成並已傳送')
+    console.log('✅ 數據期間完成並已歸零')
   }
 
   /**
@@ -367,52 +369,6 @@ export default class TrafficDataCollector {
         ),
         collection_method: 'real_time_event_based',
       },
-    }
-  }
-
-  /**
-   * 傳送數據到API
-   */
-  async sendToAPI(data) {
-    console.log('🌐 正在傳送數據到API...')
-    console.log('📋 傳送數據:', data)
-
-    try {
-      const response = await fetch(this.apiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const result = await response.json()
-      console.log('✅ API傳送成功:', result)
-
-      // 觸發API傳送成功事件
-      window.dispatchEvent(
-        new CustomEvent('trafficDataSent', {
-          detail: { data, response: result },
-        }),
-      )
-
-      return result
-    } catch (error) {
-      console.error('❌ API傳送失敗:', error)
-
-      // 觸發API傳送失敗事件
-      window.dispatchEvent(
-        new CustomEvent('trafficDataSendFailed', {
-          detail: { data, error: error.message },
-        }),
-      )
-
-      throw error
     }
   }
 

@@ -93,10 +93,10 @@ export default class AutoTrafficGenerator {
         break
       }
     }
-    // 觸發事件
+    // 觸發事件（修正為 vehicleAdded 並欄位改為 type）
     window.dispatchEvent(
-      new CustomEvent('generateVehicle', {
-        detail: { direction: dir, vehicleType: type, timestamp: Date.now() },
+      new CustomEvent('vehicleAdded', {
+        detail: { direction: dir, type: type, timestamp: Date.now() },
       }),
     )
     this.statistics.total++

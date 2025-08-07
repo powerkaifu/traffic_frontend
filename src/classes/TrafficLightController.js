@@ -389,41 +389,49 @@ export default class TrafficLightController {
       try {
         // State Pattern: 根據當前時相選擇處理策略
         if (this.currentPhase === 'northSouth') {
-          // Strategy Pattern: 南北向綠燈階段處理策略
+          // 南北向綠燈開始
+          window.dispatchEvent(new CustomEvent('greenLightStarted'))
           this.updateTimer('南北向 綠燈', this.dynamicTiming.northSouth)
 
-          // Template Method: 完整倒數南北向綠燈，在剩餘10秒時發送API
+          // 完整倒數南北向綠燈，在剩餘10秒時發送API
           await this.countdownDelayWithAPI(this.dynamicTiming.northSouth * 1000, 10)
 
-          // Template Method: 南北向：綠燈 -> 黃燈 -> 紅燈
+          // 南北向綠燈結束
+          window.dispatchEvent(new CustomEvent('greenLightEnded'))
+
+          // 南北向：綠燈 -> 黃燈 -> 紅燈
           this.updateLightState('south', 'yellow')
           this.updateLightState('north', 'yellow')
           this.updateTimer('南北向 黃燈', 2)
-          await this.countdownDelay(2000) // 黃燈 2 秒
+          await this.countdownDelay(2000)
 
           this.updateLightState('south', 'red')
           this.updateLightState('north', 'red')
           this.updateLightState('east', 'green')
-          this.updateLightState('west', 'green') // Strategy Pattern: 更新當前使用的時間為下一輪的時間
+          this.updateLightState('west', 'green')
           this.dynamicTiming.eastWest = this.nextTiming.eastWest
           this.currentPhase = 'eastWest'
         } else {
-          // Strategy Pattern: 東西向綠燈階段處理策略
+          // 東西向綠燈開始
+          window.dispatchEvent(new CustomEvent('greenLightStarted'))
           this.updateTimer('東西向 綠燈', this.dynamicTiming.eastWest)
 
-          // Template Method: 東西向不需要API請求，直接倒數完成
+          // 東西向綠燈倒數
           await this.countdownDelay(this.dynamicTiming.eastWest * 1000)
 
-          // Template Method: 東西向：綠燈 -> 黃燈 -> 紅燈
+          // 東西向綠燈結束
+          window.dispatchEvent(new CustomEvent('greenLightEnded'))
+
+          // 東西向：綠燈 -> 黃燈 -> 紅燈
           this.updateLightState('east', 'yellow')
           this.updateLightState('west', 'yellow')
           this.updateTimer('東西向 黃燈', 2)
-          await this.countdownDelay(2000) // 黃燈 2 秒
+          await this.countdownDelay(2000)
 
           this.updateLightState('east', 'red')
           this.updateLightState('west', 'red')
           this.updateLightState('south', 'green')
-          this.updateLightState('north', 'green') // Strategy Pattern: 更新當前使用的時間為下一輪的時間
+          this.updateLightState('north', 'green')
           this.dynamicTiming.northSouth = this.nextTiming.northSouth
           this.currentPhase = 'northSouth'
         }
@@ -432,7 +440,6 @@ export default class TrafficLightController {
         this.resetVehicleData()
       } catch (error) {
         console.error('🚨 交通燈循環出現錯誤:', error)
-        // 等待1秒後繼續，避免系統完全停止
         await this.delay(1000)
       }
     }

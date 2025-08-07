@@ -80,7 +80,8 @@
                 <div class="detail-item">
                   <span class="detail-label">頻率 (秒):</span>
                   <span class="detail-value"
-                    >{{ currentScenarioDetails.interval.min }}/{{ currentScenarioDetails.interval.max }}</span
+                    >{{ currentScenarioDetails.interval.min / 1000 }} /
+                    {{ currentScenarioDetails.interval.max / 1000 }}</span
                   >
                 </div>
                 <div class="detail-item">
@@ -108,12 +109,12 @@
                 <!-- 頻率調整 (僅手動模式顯示) -->
                 <div class="stats-compact">
                   <div class="stat-item">
-                    <span class="stat-label">生成</span>
+                    <span class="stat-label">生成(輛)</span>
                     <span class="stat-value">{{ totalGenerated }}</span>
                   </div>
                   <div class="stat-item">
-                    <span class="stat-label">間隔</span>
-                    <span class="stat-value">{{ currentInterval }}s</span>
+                    <span class="stat-label">間隔(s)</span>
+                    <span class="stat-value">{{ currentInterval / 1000 }}</span>
                   </div>
                 </div>
               </div>
@@ -325,7 +326,7 @@ const $q = useQuasar()
 
 // 系統狀態與統計
 const isSystemRunning = ref(true)
-const currentTimeScenario = ref('off_peak')
+const currentTimeScenario = ref('peak_hours')
 const manualPeakMultiplier = ref(1.0)
 const totalGenerated = ref(0)
 const currentInterval = ref(7.0)
@@ -466,16 +467,14 @@ const northData = computed(() => getTrafficData('north'))
 function setupListeners() {
   const incGen = () => totalGenerated.value++
   const upd = () => forceUpdateTrigger.value++
-  window.addEventListener('generateVehicle', incGen)
-  window.addEventListener('vehicleAdded', upd)
+  window.addEventListener('vehicleAdded', incGen)
   window.addEventListener('trafficDataUpdated', upd)
   window.addEventListener('trafficCycleReset', () => {
     forceUpdateTrigger.value++
     totalGenerated.value = 0
   })
   return () => {
-    window.removeEventListener('generateVehicle', incGen)
-    window.removeEventListener('vehicleAdded', upd)
+    window.removeEventListener('vehicleAdded', incGen)
     window.removeEventListener('trafficDataUpdated', upd)
     window.removeEventListener('trafficCycleReset', () => {})
   }
@@ -523,7 +522,7 @@ onMounted(() => {
   tryInit()
 
   // 預設離峰
-  setTimeout(() => switchToTimeScenario('off_peak'), 500)
+  setTimeout(() => switchToTimeScenario('peak_hours'), 500)
 
   window.mainLayoutCleanup = () => {
     stopUpdate()
