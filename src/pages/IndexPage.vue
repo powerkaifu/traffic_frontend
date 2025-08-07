@@ -194,7 +194,6 @@ onMounted(() => {
 
         // 添加到活躍車輛列表
         activeCars.value.push(vehicle)
-
         // 發送車輛添加事件 - 包含TrafficDataCollector需要的完整信息
         window.dispatchEvent(
           new CustomEvent('vehicleAdded', {
@@ -297,7 +296,6 @@ onMounted(() => {
         }
 
         const endPosObj = trafficController.getEndPosition(direction)
-
         // 隨機選擇車輛類型
         const carTypes = ['large', 'small', 'motor']
         const randomCarType = carTypes[Math.floor(Math.random() * carTypes.length)]

@@ -77,7 +77,6 @@ export default class AutoTrafficGenerator {
       return
     }
     const delay = this._calcInterval()
-    // ...existing code...
     this.timer = setTimeout(() => {
       this._generateVehicle()
       this._scheduleNext()
@@ -112,6 +111,12 @@ export default class AutoTrafficGenerator {
     window.dispatchEvent(
       new CustomEvent('vehicleAdded', {
         detail: { direction: dir, type: type, speed: speed, timestamp: Date.now() },
+      }),
+    )
+    // 新增：觸發 generateVehicle 事件，供畫面動畫同步
+    window.dispatchEvent(
+      new CustomEvent('generateVehicle', {
+        detail: { direction: dir, vehicleType: type, speed: speed, timestamp: Date.now() },
       }),
     )
     this.statistics.total++
