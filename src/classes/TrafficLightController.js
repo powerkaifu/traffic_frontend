@@ -97,6 +97,16 @@ export default class TrafficLightController {
       north: -200, // 往北車輛的Y終點：完全離開上邊界
       south: 800, // 往南車輛的Y終點：完全離開下邊界
     }
+
+    // 全域車輛陣列（動畫/資料同步）
+    if (!window.liveVehicles) {
+      window.liveVehicles = []
+    }
+
+    // 註冊 vehicleRemoved 事件監聽
+    window.addEventListener('vehicleRemoved', (e) => {
+      this.handleVehicleRemoved(e.detail)
+    })
   }
 
   // ==========================================
@@ -910,5 +920,19 @@ export default class TrafficLightController {
   // 延遲函數
   delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
+  // 處理車輛移除事件
+  handleVehicleRemoved(detail) {
+    // detail 應包含 { id, direction, type }
+    if (!detail || !detail.id) return
+    const idx = window.liveVehicles.findIndex(v => v.id === detail.id)
+    if (idx !== -1) {
+      window.liveVehicles.splice(idx, 1)
+      // 可選：同步 UI 或觸發事件
+      window.dispatchEvent(new CustomEvent('liveVehiclesChanged', {
+        detail: { count: window.liveVehicles.length, removed: detail }
+      }))
+    }
   }
 }

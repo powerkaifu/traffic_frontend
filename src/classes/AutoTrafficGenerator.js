@@ -23,6 +23,7 @@ export default class AutoTrafficGenerator {
     // 當前生效配置
     this.config = { ...this.defaultConfig }
     this.statistics = { total: 0 }
+    this.maxLiveVehicles = 80 // 最大同時車輛數
   }
 
   // 啟動生成
@@ -68,8 +69,15 @@ export default class AutoTrafficGenerator {
   // 排程下一次
   _scheduleNext() {
     if (!this.isRunning) return
+    // 若超過最大同時車輛數，暫停生成，500ms 後重試
+    if (window.liveVehicles && window.liveVehicles.length >= this.maxLiveVehicles) {
+      this.timer = setTimeout(() => {
+        this._scheduleNext()
+      }, 500)
+      return
+    }
     const delay = this._calcInterval()
-    console.log(`⏳ 下一次生成排程：${delay}ms`)
+    // ...existing code...
     this.timer = setTimeout(() => {
       this._generateVehicle()
       this._scheduleNext()
@@ -78,8 +86,10 @@ export default class AutoTrafficGenerator {
 
   // 隨機生成一輛車
   _generateVehicle() {
+    // 若超過最大同時車輛數，直接 return
+    if (window.liveVehicles && window.liveVehicles.length >= this.maxLiveVehicles) return
     const dirs = this.config.directions || ['east', 'west', 'north', 'south']
-    // 簡易選方向：密度最低
+    // 選密度最低方向
     const dir = dirs.sort((a, b) => this._getDensity(a) - this._getDensity(b))[0]
     // 權重選車型
     const totalW = this.config.vehicleTypes.reduce((s, v) => s + v.weight, 0)
@@ -93,10 +103,15 @@ export default class AutoTrafficGenerator {
         break
       }
     }
-    // 觸發事件（修正為 vehicleAdded 並欄位改為 type）
+    // 取得平均速度（供動畫用）
+    let speed = 30
+    if (this.trafficController && this.trafficController.getAverageSpeed) {
+      speed = this.trafficController.getAverageSpeed(dir, type)
+    }
+    // 觸發事件，detail 加入 speed 欄位
     window.dispatchEvent(
       new CustomEvent('vehicleAdded', {
-        detail: { direction: dir, type: type, timestamp: Date.now() },
+        detail: { direction: dir, type: type, speed: speed, timestamp: Date.now() },
       }),
     )
     this.statistics.total++

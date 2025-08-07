@@ -116,6 +116,10 @@
                     <span class="stat-label">間隔(s)</span>
                     <span class="stat-value">{{ currentInterval / 1000 }}</span>
                   </div>
+                  <div class="stat-item">
+                    <span class="stat-label">現有(輛)</span>
+                    <span class="stat-value">{{ liveVehicleCount }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -330,6 +334,7 @@ const currentTimeScenario = ref('peak_hours')
 const manualPeakMultiplier = ref(1.0)
 const totalGenerated = ref(0)
 const currentInterval = ref(7.0)
+const liveVehicleCount = ref(0)
 
 // 場景配置
 const timeScenarios = [
@@ -340,7 +345,7 @@ const timeScenarios = [
     icon: '🚀',
     timeRange: '07:00-08:00,17:00-18:00',
     config: {
-      interval: { min: 1000, max: 4000, normal: 2000 },
+      interval: { min: 1000, max: 3000, normal: 2000 },
       vehicleTypes: [
         { type: 'motor', weight: 45 },
         { type: 'small', weight: 50 },
@@ -467,16 +472,23 @@ const northData = computed(() => getTrafficData('north'))
 function setupListeners() {
   const incGen = () => totalGenerated.value++
   const upd = () => forceUpdateTrigger.value++
+  const updateLiveCount = () => {
+    liveVehicleCount.value = window.liveVehicles?.length || 0
+  }
   window.addEventListener('vehicleAdded', incGen)
   window.addEventListener('trafficDataUpdated', upd)
   window.addEventListener('trafficCycleReset', () => {
     forceUpdateTrigger.value++
     totalGenerated.value = 0
   })
+  window.addEventListener('liveVehiclesChanged', updateLiveCount)
+  // 初始化
+  updateLiveCount()
   return () => {
     window.removeEventListener('vehicleAdded', incGen)
     window.removeEventListener('trafficDataUpdated', upd)
     window.removeEventListener('trafficCycleReset', () => {})
+    window.removeEventListener('liveVehiclesChanged', updateLiveCount)
   }
 }
 
@@ -486,21 +498,37 @@ function switchToTimeScenario(key) {
   if (!s) return
   currentTimeScenario.value = key
   currentInterval.value = s.config.interval.normal
-  if (window.autoTrafficGenerator) window.autoTrafficGenerator.updateConfig(s.config)
+  // 計算新間隔（根據拉桿倍率）
+  let interval = s.config.interval.normal
+  if (manualPeakMultiplier.value && manualPeakMultiplier.value > 0) {
+    interval = Math.max(s.config.interval.min, Math.round(s.config.interval.normal / manualPeakMultiplier.value))
+  }
+  if (window.autoTrafficGenerator) {
+    window.autoTrafficGenerator.updateConfig({
+      ...s.config,
+      interval: { ...s.config.interval, normal: interval },
+      characteristics: { ...s.config.characteristics, peakMultiplier: manualPeakMultiplier.value },
+    })
+  }
 }
 
 // 手動流量調整
 function updateManualPeakMultiplier() {
   if (!window.autoTrafficGenerator) return
-  window.dispatchEvent(
-    new CustomEvent('scenarioChanged', {
-      detail: {
-        key: 'manual',
-        config: { characteristics: { peakMultiplier: manualPeakMultiplier.value } },
-        isManualMode: true,
-      },
-    }),
-  )
+  // 取得目前場景
+  const s = timeScenarios.find((s) => s.key === currentTimeScenario.value)
+  if (!s) return
+  // 計算新間隔
+  let interval = s.config.interval.normal
+  if (manualPeakMultiplier.value && manualPeakMultiplier.value > 0) {
+    interval = Math.max(s.config.interval.min, Math.round(s.config.interval.normal / manualPeakMultiplier.value))
+  }
+  currentInterval.value = interval
+  window.autoTrafficGenerator.updateConfig({
+    ...s.config,
+    interval: { ...s.config.interval, normal: interval },
+    characteristics: { ...s.config.characteristics, peakMultiplier: manualPeakMultiplier.value },
+  })
 }
 
 // 生命週期

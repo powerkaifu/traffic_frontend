@@ -28,7 +28,17 @@ export default class Vehicle {
     this.totalDistance = 0
     this.movementStartTime = null
     this.movementEndTime = null
-    this.initialSpeed = this.generateRandomSpeed() // 車輛的目標速度
+    // 嘗試從 window.liveVehicles 或 vehicleAdded 事件取得 speed
+    let externalSpeed = null
+    if (window.liveVehicles && Array.isArray(window.liveVehicles)) {
+      // 依 id, direction, type 找 speed
+      const match = window.liveVehicles.find(
+        (v) => v.direction === direction && v.type === vehicleType && v.laneNumber === laneNumber && v.speed,
+      )
+      if (match) externalSpeed = match.speed
+    }
+    // 若外部有 speed，優先用；否則用原本隨機
+    this.initialSpeed = externalSpeed || this.generateRandomSpeed()
 
     // Composite Pattern: 車輛由多個元件組成（主體元素）
     this.element = this.createElement()
@@ -616,15 +626,12 @@ export default class Vehicle {
       // 根據車輛方向調整目標位置，確保只能90度或180度移動
       let finalTargetX, finalTargetY
       if (this.direction === 'east' || this.direction === 'west') {
-        // 東西方向：只允許X軸移動，Y軸保持起始位置
         finalTargetX = targetX
         finalTargetY = startPos.y
       } else if (this.direction === 'north' || this.direction === 'south') {
-        // 南北方向：只允許Y軸移動，X軸保持起始位置
         finalTargetX = startPos.x
         finalTargetY = targetY
       } else {
-        // 預設情況：保持原有邏輯
         finalTargetX = targetX
         finalTargetY = targetY
       }
@@ -633,6 +640,23 @@ export default class Vehicle {
 
       let lastPosition = startPos
       let lastTime = Date.now()
+
+      // 動畫 duration 根據 speed 動態計算
+      let animationDuration = duration
+      // speed 單位 km/h，換算公式：
+      // 假設 100px = 15m，則 totalDistance px = totalDistance/100*15 m
+      // speed km/h = speed*1000/3600 m/s
+      // 動畫時間 = 距離(米) / 速度(米/秒)
+      if (this.initialSpeed && this.totalDistance > 0) {
+        const realDistance = (this.totalDistance / 100) * 15
+        const speedMs = (this.initialSpeed * 1000) / 3600
+        let theoreticalTime = realDistance / speedMs
+        // 增加視覺倍數（原本 2.5），可微調
+        const timeMultiplier = 2.5
+        theoreticalTime *= timeMultiplier
+        // 限制合理範圍
+        animationDuration = Math.max(7, Math.min(24, theoreticalTime))
+      }
 
       // Strategy Pattern: 使用延遲策略避免剛生成就被碰撞檢測影響
       setTimeout(() => {
@@ -818,28 +842,25 @@ export default class Vehicle {
 
         // 根據車輛方向決定移動路徑，確保只能90度或180度直線移動
         if (this.direction === 'east' || this.direction === 'west') {
-          // 東西方向：只沿X軸移動，Y軸保持不變
           this.movementTimeline.to(this.element, {
             x: finalTargetX,
-            y: finalTargetY, // 實際上等於起始Y位置，確保水平直線移動
-            duration: duration,
-            ease: 'none', // 線性動畫，恆定速度
+            y: finalTargetY,
+            duration: animationDuration,
+            ease: 'none',
           })
         } else if (this.direction === 'north' || this.direction === 'south') {
-          // 南北方向：只沿Y軸移動，X軸保持不變
-          this.movementTimeline.to(this.element, {
-            x: finalTargetX, // 實際上等於起始X位置，確保垂直直線移動
-            y: finalTargetY,
-            duration: duration,
-            ease: 'none', // 線性動畫，恆定速度
-          })
-        } else {
-          // 預設情況：保持原有邏輯（向後相容）
           this.movementTimeline.to(this.element, {
             x: finalTargetX,
             y: finalTargetY,
-            duration: duration,
-            ease: 'none', // 線性動畫，恆定速度
+            duration: animationDuration,
+            ease: 'none',
+          })
+        } else {
+          this.movementTimeline.to(this.element, {
+            x: finalTargetX,
+            y: finalTargetY,
+            duration: animationDuration,
+            ease: 'none',
           })
         }
       }, 100) // 延遲100毫秒開始移動，讓車輛有時間初始化
