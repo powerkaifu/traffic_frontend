@@ -98,7 +98,7 @@
                     type="range"
                     v-model="manualPeakMultiplier"
                     :min="0.1"
-                    :max="50.0"
+                    :max="100.0"
                     :step="0.1"
                     @input="updateManualPeakMultiplier"
                     class="freq-slider"
@@ -345,13 +345,13 @@ const timeScenarios = [
     icon: '🚀',
     timeRange: '07:00-08:00,17:00-18:00',
     config: {
-      interval: { min: 1000, max: 3000, normal: 2000 },
+      interval: { min: 500, max: 2000, normal: 1000 },
       vehicleTypes: [
-        { type: 'motor', weight: 45 },
-        { type: 'small', weight: 50 },
+        { type: 'motor', weight: 60 },
+        { type: 'small', weight: 35 },
         { type: 'large', weight: 5 },
       ],
-      characteristics: { peakMultiplier: 30 },
+      characteristics: { peakMultiplier: 100 },
     },
   },
   {
@@ -497,9 +497,14 @@ function switchToTimeScenario(key) {
   const s = timeScenarios.find((s) => s.key === key)
   if (!s) return
   currentTimeScenario.value = key
-  currentInterval.value = s.config.interval.normal
-  // 計算新間隔（根據拉桿倍率）
-  let interval = s.config.interval.normal
+  // 尖峰時段自動最大流量
+  if (key === 'peak_hours') {
+    manualPeakMultiplier.value = 100
+    currentInterval.value = s.config.interval.min
+  } else {
+    currentInterval.value = s.config.interval.normal
+  }
+  let interval = currentInterval.value
   if (manualPeakMultiplier.value && manualPeakMultiplier.value > 0) {
     interval = Math.max(s.config.interval.min, Math.round(s.config.interval.normal / manualPeakMultiplier.value))
   }
@@ -523,6 +528,7 @@ function updateManualPeakMultiplier() {
   if (manualPeakMultiplier.value && manualPeakMultiplier.value > 0) {
     interval = Math.max(s.config.interval.min, Math.round(s.config.interval.normal / manualPeakMultiplier.value))
   }
+  // 只在切換場景時自動最大化，拉桿拖拉不強制最大值
   currentInterval.value = interval
   window.autoTrafficGenerator.updateConfig({
     ...s.config,

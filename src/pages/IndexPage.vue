@@ -62,10 +62,10 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import Vehicle from '../classes/Vehicle.js'
 import TrafficLightController from '../classes/TrafficLightController.js'
 import AutoTrafficGenerator from '../classes/AutoTrafficGenerator.js'
 import TrafficDataCollector from '../classes/TrafficDataCollector.js'
+import Vehicle from '../classes/Vehicle.js'
 
 // 提升 handleScenarioChange 作用域，讓 onUnmounted 可移除
 const handleScenarioChange = (event) => {
@@ -79,6 +79,81 @@ const handleScenarioChange = (event) => {
       window.autoTrafficGenerator.updateConfig(config)
     }
   }
+}
+
+// 自動產生車輛的事件處理函數
+const handleAutoGenerate = (event) => {
+  const { direction, vehicleType } = event.detail
+  // 使用現有的車輛創建邏輯
+  const laneInfo = trafficController.getRandomLanePosition(direction)
+  if (!laneInfo) {
+    console.error(`❌ 無法獲取方向 ${direction} 的車道位置`)
+    return
+  }
+  const { position: randomLane, laneNumber } = laneInfo
+  // 檢查起始位置是否有其他車輛，避免重疊生成
+  const isPositionOccupied = activeCars.value.some((car) => {
+    if (car.direction !== direction) return false
+    const carPos = car.getCurrentPosition()
+    const distance = Math.sqrt(Math.pow(carPos.x - randomLane.x, 2) + Math.pow(carPos.y - randomLane.y, 2))
+    return distance < 50
+  })
+  if (isPositionOccupied) {
+    return
+  }
+  const vehicle = new Vehicle(randomLane.x, randomLane.y, direction, vehicleType, laneNumber)
+  vehicle.addTo(crossroadContainer.value)
+  activeCars.value.push(vehicle)
+  window.dispatchEvent(
+    new CustomEvent('vehicleAdded', {
+      detail: {
+        direction,
+        type: vehicleType,
+        vehicleId: vehicle.id,
+        speed: vehicle.currentSpeed || 0,
+        timestamp: new Date().toISOString(),
+      },
+    }),
+  )
+  const startVehicleAnimation = async () => {
+    try {
+      await vehicle.fadeIn(1)
+      const animationDuration = vehicle.calculateAnimationDuration()
+      const endPosition = trafficController.getEndPosition(direction)
+      await vehicle.moveToWithTrafficControl(
+        endPosition.x,
+        endPosition.y,
+        animationDuration,
+        trafficController,
+        activeCars.value,
+      )
+      const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
+      if (vehicleIndex > -1) {
+        activeCars.value.splice(vehicleIndex, 1)
+      }
+      await vehicle.fadeOut(1.5)
+      vehicle.remove()
+      window.dispatchEvent(
+        new CustomEvent('vehicleRemoved', {
+          detail: {
+            direction,
+            type: vehicleType,
+            vehicleId: vehicle.id,
+            finalSpeed: vehicle.currentSpeed || 0,
+            travelTime: vehicle.travelTime || 0,
+          },
+        }),
+      )
+    } catch (error) {
+      console.error('❌ 自動生成車輛動畫錯誤:', error)
+      const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
+      if (vehicleIndex > -1) {
+        activeCars.value.splice(vehicleIndex, 1)
+      }
+      vehicle.remove()
+    }
+  }
+  startVehicleAnimation()
 }
 
 const crossroadContainer = ref(null)
@@ -100,6 +175,7 @@ onMounted(() => {
     if (crossroadContainer.value) {
       // 監聽情境切換事件（由 MainLayout 發出）
       window.addEventListener('scenarioChanged', handleScenarioChange)
+      window.addEventListener('generateVehicle', handleAutoGenerate)
       // 監聽視窗大小變化和佈局變化
       const handleLayoutChange = () => {
         // 通知所有活躍車輛佈局發生了變化
@@ -124,7 +200,6 @@ onMounted(() => {
       // 在組件卸載時清理監聽器
       const cleanup = () => {
         window.removeEventListener('resize', handleLayoutChange)
-        window.removeEventListener('generateVehicle', handleAutoGenerate)
         observer.disconnect()
         autoTrafficGenerator.stop()
       }
@@ -164,272 +239,19 @@ onMounted(() => {
       // 初始化自動交通產生器
       console.log('🚦 初始化自動交通產生器...')
 
-      // 自動產生車輛的事件處理函數
-      const handleAutoGenerate = (event) => {
-        const { direction, vehicleType } = event.detail
-
-        // 使用現有的車輛創建邏輯
-        const laneInfo = trafficController.getRandomLanePosition(direction)
-        if (!laneInfo) {
-          console.error(`❌ 無法獲取方向 ${direction} 的車道位置`)
-          return
-        }
-
-        const { position: randomLane, laneNumber } = laneInfo
-
-        // 檢查起始位置是否有其他車輛，避免重疊生成
-        const isPositionOccupied = activeCars.value.some((car) => {
-          if (car.direction !== direction) return false
-          const carPos = car.getCurrentPosition()
-          const distance = Math.sqrt(Math.pow(carPos.x - randomLane.x, 2) + Math.pow(carPos.y - randomLane.y, 2))
-          return distance < 50 // 如果距離小於50px，認為位置被佔用
-        })
-
-        if (isPositionOccupied) {
-          return
-        }
-
-        const vehicle = new Vehicle(randomLane.x, randomLane.y, direction, vehicleType, laneNumber)
-        vehicle.addTo(crossroadContainer.value)
-
-        // 添加到活躍車輛列表
-        activeCars.value.push(vehicle)
-        // 發送車輛添加事件 - 包含TrafficDataCollector需要的完整信息
-        window.dispatchEvent(
-          new CustomEvent('vehicleAdded', {
-            detail: {
-              direction,
-              type: vehicleType,
-              vehicleId: vehicle.id,
-              speed: vehicle.currentSpeed || 0,
-              timestamp: new Date().toISOString(),
-            },
-          }),
-        )
-
-        // 立即開始動畫並處理完成後的清理
-        const startVehicleAnimation = async () => {
-          try {
-            // 淡入車輛
-            await vehicle.fadeIn(1)
-
-            // 計算動畫時間
-            const animationDuration = vehicle.calculateAnimationDuration()
-            const endPosition = trafficController.getEndPosition(direction)
-
-            // 開始移動動畫
-            await vehicle.moveToWithTrafficControl(
-              endPosition.x,
-              endPosition.y,
-              animationDuration,
-              trafficController,
-              activeCars.value,
-            )
-
-            // 立即從活躍列表移除，避免繼續參與碰撞檢測
-            const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
-            if (vehicleIndex > -1) {
-              activeCars.value.splice(vehicleIndex, 1)
-            }
-
-            // 動畫完成後快速淡出
-            await vehicle.fadeOut(1.5) // 縮短淡出時間
-
-            // 銷毀車輛元素
-            vehicle.remove()
-
-            // 發送車輛移除事件 - 包含TrafficDataCollector需要的完整信息
-            window.dispatchEvent(
-              new CustomEvent('vehicleRemoved', {
-                detail: {
-                  direction,
-                  type: vehicleType,
-                  vehicleId: vehicle.id,
-                  finalSpeed: vehicle.currentSpeed || 0,
-                  travelTime: vehicle.travelTime || 0,
-                },
-              }),
-            )
-          } catch (error) {
-            console.error('❌ 自動生成車輛動畫錯誤:', error)
-            // 確保即使出錯也要清理車輛
-            const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
-            if (vehicleIndex > -1) {
-              activeCars.value.splice(vehicleIndex, 1)
-            }
-            vehicle.remove()
-          }
-        }
-
-        // 啟動車輛動畫（非阻塞）
-        startVehicleAnimation()
-      }
-
-      // 監聽自動產生車輛事件
-      window.addEventListener('generateVehicle', handleAutoGenerate)
-
-      // 啟動自動交通產生器
+      // 啟動自動交通產生器（提前啟動，確保一開始就有車）
       autoTrafficGenerator.start()
       console.log('--------------------- 🤖 自動交通產生器已啟動 ---------------------')
 
-      // 創建車輛生成器函數 - 使用 TrafficLightController 的車道管理
-      const createRandomCar = (direction) => {
-        // 使用 TrafficLightController 獲取隨機車道位置
-        const laneInfo = trafficController.getRandomLanePosition(direction)
-        if (!laneInfo) {
-          console.error(`❌ 無法獲取方向 ${direction} 的車道位置`)
-          return
-        }
-
-        const { position: randomLane, laneNumber } = laneInfo
-
-        // 檢查起始位置是否有其他車輛，避免重疊生成
-        const isPositionOccupied = activeCars.value.some((car) => {
-          if (car.direction !== direction) return false
-          const carPos = car.getCurrentPosition()
-          const distance = Math.sqrt(Math.pow(carPos.x - randomLane.x, 2) + Math.pow(carPos.y - randomLane.y, 2))
-          return distance < 50 // 如果距離小於50px，認為位置被佔用
-        })
-
-        if (isPositionOccupied) {
-          return
-        }
-
-        const endPosObj = trafficController.getEndPosition(direction)
-        // 隨機選擇車輛類型
-        const carTypes = ['large', 'small', 'motor']
-        const randomCarType = carTypes[Math.floor(Math.random() * carTypes.length)]
-
-        const vehicle = new Vehicle(randomLane.x, randomLane.y, direction, randomCarType, laneNumber)
-        vehicle.addTo(crossroadContainer.value)
-
-        // 添加到活躍車輛列表
-        activeCars.value.push(vehicle)
-
-        // 發送車輛添加事件 - 包含TrafficDataCollector需要的完整信息
-        window.dispatchEvent(
-          new CustomEvent('vehicleAdded', {
-            detail: {
-              direction,
-              type: randomCarType,
-              vehicleId: vehicle.id,
-              speed: vehicle.currentSpeed || 0,
-              timestamp: new Date().toISOString(),
-            },
-          }),
-        )
-
-        // 立即開始動畫
-        setTimeout(async () => {
-          // 先淡入車子
-          await vehicle.fadeIn(1)
-
-          // 計算基於車輛速度的動畫時間
-          const animationDuration = vehicle.calculateAnimationDuration()
-
-          // 開始移動動畫 - 使用新的紅綠燈控制移動方法（包含碰撞檢測）
-          let movePromise
-          if (direction === 'east') {
-            movePromise = vehicle.moveToWithTrafficControl(
-              endPosObj.x,
-              endPosObj.y,
-              animationDuration,
-              trafficController,
-              activeCars.value,
-            )
-          } else if (direction === 'west') {
-            movePromise = vehicle.moveToWithTrafficControl(
-              endPosObj.x,
-              endPosObj.y,
-              animationDuration,
-              trafficController,
-              activeCars.value,
-            )
-          } else if (direction === 'north') {
-            movePromise = vehicle.moveToWithTrafficControl(
-              endPosObj.x,
-              endPosObj.y,
-              animationDuration,
-              trafficController,
-              activeCars.value,
-            )
-          } else if (direction === 'south') {
-            movePromise = vehicle.moveToWithTrafficControl(
-              endPosObj.x,
-              endPosObj.y,
-              animationDuration,
-              trafficController,
-              activeCars.value,
-            )
-          }
-
-          // 等待移動完成
-          await movePromise
-
-          // 立即從活躍列表移除，避免繼續參與碰撞檢測
-          const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
-          if (vehicleIndex > -1) {
-            activeCars.value.splice(vehicleIndex, 1)
-          }
-
-          // 移動完成後快速淡出（車輛已到達終點）
-          await vehicle.fadeOut(1.5) // 縮短淡出時間
-
-          // 銷毀車輛元素
-          vehicle.remove()
-
-          // 發送車輛移除事件 - 包含TrafficDataCollector需要的完整信息
-          window.dispatchEvent(
-            new CustomEvent('vehicleRemoved', {
-              detail: {
-                direction,
-                type: randomCarType,
-                vehicleId: vehicle.id,
-                finalSpeed: vehicle.currentSpeed || 0,
-                travelTime: vehicle.travelTime || 0,
-              },
-            }),
-          )
-        }, 100) // 很短的延遲讓車子先出現
-      }
-
-      // 隨機間隔生成車輛的函數
-      const startRandomCarGeneration = () => {
-        const generateCar = () => {
-          // 隨機選擇一個方向
-          const directions = ['east', 'west', 'north', 'south']
-          const randomDirection = directions[Math.floor(Math.random() * directions.length)]
-
-          createRandomCar(randomDirection)
-
-          // 隨機間隔時間生成下一台車 (1-3秒)
-          const nextCarDelay = Math.random() * 2000 + 1000 // 1000-3000ms
-          setTimeout(generateCar, nextCarDelay)
-        }
-
-        // 開始生成車輛
-        generateCar()
-      }
-
-      // 立即生成初始車輛
-      const generateInitialCars = () => {
-        const directions = ['east', 'west', 'north', 'south']
-
-        // 每個方向生成1台車
-        directions.forEach((direction) => {
-          createRandomCar(direction)
-        })
-      }
-
-      // 立即生成初始車輛（縮短延遲）
-      setTimeout(() => {
-        generateInitialCars()
-      }, 500) // 100ms後生成初始車輛
-
-      // 開始隨機生成車輛（縮短延遲）
-      setTimeout(() => {
-        startRandomCarGeneration()
-      }, 1000) // 500ms後開始持續生成
+      // 立即手動觸發一次車輛生成，確保畫面一開始就有車
+      window.dispatchEvent(
+        new CustomEvent('generateVehicle', {
+          detail: {
+            direction: 'south', // 可根據場景預設方向
+            vehicleType: 'motor', // 可隨機或預設
+          },
+        }),
+      )
 
       // 定期清理超時車輛機制
       const cleanupInterval = setInterval(() => {
@@ -480,7 +302,7 @@ onMounted(() => {
         })
       }, 2000) // 改為每2秒清理一次，更頻繁地處理終點車輛
 
-      // 在組件卸載時清理定時器
+      // 在組件卸載時清理定时器
       window.cleanupVehicleInterval = cleanupInterval
 
       // 初始化並啟動交通數據收集器
@@ -505,6 +327,7 @@ onUnmounted(() => {
 
   // 移除情境切換事件監聽
   window.removeEventListener('scenarioChanged', handleScenarioChange)
+  window.removeEventListener('generateVehicle', handleAutoGenerate)
 
   // 清理車輛清理定時器
   if (window.cleanupVehicleInterval) {
