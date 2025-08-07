@@ -243,15 +243,22 @@ onMounted(() => {
       autoTrafficGenerator.start()
       console.log('--------------------- 🤖 自動交通產生器已啟動 ---------------------')
 
-      // 立即手動觸發一次車輛生成，確保畫面一開始就有車
-      window.dispatchEvent(
-        new CustomEvent('generateVehicle', {
-          detail: {
-            direction: 'south', // 可根據場景預設方向
-            vehicleType: 'motor', // 可隨機或預設
-          },
-        }),
-      )
+      // 一開始隨機分配 4 台車在不同方向與車型
+      // 一開始隨機分配 8 台車在不同方向與車型，讓畫面更熱鬧
+      const directions = ['north', 'south', 'east', 'west']
+      const vehicleTypes = ['motor', 'small', 'large']
+      for (let i = 0; i < 8; i++) {
+        const randomDir = directions[Math.floor(Math.random() * directions.length)]
+        const randomType = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)]
+        window.dispatchEvent(
+          new CustomEvent('generateVehicle', {
+            detail: {
+              direction: randomDir,
+              vehicleType: randomType,
+            },
+          }),
+        )
+      }
 
       // 定期清理超時車輛機制
       const cleanupInterval = setInterval(() => {

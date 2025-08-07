@@ -87,33 +87,21 @@ export default class AutoTrafficGenerator {
   _generateVehicle() {
     // 若超過最大同時車輛數，直接 return
     if (window.liveVehicles && window.liveVehicles.length >= this.maxLiveVehicles) return
-    const dirs = this.config.directions || ['east', 'west', 'north', 'south']
-    // 選密度最低方向
-    const dir = dirs.sort((a, b) => this._getDensity(a) - this._getDensity(b))[0]
-    // 權重選車型
-    const totalW = this.config.vehicleTypes.reduce((s, v) => s + v.weight, 0)
-    let pick = Math.random() * totalW,
-      acc = 0,
-      type = 'small'
-    for (const v of this.config.vehicleTypes) {
-      acc += v.weight
-      if (pick <= acc) {
-        type = v.type
-        break
-      }
-    }
+    // 隨機方向與車型
+    const dirs = ['east', 'west', 'north', 'south']
+    const dir = dirs[Math.floor(Math.random() * dirs.length)]
+    const vehicleTypes = ['motor', 'small', 'large']
+    const type = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)]
     // 取得平均速度（供動畫用）
     let speed = 30
     if (this.trafficController && this.trafficController.getAverageSpeed) {
       speed = this.trafficController.getAverageSpeed(dir, type)
     }
-    // 觸發事件，detail 加入 speed 欄位
     window.dispatchEvent(
       new CustomEvent('vehicleAdded', {
         detail: { direction: dir, type: type, speed: speed, timestamp: Date.now() },
       }),
     )
-    // 新增：觸發 generateVehicle 事件，供畫面動畫同步
     window.dispatchEvent(
       new CustomEvent('generateVehicle', {
         detail: { direction: dir, vehicleType: type, speed: speed, timestamp: Date.now() },
