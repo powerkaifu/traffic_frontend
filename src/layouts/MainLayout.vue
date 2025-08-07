@@ -477,17 +477,17 @@ function setupListeners() {
   }
   window.addEventListener('vehicleAdded', incGen)
   window.addEventListener('trafficDataUpdated', upd)
-  window.addEventListener('trafficCycleReset', () => {
-    forceUpdateTrigger.value++
-    totalGenerated.value = 0
-  })
+  // window.addEventListener('trafficCycleReset', () => {
+  //   forceUpdateTrigger.value++
+  //   totalGenerated.value = 0
+  // })
   window.addEventListener('liveVehiclesChanged', updateLiveCount)
   // 初始化
   updateLiveCount()
   return () => {
     window.removeEventListener('vehicleAdded', incGen)
     window.removeEventListener('trafficDataUpdated', upd)
-    window.removeEventListener('trafficCycleReset', () => {})
+    // window.removeEventListener('trafficCycleReset', () => {})
     window.removeEventListener('liveVehiclesChanged', updateLiveCount)
   }
 }

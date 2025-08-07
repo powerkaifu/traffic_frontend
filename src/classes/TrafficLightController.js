@@ -638,6 +638,11 @@ export default class TrafficLightController {
       const result = await response.json()
       console.log('🤖 收到真實 AI 預測結果:', result)
 
+      // 清空特徵模擬數據
+      if (window.trafficDataCollector && typeof window.trafficDataCollector.reset === 'function') {
+        window.trafficDataCollector.reset()
+      }
+
       // 發送 API 完成事件
       window.dispatchEvent(
         new CustomEvent('trafficApiComplete', { detail: { timestamp: new Date().toISOString(), response: result } }),
@@ -741,14 +746,6 @@ export default class TrafficLightController {
     console.log('💡 AI 產生建議:', suggestion)
     return suggestion
   }
-
-  // ==========================================
-  // �️ 路口清空檢測機制 (Intersection Clearance Detection)
-  // ==========================================
-
-  // ==========================================
-  // �🔧 系統控制和工具方法群組
-  // ==========================================
 
   // 開始交通燈控制
   start() {
@@ -926,13 +923,15 @@ export default class TrafficLightController {
   handleVehicleRemoved(detail) {
     // detail 應包含 { id, direction, type }
     if (!detail || !detail.id) return
-    const idx = window.liveVehicles.findIndex(v => v.id === detail.id)
+    const idx = window.liveVehicles.findIndex((v) => v.id === detail.id)
     if (idx !== -1) {
       window.liveVehicles.splice(idx, 1)
       // 可選：同步 UI 或觸發事件
-      window.dispatchEvent(new CustomEvent('liveVehiclesChanged', {
-        detail: { count: window.liveVehicles.length, removed: detail }
-      }))
+      window.dispatchEvent(
+        new CustomEvent('liveVehiclesChanged', {
+          detail: { count: window.liveVehicles.length, removed: detail },
+        }),
+      )
     }
   }
 }

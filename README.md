@@ -1,50 +1,88 @@
 # Quasar App (traffic)
 
-A Quasar Project
+## 安裝依賴套件
 
-## Install the dependencies
-
-```bash
-yarn
-# or
-npm install
-```
-
-### Start the app in development mode (hot-code reloading, error reporting, etc.)
+如果沒有 node_modules 資料夾，先安裝依賴套件。
 
 ```bash
-quasar dev
+npm i
 ```
 
-### Lint the files
+## 啟動開發模式
+
+開啟瀏覽器測試專案。
 
 ```bash
-yarn lint
-# or
-npm run lint
+npm run dev
 ```
 
-### Format the files
+# 實作與測試區
 
-```bash
-yarn format
-# or
-npm run format
-```
+- 實作或測試完後，記得用 git 記錄下來(做錯可以捨棄或回溯到想要的版本)，並在 commit message 中寫上「測試」或「實作」的關鍵字。
+  - 例如：測試：車流量調整功能
+  - 例如：實作：車輛動畫同步車流量
 
-### Build the app for production
+- 實作或測試完後，記得在 [] 打 x，表示已經完成。
 
-```bash
-quasar build
-```
+## 測試優先區
 
-### Customize the configuration
+### MainLayoyt.vue（網站頁面腳架）
 
-See [Configuring quasar.config.js](https://v2.quasar.dev/quasar-cli-vite/quasar-config-js).
+- [] 右上角「尖峰、離峰、凌晨」三個為情境按鈕，點擊後須對應不同的車流量，尖峰時段車流量較大，離峰時段車流量較小，凌晨時段車流量最小。
+  - 目前點擊後功能感受不大，在畫面上的車子數量很難清楚區別
+    因為比賽給評審看時，切換情境需感受到車流量的變化，證明模型有對應到不同數據的回應
 
-# MCP 指令
+- [] 右上角「流量拉桿」可以自訂調整車流量，拉桿往右拉時，車流量增加，往左拉時，車流量減少。
+  - 目前感受不大，目的同上
 
-```
-#memory.retrieve({ key: "traffic" })
-根據我存的這些檔案，請幫我說明怎麼讓動畫中車輛的數量和實際產生的車輛流量保持同步？
-```
+- 右下角「特徵模擬數據」抓取是否是在南北向倒數十秒時送出，在這期間為抓取數據的時間，而送出後要清空數據，繼續收集四個路口的特徵數據。
+
+## 測試次要區
+
+### IndexPage.vue（顯示十字路口、車輛動畫的頁面）
+
+- [x] 東西向車子動畫正常，可以起點->終點(橫跨整個頁面)
+
+- 最後修改(目前不影響運作，但可以更好)
+  - [] 南下車輛在停紅燈時，排隊到第七輛時，車道會發生車輛直接消失的情況，應該要讓車子持續排隊，不能有消失的情況。
+  - [] 北上車輛在停完紅燈後出發，橫跨十字路口後，在到達終點前，車輛會消失，應該要讓車子持續行駛到超過瀏覽器頂端。
+    - 修改發生狀況 1：車子在離開時發生碰撞後停止不動，造成後面車輛塞車。
+    - 修改發生狀況 2：車子在離開前發生從A點閃現到B點的情況後消失。
+
+## 待實作功能區
+
+- [] 車輛轉彎功能
+  - 搭配 gsap 與其插件 motionPath 與 svgPathPlugin，讓車輛可以沿著路徑轉彎。
+
+## 功能發想區
+
+- [] Lumo 小助手能做甚麼事
+- [] 視覺化數據能呈現甚麼數據讓評審或瀏覽者覺得有趣、很酷。
+
+---
+
+# MCP Server for aget mode
+
+需安裝 MCP 套件，才能在 Github Copilot Chat 對話視窗使用 MCP 指令，Agent 模式才能使用。
+
+## 新增與啟動 MCP
+
+MCP 列表：https://code.visualstudio.com/mcp
+
+- F1 > MCP:列出伺服器 > 新增伺服器 > 輸入伺服器名稱
+- F1 > MCP:列出伺服器 > 選擇想用的伺服器 > 啟動伺服器
+
+## Memory
+
+- 用來存取記憶體的指令，存取的資料會在瀏覽器關閉後消失。
+
+  ```bash
+  memory.store({ key: "traffic", value: 100 })
+  ```
+
+- 用來取得記憶體的指令，若沒有存取過，會回傳 undefined。
+
+  ```bash
+  #memory.retrieve({ key: "traffic" })
+  根據我存的這些檔案，請幫我說明怎麼讓動畫中車輛的數量和實際產生的車輛流量保持同步？
+  ```
