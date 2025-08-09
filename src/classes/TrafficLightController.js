@@ -55,47 +55,20 @@ export default class TrafficLightController {
     // 🛣️ 車道位置管理 (Lane Management)
     // ==========================================
 
-    // 車道位置配置 - 集中管理所有方向的車道起始位置
+    // 車道位置將在初始化時根據路口容器動態計算
     this.lanePositions = {
-      // 往東四個車道的位置
-      east: [
-        { x: -100, y: 263 }, // 第一車道
-        { x: -100, y: 290 }, // 第二車道
-        { x: -100, y: 320 }, // 第三車道
-        { x: -100, y: 348 }, // 第四車道
-      ],
-
-      // 往西車道的位置 (基於東邊起始點的最下方點)
-      west: [
-        { x: 1125, y: 234 }, // 第一車道
-        { x: 1125, y: 206 }, // 第二車道
-        { x: 1125, y: 179 }, // 第三車道
-        { x: 1125, y: 153 }, // 第四車道
-      ],
-
-      // 往南車道的位置
-      south: [
-        { x: 477, y: -185 }, // 第一車道
-        { x: 449, y: -185 }, // 第二車道
-        { x: 422, y: -185 }, // 第三車道
-        { x: 393, y: -185 }, // 第四車道
-      ],
-
-      // 往北四個車道的位置 (使用簡單絕對數值)
-      north: [
-        { x: 505, y: 700 }, // 第一車道
-        { x: 534, y: 700 }, // 第二車道
-        { x: 562, y: 700 }, // 第三車道
-        { x: 591, y: 700 }, // 第四車道
-      ],
+      east: [],
+      west: [],
+      north: [],
+      south: [],
     }
 
-    // 車輛終點位置配置 - 車輛完全離開畫面的位置
+    // 車輛終點位置也將動態計算
     this.endPositions = {
-      east: 1200, // 往東車輛的X終點：完全離開右邊界
-      west: -200, // 往西車輛的X終點：完全離開左邊界
-      north: -200, // 往北車輛的Y終點：完全離開上邊界
-      south: 800, // 往南車輛的Y終點：完全離開下邊界
+      east: 1200,
+      west: -200,
+      north: -200,
+      south: 800,
     }
 
     // 全域車輛陣列（動畫/資料同步）
@@ -133,6 +106,46 @@ export default class TrafficLightController {
   // ==========================================
   // 🛣️ 車道管理系統 (Lane Management System)
   // ==========================================
+
+  // 新增：根據容器中心點更新車道位置
+  updateLanePositions(containerElement) {
+    if (!containerElement) {
+      console.error('❌ 無法更新車道位置：未提供容器元素。 ')
+      return
+    }
+
+    const containerWidth = containerElement.offsetWidth
+    const containerHeight = containerElement.offsetHeight
+    const centerX = containerWidth / 2
+    const centerY = containerHeight / 2
+    // 根據觀察到的固定值，定義各車道相對於中心點的偏移量
+    // 這些值是根據您舊的固定座標推算出來的，可能需要微調以完全符合您的視覺設計
+    const southLaneXOffsets = [-23, -51, -78, -107] // 往南車道 X 軸偏移
+    const northLaneXOffsets = [5, 34, 62, 91] // 往北車道 X 軸偏移
+    const eastLaneYOffsets = [-146, -119, -89, -61] // 往東車道 Y 軸偏移
+    const westLaneYOffsets = [-175, -203, -230, -256] // 往西車道 Y 軸偏移
+    // 定義車輛的起始位置（在畫面外部）
+    const startXEast = -150 // 畫面左側外部
+    const startXWest = containerWidth + 150 // 畫面右側外部
+    const startYSouth = -150 // 畫面上方外部
+    const startYNorth = containerHeight + 150 // 畫面下方外部
+
+    // 計算並更新每個車道的絕對位置
+    this.lanePositions.south = southLaneXOffsets.map((offsetX) => ({ x: centerX + offsetX, y: startYSouth }))
+    this.lanePositions.north = northLaneXOffsets.map((offsetX) => ({ x: centerX + offsetX, y: startYNorth }))
+    this.lanePositions.east = eastLaneYOffsets.map((offsetY) => ({ x: startXEast, y: centerY + offsetY }))
+    this.lanePositions.west = westLaneYOffsets.map((offsetY) => ({ x: startXWest, y: centerY + offsetY }))
+
+    // 同樣地，更新終點位置，使其也具有響應性
+    this.endPositions = {
+      east: containerWidth + 200,
+      west: -200,
+      north: -200,
+      south: containerHeight + 200,
+    }
+
+    console.log('✅ 車道位置已根據容器中心重新計算完畢。')
+  }
 
   // 獲取指定方向的所有車道位置
   getLanePositions(direction) {

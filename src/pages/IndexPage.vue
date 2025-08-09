@@ -37,6 +37,8 @@
       <!-- 停止線 -->
       <!-- 中央參考矩形 - 用於統一計算停止線位置 -->
       <div class="stop-line central-reference"></div>
+      <!-- 中心紅色圓點 -->
+      <div class="center-dot"></div>
 
       <!-- AI 交通預測面板 -->
       <div class="ai-prediction-panel">
@@ -170,21 +172,79 @@ const aiPrediction = ref({
   northSouth: 15,
 })
 
+// Helper function to draw debug points for lane starts
+const drawLaneStartPoints = () => {
+  if (!crossroadContainer.value) return
+
+  // Clear previous debug points
+  const existingPoints = crossroadContainer.value.querySelectorAll('.debug-lane-dot')
+  existingPoints.forEach((dot) => dot.remove())
+
+  const allLanes = trafficController.getAllLanePositions()
+  if (!allLanes || Object.keys(allLanes).length === 0) {
+    return
+  }
+
+  const laneColors = ['#FF4136', '#2ECC40', '#0074D9', '#FFDC00'] // More distinct Red, Green, Blue, Yellow
+
+  Object.entries(allLanes).forEach(([direction, lanes]) => {
+    lanes.forEach((lane, index) => {
+      const dot = document.createElement('div')
+      dot.className = 'debug-lane-dot'
+      dot.style.position = 'absolute'
+      dot.style.left = `${lane.x}px`
+      dot.style.top = `${lane.y}px`
+      dot.style.width = '15px'
+      dot.style.height = '15px'
+      dot.style.backgroundColor = laneColors[index % laneColors.length]
+      dot.style.borderRadius = '50%'
+      dot.style.zIndex = '10001' // On top of everything
+      dot.style.border = '1px solid black'
+      dot.style.transform = 'translate(-50%, -50%)'
+      dot.title = `Direction: ${direction}, Lane: ${index + 1} (${lane.x}, ${lane.y})` // Tooltip
+
+      const label = document.createElement('span')
+      label.style.color = 'black'
+      label.style.position = 'absolute'
+      label.style.top = '50%'
+      label.style.left = '50%'
+      label.style.transform = 'translate(-50%, -50%)'
+      label.style.fontWeight = 'bold'
+      label.style.fontSize = '10px'
+      label.innerText = `${direction.charAt(0).toUpperCase()}${index + 1}`
+      dot.appendChild(label)
+
+      crossroadContainer.value.appendChild(dot)
+    })
+  })
+  console.log('✅ 繪製車道起點偵錯點')
+}
+
 onMounted(() => {
   setTimeout(() => {
     if (crossroadContainer.value) {
       // 監聽情境切換事件（由 MainLayout 發出）
       window.addEventListener('scenarioChanged', handleScenarioChange)
       window.addEventListener('generateVehicle', handleAutoGenerate)
+
       // 監聽視窗大小變化和佈局變化
       const handleLayoutChange = () => {
-        // 通知所有活躍車輛佈局發生了變化
+        // 1. 重新計算車道位置
+        trafficController.updateLanePositions(crossroadContainer.value)
+
+        // 2. 繪製偵錯用的車道起點
+        drawLaneStartPoints()
+
+        // 3. 通知所有活躍車輛佈局發生了變化
         activeCars.value.forEach((car) => {
           if (car.checkLayoutChange) {
             car.checkLayoutChange()
           }
         })
       }
+
+      // 初始呼叫以設定初始位置和繪製點
+      handleLayoutChange()
 
       // 監聽視窗大小變化
       window.addEventListener('resize', handleLayoutChange)
@@ -619,5 +679,19 @@ onUnmounted(() => {
   font-weight: bold;
   font-size: 16px;
   text-shadow: 0 0 5px rgba(0, 255, 136, 0.4);
+}
+
+.center-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  background: red;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  box-shadow: 0 0 8px 2px rgba(255,0,0,0.5);
+  pointer-events: none;
 }
 </style>
