@@ -172,53 +172,7 @@ const aiPrediction = ref({
   northSouth: 15,
 })
 
-// Helper function to draw debug points for lane starts
-const drawLaneStartPoints = () => {
-  if (!crossroadContainer.value) return
 
-  // Clear previous debug points
-  const existingPoints = crossroadContainer.value.querySelectorAll('.debug-lane-dot')
-  existingPoints.forEach((dot) => dot.remove())
-
-  const allLanes = trafficController.getAllLanePositions()
-  if (!allLanes || Object.keys(allLanes).length === 0) {
-    return
-  }
-
-  const laneColors = ['#FF4136', '#2ECC40', '#0074D9', '#FFDC00'] // More distinct Red, Green, Blue, Yellow
-
-  Object.entries(allLanes).forEach(([direction, lanes]) => {
-    lanes.forEach((lane, index) => {
-      const dot = document.createElement('div')
-      dot.className = 'debug-lane-dot'
-      dot.style.position = 'absolute'
-      dot.style.left = `${lane.x}px`
-      dot.style.top = `${lane.y}px`
-      dot.style.width = '15px'
-      dot.style.height = '15px'
-      dot.style.backgroundColor = laneColors[index % laneColors.length]
-      dot.style.borderRadius = '50%'
-      dot.style.zIndex = '10001' // On top of everything
-      dot.style.border = '1px solid black'
-      dot.style.transform = 'translate(-50%, -50%)'
-      dot.title = `Direction: ${direction}, Lane: ${index + 1} (${lane.x}, ${lane.y})` // Tooltip
-
-      const label = document.createElement('span')
-      label.style.color = 'black'
-      label.style.position = 'absolute'
-      label.style.top = '50%'
-      label.style.left = '50%'
-      label.style.transform = 'translate(-50%, -50%)'
-      label.style.fontWeight = 'bold'
-      label.style.fontSize = '10px'
-      label.innerText = `${direction.charAt(0).toUpperCase()}${index + 1}`
-      dot.appendChild(label)
-
-      crossroadContainer.value.appendChild(dot)
-    })
-  })
-  console.log('✅ 繪製車道起點偵錯點')
-}
 
 onMounted(() => {
   setTimeout(() => {
@@ -232,8 +186,7 @@ onMounted(() => {
         // 1. 重新計算車道位置
         trafficController.updateLanePositions(crossroadContainer.value)
 
-        // 2. 繪製偵錯用的車道起點
-        drawLaneStartPoints()
+        
 
         // 3. 通知所有活躍車輛佈局發生了變化
         activeCars.value.forEach((car) => {
@@ -330,11 +283,6 @@ onMounted(() => {
             return false
           }
 
-          // 檢查車輛是否長時間停滯在終點附近
-          const currentPos = vehicle.getCurrentPosition()
-          const endPos = trafficController.getEndPosition(vehicle.direction)
-          const distance = Math.sqrt(Math.pow(currentPos.x - endPos.x, 2) + Math.pow(currentPos.y - endPos.y, 2))
-
           // 檢查車輛存在時間，避免剛創建的車輛被誤清理
           const vehicleAge = Date.now() - new Date(vehicle.createdAt).getTime()
           const isNewVehicle = vehicleAge < 5000 // 5秒內的車輛視為新車輛
@@ -344,23 +292,8 @@ onMounted(() => {
             return true // 跳過清理，保留車輛
           }
 
-          // 只有非新車輛且接近終點才清理，避免誤清理剛生成的車輛
-          if (distance < 30) {
-            vehicle.remove()
-            return false
-          }
-
           // 如果車輛狀態是 completed 或 nearComplete，也要清理
           if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
-            vehicle.remove()
-            return false
-          }
-
-          // 如果車輛超出螢幕範圍，也要清理（但保護新車輛）
-          if (
-            !isNewVehicle &&
-            (currentPos.x < -100 || currentPos.x > 1100 || currentPos.y < -100 || currentPos.y > 700)
-          ) {
             vehicle.remove()
             return false
           }
