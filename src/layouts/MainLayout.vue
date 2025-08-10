@@ -352,7 +352,7 @@ const timeScenarios = [
         { type: 'small', weight: 35 },
         { type: 'large', weight: 5 },
       ],
-      characteristics: { peakMultiplier: 200 },
+      peakMultiplier: 200,
       maxLiveVehicles: 150,
       densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
     },
@@ -370,7 +370,7 @@ const timeScenarios = [
         { type: 'small', weight: 55 },
         { type: 'large', weight: 15 },
       ],
-      characteristics: { peakMultiplier: 30 },
+      peakMultiplier: 30,
       maxLiveVehicles: 100,
       densityThresholds: { light: 15, moderate: 30, heavy: 45, congested: 60 },
     },
@@ -388,7 +388,7 @@ const timeScenarios = [
         { type: 'small', weight: 15 },
         { type: 'large', weight: 5 },
       ],
-      characteristics: { peakMultiplier: 5 },
+      peakMultiplier: 5,
       maxLiveVehicles: 40,
       densityThresholds: { light: 5, moderate: 10, heavy: 15, congested: 20 },
     },
@@ -494,28 +494,28 @@ function switchToTimeScenario(key) {
   const s = timeScenarios.find((s) => s.key === key)
   if (!s) return
   currentTimeScenario.value = key
-  // 尖峰時段自動最大流量
-  if (key === 'peak_hours') {
-    manualPeakMultiplier.value = 100
-    currentInterval.value = s.config.interval.min
-  } else {
-    currentInterval.value = s.config.interval.normal
-  }
-  manualInterval.value = s.config.interval.normal
-  let interval = currentInterval.value
+  // 同步流量強度滑桿與情境預設值
+  manualPeakMultiplier.value = s.config.peakMultiplier || 1.0;
+
+  currentInterval.value = s.config.interval.normal; // 預設使用情境的 normal interval
+  manualInterval.value = s.config.interval.normal; // 同步手動間隔滑桿
+
+  let interval = currentInterval.value;
+  // 根據 manualPeakMultiplier 調整間隔
   if (manualPeakMultiplier.value && manualPeakMultiplier.value > 0) {
-    interval = Math.max(s.config.interval.min, Math.round(s.config.interval.normal / manualPeakMultiplier.value))
+    interval = Math.max(s.config.interval.min, Math.round(s.config.interval.normal / manualPeakMultiplier.value));
   }
   // interval 拉桿優先
   if (manualInterval.value) {
-    interval = manualInterval.value
+    interval = manualInterval.value;
   }
+
   if (window.autoTrafficGenerator) {
     window.autoTrafficGenerator.updateConfig({
-      ...s.config,
+      ...s.config, // s.config 現在已包含正確的 peakMultiplier
       interval: { ...s.config.interval, normal: interval },
-      characteristics: { ...s.config.characteristics, peakMultiplier: manualPeakMultiplier.value },
-    })
+      peakMultiplier: manualPeakMultiplier.value, // 傳遞來自滑桿或情境預設的 peakMultiplier
+    });
   }
 }
 
@@ -539,7 +539,7 @@ function updateManualPeakMultiplier() {
   window.autoTrafficGenerator.updateConfig({
     ...s.config,
     interval: { ...s.config.interval, normal: interval },
-    characteristics: { ...s.config.characteristics, peakMultiplier: manualPeakMultiplier.value },
+    peakMultiplier: manualPeakMultiplier.value,
   })
 }
 // interval 拉桿調整
@@ -552,7 +552,7 @@ function updateManualInterval() {
   window.autoTrafficGenerator.updateConfig({
     ...s.config,
     interval: { ...s.config.interval, normal: interval },
-    characteristics: { ...s.config.characteristics, peakMultiplier: manualPeakMultiplier.value },
+    peakMultiplier: manualPeakMultiplier.value, // Corrected line
   })
 }
 
