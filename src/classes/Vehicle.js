@@ -110,9 +110,9 @@ export default class Vehicle {
   generateRandomSpeed() {
     // Strategy Pattern: 不同車輛類型使用不同速度策略
     const speedRanges = {
-      large: { min: 25, max: 35 }, // km/h (降低速度)
-      small: { min: 30, max: 45 }, // km/h (降低速度)
-      motor: { min: 35, max: 60 }, // km/h (降低最高速度)
+      large: { min: 20, max: 30 }, // km/h (降低速度)
+      small: { min: 30, max: 35 }, // km/h (降低速度)
+      motor: { min: 35, max: 40 }, // km/h (降低最高速度)
     }
 
     const range = speedRanges[this.vehicleType] || speedRanges.small
@@ -124,7 +124,7 @@ export default class Vehicle {
   calculateAnimationDuration(distance = 800) {
     // Template Method Pattern: 定義計算動畫時間的標準流程
     // 假設路口通過距離約 800 像素
-    const speed = this.generateRandomSpeed() // km/h
+    const speed = this.initialSpeed // km/h
     const speedMs = (speed * 1000) / 3600 // 轉換為 m/s
 
     // 假設 100 像素 = 15 米（調整比例尺，讓距離感更真實）
@@ -134,12 +134,12 @@ export default class Vehicle {
     const theoreticalTime = realDistance / speedMs
 
     // 增加動畫持續時間倍數，讓車輛移動更自然
-    const timeMultiplier = 2.5 // 將時間增加2.5倍，讓動畫更慢更自然
+    const timeMultiplier = 1.0 // 調整時間倍數，讓動畫速度差異更明顯
     const adjustedTheoretical = theoreticalTime * timeMultiplier
 
-    // 為了視覺效果，將時間控制在合理範圍內（7-24秒，調快1秒）
+    // 為了視覺效果，將時間控制在合理範圍內（調整範圍以適應新的倍數）
     const minTime = 7 // 最短7秒
-    const maxTime = 24 // 最長24秒
+    const maxTime = 35 // 最長35秒
     const adjustedTime = Math.max(minTime, Math.min(maxTime, adjustedTheoretical))
 
     return adjustedTime
@@ -653,10 +653,10 @@ export default class Vehicle {
         const speedMs = (this.initialSpeed * 1000) / 3600
         let theoreticalTime = realDistance / speedMs
         // 增加視覺倍數（原本 2.5），可微調
-        const timeMultiplier = 2.5
+        const timeMultiplier = 1.0 // 調整時間倍數，讓動畫速度差異更明顯
         theoreticalTime *= timeMultiplier
         // 限制合理範圍
-        animationDuration = Math.max(7, Math.min(24, theoreticalTime))
+        animationDuration = Math.max(7, Math.min(60, theoreticalTime))
       }
 
       // Strategy Pattern: 使用延遲策略避免剛生成就被碰撞檢測影響
