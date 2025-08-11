@@ -23,7 +23,7 @@ export default class AutoTrafficGenerator {
     // 當前生效配置
     this.config = { ...this.defaultConfig }
     this.statistics = { total: 0 }
-    this.maxLiveVehicles = 80 // 最大同時車輛數
+    this.maxLiveVehicles = 200 // 最大同時車輛數
   }
 
   // 啟動生成

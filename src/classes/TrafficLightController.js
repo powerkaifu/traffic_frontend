@@ -732,7 +732,7 @@ export default class TrafficLightController {
 
     // 基礎秒數
     const baseTime = 10 // 基礎綠燈時間
-    const extraTimePerCar = 1 // 每多一輛車增加的秒數
+    const extraTimePerCar = 0.5 // 每多一輛車增加的秒數
 
     // 計算建議秒數
     let northSouthSeconds = baseTime + northSouthTotal * extraTimePerCar

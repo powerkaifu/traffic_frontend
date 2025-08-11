@@ -651,7 +651,7 @@ export default class Vehicle {
         const realDistance = (this.totalDistance / 100) * 15
         const speedMs = (this.initialSpeed * 1000) / 3600
         let theoreticalTime = realDistance / speedMs
-        const timeMultiplier = 1.5 // 調整時間倍數，讓動畫速度差異更明顯
+        const timeMultiplier = 1 // 調整時間倍數，讓動畫速度差異更明顯
         theoreticalTime *= timeMultiplier
         // 限制合理範圍
         animationDuration = Math.max(7, Math.min(60, theoreticalTime))

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <q-layout view="hHh lpR fFf">
     <q-header elevated class="text-white bg-transparent">
       <q-toolbar class="header-toolbar">
@@ -90,7 +90,7 @@
                 </div>
                 <div class="detail-item">
                   <span class="detail-label">間隔(s)：</span>
-                  <span class="detail-value">{{ currentInterval / 1000 }}</span>
+                  <span class="detail-value">{{ (currentInterval / 1000).toFixed(2) }}</span>
                 </div>
               </div>
 
@@ -102,9 +102,9 @@
                     type="range"
                     v-model="manualPeakMultiplier"
                     :min="1.0"
-                    :max="200.0"
+                    :max="2000.0"
                     :step="0.1"
-                    @input="updateManualPeakMultiplier"
+                    @input="updateGenerationConfig"
                     class="freq-slider"
                   />
                   <span class="freq-value">{{ manualPeakMultiplier }}</span>
@@ -117,7 +117,7 @@
                     :min="0"
                     :max="30000"
                     :step="1"
-                    @input="updateManualInterval"
+                    @input="updateGenerationConfig"
                     class="freq-slider"
                     style="flex: 1"
                   />
@@ -346,13 +346,13 @@ const timeScenarios = [
     icon: '🚀',
     timeRange: '07:00-08:00,17:00-18:00',
     config: {
-      interval: { min: 500, max: 2000, normal: 1000 }, // 車流量最大
+      interval: { min: 100, max: 2000, normal: 1000 }, // 車流量最大
       vehicleTypes: [
         { type: 'motor', weight: 60 },
         { type: 'small', weight: 35 },
         { type: 'large', weight: 5 },
       ],
-      peakMultiplier: 200,
+      peakMultiplier: 400,
       maxLiveVehicles: 150,
       densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
     },
@@ -364,13 +364,13 @@ const timeScenarios = [
     icon: '🌞',
     timeRange: '09:00-16:00,19:00-22:00',
     config: {
-      interval: { min: 2000, max: 6000, normal: 3500 }, // 適中流量
+      interval: { min: 500, max: 6000, normal: 3500 }, // 適中流量
       vehicleTypes: [
         { type: 'motor', weight: 30 },
         { type: 'small', weight: 55 },
         { type: 'large', weight: 15 },
       ],
-      peakMultiplier: 30,
+      peakMultiplier: 60,
       maxLiveVehicles: 100,
       densityThresholds: { light: 15, moderate: 30, heavy: 45, congested: 60 },
     },
@@ -382,13 +382,13 @@ const timeScenarios = [
     icon: '🌙',
     timeRange: '23:00-06:00',
     config: {
-      interval: { min: 8000, max: 20000, normal: 12000 }, // 流量偏低但不空
+      interval: { min: 2000, max: 20000, normal: 12000 }, // 流量偏低但不空
       vehicleTypes: [
         { type: 'motor', weight: 80 },
         { type: 'small', weight: 15 },
         { type: 'large', weight: 5 },
       ],
-      peakMultiplier: 5,
+      peakMultiplier: 10,
       maxLiveVehicles: 40,
       densityThresholds: { light: 5, moderate: 10, heavy: 15, congested: 20 },
     },
@@ -479,81 +479,45 @@ const northData = computed(() => getTrafficData('north'))
 function setupListeners() {
   const upd = () => forceUpdateTrigger.value++
   window.addEventListener('trafficDataUpdated', upd)
-  // window.addEventListener('trafficCycleReset', () => {
-  //   forceUpdateTrigger.value++
-  // })
-  // 初始化
   return () => {
     window.removeEventListener('trafficDataUpdated', upd)
-    // window.removeEventListener('trafficCycleReset', () => {})
   }
 }
 
-// 切換場景
+// --- NEW UNIFIED LOGIC ---
+function updateGenerationConfig() {
+  if (!window.autoTrafficGenerator) return;
+  const s = timeScenarios.find((s) => s.key === currentTimeScenario.value);
+  if (!s) return;
+
+  const baseInterval = manualInterval.value;
+  const multiplier = manualPeakMultiplier.value;
+
+  let finalInterval = baseInterval;
+  if (multiplier > 0) {
+    finalInterval = Math.round(baseInterval / multiplier);
+  }
+
+  finalInterval = Math.max(s.config.interval.min, finalInterval);
+
+  currentInterval.value = finalInterval;
+  
+  window.autoTrafficGenerator.updateConfig({
+    ...s.config,
+    interval: { ...s.config.interval, normal: finalInterval },
+    peakMultiplier: multiplier,
+  });
+}
+
 function switchToTimeScenario(key) {
-  const s = timeScenarios.find((s) => s.key === key)
-  if (!s) return
-  currentTimeScenario.value = key
-  // 同步流量強度滑桿與情境預設值
+  const s = timeScenarios.find((s) => s.key === key);
+  if (!s) return;
+  currentTimeScenario.value = key;
+
   manualPeakMultiplier.value = s.config.peakMultiplier || 1.0;
+  manualInterval.value = s.config.interval.normal;
 
-  currentInterval.value = s.config.interval.normal; // 預設使用情境的 normal interval
-  manualInterval.value = s.config.interval.normal; // 同步手動間隔滑桿
-
-  let interval = currentInterval.value;
-  // 根據 manualPeakMultiplier 調整間隔
-  if (manualPeakMultiplier.value && manualPeakMultiplier.value > 0) {
-    interval = Math.max(s.config.interval.min, Math.round(s.config.interval.normal / manualPeakMultiplier.value));
-  }
-  // interval 拉桿優先
-  if (manualInterval.value) {
-    interval = manualInterval.value;
-  }
-
-  if (window.autoTrafficGenerator) {
-    window.autoTrafficGenerator.updateConfig({
-      ...s.config, // s.config 現在已包含正確的 peakMultiplier
-      interval: { ...s.config.interval, normal: interval },
-      peakMultiplier: manualPeakMultiplier.value, // 傳遞來自滑桿或情境預設的 peakMultiplier
-    });
-  }
-}
-
-// 手動流量調整
-function updateManualPeakMultiplier() {
-  if (!window.autoTrafficGenerator) return
-  // 取得目前場景
-  const s = timeScenarios.find((s) => s.key === currentTimeScenario.value)
-  if (!s) return
-  // 計算新間隔
-  let interval = s.config.interval.normal
-  if (manualPeakMultiplier.value && manualPeakMultiplier.value > 0) {
-    interval = Math.max(s.config.interval.min, Math.round(s.config.interval.normal / manualPeakMultiplier.value))
-  }
-  // interval 拉桿優先
-  if (manualInterval.value) {
-    interval = manualInterval.value
-  }
-  // 只在切換場景時自動最大化，拉桿拖拉不強制最大值
-  currentInterval.value = interval
-  window.autoTrafficGenerator.updateConfig({
-    ...s.config,
-    interval: { ...s.config.interval, normal: interval },
-    peakMultiplier: manualPeakMultiplier.value,
-  })
-}
-// interval 拉桿調整
-function updateManualInterval() {
-  if (!window.autoTrafficGenerator) return
-  const s = timeScenarios.find((s) => s.key === currentTimeScenario.value)
-  if (!s) return
-  let interval = manualInterval.value
-  currentInterval.value = interval
-  window.autoTrafficGenerator.updateConfig({
-    ...s.config,
-    interval: { ...s.config.interval, normal: interval },
-    peakMultiplier: manualPeakMultiplier.value, // Corrected line
-  })
+  updateGenerationConfig();
 }
 
 // 生命週期
@@ -574,7 +538,7 @@ onMounted(() => {
   }
   tryInit()
 
-  // 預設離峰
+  // 預設尖峰
   setTimeout(() => switchToTimeScenario('peak_hours'), 500)
 
   window.mainLayoutCleanup = () => {
@@ -739,9 +703,11 @@ onUnmounted(() => {
 }
 
 .scenario-btn-compact.active {
-  background: rgba(100, 181, 246, 0.25);
-  border-color: #64b5f6;
-  box-shadow: 0 0 8px rgba(100, 181, 246, 0.4);
+  background: #007bff; /* A solid, vibrant blue */
+  border-color: #80bdff; /* A lighter blue for the border */
+  color: #ffffff; /* Bright white text */
+  box-shadow: 0 0 12px rgba(0, 123, 255, 0.8); /* A stronger glow */
+  transform: translateY(-2px) scale(1.05); /* Make it pop out */
 }
 
 .scenario-btn-compact.auto {

@@ -175,146 +175,144 @@ const aiPrediction = ref({
 
 
 onMounted(() => {
-  setTimeout(() => {
-    if (crossroadContainer.value) {
-      // 監聽情境切換事件（由 MainLayout 發出）
-      window.addEventListener('scenarioChanged', handleScenarioChange)
-      window.addEventListener('generateVehicle', handleAutoGenerate)
+  if (crossroadContainer.value) {
+    // 監聽情境切換事件（由 MainLayout 發出）
+    window.addEventListener('scenarioChanged', handleScenarioChange)
+    window.addEventListener('generateVehicle', handleAutoGenerate)
 
-      // 監聽視窗大小變化和佈局變化
-      const handleLayoutChange = () => {
-        // 1. 重新計算車道位置
-        trafficController.updateLanePositions(crossroadContainer.value)
+    // 監聽視窗大小變化和佈局變化
+    const handleLayoutChange = () => {
+      // 1. 重新計算車道位置
+      trafficController.updateLanePositions(crossroadContainer.value)
 
-        
+      
 
-        // 3. 通知所有活躍車輛佈局發生了變化
-        activeCars.value.forEach((car) => {
-          if (car.checkLayoutChange) {
-            car.checkLayoutChange()
-          }
-        })
-      }
-
-      // 初始呼叫以設定初始位置和繪製點
-      handleLayoutChange()
-
-      // 監聽視窗大小變化
-      window.addEventListener('resize', handleLayoutChange)
-
-      // 使用 MutationObserver 監聽DOM變化（可能由抽屜引起）
-      const observer = new MutationObserver(handleLayoutChange)
-      observer.observe(document.body, {
-        attributes: true,
-        attributeFilter: ['class', 'style'],
-        subtree: true,
-      })
-
-      // 在組件卸載時清理監聽器
-      const cleanup = () => {
-        window.removeEventListener('resize', handleLayoutChange)
-        observer.disconnect()
-        autoTrafficGenerator.stop()
-      }
-
-      // 將清理函數保存到 window 對象，以便在需要時調用
-      window.trafficCleanup = cleanup
-      // 初始化交通燈控制系統
-      const eastLight = crossroadContainer.value.querySelector('.traffic-light.bottom-left')
-      const westLight = crossroadContainer.value.querySelector('.traffic-light.top-right')
-      const southLight = crossroadContainer.value.querySelector('.traffic-light.top-left')
-      const northLight = crossroadContainer.value.querySelector('.traffic-light.bottom-right')
-
-      trafficController.init(eastLight, westLight, southLight, northLight)
-
-      // 設置全域交通控制器供其他組件使用
-      window.trafficController = trafficController
-
-      // 輸出車道統計信息（調試用）
-      console.log('🛣️ 車道統計信息：', trafficController.getLaneStatistics())
-
-      // 設置倒數更新回調
-      trafficController.setTimerUpdateCallback((phase, seconds) => {
-        if (phase !== null) {
-          currentPhase.value = phase
+      // 3. 通知所有活躍車輛佈局發生了變化
+      activeCars.value.forEach((car) => {
+        if (car.checkLayoutChange) {
+          car.checkLayoutChange()
         }
-        countdown.value = seconds
       })
-
-      // 設置AI預測更新回調
-      trafficController.setPredictionUpdateCallback((prediction) => {
-        aiPrediction.value = prediction
-      })
-
-      // 立即開始交通燈時相變化（移除延遲）
-      trafficController.start()
-
-      // 初始化自動交通產生器
-      console.log('🚦 初始化自動交通產生器...')
-
-      // 啟動自動交通產生器（提前啟動，確保一開始就有車）
-      autoTrafficGenerator.start()
-      console.log('--------------------- 🤖 自動交通產生器已啟動 ---------------------')
-
-      // 一開始隨機分配 4 台車在不同方向與車型
-      // 一開始隨機分配 8 台車在不同方向與車型，讓畫面更熱鬧
-      const directions = ['north', 'south', 'east', 'west']
-      const vehicleTypes = ['motor', 'small', 'large']
-      for (let i = 0; i < 8; i++) {
-        const randomDir = directions[Math.floor(Math.random() * directions.length)]
-        const randomType = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)]
-        window.dispatchEvent(
-          new CustomEvent('generateVehicle', {
-            detail: {
-              direction: randomDir,
-              vehicleType: randomType,
-            },
-          }),
-        )
-      }
-
-      // 定期清理超時車輛機制
-      const cleanupInterval = setInterval(() => {
-        // 清理可能已經完成但沒有正確清理的車輛
-        activeCars.value = activeCars.value.filter((vehicle) => {
-          // 檢查車輛是否還在DOM中
-          if (!vehicle.element || !vehicle.element.parentNode) {
-            console.log(`🗑️ 清理孤立車輛: ${vehicle.id}`)
-            return false
-          }
-
-          // 檢查車輛存在時間，避免剛創建的車輛被誤清理
-          const vehicleAge = Date.now() - new Date(vehicle.createdAt).getTime()
-          const isNewVehicle = vehicleAge < 5000 // 5秒內的車輛視為新車輛
-
-          // 保護剛創建的車輛，避免被誤清理
-          if (vehicle.justCreated || isNewVehicle) {
-            return true // 跳過清理，保留車輛
-          }
-
-          // 如果車輛狀態是 completed 或 nearComplete，也要清理
-          if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
-            vehicle.remove()
-            return false
-          }
-
-          return true
-        })
-      }, 2000) // 改為每2秒清理一次，更頻繁地處理終點車輛
-
-      // 在組件卸載時清理定时器
-      window.cleanupVehicleInterval = cleanupInterval
-
-      // 初始化並啟動交通數據收集器
-      console.log('📊 啟動交通數據收集器...')
-      trafficDataCollector.start()
-
-      // 設置全域交通數據收集器
-      window.trafficDataCollector = trafficDataCollector
-
-      console.log('✅ 所有系統已初始化完成')
     }
-  }, 500)
+
+    // 初始呼叫以設定初始位置和繪製點
+    handleLayoutChange()
+
+    // 監聽視窗大小變化
+    window.addEventListener('resize', handleLayoutChange)
+
+    // 使用 MutationObserver 監聽DOM變化（可能由抽屜引起）
+    const observer = new MutationObserver(handleLayoutChange)
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class', 'style'],
+      subtree: true,
+    })
+
+    // 在組件卸載時清理監聽器
+    const cleanup = () => {
+      window.removeEventListener('resize', handleLayoutChange)
+      observer.disconnect()
+      autoTrafficGenerator.stop()
+    }
+
+    // 將清理函數保存到 window 對象，以便在需要時調用
+    window.trafficCleanup = cleanup
+    // 初始化交通燈控制系統
+    const eastLight = crossroadContainer.value.querySelector('.traffic-light.bottom-left')
+    const westLight = crossroadContainer.value.querySelector('.traffic-light.top-right')
+    const southLight = crossroadContainer.value.querySelector('.traffic-light.top-left')
+    const northLight = crossroadContainer.value.querySelector('.traffic-light.bottom-right')
+
+    trafficController.init(eastLight, westLight, southLight, northLight)
+
+    // 設置全域交通控制器供其他組件使用
+    window.trafficController = trafficController
+
+    // 輸出車道統計信息（調試用）
+    console.log('🛣️ 車道統計信息：', trafficController.getLaneStatistics())
+
+    // 設置倒數更新回調
+    trafficController.setTimerUpdateCallback((phase, seconds) => {
+      if (phase !== null) {
+        currentPhase.value = phase
+      }
+      countdown.value = seconds
+    })
+
+    // 設置AI預測更新回調
+    trafficController.setPredictionUpdateCallback((prediction) => {
+      aiPrediction.value = prediction
+    })
+
+    // 立即開始交通燈時相變化（移除延遲）
+    trafficController.start()
+
+    // 初始化自動交通產生器
+    console.log('🚦 初始化自動交通產生器...')
+
+    // 啟動自動交通產生器（提前啟動，確保一開始就有車）
+    autoTrafficGenerator.start()
+    console.log('--------------------- 🤖 自動交通產生器已啟動 ---------------------')
+
+    // 一開始隨機分配 4 台車在不同方向與車型
+    // 一開始隨機分配 8 台車在不同方向與車型，讓畫面更熱鬧
+    const directions = ['north', 'south', 'east', 'west']
+    const vehicleTypes = ['motor', 'small', 'large']
+    for (let i = 0; i < 8; i++) {
+      const randomDir = directions[Math.floor(Math.random() * directions.length)]
+      const randomType = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)]
+      window.dispatchEvent(
+        new CustomEvent('generateVehicle', {
+          detail: {
+            direction: randomDir,
+            vehicleType: randomType,
+          },
+        }),
+      )
+    }
+
+    // 定期清理超時車輛機制
+    const cleanupInterval = setInterval(() => {
+      // 清理可能已經完成但沒有正確清理的車輛
+      activeCars.value = activeCars.value.filter((vehicle) => {
+        // 檢查車輛是否還在DOM中
+        if (!vehicle.element || !vehicle.element.parentNode) {
+          console.log(`🗑️ 清理孤立車輛: ${vehicle.id}`)
+          return false
+        }
+
+        // 檢查車輛存在時間，避免剛創建的車輛被誤清理
+        const vehicleAge = Date.now() - new Date(vehicle.createdAt).getTime()
+        const isNewVehicle = vehicleAge < 5000 // 5秒內的車輛視為新車輛
+
+        // 保護剛創建的車輛，避免被誤清理
+        if (vehicle.justCreated || isNewVehicle) {
+          return true // 跳過清理，保留車輛
+        }
+
+        // 如果車輛狀態是 completed 或 nearComplete，也要清理
+        if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
+          vehicle.remove()
+          return false
+        }
+
+        return true
+      })
+    }, 2000) // 改為每2秒清理一次，更頻繁地處理終點車輛
+
+    // 在組件卸載時清理定时器
+    window.cleanupVehicleInterval = cleanupInterval
+
+    // 初始化並啟動交通數據收集器
+    console.log('📊 啟動交通數據收集器...')
+    trafficDataCollector.start()
+
+    // 設置全域交通數據收集器
+    window.trafficDataCollector = trafficDataCollector
+
+    console.log('✅ 所有系統已初始化完成')
+  }
 })
 
 // 組件卸載時清理資源
