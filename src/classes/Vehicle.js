@@ -580,8 +580,8 @@ export default class Vehicle {
 
       // 只有在沒有重疊且距離足夠時才恢復移動
       if (!frontCollision || (!frontCollision.isOverlapping && frontCollision.distance > 10)) {
-        // 固定延遲 5 秒，讓中央區域有時間清空
-        const delaySeconds = 5
+        // 固定延遲 8 秒，讓中央區域有時間清空
+        const delaySeconds = 8
         gsap.delayedCall(delaySeconds, () => {
           // 再次檢查車輛狀態，確保仍然需要啟動
           if (this.waitingForGreen && this.movementTimeline) {

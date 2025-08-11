@@ -37,8 +37,7 @@
       <!-- 停止線 -->
       <!-- 中央參考矩形 - 用於統一計算停止線位置 -->
       <div class="stop-line central-reference"></div>
-      <!-- 中心紅色圓點 -->
-      <div class="center-dot"></div>
+    <!-- 已移除中心紅色圓點 -->
 
       <!-- AI 交通預測面板 -->
       <div class="ai-prediction-panel">
@@ -418,6 +417,18 @@ onUnmounted(() => {
 /* RoadA 往東 */
 .traffic-light.bottom-left {
   top: 50%;
+      /* .center-dot {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 18px;
+        height: 18px;
+        background: rgba(255, 0, 0, 0.8);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 101;
+        pointer-events: none;
+      } */
   left: 50%;
   transform: translate(-220%, 290%) rotate(90deg);
 }
@@ -549,15 +560,15 @@ onUnmounted(() => {
 .central-reference {
   position: absolute;
   z-index: 100;
-  opacity: 0.8;
+  opacity: 1;
   left: 50%;
   top: 50%;
   width: 225px; /* 路口寬度 */
   height: 225px; /* 路口高度 */
   transform: translate(-50%, -50%);
-  background: rgba(255, 0, 0, 0.2); /* 淺紅色區塊 */
-  border: none; /* 移除邊框 */
-  pointer-events: none; /* 不攔截滑鼠事件 */
+  background: none;
+  border: 1px dashed #cccccc; /* 虛線淺灰色邊框 */
+  pointer-events: none;
 }
 
 /* AI 預測面板樣式 ---------------------------------------- */
