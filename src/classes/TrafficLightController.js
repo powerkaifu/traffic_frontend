@@ -31,6 +31,7 @@ export default class TrafficLightController {
     // API 相關設定
     this.apiEndpoint = 'http://localhost:8000/api/traffic/predict/'
     this.onPredictionUpdate = null // AI 預測更新回調函數
+    this.dataScalingFactor = 0.1 // 數據縮放因子
 
     // Strategy Pattern: 動態綠燈時間策略（AI 預測結果）
     this.dynamicTiming = {
@@ -546,7 +547,10 @@ export default class TrafficLightController {
     // 為每個方向生成 VD 數據
     Object.keys(this.vehicleData).forEach((direction, index) => {
       const data = this.vehicleData[direction]
-      const totalVehicles = data.motor + data.small + data.large
+      const scaledMotor = Math.round(data.motor * this.dataScalingFactor)
+      const scaledSmall = Math.round(data.small * this.dataScalingFactor)
+      const scaledLarge = Math.round(data.large * this.dataScalingFactor)
+      const totalVehicles = scaledMotor + scaledSmall + scaledLarge
 
       // 計算平均速度
       const speeds = {
@@ -559,7 +563,8 @@ export default class TrafficLightController {
       const overallSpeed =
         totalVehicles > 0
           ? Math.round(
-              (data.motor * speeds.motor + data.small * speeds.small + data.large * speeds.large) / totalVehicles,
+              (scaledMotor * speeds.motor + scaledSmall * speeds.small + scaledLarge * speeds.large) /
+                totalVehicles,
             )
           : 0
 
@@ -578,11 +583,11 @@ export default class TrafficLightController {
         LaneType: 1, // 預設車道類型為 1
         Speed: overallSpeed,
         Occupancy: occupancy,
-        Volume_M: data.motor, // 機車數量
+        Volume_M: scaledMotor, // 機車數量
         Speed_M: speeds.motor, // 機車平均車速
-        Volume_S: data.small, // 小客車數量
+        Volume_S: scaledSmall, // 小客車數量
         Speed_S: speeds.small, // 小客車平均車速
-        Volume_L: data.large, // 大客車數量
+        Volume_L: scaledLarge, // 大客車數量
         Speed_L: speeds.large, // 大客車平均車速
         Volume_T: 0, // 聯結車數量（目前設為 0）
         Speed_T: 0, // 聯結車平均車速（目前設為 0）
