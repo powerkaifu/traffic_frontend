@@ -2,6 +2,7 @@
  * TrafficLightController.js - 交通燈控制系統
  */
 import TrafficLight from './TrafficLight.js'
+import { speedConfig } from './config/trafficConfig.js' // 引入統一的速度設定
 
 export default class TrafficLightController {
   constructor() {
@@ -593,16 +594,9 @@ export default class TrafficLightController {
 
   // Strategy Pattern: 獲取各車型的平均速度策略
   getAverageSpeed(direction, vehicleType) {
-    // Strategy Pattern: 不同車型的速度範圍策略 - 與 Vehicle.js 保持一致
-    const speedRanges = {
-      motor: { min: 35, max: 60, avg: 47 }, // 平均 (35+60)/2 ≈ 47
-      small: { min: 30, max: 45, avg: 37 }, // 平均 (30+45)/2 ≈ 37
-      large: { min: 25, max: 35, avg: 30 }, // 平均 (25+35)/2 = 30
-    }
-
-    const range = speedRanges[vehicleType]
+    // 從統一的設定檔讀取速度範圍
+    const range = speedConfig[vehicleType]
     if (!range) return 30
-
     // Strategy Pattern: 根據路段占有率調整速度的策略
     const occupancy = parseFloat(this.calculateOccupancy(direction))
     let speedFactor = 1.0 // 基礎速度因子，不再強制降低到路口速度

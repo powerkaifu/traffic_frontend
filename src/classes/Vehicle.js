@@ -2,6 +2,7 @@
  * Vehicle.js - 車輛實體類別
  */
 import { gsap } from 'gsap'
+import { speedConfig } from './config/trafficConfig.js' // 引入統一的速度設定
 
 export default class Vehicle {
   constructor(x, y, direction = 'east', vehicleType = 'large', laneNumber = 1) {
@@ -109,13 +110,11 @@ export default class Vehicle {
   // Strategy Pattern: 基於車輛類型的速度生成策略
   generateRandomSpeed() {
     // Strategy Pattern: 不同車輛類型使用不同速度策略
-    const speedRanges = {
-      large: { min: 20, max: 30 }, // km/h (降低速度)
-      small: { min: 30, max: 35 }, // km/h (降低速度)
-      motor: { min: 35, max: 40 }, // km/h (降低最高速度)
+    const range = speedConfig[this.vehicleType] || speedConfig.small
+    if (!range) {
+      console.warn(`[Vehicle] 未找到車輛類型 '${this.vehicleType}' 的速度設定，使用預設值。`)
+      return 30 // 返回一個安全預設值
     }
-
-    const range = speedRanges[this.vehicleType] || speedRanges.small
     const randomSpeed = range.min + Math.random() * (range.max - range.min)
     return Math.round(randomSpeed)
   }
