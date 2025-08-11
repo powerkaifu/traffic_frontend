@@ -555,8 +555,8 @@ onUnmounted(() => {
   width: 225px; /* 路口寬度 */
   height: 225px; /* 路口高度 */
   transform: translate(-50%, -50%);
-  background: transparent; /* 透明，不顯示 */
-  border: 2px dashed rgba(255, 255, 255, 0.3); /* 可選：顯示淡淡的虛線邊框用於調試 */
+  background: rgba(255, 0, 0, 0.2); /* 淺紅色區塊 */
+  border: none; /* 移除邊框 */
   pointer-events: none; /* 不攔截滑鼠事件 */
 }
 
