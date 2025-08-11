@@ -55,8 +55,7 @@ export default class Vehicle {
       scale: 0.5, // 初始設為縮小
     })
 
-    // 創建車道編號標籤
-    this.createLaneNumberLabel()
+    // 已移除車道編號標籤顯示
 
     // Observer Pattern: 通知交通控制器車輛生成事件
     this.notifyTrafficController()
@@ -166,58 +165,7 @@ export default class Vehicle {
   }
 
   // Composite Pattern: 創建車道編號標籤組件
-  createLaneNumberLabel() {
-    // Composite Pattern: 為車輛添加子組件（標籤）
-    const label = document.createElement('div')
-    label.className = 'vehicle-lane-label' // 改為 vehicle 類名
-    label.textContent = this.laneNumber
-
-    // Strategy Pattern: 根據車輛方向使用不同的標籤定位策略
-    let labelPosition = ''
-    if (this.direction === 'north') {
-      // 北向：標籤放在車輛尾部（下方）
-      labelPosition = `
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        margin-top: 2px;
-      `
-    } else if (this.direction === 'south') {
-      // 南向：標籤放在車輛尾部（上方）
-      labelPosition = `
-        top: -18px;
-        left: 50%;
-        transform: translateX(-50%);
-      `
-    } else {
-      // 水平方向：標籤放在車輛上方
-      labelPosition = `
-        top: -12px;
-        left: 50%;
-        transform: translateX(-50%);
-      `
-    }
-
-    label.style.cssText = `
-      position: absolute;
-      ${labelPosition}
-      background: rgba(0, 123, 255, 0.9);
-      color: white;
-      font-size: 9px;
-      font-weight: bold;
-      padding: 1px 5px;
-      border-radius: 7px;
-      border: 1px solid #0066cc;
-      z-index: 20;
-      pointer-events: none;
-      min-width: 16px;
-      text-align: center;
-      font-family: Arial, sans-serif;
-    `
-
-    this.element.appendChild(label)
-    this.laneLabel = label
-  }
+  // 已移除車道編號標籤顯示
 
   // Factory Pattern + Strategy Pattern: 獲取車輛配置的工廠策略方法
   getVehicleConfig() {

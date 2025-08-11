@@ -37,7 +37,7 @@
       <!-- 停止線 -->
       <!-- 中央參考矩形 - 用於統一計算停止線位置 -->
       <div class="stop-line central-reference"></div>
-    <!-- 已移除中心紅色圓點 -->
+      <!-- 已移除中心紅色圓點 -->
 
       <!-- AI 交通預測面板 -->
       <div class="ai-prediction-panel">
@@ -171,8 +171,6 @@ const aiPrediction = ref({
   northSouth: 15,
 })
 
-
-
 onMounted(() => {
   if (crossroadContainer.value) {
     // 監聽情境切換事件（由 MainLayout 發出）
@@ -183,8 +181,6 @@ onMounted(() => {
     const handleLayoutChange = () => {
       // 1. 重新計算車道位置
       trafficController.updateLanePositions(crossroadContainer.value)
-
-      
 
       // 3. 通知所有活躍車輛佈局發生了變化
       activeCars.value.forEach((car) => {
@@ -417,7 +413,7 @@ onUnmounted(() => {
 /* RoadA 往東 */
 .traffic-light.bottom-left {
   top: 50%;
-      /* .center-dot {
+  /* .center-dot {
         position: absolute;
         left: 50%;
         top: 50%;
@@ -633,7 +629,7 @@ onUnmounted(() => {
   border-radius: 50%;
   transform: translate(-50%, -50%);
   z-index: 9999;
-  box-shadow: 0 0 8px 2px rgba(255,0,0,0.5);
+  box-shadow: 0 0 8px 2px rgba(255, 0, 0, 0.5);
   pointer-events: none;
 }
 </style>
