@@ -31,7 +31,7 @@ export default class TrafficLightController {
     // API 相關設定
     this.apiEndpoint = 'http://localhost:8000/api/traffic/predict/'
     this.onPredictionUpdate = null // AI 預測更新回調函數
-    this.dataScalingFactor = 0.2 // [修改] 數據縮放因子，使其更接近真實數據
+    this.dataScalingFactor = 0.5 // [修改] 數據縮放因子，使其更接近真實數據
 
     // Strategy Pattern: 動態綠燈時間策略（AI 預測結果）
     this.dynamicTiming = {
@@ -47,26 +47,10 @@ export default class TrafficLightController {
 
     // 車輛數據收集
     this.vehicleData = {
-      east: {
-        motor: Math.floor(Math.random() * 11),
-        small: Math.floor(Math.random() * 11),
-        large: Math.floor(Math.random() * 11),
-      },
-      west: {
-        motor: Math.floor(Math.random() * 11),
-        small: Math.floor(Math.random() * 11),
-        large: Math.floor(Math.random() * 11),
-      },
-      south: {
-        motor: Math.floor(Math.random() * 11),
-        small: Math.floor(Math.random() * 11),
-        large: Math.floor(Math.random() * 11),
-      },
-      north: {
-        motor: Math.floor(Math.random() * 11),
-        small: Math.floor(Math.random() * 11),
-        large: Math.floor(Math.random() * 11),
-      },
+      east: { motor: 0, small: 0, large: 0 },
+      west: { motor: 0, small: 0, large: 0 },
+      south: { motor: 0, small: 0, large: 0 },
+      north: { motor: 0, small: 0, large: 0 },
     }
 
     // ==========================================
@@ -391,7 +375,20 @@ export default class TrafficLightController {
     this.updateLightState('north', 'green')
     this.updateLightState('east', 'red')
     this.updateLightState('west', 'red')
-    this.currentPhase = 'northSouth' // 一開始以南北向為主
+    this.currentPhase = 'northSouth' // 一開始以南北向為主'
+
+    // 監聽車輛事件以更新 vehicleData
+    this.vehicleAddedHandler = (event) => {
+      const { direction, type } = event.detail
+      this.incrementVehicleData(direction, type)
+    }
+    this.vehicleRemovedHandler = (event) => {
+      const { direction, type } = event.detail
+      this.decrementVehicleData(direction, type)
+    }
+
+    window.addEventListener('vehicleAdded', this.vehicleAddedHandler)
+    window.addEventListener('vehicleRemoved', this.vehicleRemovedHandler)
   }
 
   // ==========================================
@@ -788,6 +785,8 @@ export default class TrafficLightController {
   // 停止交通燈控制
   stop() {
     this.isRunning = false
+    window.removeEventListener('vehicleAdded', this.vehicleAddedHandler)
+    window.removeEventListener('vehicleRemoved', this.vehicleRemovedHandler)
   }
 
   // 設置倒數更新回調
@@ -801,9 +800,18 @@ export default class TrafficLightController {
   }
 
   // 更新車輛數據
-  updateVehicleData(direction, vehicleType) {
+  incrementVehicleData(direction, vehicleType) {
     if (this.vehicleData[direction] && this.vehicleData[direction][vehicleType] !== undefined) {
       this.vehicleData[direction][vehicleType]++
+    }
+  }
+
+  decrementVehicleData(direction, vehicleType) {
+    if (this.vehicleData[direction] && this.vehicleData[direction][vehicleType] !== undefined) {
+      this.vehicleData[direction][vehicleType]--
+      if (this.vehicleData[direction][vehicleType] < 0) {
+        this.vehicleData[direction][vehicleType] = 0 // Prevent negative counts
+      }
     }
   }
 

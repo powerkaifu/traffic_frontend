@@ -77,7 +77,7 @@ export default class Vehicle {
       }
 
       const mappedType = vehicleTypeMapping[this.vehicleType] || 'small'
-      window.trafficController.updateVehicleData(this.direction, mappedType)
+      window.trafficController.incrementVehicleData(this.direction, mappedType)
     }
 
     // 通知數據收集器車輛已創建
