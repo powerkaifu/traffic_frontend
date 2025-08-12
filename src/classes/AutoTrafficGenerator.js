@@ -55,15 +55,17 @@ export default class AutoTrafficGenerator {
     const density = this._getTotalDensity()
     let base = normal
     const { light, moderate, heavy, congested } = this.config.densityThresholds
-    if (density <= light) base = min * 0.8
-    else if (density <= moderate) base = normal
-    else if (density <= heavy) base = normal * 1.5
-    else if (density <= congested) base = max
-    else base = max * 2
+    // **修正：密度越高，出車間隔越短**
+    if (density <= light) base = max // 輕度流量，出車慢
+    else if (density <= moderate) base = normal // 一般流量
+    else if (density <= heavy) base = normal * 0.7 // 重度流量
+    else if (density <= congested) base = min * 1.2 // 擁擠
+    else base = min // 非常擁擠，出車快
+
     base /= this.config.peakMultiplier
     const rand = 0.8 + Math.random() * 0.4
     const val = Math.round(base * rand)
-    return Math.max(min, Math.min(max * 2, val))
+    return Math.max(min, Math.min(max, val)) // 確保最終值在 min/max 範圍內
   }
 
   // 排程下一次
@@ -87,11 +89,24 @@ export default class AutoTrafficGenerator {
   _generateVehicle() {
     // 若超過最大同時車輛數，直接 return
     if (window.liveVehicles && window.liveVehicles.length >= this.maxLiveVehicles) return
-    // 隨機方向與車型
+    // 隨機方向
     const dirs = ['east', 'west', 'north', 'south']
     const dir = dirs[Math.floor(Math.random() * dirs.length)]
-    const vehicleTypes = ['motor', 'small', 'large']
-    const type = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)]
+
+    // **修正：根據權重隨機選擇車型**
+    const vehicleTypes = this.config.vehicleTypes
+    const totalWeight = vehicleTypes.reduce((sum, v) => sum + v.weight, 0)
+    let random = Math.random() * totalWeight
+    let type = ''
+    for (const vehicle of vehicleTypes) {
+      if (random < vehicle.weight) {
+        type = vehicle.type
+        break
+      }
+      random -= vehicle.weight
+    }
+    if (!type) type = vehicleTypes[0].type // Fallback
+
     // 取得平均速度（供動畫用）
     let speed = 30
     if (this.trafficController && this.trafficController.getAverageSpeed) {
