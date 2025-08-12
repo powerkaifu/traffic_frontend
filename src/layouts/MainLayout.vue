@@ -382,7 +382,7 @@ const timeScenarios = [
     icon: '🌙',
     timeRange: '23:00-06:00',
     config: {
-      interval: { min: 2000, max: 20000, normal: 12000 }, // 流量偏低但不空
+      interval: { min: 10000, max: 20000, normal: 15000 }, // 流量偏低但不空
       vehicleTypes: [
         { type: 'motor', weight: 80 },
         { type: 'small', weight: 15 },
@@ -486,38 +486,38 @@ function setupListeners() {
 
 // --- NEW UNIFIED LOGIC ---
 function updateGenerationConfig() {
-  if (!window.autoTrafficGenerator) return;
-  const s = timeScenarios.find((s) => s.key === currentTimeScenario.value);
-  if (!s) return;
+  if (!window.autoTrafficGenerator) return
+  const s = timeScenarios.find((s) => s.key === currentTimeScenario.value)
+  if (!s) return
 
-  const baseInterval = manualInterval.value;
-  const multiplier = manualPeakMultiplier.value;
+  const baseInterval = manualInterval.value
+  const multiplier = manualPeakMultiplier.value
 
-  let finalInterval = baseInterval;
+  let finalInterval = baseInterval
   if (multiplier > 0) {
-    finalInterval = Math.round(baseInterval / multiplier);
+    finalInterval = Math.round(baseInterval / multiplier)
   }
 
-  finalInterval = Math.max(s.config.interval.min, finalInterval);
+  finalInterval = Math.max(s.config.interval.min, finalInterval)
 
-  currentInterval.value = finalInterval;
-  
+  currentInterval.value = finalInterval
+
   window.autoTrafficGenerator.updateConfig({
     ...s.config,
     interval: { ...s.config.interval, normal: finalInterval },
     peakMultiplier: multiplier,
-  });
+  })
 }
 
 function switchToTimeScenario(key) {
-  const s = timeScenarios.find((s) => s.key === key);
-  if (!s) return;
-  currentTimeScenario.value = key;
+  const s = timeScenarios.find((s) => s.key === key)
+  if (!s) return
+  currentTimeScenario.value = key
 
-  manualPeakMultiplier.value = s.config.peakMultiplier || 1.0;
-  manualInterval.value = s.config.interval.normal;
+  manualPeakMultiplier.value = s.config.peakMultiplier || 1.0
+  manualInterval.value = s.config.interval.normal
 
-  updateGenerationConfig();
+  updateGenerationConfig()
 }
 
 // 生命週期

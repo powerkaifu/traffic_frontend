@@ -250,8 +250,6 @@ onMounted(() => {
     autoTrafficGenerator.start()
     console.log('--------------------- 🤖 自動交通產生器已啟動 ---------------------')
 
-    // 一開始隨機分配 4 台車在不同方向與車型
-    // 一開始隨機分配 8 台車在不同方向與車型，讓畫面更熱鬧
     const directions = ['north', 'south', 'east', 'west']
     const vehicleTypes = ['motor', 'small', 'large']
     for (let i = 0; i < 8; i++) {
