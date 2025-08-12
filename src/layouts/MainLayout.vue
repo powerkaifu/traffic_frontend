@@ -47,12 +47,20 @@
               <div class="system-header">
                 <div class="system-info">
                   <span class="system-title">智能車流情境分派系統</span>
-                  <div class="system-status" :class="{ active: isSystemRunning }">
-                    <div class="status-dot"></div>
-                    <span class="status-text">{{ systemStatusText }}</span>
-                  </div>
+                  <div class="status-dot"></div>
+                  <q-btn
+                    @click="toggleAutoMode"
+                    size="sm"
+                    class="mode-toggle-btn"
+                    :label="isAutoMode ? '自動模式' : '手動模式'"
+                  >
+                  </q-btn>
                 </div>
-                <div class="current-time">{{ currentTimeDisplay }}</div>
+              </div>
+
+              <!-- 自動模式狀態顯示 -->
+              <div class="simulation-status" v-if="isAutoMode">
+                {{ simulationStatus || '正在初始化...' }}
               </div>
 
               <!-- 時段場景快速切換 -->
@@ -61,14 +69,9 @@
                   v-for="scenario in timeScenarios"
                   :key="scenario.key"
                   @click="switchToTimeScenario(scenario.key)"
-                  :class="[
-                    'scenario-btn-compact',
-                    {
-                      active: currentTimeScenario === scenario.key,
-                      // 移除自動時間模式的顯示邏輯
-                    },
-                  ]"
+                  :class="['scenario-btn-compact', { active: currentTimeScenario === scenario.key }]"
                   :title="`${scenario.name} (${scenario.timeRange})`"
+                  :disabled="isAutoMode"
                 >
                   <div class="scenario-icon">{{ scenario.icon }}</div>
                   <div class="scenario-name">{{ scenario.shortName }}</div>
@@ -76,7 +79,7 @@
               </div>
 
               <!-- 當前情境參數顯示 -->
-              <div v-if="currentScenarioDetails" class="scenario-details">
+              <div v-if="currentScenarioDetails && !isAutoMode" class="scenario-details">
                 <div class="detail-item">
                   <span class="detail-label">頻率 (秒)：</span>
                   <span class="detail-value"
@@ -85,7 +88,7 @@
                   >
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">機車/小型車/大型車 (%)：</span>
+                  <span class="detail-label">機/小/大 (%)：</span>
                   <span class="detail-value">{{ currentScenarioDetails.ratios }}</span>
                 </div>
                 <div class="detail-item">
@@ -106,6 +109,7 @@
                     :step="0.1"
                     @input="updateGenerationConfig"
                     class="freq-slider"
+                    :disabled="isAutoMode"
                   />
                   <span class="freq-value">{{ manualPeakMultiplier }}</span>
                 </div>
@@ -120,6 +124,7 @@
                     @input="updateGenerationConfig"
                     class="freq-slider"
                     style="flex: 1"
+                    :disabled="isAutoMode"
                   />
                   <span class="freq-value">{{ Math.floor(manualInterval / 1000) }}s</span>
                 </div>
@@ -128,19 +133,16 @@
           </div>
         </div>
 
-        <!-- 數據展示區域 - dataBg.png 背景 -->
+        <!-- 數據展示區域 -->
         <div class="data-section">
-          <!-- 頂部按鈕區域 -->
           <div class="data-section-buttons">
             <div class="top-buttons">
               <img src="/images/button/setDataBtnOn.png" alt="特徵模擬數據" class="control-button" />
             </div>
           </div>
-
-          <!-- 特徵模擬數據區域 -->
           <div class="data-section-content">
             <div class="traffic-data-grid">
-              <!-- 左上：往東 -->
+              <!-- Data cells... -->
               <div class="traffic-zone east-zone">
                 <div class="zone-data">
                   <div class="data-row main-stats">
@@ -311,6 +313,10 @@ import { useRouter, useRoute } from 'vue-router'
 const router = useRouter()
 const route = useRoute()
 
+// 新增：自動模式狀態
+const isAutoMode = ref(false)
+const simulationStatus = ref(null)
+
 function navigateToSimulation() {
   router.push('/')
 }
@@ -321,23 +327,18 @@ function navigateToVisualization() {
 
 const currentRoute = computed(() => route.path)
 
-// 補上側邊欄收合方法
 function toggleRightDrawer() {
   rightDrawerOpen.value = !rightDrawerOpen.value
 }
 
-// 基本狀態
 const rightDrawerOpen = ref(false)
 const $q = useQuasar()
 
-// 系統狀態與統計
-const isSystemRunning = ref(true)
 const currentTimeScenario = ref('peak_hours')
 const manualPeakMultiplier = ref(1.0)
 const manualInterval = ref(1000)
 const currentInterval = ref(7.0)
 
-// 場景配置
 const timeScenarios = [
   {
     key: 'peak_hours',
@@ -346,7 +347,7 @@ const timeScenarios = [
     icon: '🚀',
     timeRange: '07:00-08:00,17:00-18:00',
     config: {
-      interval: { min: 100, max: 2000, normal: 1000 }, // 車流量最大
+      interval: { min: 100, max: 2000, normal: 1000 },
       vehicleTypes: [
         { type: 'motor', weight: 60 },
         { type: 'small', weight: 35 },
@@ -364,7 +365,7 @@ const timeScenarios = [
     icon: '🌞',
     timeRange: '09:00-16:00,19:00-22:00',
     config: {
-      interval: { min: 500, max: 6000, normal: 3500 }, // 適中流量
+      interval: { min: 500, max: 6000, normal: 3500 },
       vehicleTypes: [
         { type: 'motor', weight: 30 },
         { type: 'small', weight: 55 },
@@ -382,7 +383,7 @@ const timeScenarios = [
     icon: '🌙',
     timeRange: '23:00-06:00',
     config: {
-      interval: { min: 10000, max: 20000, normal: 15000 }, // 流量偏低但不空
+      interval: { min: 10000, max: 20000, normal: 15000 },
       vehicleTypes: [
         { type: 'motor', weight: 80 },
         { type: 'small', weight: 15 },
@@ -395,11 +396,6 @@ const timeScenarios = [
   },
 ]
 
-// 計算屬性
-const currentTimeDisplay = computed(() =>
-  new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false }),
-)
-const systemStatusText = computed(() => (isSystemRunning.value ? '手動模式' : '已停止'))
 const currentScenarioDetails = computed(() => {
   const s = timeScenarios.find((s) => s.key === currentTimeScenario.value)
   if (!s) return null
@@ -409,7 +405,6 @@ const currentScenarioDetails = computed(() => {
   }
 })
 
-// 側欄寬度與背景光環
 const drawerWidth = computed(() => {
   if ($q.screen.xs) return 280
   if ($q.screen.sm) return 350
@@ -419,14 +414,12 @@ const drawerWidth = computed(() => {
 })
 const lightPosition = computed(() => (rightDrawerOpen.value && $q.screen.gt.md ? '35% 50%' : '50% 50%'))
 
-// 觸發更新
 const forceUpdateTrigger = ref(0)
 const startDataUpdate = () => {
   const id = setInterval(() => forceUpdateTrigger.value++, 3000)
   return () => clearInterval(id)
 }
 
-// 取得交通數據
 function getTrafficData(dir) {
   forceUpdateTrigger.value
   if (window.trafficDataCollector) {
@@ -475,7 +468,6 @@ const westData = computed(() => getTrafficData('west'))
 const southData = computed(() => getTrafficData('south'))
 const northData = computed(() => getTrafficData('north'))
 
-// 事件監聽
 function setupListeners() {
   const upd = () => forceUpdateTrigger.value++
   window.addEventListener('trafficDataUpdated', upd)
@@ -484,8 +476,8 @@ function setupListeners() {
   }
 }
 
-// --- NEW UNIFIED LOGIC ---
 function updateGenerationConfig() {
+  if (isAutoMode.value) return // 如果是自動模式，則不執行手動更新
   if (!window.autoTrafficGenerator) return
   const s = timeScenarios.find((s) => s.key === currentTimeScenario.value)
   if (!s) return
@@ -510,6 +502,7 @@ function updateGenerationConfig() {
 }
 
 function switchToTimeScenario(key) {
+  if (isAutoMode.value) return // 自動模式下禁用
   const s = timeScenarios.find((s) => s.key === key)
   if (!s) return
   currentTimeScenario.value = key
@@ -520,25 +513,39 @@ function switchToTimeScenario(key) {
   updateGenerationConfig()
 }
 
-// 生命週期
+// 新增：自動模式切換功能
+function toggleAutoMode() {
+  isAutoMode.value = !isAutoMode.value
+  if (window.autoTrafficGenerator) {
+    window.autoTrafficGenerator.toggleAutoMode(isAutoMode.value)
+  }
+}
+
 onMounted(() => {
   const stopUpdate = startDataUpdate()
   const cleanup = setupListeners()
 
-  // 初始化產生器
   let tries = 0
   const tryInit = async () => {
     if (window.trafficController && !window.autoTrafficGenerator) {
       const AutoGen = (await import('../classes/AutoTrafficGenerator.js')).default
       window.autoTrafficGenerator = new AutoGen(window.trafficController)
       window.autoTrafficGenerator.start()
+
+      // 初始化完成後，設定自動模式的回調
+      window.autoTrafficGenerator.setOnTimeUpdate((status) => {
+        if (status) {
+          simulationStatus.value = `${status.time} - ${status.description}`
+        } else {
+          simulationStatus.value = null
+        }
+      })
     } else if (tries++ < 30) {
       setTimeout(tryInit, 100)
     }
   }
   tryInit()
 
-  // 預設尖峰
   setTimeout(() => switchToTimeScenario('peak_hours'), 500)
 
   window.mainLayoutCleanup = () => {
@@ -553,6 +560,15 @@ onUnmounted(() => {
 </script>
 
 <style>
+/* 新增樣式 */
+.simulation-status {
+  color: #81c784;
+  font-size: 12px;
+  font-weight: bold;
+  margin-top: 4px;
+  text-align: center;
+}
+
 .q-header {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
@@ -626,52 +642,36 @@ onUnmounted(() => {
   right: 0;
   top: 15px;
   left: 160px;
-  width: 50%;
 }
 
 .system-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  width: 100%;
+  gap: 5px;
 }
 
 .system-title {
   font-size: 13px;
   font-weight: bold;
   color: white;
-}
-
-.system-status {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
+  margin-right: 10px;
 }
 
 .status-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #666;
+  background: #4caf50;
+  box-shadow: 0 0 6px rgba(76, 175, 80, 0.8);
   transition: all 0.3s;
 }
 
-.system-status.active .status-dot {
-  background: #4caf50;
-  box-shadow: 0 0 6px rgba(76, 175, 80, 0.8);
-}
-
-.status-text {
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.current-time {
-  font-size: 12px;
-  color: #81c784;
-  font-weight: bold;
-  padding: 3px 8px;
-  background: rgba(129, 199, 132, 0.2);
-  border-radius: 4px;
+.mode-toggle-btn {
+  padding: 0;
+  font-size: 12px !important;
+  box-shadow: none !important;
+  min-height: auto;
 }
 
 /* 時段場景快速切換 - 緊湊版 */
@@ -697,38 +697,22 @@ onUnmounted(() => {
   position: relative;
 }
 
-.scenario-btn-compact:hover {
+.scenario-btn-compact:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.15);
   transform: translateY(-1px);
 }
 
-.scenario-btn-compact.active {
-  background: #007bff; /* A solid, vibrant blue */
-  border-color: #80bdff; /* A lighter blue for the border */
-  color: #ffffff; /* Bright white text */
-  box-shadow: 0 0 12px rgba(0, 123, 255, 0.8); /* A stronger glow */
-  transform: translateY(-2px) scale(1.05); /* Make it pop out */
+.scenario-btn-compact.active:not(:disabled) {
+  background: #007bff;
+  border-color: #80bdff;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(0, 123, 255, 0.8);
+  transform: translateY(-2px) scale(1.05);
 }
 
-.scenario-btn-compact.auto {
-  background: rgba(129, 199, 132, 0.25);
-  border-color: #81c784;
-  box-shadow: 0 0 8px rgba(129, 199, 132, 0.4);
-}
-
-.scenario-btn-compact.auto::after {
-  content: '🤖';
-  position: absolute;
-  top: -2px;
-  right: -5px;
-  font-size: 8px;
-  background: rgba(129, 199, 132, 0.8);
-  border-radius: 50%;
-  width: 12px;
-  height: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.scenario-btn-compact:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .scenario-icon {
@@ -750,40 +734,6 @@ onUnmounted(() => {
   gap: 6px;
   flex-shrink: 0;
   padding: 8px 0;
-}
-
-.auto-toggle-compact {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s;
-  font-size: 9px;
-  flex-shrink: 0;
-}
-
-.auto-toggle-compact:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.auto-toggle-compact.active {
-  background: rgba(129, 199, 132, 0.3);
-  border-color: #81c784;
-  box-shadow: 0 0 6px rgba(129, 199, 132, 0.4);
-}
-
-.toggle-icon {
-  font-size: 10px;
-}
-
-.toggle-label {
-  font-weight: bold;
-  font-size: 9px;
 }
 
 /* 頻率控制 - 緊湊版 */
@@ -812,6 +762,10 @@ onUnmounted(() => {
   appearance: none;
 }
 
+.freq-slider:disabled {
+  opacity: 0.5;
+}
+
 .freq-slider::-webkit-slider-thumb {
   appearance: none;
   width: 10px;
@@ -821,38 +775,17 @@ onUnmounted(() => {
   cursor: pointer;
 }
 
+.freq-slider:disabled::-webkit-slider-thumb {
+  background: #999;
+  cursor: not-allowed;
+}
+
 .freq-value {
   color: #81c784;
   font-weight: bold;
   min-width: 20px;
   text-align: right;
   flex-shrink: 0;
-}
-
-/* 統計資訊 - 緊湊版 */
-.stats-compact {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  min-width: 35px;
-}
-
-.stat-label {
-  color: rgba(255, 255, 255, 0.6);
-  line-height: 1;
-}
-
-.stat-value {
-  color: #64b5f6;
-  font-weight: bold;
-  line-height: 1;
 }
 
 /* 當前情境參數顯示 */
@@ -883,10 +816,11 @@ onUnmounted(() => {
 }
 
 .detail-value {
-  color: #81c784; /* 亮綠色以突顯 */
+  color: #81c784;
   font-weight: bold;
 }
-/* 響應式調整 - 確保在小螢幕上仍然可用 */
+
+/* 響應式調整 */
 @media (max-width: 1024px) {
   .compact-dispatch-system {
     font-size: 10px;
@@ -918,10 +852,6 @@ onUnmounted(() => {
 
   .frequency-control {
     padding: 3px 6px;
-  }
-
-  .stat-item {
-    min-width: 30px;
   }
 }
 
@@ -964,33 +894,9 @@ onUnmounted(() => {
     height: 24px;
   }
 
-  .auto-toggle-compact {
-    padding: 3px 6px;
-  }
-
-  .toggle-icon {
-    font-size: 8px;
-  }
-
-  .toggle-label {
-    font-size: 8px;
-  }
-
   .frequency-control {
     padding: 2px 4px;
     gap: 4px;
-  }
-
-  .stat-item {
-    min-width: 25px;
-  }
-
-  .stat-label {
-    font-size: 7px;
-  }
-
-  .stat-value {
-    font-size: 9px;
   }
 }
 
@@ -1005,7 +911,6 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-/* 按鈕區域 - 響應式 */
 .data-section-buttons {
   display: flex;
   align-items: flex-start;
@@ -1015,7 +920,6 @@ onUnmounted(() => {
   position: relative;
 }
 
-/* 數據顯示區域 - 響應式 */
 .data-section-content {
   flex: 1;
   background-image: url('/images/dataBg.png');
@@ -1028,10 +932,9 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  position: relative; /* 為絕對定位的子元素提供參考點 */
+  position: relative;
 }
 
-/* 交通數據網格佈局 */
 .traffic-data-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1039,7 +942,6 @@ onUnmounted(() => {
   gap: 5px 10px;
 }
 
-/* 交通區域樣式 */
 .traffic-zone {
   padding: 5px 10px;
   display: flex;
@@ -1047,40 +949,33 @@ onUnmounted(() => {
   transition: all 0.3s ease;
 }
 
-/* 各區域微調位置 */
 .east-zone {
   position: relative;
   top: 0px;
   left: -3px;
 }
-
 .west-zone {
   position: relative;
   top: 0px;
   left: 13px;
 }
-
 .south-zone {
   position: relative;
   top: 42px;
   left: -4px;
 }
-
 .north-zone {
   position: relative;
   top: 42px;
   left: 14px;
 }
 
-/* 區域數據 */
 .zone-data {
   flex: 1;
   display: flex;
   flex-direction: column;
-  /* padding-top: 5px; */
 }
 
-/* 數據行 */
 .data-row {
   display: flex;
   justify-content: space-between;
@@ -1096,27 +991,18 @@ onUnmounted(() => {
 .data-row.main-stats {
   font-weight: bold;
   font-size: 12px;
-  background: rgba(255, 255, 255, 0.05);
   padding: 4px 10px;
-  border-radius: 4px;
-  margin-bottom: 2px;
 }
-
 .data-row.speed-stat {
   font-size: 12px;
   font-weight: bold;
-  background: rgba(255, 255, 255, 0.05);
   padding: 4px 10px;
-  border-radius: 4px;
-  margin-bottom: 2px;
   opacity: 1;
 }
-
 .data-label {
   color: white;
   flex: 1;
 }
-
 .data-value {
   color: white;
   font-weight: 600;
@@ -1124,7 +1010,6 @@ onUnmounted(() => {
   min-width: 50px;
   font-size: 13px;
 }
-
 .main-stats .data-value {
   color: white;
   font-size: 13px;
@@ -1138,54 +1023,15 @@ onUnmounted(() => {
   max-height: 50px;
 }
 
-/* 側邊欄響應式 */
-@media (max-width: 1024px) {
-  .set-window-section {
-    height: clamp(150px, 20vh, 200px);
-  }
-
-  .control-button {
-    width: clamp(100px, 40%, 120px);
-  }
-}
-
-@media (max-width: 768px) {
-  .drawer-content {
-    padding: 8px;
-  }
-
-  .data-section-buttons {
-    justify-content: center;
-  }
-
-  .control-button {
-    width: clamp(80px, 35%, 100px);
-    max-height: 40px;
-  }
-}
-
-@media (max-width: 480px) {
-  .set-window-section {
-    height: clamp(120px, 15vh, 150px);
-  }
-
-  .control-button {
-    width: clamp(60px, 30%, 80px);
-    max-height: 30px;
-  }
-}
-
 /* Header 響應式設計 */
 .header-toolbar {
   position: relative;
   min-height: 50px;
 }
-
 .q-toolbar-title img {
   max-width: 100%;
   height: auto;
 }
-
 .header-nav-buttons {
   position: absolute;
   left: 50%;
@@ -1193,7 +1039,6 @@ onUnmounted(() => {
   display: flex;
   gap: 10px;
 }
-
 .nav-button {
   height: 40px;
   width: auto;
@@ -1201,44 +1046,30 @@ onUnmounted(() => {
   transition: opacity 0.3s ease;
   max-width: 120px;
 }
-
 .nav-button:hover {
   opacity: 0.8;
 }
 
-/* 響應式斷點 */
 @media (max-width: 1024px) {
   .header-nav-buttons {
     gap: 5px;
   }
-
   .nav-button {
     height: 35px;
     max-width: 100px;
   }
-
   .q-toolbar-title img {
     width: 150px;
   }
-
-  /* 數據區域響應式調整 */
   .traffic-data-grid {
     gap: 10px;
     min-height: 250px;
   }
-
   .traffic-zone {
     padding: 8px;
   }
-
-  .data-row {
-    font-size: 11px;
-  }
-
-  .data-row.main-stats {
-    font-size: 11px;
-  }
-
+  .data-row,
+  .data-row.main-stats,
   .data-row.speed-stat {
     font-size: 11px;
   }
@@ -1250,47 +1081,32 @@ onUnmounted(() => {
     transform: none;
     margin: 0 auto;
   }
-
   .nav-button {
     height: 30px;
     max-width: 80px;
   }
-
   .q-toolbar-title img {
     width: 120px;
   }
-
   .header-toolbar {
     flex-direction: column;
     align-items: center;
     gap: 10px;
     padding: 10px;
   }
-
-  /* 數據區域響應式調整 */
   .traffic-data-grid {
     gap: 8px;
     min-height: 200px;
   }
-
   .traffic-zone {
     padding: 6px;
   }
-
-  .data-row {
+  .data-row,
+  .data-row.main-stats,
+  .data-row.speed-stat {
     font-size: 10px;
     padding: 2px 0;
   }
-
-  .data-row.main-stats {
-    font-size: 10px;
-    padding: 3px 4px;
-  }
-
-  .data-row.speed-stat {
-    font-size: 10px;
-  }
-
   .data-value {
     min-width: 40px;
   }
@@ -1300,40 +1116,26 @@ onUnmounted(() => {
   .q-toolbar-title img {
     width: 100px;
   }
-
   .nav-button {
     height: 25px;
     max-width: 60px;
   }
-
-  /* 小螢幕數據區域調整 */
   .traffic-data-grid {
     gap: 6px;
     min-height: 180px;
   }
-
   .traffic-zone {
     padding: 4px;
   }
-
-  .data-row {
+  .data-row,
+  .data-row.main-stats,
+  .data-row.speed-stat {
     font-size: 9px;
     padding: 1px 0;
   }
-
-  .data-row.main-stats {
-    font-size: 9px;
-    padding: 2px 3px;
-  }
-
-  .data-row.speed-stat {
-    font-size: 9px;
-  }
-
   .data-value {
     min-width: 35px;
   }
-
   .main-stats .data-value {
     font-size: 9px;
   }
