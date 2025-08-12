@@ -31,7 +31,7 @@ export default class TrafficLightController {
     // API 相關設定
     this.apiEndpoint = 'http://localhost:8000/api/traffic/predict/'
     this.onPredictionUpdate = null // AI 預測更新回調函數
-    this.dataScalingFactor = 0.04 // [修改] 數據縮放因子，使其更接近真實數據
+    this.dataScalingFactor = 0.2 // [修改] 數據縮放因子，使其更接近真實數據
 
     // Strategy Pattern: 動態綠燈時間策略（AI 預測結果）
     this.dynamicTiming = {
@@ -47,10 +47,26 @@ export default class TrafficLightController {
 
     // 車輛數據收集
     this.vehicleData = {
-      east: { motor: 3, small: 5, large: 2 },
-      west: { motor: 4, small: 6, large: 1 },
-      south: { motor: 2, small: 4, large: 3 },
-      north: { motor: 5, small: 7, large: 2 },
+      east: {
+        motor: Math.floor(Math.random() * 11),
+        small: Math.floor(Math.random() * 11),
+        large: Math.floor(Math.random() * 11),
+      },
+      west: {
+        motor: Math.floor(Math.random() * 11),
+        small: Math.floor(Math.random() * 11),
+        large: Math.floor(Math.random() * 11),
+      },
+      south: {
+        motor: Math.floor(Math.random() * 11),
+        small: Math.floor(Math.random() * 11),
+        large: Math.floor(Math.random() * 11),
+      },
+      north: {
+        motor: Math.floor(Math.random() * 11),
+        small: Math.floor(Math.random() * 11),
+        large: Math.floor(Math.random() * 11),
+      },
     }
 
     // ==========================================
@@ -112,7 +128,6 @@ export default class TrafficLightController {
   // 新增：根據容器中心點更新車道位置
   updateLanePositions(containerElement) {
     if (!containerElement) {
-      console.error('❌ 無法更新車道位置：未提供容器元素。 ')
       return
     }
 
