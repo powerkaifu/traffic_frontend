@@ -104,8 +104,8 @@
                   <input
                     type="range"
                     v-model="manualPeakMultiplier"
-                    :min="1.0"
-                    :max="2000.0"
+                    min="0.5"
+                    max="5.0"
                     :step="0.1"
                     @input="updateGenerationConfig"
                     class="freq-slider"
@@ -118,9 +118,9 @@
                   <input
                     type="range"
                     v-model="manualInterval"
-                    :min="0"
-                    :max="30000"
-                    :step="1"
+                    min="500"
+                    max="20000"
+                    :step="100"
                     @input="updateGenerationConfig"
                     class="freq-slider"
                     style="flex: 1"
@@ -347,13 +347,13 @@ const timeScenarios = [
     icon: '🚀',
     timeRange: '07:00-08:00,17:00-18:00',
     config: {
-      interval: { min: 100, max: 2000, normal: 1000 },
+      interval: { min: 500, max: 4000, normal: 1000 }, // Fast interval
       vehicleTypes: [
         { type: 'motor', weight: 60 },
         { type: 'small', weight: 35 },
         { type: 'large', weight: 5 },
       ],
-      peakMultiplier: 400,
+      peakMultiplier: 4.5, // High intensity
       maxLiveVehicles: 150,
       densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
     },
@@ -365,13 +365,13 @@ const timeScenarios = [
     icon: '🌞',
     timeRange: '09:00-16:00,19:00-22:00',
     config: {
-      interval: { min: 500, max: 6000, normal: 3500 },
+      interval: { min: 2000, max: 8000, normal: 4000 }, // Medium interval
       vehicleTypes: [
         { type: 'motor', weight: 30 },
         { type: 'small', weight: 55 },
         { type: 'large', weight: 15 },
       ],
-      peakMultiplier: 60,
+      peakMultiplier: 1.5, // Medium intensity
       maxLiveVehicles: 100,
       densityThresholds: { light: 15, moderate: 30, heavy: 45, congested: 60 },
     },
@@ -383,13 +383,13 @@ const timeScenarios = [
     icon: '🌙',
     timeRange: '23:00-06:00',
     config: {
-      interval: { min: 10000, max: 20000, normal: 15000 },
+      interval: { min: 10000, max: 20000, normal: 15000 }, // Slow interval
       vehicleTypes: [
         { type: 'motor', weight: 80 },
         { type: 'small', weight: 15 },
         { type: 'large', weight: 5 },
       ],
-      peakMultiplier: 10,
+      peakMultiplier: 0.5, // Low intensity
       maxLiveVehicles: 40,
       densityThresholds: { light: 5, moderate: 10, heavy: 15, congested: 20 },
     },
