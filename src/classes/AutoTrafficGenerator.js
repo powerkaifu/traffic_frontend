@@ -9,8 +9,8 @@ export default class AutoTrafficGenerator {
 
     // 預設完整配置
     this.defaultConfig = {
-      interval: { min: 4000, max: 10000, normal: 7000 },
-      densityThresholds: { light: 8, moderate: 16, heavy: 24, congested: 32 },
+      interval: { min: 6000, max: 15000, normal: 10000 },
+      densityThresholds: { light: 5, moderate: 10, heavy: 15, congested: 20 },
       vehicleTypes: [
         { type: 'motor', weight: 35 },
         { type: 'small', weight: 50 },

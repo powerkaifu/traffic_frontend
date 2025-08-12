@@ -635,7 +635,7 @@ export default class TrafficLightController {
     const data = this.vehicleData[direction]
     const totalVehicles = data.motor + data.small + data.large
     // 簡化的占有率計算：基於車輛數量和預估的路段容量
-    const maxCapacity = 20 // 每個方向的最大容量
+    const maxCapacity = 100 // 每個方向的最大容量 (提高此值以降低佔用率敏感度)
     return Math.min((totalVehicles / maxCapacity) * 100, 100).toFixed(1)
   }
 
