@@ -31,7 +31,7 @@ export default class TrafficLightController {
     // API 相關設定
     this.apiEndpoint = 'http://localhost:8000/api/traffic/predict/'
     this.onPredictionUpdate = null // AI 預測更新回調函數
-    this.dataScalingFactor = 0.02 // [修改] 數據縮放因子，使其更接近真實數據
+    this.dataScalingFactor = 0.2 // 重新引入縮放因子，將前端數據縮放到後端模型訓練範圍
 
     // Strategy Pattern: 動態綠燈時間策略（AI 預測結果）
     this.dynamicTiming = {

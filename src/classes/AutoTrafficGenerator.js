@@ -9,8 +9,8 @@ export default class AutoTrafficGenerator {
 
     // 預設完整配置
     this.defaultConfig = {
-      interval: { min: 6000, max: 15000, normal: 10000 },
-      densityThresholds: { light: 5, moderate: 10, heavy: 15, congested: 20 },
+      interval: { min: 15000, max: 30000, normal: 20000 }, // 調整為較長的生成間隔
+      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 }, // 調整密度閾值，使其更難達到高密度
       vehicleTypes: [
         { type: 'motor', weight: 35 },
         { type: 'small', weight: 50 },
@@ -23,7 +23,7 @@ export default class AutoTrafficGenerator {
     // 當前生效配置
     this.config = { ...this.defaultConfig }
     this.statistics = { total: 0 }
-    this.maxLiveVehicles = 200 // 最大同時車輛數
+    this.maxLiveVehicles = 50 // 最大同時車輛數 - 調整為較低值以限制總車輛數
 
     // ==========================================
     // 🚗 自動模式相關屬性
@@ -36,11 +36,11 @@ export default class AutoTrafficGenerator {
 
     // 模擬24小時交通設定檔
     this.trafficProfiles = [
-      { from: 0, to: 6, description: '深夜', peakMultiplier: 0.2, vehicleMix: 'light' },
-      { from: 6, to: 9, description: '上午尖峰', peakMultiplier: 1.5, vehicleMix: 'heavy' },
-      { from: 9, to: 16, description: '日間離峰', peakMultiplier: 0.8, vehicleMix: 'normal' },
-      { from: 16, to: 19, description: '傍晚尖峰', peakMultiplier: 1.4, vehicleMix: 'heavy' },
-      { from: 19, to: 24, description: '夜晚', peakMultiplier: 0.5, vehicleMix: 'normal' },
+      { from: 0, to: 6, description: '深夜', peakMultiplier: 0.1, vehicleMix: 'light' }, // 更低
+      { from: 6, to: 9, description: '上午尖峰', peakMultiplier: 0.8, vehicleMix: 'heavy' }, // 降低
+      { from: 9, to: 16, description: '日間離峰', peakMultiplier: 0.4, vehicleMix: 'normal' }, // 降低
+      { from: 16, to: 19, description: '傍晚尖峰', peakMultiplier: 0.7, vehicleMix: 'heavy' }, // 降低
+      { from: 19, to: 24, description: '夜晚', peakMultiplier: 0.2, vehicleMix: 'normal' }, // 更低
     ]
 
     this.vehicleMixes = {

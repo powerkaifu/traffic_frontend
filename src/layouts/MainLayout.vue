@@ -347,15 +347,15 @@ const timeScenarios = [
     icon: '🚀',
     timeRange: '07:00-08:00,17:00-18:00',
     config: {
-      interval: { min: 500, max: 4000, normal: 1000 }, // Fast interval
+      interval: { min: 5000, max: 10000, normal: 8000 }, // 調整為較慢，但仍比離峰快
       vehicleTypes: [
         { type: 'motor', weight: 60 },
         { type: 'small', weight: 35 },
         { type: 'large', weight: 5 },
       ],
-      peakMultiplier: 4.5, // High intensity
-      maxLiveVehicles: 150,
-      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
+      peakMultiplier: 0.8, // 降低強度
+      maxLiveVehicles: 20, // 大幅降低
+      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 }, // 與 AutoTrafficGenerator 對齊
     },
   },
   {
@@ -365,15 +365,15 @@ const timeScenarios = [
     icon: '🌞',
     timeRange: '09:00-16:00,19:00-22:00',
     config: {
-      interval: { min: 2000, max: 8000, normal: 4000 }, // Medium interval
+      interval: { min: 10000, max: 20000, normal: 15000 }, // 更慢
       vehicleTypes: [
         { type: 'motor', weight: 30 },
         { type: 'small', weight: 55 },
         { type: 'large', weight: 15 },
       ],
-      peakMultiplier: 1.5, // Medium intensity
-      maxLiveVehicles: 100,
-      densityThresholds: { light: 15, moderate: 30, heavy: 45, congested: 60 },
+      peakMultiplier: 0.4, // 降低強度
+      maxLiveVehicles: 10, // 大幅降低
+      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 }, // 與 AutoTrafficGenerator 對齊
     },
   },
   {
@@ -383,15 +383,15 @@ const timeScenarios = [
     icon: '🌙',
     timeRange: '23:00-06:00',
     config: {
-      interval: { min: 10000, max: 20000, normal: 15000 }, // Slow interval
+      interval: { min: 20000, max: 40000, normal: 30000 }, // 非常慢
       vehicleTypes: [
         { type: 'motor', weight: 80 },
         { type: 'small', weight: 15 },
         { type: 'large', weight: 5 },
       ],
-      peakMultiplier: 0.5, // Low intensity
-      maxLiveVehicles: 40,
-      densityThresholds: { light: 5, moderate: 10, heavy: 15, congested: 20 },
+      peakMultiplier: 0.1, // 降低強度
+      maxLiveVehicles: 5, // 大幅降低
+      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 }, // 與 AutoTrafficGenerator 對齊
     },
   },
 ]
