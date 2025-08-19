@@ -9,21 +9,20 @@ export default class AutoTrafficGenerator {
 
     // 預設完整配置
     this.defaultConfig = {
-      interval: { min: 15000, max: 30000, normal: 20000 }, // 調整為較長的生成間隔
+      interval: { min: 10000, max: 60000, normal: 30000 }, // 調整為較長的生成間隔
       densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 }, // 調整密度閾值，使其更難達到高密度
       vehicleTypes: [
         { type: 'motor', weight: 35 },
         { type: 'small', weight: 50 },
         { type: 'large', weight: 15 },
       ],
-      isManualMode: false,
       peakMultiplier: 1.0,
     }
 
     // 當前生效配置
     this.config = { ...this.defaultConfig }
     this.statistics = { total: 0 }
-    this.maxLiveVehicles = 50 // 最大同時車輛數 - 調整為較低值以限制總車輛數
+    this.maxLiveVehicles = 100 // 最大同時車輛數 - 調整為 100
 
     // ==========================================
     // 🚗 自動模式相關屬性
@@ -44,9 +43,21 @@ export default class AutoTrafficGenerator {
     ]
 
     this.vehicleMixes = {
-      light: [{ type: 'small', weight: 70 }, { type: 'motor', weight: 20 }, { type: 'large', weight: 10 }],
-      normal: [{ type: 'small', weight: 50 }, { type: 'motor', weight: 35 }, { type: 'large', weight: 15 }],
-      heavy: [{ type: 'small', weight: 40 }, { type: 'motor', weight: 40 }, { type: 'large', weight: 20 }],
+      light: [
+        { type: 'small', weight: 70 },
+        { type: 'motor', weight: 20 },
+        { type: 'large', weight: 10 },
+      ],
+      normal: [
+        { type: 'small', weight: 50 },
+        { type: 'motor', weight: 35 },
+        { type: 'large', weight: 15 },
+      ],
+      heavy: [
+        { type: 'small', weight: 40 },
+        { type: 'motor', weight: 40 },
+        { type: 'large', weight: 20 },
+      ],
     }
   }
 
@@ -66,12 +77,16 @@ export default class AutoTrafficGenerator {
 
   // 切換場景：完全覆蓋（手動模式）
   updateConfig(newConfig) {
-    this.config = { ...newConfig, isManualMode: true }
+    this.config = { ...this.config, ...newConfig }
+    // 若 newConfig 有 maxLiveVehicles，則同步更新
+    if (typeof newConfig.maxLiveVehicles === 'number') {
+      this.maxLiveVehicles = newConfig.maxLiveVehicles
+    }
     // 如果在自動模式下進行了手動設定，則自動關閉自動模式
     if (this.isAutoMode) {
       this.toggleAutoMode(false)
     }
-    console.log('🔧 已切換手動設定：', this.config)
+    console.log('🔧 已切換手動設定：', this.config, 'maxLiveVehicles:', this.maxLiveVehicles)
   }
 
   // ==========================================
@@ -86,7 +101,6 @@ export default class AutoTrafficGenerator {
   // 切換自動模式
   toggleAutoMode(enabled) {
     this.isAutoMode = enabled
-    this.config.isManualMode = !enabled // 自動模式下，禁用手動模式的間隔計算
 
     if (this.isAutoMode) {
       this._startAutoModeLoop()
@@ -151,12 +165,14 @@ export default class AutoTrafficGenerator {
   // 計算下次間隔
   _calcInterval() {
     const { min, max, normal } = this.config.interval
-    // 在手動模式下，使用滑桿設定的值
-    if (this.config.isManualMode) {
-      return Math.round(normal * (0.9 + Math.random() * 0.2))
+
+    // 手動模式下，直接使用來自UI的`normal`值
+    if (!this.isAutoMode) {
+      const interval = Math.round(normal * (0.9 + Math.random() * 0.2))
+      return Math.max(min, Math.min(max, interval))
     }
 
-    // 在自動模式下，使用 peakMultiplier 和密度共同決定
+    // 自動模式下，使用 peakMultiplier 和密度共同決定
     const density = this._getTotalDensity()
     let base = normal
     const { light, moderate, heavy, congested } = this.config.densityThresholds

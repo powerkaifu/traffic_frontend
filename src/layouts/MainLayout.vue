@@ -119,7 +119,7 @@
                     type="range"
                     v-model="manualInterval"
                     min="500"
-                    max="20000"
+                    max="60000"
                     :step="100"
                     @input="updateGenerationConfig"
                     class="freq-slider"
@@ -347,15 +347,15 @@ const timeScenarios = [
     icon: '🚀',
     timeRange: '07:00-08:00,17:00-18:00',
     config: {
-      interval: { min: 5000, max: 10000, normal: 8000 }, // 調整為較慢，但仍比離峰快
+      interval: { min: 5000, max: 10000, normal: 8000 },
       vehicleTypes: [
         { type: 'motor', weight: 60 },
         { type: 'small', weight: 35 },
         { type: 'large', weight: 5 },
       ],
-      peakMultiplier: 0.8, // 降低強度
-      maxLiveVehicles: 20, // 大幅降低
-      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 }, // 與 AutoTrafficGenerator 對齊
+      peakMultiplier: 0.8,
+      maxLiveVehicles: 100, // 改為 100
+      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
     },
   },
   {
@@ -365,15 +365,15 @@ const timeScenarios = [
     icon: '🌞',
     timeRange: '09:00-16:00,19:00-22:00',
     config: {
-      interval: { min: 10000, max: 20000, normal: 15000 }, // 更慢
+      interval: { min: 10000, max: 20000, normal: 15000 },
       vehicleTypes: [
         { type: 'motor', weight: 30 },
         { type: 'small', weight: 55 },
         { type: 'large', weight: 15 },
       ],
-      peakMultiplier: 0.4, // 降低強度
-      maxLiveVehicles: 10, // 大幅降低
-      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 }, // 與 AutoTrafficGenerator 對齊
+      peakMultiplier: 0.4,
+      maxLiveVehicles: 100, // 改為 100
+      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
     },
   },
   {
@@ -383,15 +383,15 @@ const timeScenarios = [
     icon: '🌙',
     timeRange: '23:00-06:00',
     config: {
-      interval: { min: 20000, max: 40000, normal: 30000 }, // 非常慢
+      interval: { min: 20000, max: 40000, normal: 30000 },
       vehicleTypes: [
         { type: 'motor', weight: 80 },
         { type: 'small', weight: 15 },
         { type: 'large', weight: 5 },
       ],
-      peakMultiplier: 0.1, // 降低強度
-      maxLiveVehicles: 5, // 大幅降低
-      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 }, // 與 AutoTrafficGenerator 對齊
+      peakMultiplier: 0.1,
+      maxLiveVehicles: 100, // 改為 100
+      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
     },
   },
 ]
@@ -490,15 +490,23 @@ function updateGenerationConfig() {
     finalInterval = Math.round(baseInterval / multiplier)
   }
 
-  finalInterval = Math.max(s.config.interval.min, finalInterval)
+  // 讓 min/max 也跟著拉桿動態調整（以拉桿值為中心，上下浮動 50%）
+  const minInterval = Math.max(100, Math.round(finalInterval * 0.5))
+  const maxInterval = Math.round(finalInterval * 1.5)
 
   currentInterval.value = finalInterval
 
   window.autoTrafficGenerator.updateConfig({
     ...s.config,
-    interval: { ...s.config.interval, normal: finalInterval },
+    interval: { min: minInterval, max: maxInterval, normal: finalInterval },
     peakMultiplier: multiplier,
+    maxLiveVehicles: s.config.maxLiveVehicles,
   })
+
+  // 追蹤參數變化
+  console.log('interval:', window.autoTrafficGenerator?.config?.interval)
+  console.log('maxLiveVehicles:', window.autoTrafficGenerator?.maxLiveVehicles)
+  console.log('isAutoMode:', window.autoTrafficGenerator?.isAutoMode)
 }
 
 function switchToTimeScenario(key) {
