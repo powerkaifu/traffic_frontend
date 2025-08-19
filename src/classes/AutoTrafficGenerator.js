@@ -142,22 +142,66 @@ export default class AutoTrafficGenerator {
   // 根據模擬時間套用交通設定檔
   _applyTrafficProfile() {
     const currentHour = this.simulationTime.getHours()
-    const profile = this.trafficProfiles.find((p) => currentHour >= p.from && currentHour < p.to)
-
-    if (profile) {
-      this.config.peakMultiplier = profile.peakMultiplier
-      this.config.vehicleTypes = this.vehicleMixes[profile.vehicleMix]
-
-      // 透過回調函數將當前模擬時間和狀態傳遞給UI
-      if (this.onTimeUpdate) {
-        this.onTimeUpdate({
-          time: this.simulationTime.toLocaleTimeString('it-IT'), // HH:mm:ss 格式
-          description: profile.description,
-        })
+    // 尖峰、離峰、凌晨三大時段
+    let scenario = null
+    if ((currentHour >= 7 && currentHour < 8) || (currentHour >= 17 && currentHour < 18)) {
+      scenario = {
+        name: '尖峰',
+        interval: { min: 5000, max: 10000, normal: 8000 },
+        peakMultiplier: 0.8,
+        vehicleTypes: [
+          { type: 'motor', weight: 60 },
+          { type: 'small', weight: 35 },
+          { type: 'large', weight: 5 },
+        ],
+        description: '尖峰時段',
+      }
+    } else if ((currentHour >= 9 && currentHour < 16) || (currentHour >= 19 && currentHour < 22)) {
+      scenario = {
+        name: '離峰',
+        interval: { min: 10000, max: 20000, normal: 15000 },
+        peakMultiplier: 0.4,
+        vehicleTypes: [
+          { type: 'motor', weight: 30 },
+          { type: 'small', weight: 55 },
+          { type: 'large', weight: 15 },
+        ],
+        description: '離峰時段',
+      }
+    } else {
+      scenario = {
+        name: '凌晨',
+        interval: { min: 20000, max: 40000, normal: 30000 },
+        peakMultiplier: 0.1,
+        vehicleTypes: [
+          { type: 'motor', weight: 80 },
+          { type: 'small', weight: 15 },
+          { type: 'large', weight: 5 },
+        ],
+        description: '凌晨時段',
       }
     }
-  }
 
+    // interval.normal 加入隨機波動 ±10%
+    const rand = 0.9 + Math.random() * 0.2
+    const normalInterval = Math.round(scenario.interval.normal * rand)
+    this.config.interval = {
+      min: scenario.interval.min,
+      max: scenario.interval.max,
+      normal: normalInterval,
+    }
+    this.config.peakMultiplier = scenario.peakMultiplier
+    this.config.vehicleTypes = scenario.vehicleTypes
+
+    // 回傳給 UI
+    if (this.onTimeUpdate) {
+      this.onTimeUpdate({
+        time: this.simulationTime.toLocaleTimeString('it-IT'),
+        description: scenario.description,
+      })
+    }
+    // console.log('[AutoMode] Scenario:', scenario.name, 'Interval:', this.config.interval);
+  }
   // ==========================================
   //  генерирање возила (Vehicle Generation)
   // ==========================================

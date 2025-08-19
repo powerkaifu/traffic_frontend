@@ -167,8 +167,8 @@ const activeCars = ref([]) // 維護活躍車輛列表
 
 // AI 預測結果
 const aiPrediction = ref({
-  eastWest: 15,
-  northSouth: 15,
+  eastWest: 0,
+  northSouth: 0,
 })
 
 onMounted(() => {

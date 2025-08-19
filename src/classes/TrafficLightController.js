@@ -35,8 +35,8 @@ export default class TrafficLightController {
 
     // Strategy Pattern: 動態綠燈時間策略（AI 預測結果）
     this.dynamicTiming = {
-      eastWest: 15, // 東西向綠燈時間（秒）
-      northSouth: 15, // 南北向綠燈時間（秒）- 一開始以南北向為主
+      eastWest: 12, // 東西向綠燈時間（秒）
+      northSouth: 12, // 南北向綠燈時間（秒）- 一開始以南北向為主
     }
 
     // Strategy Pattern: 下一輪的時間預測策略（提前獲取）

@@ -52,7 +52,7 @@
                     @click="toggleAutoMode"
                     size="sm"
                     class="mode-toggle-btn"
-                    :label="isAutoMode ? '自動模式' : '手動模式'"
+                    :label="isAutoMode ? '每日自動模式' : '情境手動模式'"
                   >
                   </q-btn>
                 </div>
