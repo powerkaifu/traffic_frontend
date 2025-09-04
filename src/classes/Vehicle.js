@@ -56,7 +56,8 @@ export default class Vehicle {
       scale: 0.5, // 初始設為縮小
     })
 
-    // 已移除車道編號標籤顯示
+    // 新增車道編號標籤顯示
+    this.createLaneLabel()
 
     // Observer Pattern: 通知交通控制器車輛生成事件
     this.notifyTrafficController()
@@ -166,7 +167,33 @@ export default class Vehicle {
   }
 
   // Composite Pattern: 創建車道編號標籤組件
-  // 已移除車道編號標籤顯示
+  createLaneLabel() {
+    // Composite Pattern: 創建車道編號標籤作為車輛的子組件
+    this.laneLabel = document.createElement('div')
+    this.laneLabel.className = 'lane-label'
+    this.laneLabel.textContent = this.laneNumber
+    this.laneLabel.style.cssText = `
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 1px 4px;
+      border-radius: 8px;
+      border: 1px solid #ffcc00;
+      z-index: 15;
+      pointer-events: none;
+      min-width: 12px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    `
+
+    // 將標籤添加到車輛元素中
+    this.element.appendChild(this.laneLabel)
+  }
 
   // Factory Pattern + Strategy Pattern: 獲取車輛配置的工廠策略方法
   getVehicleConfig() {
@@ -222,10 +249,10 @@ export default class Vehicle {
     } else if (this.direction === 'west') {
       return { x: centralX + centralWidth, y: null }
     } else if (this.direction === 'north') {
-      const northOffset = 150 // 車頭停在矩形下邊界下方5px
+      const northOffset = 0 // 車頭停在矩形下邊界下方5px
       return { x: null, y: centralY + centralHeight - northOffset }
     } else if (this.direction === 'south') {
-      const southOffset = -150 // 車頭停在矩形上邊界上方5px
+      const southOffset = 0 // 車頭停在矩形上邊界上方5px
       return { x: null, y: centralY + southOffset }
     }
 
@@ -1155,6 +1182,12 @@ export default class Vehicle {
     if (this.movementTimeline) {
       this.movementTimeline.kill()
       this.movementTimeline = null
+    }
+
+    // 清理車道標籤
+    if (this.laneLabel && this.laneLabel.parentNode) {
+      this.laneLabel.parentNode.removeChild(this.laneLabel)
+      this.laneLabel = null
     }
 
     // 移除DOM元素

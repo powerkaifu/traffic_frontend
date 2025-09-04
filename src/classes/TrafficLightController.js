@@ -123,8 +123,8 @@ export default class TrafficLightController {
     // 這些值是根據您舊的固定座標推算出來的，可能需要微調以完全符合您的視覺設計
     const southLaneXOffsets = [-23, -51, -78, -107] // 往南車道 X 軸偏移
     const northLaneXOffsets = [5, 34, 62, 91] // 往北車道 X 軸偏移
-    const eastLaneYOffsets = [-146, -119, -89, -61] // 往東車道 Y 軸偏移
-    const westLaneYOffsets = [-175, -203, -230, -256] // 往西車道 Y 軸偏移
+    const eastLaneYOffsets = [95, 63, 33, 6] // 往東車道 Y 軸偏移
+    const westLaneYOffsets = [-23, -52, -75, -105] // 往西車道 Y 軸偏移
     // 定義車輛的起始位置（在畫面外部）
     const startXEast = -150 // 畫面左側外部
     const startXWest = containerWidth + 150 // 畫面右側外部
