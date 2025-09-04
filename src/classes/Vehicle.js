@@ -523,10 +523,16 @@ export default class Vehicle {
 
       // 如果在同一車道且在前方，且距離小於安全距離
       if (inSameLane && isFront && distanceToFrontVehicle < adjustedSafeDistance) {
+        // 根據距離判斷應該採取的行動
+        const followingDistance = adjustedSafeDistance * 0.6; // 跟隨距離為安全距離的60%
+        const shouldFollow = distanceToFrontVehicle > adjustedStopDistance && distanceToFrontVehicle <= followingDistance;
+        
         return {
           vehicle: vehicle,
           distance: distanceToFrontVehicle,
           shouldStop: distanceToFrontVehicle < adjustedStopDistance,
+          shouldFollow: shouldFollow,
+          followingSpeed: shouldFollow ? this.calculateFollowingSpeed(vehicle, distanceToFrontVehicle, followingDistance) : null,
           isOverlapping: false,
         }
       }
@@ -534,12 +540,77 @@ export default class Vehicle {
     return null
   }
 
+  // 計算跟隨前車的速度
+  calculateFollowingSpeed(frontVehicle, distance, idealDistance) {
+    // 獲取前車的當前速度
+    let frontVehicleSpeed = frontVehicle.currentSpeed || frontVehicle.initialSpeed;
+    
+    // 如果前車停止，本車也應該停止
+    if (frontVehicle.currentState === 'waiting' || 
+        frontVehicle.currentState === 'waitingForVehicle' ||
+        frontVehicle.waitingForGreen) {
+      return 0;
+    }
+    
+    // 距離因子：距離越近，速度越慢
+    const distanceFactor = Math.min(1, distance / idealDistance);
+    
+    // 基本跟隨速度：不超過前車速度的90%
+    const baseFollowingSpeed = Math.min(frontVehicleSpeed * 0.9, this.initialSpeed);
+    
+    // 根據距離調整速度
+    const adjustedSpeed = baseFollowingSpeed * distanceFactor;
+    
+    // 確保最低速度為原速度的20%
+    return Math.max(adjustedSpeed, this.initialSpeed * 0.2);
+  }
+
+  // 進入跟隨模式
+  enterFollowingMode(targetSpeed) {
+    if (!this.movementTimeline) return;
+    
+    // 如果已經在跟隨模式且速度相近，不需要重複調整
+    if (this.currentState === 'following' && 
+        Math.abs((this.movementTimeline.timeScale() * this.initialSpeed) - targetSpeed) < 2) {
+      return;
+    }
+    
+    this.currentState = 'following';
+    
+    // 計算目標timeScale（基於目標速度與原始速度的比例）
+    const baseTimeScale = this.originalTimeScale || 1;
+    const targetTimeScale = (targetSpeed / this.initialSpeed) * baseTimeScale;
+    
+    // 平滑調整到目標速度
+    gsap.to(this.movementTimeline, {
+      timeScale: Math.max(0.1, targetTimeScale), // 最小timeScale為0.1
+      duration: 0.5,
+      ease: 'power2.out'
+    });
+  }
+
+  // 退出跟隨模式，恢復正常速度
+  exitFollowingMode() {
+    if (!this.movementTimeline || this.currentState !== 'following') return;
+    
+    this.currentState = 'moving';
+    const targetTimeScale = this.originalTimeScale || 1;
+    
+    gsap.to(this.movementTimeline, {
+      timeScale: targetTimeScale,
+      duration: 0.8,
+      ease: 'power2.inOut'
+    });
+  }
+
   // State Pattern: 停止移動狀態控制方法
   stopMovement() {
     // State Pattern: 管理車輛從移動狀態轉換為等待狀態
     if (this.movementTimeline) {
       this.movementTimeline.pause()
-      if (this.currentState !== 'waitingForVehicle' && this.currentState !== 'waiting') {
+      if (this.currentState !== 'waitingForVehicle' && 
+          this.currentState !== 'waiting' && 
+          this.currentState !== 'following') {
         this.currentState = 'waiting'
       }
     }
@@ -552,20 +623,34 @@ export default class Vehicle {
       // 再次檢查前方是否還有車輛
       const frontCollision = this.checkFrontCollision(allVehicles)
 
-      // 如果沒有碰撞，或者沒有重疊且不需要停止，則可以恢復移動
-      if (!frontCollision || (!frontCollision.isOverlapping && !frontCollision.shouldStop)) {
-        // 如果前車正在減速或等待，確保增加足夠的安全距離
-        if (
-          frontCollision &&
-          (frontCollision.vehicle.currentState === 'slowing_for_light' || frontCollision.vehicle.waitingForGreen)
-        ) {
-          // 如果前車在等待紅燈或減速中，保持較大距離
-          if (frontCollision.distance < 20) {
-            return
-          }
-        }
+      if (!frontCollision) {
+        // 沒有前車，直接恢復正常移動
         this.movementTimeline.resume()
         this.currentState = 'moving'
+        return
+      }
+
+      // 如果有前車但沒有重疊
+      if (!frontCollision.isOverlapping) {
+        if (frontCollision.shouldFollow && frontCollision.followingSpeed !== null) {
+          // 進入跟隨模式
+          this.movementTimeline.resume()
+          this.enterFollowingMode(frontCollision.followingSpeed)
+          return
+        } else if (!frontCollision.shouldStop) {
+          // 如果前車正在減速或等待，確保增加足夠的安全距離
+          if (
+            frontCollision.vehicle.currentState === 'slowing_for_light' || 
+            frontCollision.vehicle.waitingForGreen
+          ) {
+            if (frontCollision.distance < 20) {
+              return
+            }
+          }
+          // 距離足夠，可以正常移動
+          this.movementTimeline.resume()
+          this.currentState = 'moving'
+        }
       }
     }
   }
@@ -700,24 +785,30 @@ export default class Vehicle {
             if (currentLightState === 'green') {
               // 檢查 timeScale，如果為 0 需要特殊處理
               if (this.movementTimeline.timeScale() === 0) {
-                const targetTimeScale = this.originalTimeScale || 1
-                gsap.to(this.movementTimeline, {
-                  timeScale: targetTimeScale,
-                  duration: 0.3,
-                  ease: 'power2.inOut',
-                  onComplete: () => {
-                    this.movementTimeline.resume()
-                    this.currentState = 'moving'
-                    this.waitingForGreen = false
-                    this.isAtStopLine = false
-                    this.hasPassedStopLine = true
-                    this.originalTimeScale = null
-                  },
-                })
+                // 使用智能等待機制
+                this.waitForIntersectionClearance(allVehicles, () => {
+                  const targetTimeScale = this.originalTimeScale || 1
+                  gsap.to(this.movementTimeline, {
+                    timeScale: targetTimeScale,
+                    duration: 0.3,
+                    ease: 'power2.inOut',
+                    onComplete: () => {
+                      this.movementTimeline.resume()
+                      this.currentState = 'moving'
+                      this.waitingForGreen = false
+                      this.isAtStopLine = false
+                      this.hasPassedStopLine = true
+                      this.originalTimeScale = null
+                    },
+                  })
+                });
               } else {
-                this.forceResumeMovement(allVehicles)
-                this.isAtStopLine = false
-                this.hasPassedStopLine = true
+                // 使用智能等待機制
+                this.waitForIntersectionClearance(allVehicles, () => {
+                  this.forceResumeMovement(allVehicles)
+                  this.isAtStopLine = false
+                  this.hasPassedStopLine = true
+                });
               }
             }
           }
@@ -728,6 +819,24 @@ export default class Vehicle {
             // 確保沒有重疊且距離足夠才恢復移動
             if (!frontCollision || (!frontCollision.isOverlapping && frontCollision.distance > 15)) {
               this.resumeMovement(allVehicles)
+            }
+          }
+
+          // 如果車輛在跟隨模式，持續檢查前車狀態並調整速度
+          if (this.currentState === 'following') {
+            const frontCollision = this.checkFrontCollision(allVehicles)
+            if (frontCollision) {
+              if (frontCollision.shouldFollow && frontCollision.followingSpeed !== null) {
+                // 更新跟隨速度
+                this.enterFollowingMode(frontCollision.followingSpeed);
+              } else if (frontCollision.shouldStop || frontCollision.isOverlapping) {
+                // 前車太近，需要停車
+                this.stopMovement();
+                this.currentState = 'waitingForVehicle';
+              }
+            } else {
+              // 前方沒有車輛了，退出跟隨模式
+              this.exitFollowingMode();
             }
           }
         }, 2000) // 每2秒檢查一次
@@ -788,7 +897,7 @@ export default class Vehicle {
             let handleFrontCollision = false
 
             if (frontCollision) {
-              const { vehicle: frontVehicle, shouldStop, isOverlapping } = frontCollision
+              const { vehicle: frontVehicle, shouldStop, shouldFollow, followingSpeed, isOverlapping } = frontCollision
 
               // 如果有重疊，立即停車
               if (isOverlapping) {
@@ -797,6 +906,13 @@ export default class Vehicle {
                   this.currentState = 'waitingForVehicle'
                 }
                 return
+              }
+
+              // 如果應該跟隨，進入跟隨模式
+              if (shouldFollow && followingSpeed !== null) {
+                this.enterFollowingMode(followingSpeed);
+                handleFrontCollision = true;
+                return;
               }
 
               // 如果前方車輛停止或距離太近，則停車
@@ -877,10 +993,13 @@ export default class Vehicle {
                 // Observer Pattern: 監聽紅綠燈變化的觀察者實現
                 const onLightChange = (direction, state) => {
                   if (direction === this.direction && state === 'green' && this.waitingForGreen) {
-                    // 使用強制恢復移動方法（內含隨機延遲）
-                    this.forceResumeMovement(allVehicles)
-                    this.isAtStopLine = false
-                    this.hasPassedStopLine = true // 標記已通過停止線
+                    // 智能等待：檢查路口是否安全
+                    this.waitForIntersectionClearance(allVehicles, () => {
+                      // 路口清空後才啟動
+                      this.forceResumeMovement(allVehicles)
+                      this.isAtStopLine = false
+                      this.hasPassedStopLine = true
+                    });
 
                     // 移除觀察者
                     trafficController.removeObserver(onLightChange)
@@ -898,24 +1017,30 @@ export default class Vehicle {
                     if (currentLightState === 'green') {
                       // 檢查 timeScale，如果為 0 需要特殊處理
                       if (this.movementTimeline.timeScale() === 0) {
-                        const targetTimeScale = this.originalTimeScale || 1
-                        gsap.to(this.movementTimeline, {
-                          timeScale: targetTimeScale,
-                          duration: 0.3,
-                          ease: 'power2.inOut',
-                          onComplete: () => {
-                            this.movementTimeline.resume()
-                            this.currentState = 'moving'
-                            this.waitingForGreen = false
-                            this.isAtStopLine = false
-                            this.hasPassedStopLine = true
-                            this.originalTimeScale = null
-                          },
-                        })
+                        // 使用智能等待機制
+                        this.waitForIntersectionClearance(allVehicles, () => {
+                          const targetTimeScale = this.originalTimeScale || 1
+                          gsap.to(this.movementTimeline, {
+                            timeScale: targetTimeScale,
+                            duration: 0.3,
+                            ease: 'power2.inOut',
+                            onComplete: () => {
+                              this.movementTimeline.resume()
+                              this.currentState = 'moving'
+                              this.waitingForGreen = false
+                              this.isAtStopLine = false
+                              this.hasPassedStopLine = true
+                              this.originalTimeScale = null
+                            },
+                          })
+                        });
                       } else {
-                        this.forceResumeMovement(allVehicles)
-                        this.isAtStopLine = false
-                        this.hasPassedStopLine = true
+                        // 使用智能等待機制
+                        this.waitForIntersectionClearance(allVehicles, () => {
+                          this.forceResumeMovement(allVehicles)
+                          this.isAtStopLine = false
+                          this.hasPassedStopLine = true
+                        });
                       }
                       trafficController.removeObserver(onLightChange)
                     }
@@ -1030,5 +1155,84 @@ export default class Vehicle {
     if (this.element.parentNode) {
       this.element.parentNode.removeChild(this.element)
     }
+  }
+
+  // 檢測路口是否有對向車輛（用於綠燈啟動前的安全檢查）
+  checkIntersectionClearance(allVehicles) {
+    const intersectionCenter = this.getIntersectionCenter();
+    const intersectionRadius = 80; // 路口檢測半徑
+    
+    // 獲取垂直方向的車輛
+    const perpendicularDirections = this.getPerpendicularDirections();
+    
+    for (let vehicle of allVehicles) {
+      if (vehicle.id === this.id) continue;
+      
+      // 只檢查垂直方向的車輛
+      if (!perpendicularDirections.includes(vehicle.direction)) continue;
+      
+      const vehiclePos = vehicle.getCurrentPosition();
+      const distanceToCenter = Math.sqrt(
+        Math.pow(vehiclePos.x - intersectionCenter.x, 2) + 
+        Math.pow(vehiclePos.y - intersectionCenter.y, 2)
+      );
+      
+      // 如果對向車輛在路口範圍內
+      if (distanceToCenter < intersectionRadius) {
+        return {
+          hasConflictingVehicle: true,
+          conflictingVehicle: vehicle,
+          distance: distanceToCenter
+        };
+      }
+    }
+    
+    return { hasConflictingVehicle: false };
+  }
+
+  // 獲取垂直方向的方向數組
+  getPerpendicularDirections() {
+    if (this.direction === 'east' || this.direction === 'west') {
+      return ['north', 'south'];
+    } else {
+      return ['east', 'west'];
+    }
+  }
+
+  // 獲取路口中心點（如果之前沒有的話）
+  getIntersectionCenter() {
+    const centralRef = document.querySelector('.central-reference');
+    if (!centralRef) return { x: 400, y: 300 }; // 默認中心點
+    
+    const container = document.querySelector('.crossroad-area');
+    if (!container) return { x: 400, y: 300 };
+    
+    const centralRect = centralRef.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    
+    return {
+      x: centralRect.left - containerRect.left + centralRect.width / 2,
+      y: centralRect.top - containerRect.top + centralRect.height / 2
+    };
+  }
+
+  // 智能等待路口清空
+  waitForIntersectionClearance(allVehicles, callback) {
+    const checkClearance = () => {
+      const clearanceResult = this.checkIntersectionClearance(allVehicles);
+      
+      if (!clearanceResult.hasConflictingVehicle) {
+        // 路口已清空，添加小隨機延遲後啟動
+        const randomDelay = 0.5 + Math.random() * 1.0; // 0.5-1.5秒隨機延遲
+        gsap.delayedCall(randomDelay, callback);
+        return;
+      }
+      
+      // 還有對向車輛，繼續等待
+      gsap.delayedCall(0.5, checkClearance); // 每0.5秒檢查一次
+    };
+    
+    // 開始檢查
+    checkClearance();
   }
 }
