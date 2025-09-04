@@ -31,7 +31,7 @@ export default class TrafficLightController {
     // API 相關設定
     this.apiEndpoint = 'http://localhost:8000/api/traffic/predict/'
     this.onPredictionUpdate = null // AI 預測更新回調函數
-    this.dataScalingFactor = 0.2 // 重新引入縮放因子，將前端數據縮放到後端模型訓練範圍
+    this.dataScalingFactor = 1.5 // 調整縮放因子，增加車流量數據以獲得約60秒的綠燈時間
 
     // Strategy Pattern: 動態綠燈時間策略（AI 預測結果）
     this.dynamicTiming = {
@@ -559,9 +559,15 @@ export default class TrafficLightController {
     // 為每個方向生成 VD 數據
     Object.keys(this.vehicleData).forEach((direction, index) => {
       const data = this.vehicleData[direction]
-      const scaledMotor = Math.round(data.motor * this.dataScalingFactor)
-      const scaledSmall = Math.round(data.small * this.dataScalingFactor)
-      const scaledLarge = Math.round(data.large * this.dataScalingFactor)
+      
+      // 應用縮放因子並確保最小車流量（模擬中等交通流量）
+      const minMotor = 3 // 最少機車數量
+      const minSmall = 2 // 最少小客車數量
+      const minLarge = 1 // 最少大客車數量
+      
+      const scaledMotor = Math.max(Math.round(data.motor * this.dataScalingFactor), minMotor)
+      const scaledSmall = Math.max(Math.round(data.small * this.dataScalingFactor), minSmall)
+      const scaledLarge = Math.max(Math.round(data.large * this.dataScalingFactor), minLarge)
       const totalVehicles = scaledMotor + scaledSmall + scaledLarge
 
       // 計算平均速度
@@ -634,9 +640,12 @@ export default class TrafficLightController {
   calculateOccupancy(direction) {
     const data = this.vehicleData[direction]
     const totalVehicles = data.motor + data.small + data.large
-    // 簡化的占有率計算：基於車輛數量和預估的路段容量
-    const maxCapacity = 100 // 每個方向的最大容量 (提高此值以降低佔用率敏感度)
-    return Math.min((totalVehicles / maxCapacity) * 100, 100).toFixed(1)
+    // 調整占有率計算：增加基礎占有率以模擬中等流量情況
+    const maxCapacity = 60 // 降低最大容量以提高占有率敏感度，模擬較繁忙路段
+    const baseOccupancy = 15 // 基礎占有率，確保即使車輛較少時也有一定的占有率
+    const calculatedOccupancy = (totalVehicles / maxCapacity) * 100
+    const finalOccupancy = Math.min(baseOccupancy + calculatedOccupancy, 100)
+    return finalOccupancy.toFixed(1)
   }
 
   // Strategy Pattern: 發送數據到後端 API（提前 10 秒請求）
