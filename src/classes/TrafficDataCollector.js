@@ -10,6 +10,19 @@ export default class TrafficDataCollector {
       apiSendInterval: 60000,
       dataWindowSize: 300000,
       maxHistorySize: 100,
+      // VD數據範圍約束配置
+      volumeLimits: {
+        maxVolumePerType: 20, // 每種車型最大Volume（基於VD訓練數據範圍）
+        maxTotalVolume: 50, // 每個方向總Volume上限
+        enableVolumeNormalization: true, // 啟用Volume正規化
+        enableDataCapping: true, // 啟用數據上限截斷
+      },
+      // 速度範圍約束（基於VD數據觀察）
+      speedLimits: {
+        minSpeed: 0,
+        maxSpeed: 80, // km/h
+        defaultSpeed: 40,
+      },
     }
     this.currentPeriodData = {
       startTime: null,
@@ -305,6 +318,9 @@ export default class TrafficDataCollector {
   prepareApiData() {
     const summary = this.getCurrentPeriodSummary()
 
+    // 應用數據範圍約束
+    const normalizedSummary = this.normalizeDataForBackend(summary)
+
     return {
       timestamp: new Date().toISOString(),
       collection_period: {
@@ -317,59 +333,155 @@ export default class TrafficDataCollector {
       },
       traffic_flow: {
         east: {
-          motor_count: summary.totalCount.east.motor,
-          small_car_count: summary.totalCount.east.small,
-          large_car_count: summary.totalCount.east.large,
-          total_count: summary.totalCount.east.total,
-          average_speed: summary.averageSpeed.east.overall,
-          motor_speed: summary.averageSpeed.east.motor,
-          small_car_speed: summary.averageSpeed.east.small,
-          large_car_speed: summary.averageSpeed.east.large,
-          occupancy: summary.occupancy.east,
+          motor_count: normalizedSummary.totalCount.east.motor,
+          small_car_count: normalizedSummary.totalCount.east.small,
+          large_car_count: normalizedSummary.totalCount.east.large,
+          total_count: normalizedSummary.totalCount.east.total,
+          average_speed: normalizedSummary.averageSpeed.east.overall,
+          motor_speed: normalizedSummary.averageSpeed.east.motor,
+          small_car_speed: normalizedSummary.averageSpeed.east.small,
+          large_car_speed: normalizedSummary.averageSpeed.east.large,
+          occupancy: normalizedSummary.occupancy.east,
         },
         west: {
-          motor_count: summary.totalCount.west.motor,
-          small_car_count: summary.totalCount.west.small,
-          large_car_count: summary.totalCount.west.large,
-          total_count: summary.totalCount.west.total,
-          average_speed: summary.averageSpeed.west.overall,
-          motor_speed: summary.averageSpeed.west.motor,
-          small_car_speed: summary.averageSpeed.west.small,
-          large_car_speed: summary.averageSpeed.west.large,
-          occupancy: summary.occupancy.west,
+          motor_count: normalizedSummary.totalCount.west.motor,
+          small_car_count: normalizedSummary.totalCount.west.small,
+          large_car_count: normalizedSummary.totalCount.west.large,
+          total_count: normalizedSummary.totalCount.west.total,
+          average_speed: normalizedSummary.averageSpeed.west.overall,
+          motor_speed: normalizedSummary.averageSpeed.west.motor,
+          small_car_speed: normalizedSummary.averageSpeed.west.small,
+          large_car_speed: normalizedSummary.averageSpeed.west.large,
+          occupancy: normalizedSummary.occupancy.west,
         },
         south: {
-          motor_count: summary.totalCount.south.motor,
-          small_car_count: summary.totalCount.south.small,
-          large_car_count: summary.totalCount.south.large,
-          total_count: summary.totalCount.south.total,
-          average_speed: summary.averageSpeed.south.overall,
-          motor_speed: summary.averageSpeed.south.motor,
-          small_car_speed: summary.averageSpeed.south.small,
-          large_car_speed: summary.averageSpeed.south.large,
-          occupancy: summary.occupancy.south,
+          motor_count: normalizedSummary.totalCount.south.motor,
+          small_car_count: normalizedSummary.totalCount.south.small,
+          large_car_count: normalizedSummary.totalCount.south.large,
+          total_count: normalizedSummary.totalCount.south.total,
+          average_speed: normalizedSummary.averageSpeed.south.overall,
+          motor_speed: normalizedSummary.averageSpeed.south.motor,
+          small_car_speed: normalizedSummary.averageSpeed.south.small,
+          large_car_speed: normalizedSummary.averageSpeed.south.large,
+          occupancy: normalizedSummary.occupancy.south,
         },
         north: {
-          motor_count: summary.totalCount.north.motor,
-          small_car_count: summary.totalCount.north.small,
-          large_car_count: summary.totalCount.north.large,
-          total_count: summary.totalCount.north.total,
-          average_speed: summary.averageSpeed.north.overall,
-          motor_speed: summary.averageSpeed.north.motor,
-          small_car_speed: summary.averageSpeed.north.small,
-          large_car_speed: summary.averageSpeed.north.large,
-          occupancy: summary.occupancy.north,
+          motor_count: normalizedSummary.totalCount.north.motor,
+          small_car_count: normalizedSummary.totalCount.north.small,
+          large_car_count: normalizedSummary.totalCount.north.large,
+          total_count: normalizedSummary.totalCount.north.total,
+          average_speed: normalizedSummary.averageSpeed.north.overall,
+          motor_speed: normalizedSummary.averageSpeed.north.motor,
+          small_car_speed: normalizedSummary.averageSpeed.north.small,
+          large_car_speed: normalizedSummary.averageSpeed.north.large,
+          occupancy: normalizedSummary.occupancy.north,
         },
       },
       metadata: {
-        collector_version: '1.0.0',
-        total_vehicles_processed: Object.values(summary.totalCount).reduce(
+        collector_version: '1.1.0',
+        total_vehicles_processed: Object.values(normalizedSummary.totalCount).reduce(
           (total, direction) => total + direction.total,
           0,
         ),
         collection_method: 'real_time_event_based',
+        data_normalized: this.config.volumeLimits.enableVolumeNormalization,
+        volume_capped: this.config.volumeLimits.enableDataCapping,
+        backend_compatibility: 'vd_data_range_0_20',
       },
     }
+  }
+
+  /**
+   * 對數據進行後端兼容性正規化
+   */
+  normalizeDataForBackend(summary) {
+    const normalized = JSON.parse(JSON.stringify(summary))
+    const directions = ['east', 'west', 'south', 'north']
+    const vehicleTypes = ['motor', 'small', 'large']
+
+    console.log('📊 開始數據正規化，確保後端AI模型兼容性...')
+
+    let adjustmentsMade = false
+
+    directions.forEach((direction) => {
+      vehicleTypes.forEach((type) => {
+        const originalCount = normalized.totalCount[direction][type]
+
+        // 應用Volume上限約束
+        if (this.config.volumeLimits.enableDataCapping) {
+          if (originalCount > this.config.volumeLimits.maxVolumePerType) {
+            normalized.totalCount[direction][type] = this.config.volumeLimits.maxVolumePerType
+            adjustmentsMade = true
+            console.log(
+              `⚠️ ${direction}-${type} Volume從 ${originalCount} 調整至 ${this.config.volumeLimits.maxVolumePerType}`,
+            )
+          }
+        }
+
+        // 速度範圍約束
+        const originalSpeed = normalized.averageSpeed[direction][type]
+        if (originalSpeed > this.config.speedLimits.maxSpeed) {
+          normalized.averageSpeed[direction][type] = this.config.speedLimits.maxSpeed
+          adjustmentsMade = true
+        } else if (originalSpeed < this.config.speedLimits.minSpeed) {
+          normalized.averageSpeed[direction][type] = this.config.speedLimits.minSpeed
+          adjustmentsMade = true
+        }
+      })
+
+      // 重新計算總計數
+      normalized.totalCount[direction].total =
+        normalized.totalCount[direction].motor +
+        normalized.totalCount[direction].small +
+        normalized.totalCount[direction].large
+
+      // 檢查總Volume是否超過上限
+      if (
+        this.config.volumeLimits.enableDataCapping &&
+        normalized.totalCount[direction].total > this.config.volumeLimits.maxTotalVolume
+      ) {
+        // 按比例縮放
+        const scale = this.config.volumeLimits.maxTotalVolume / normalized.totalCount[direction].total
+        vehicleTypes.forEach((type) => {
+          normalized.totalCount[direction][type] = Math.floor(normalized.totalCount[direction][type] * scale)
+        })
+        normalized.totalCount[direction].total =
+          normalized.totalCount[direction].motor +
+          normalized.totalCount[direction].small +
+          normalized.totalCount[direction].large
+        adjustmentsMade = true
+        console.log(`⚠️ ${direction} 總Volume已按比例縮放至 ${normalized.totalCount[direction].total}`)
+      }
+
+      // 重新計算整體平均速度
+      const totalVehicles = normalized.totalCount[direction].total
+      if (totalVehicles > 0) {
+        const weightedSpeed =
+          normalized.averageSpeed[direction].motor * normalized.totalCount[direction].motor +
+          normalized.averageSpeed[direction].small * normalized.totalCount[direction].small +
+          normalized.averageSpeed[direction].large * normalized.totalCount[direction].large
+        normalized.averageSpeed[direction].overall = Math.round(weightedSpeed / totalVehicles)
+      } else {
+        normalized.averageSpeed[direction].overall = 0
+      }
+
+      // 佔用率約束（0-100%）
+      if (normalized.occupancy[direction] > 100) {
+        normalized.occupancy[direction] = 100
+        adjustmentsMade = true
+      } else if (normalized.occupancy[direction] < 0) {
+        normalized.occupancy[direction] = 0
+        adjustmentsMade = true
+      }
+    })
+
+    if (adjustmentsMade) {
+      console.log('✅ 數據正規化完成，已確保與後端AI模型訓練範圍一致')
+    } else {
+      console.log('✅ 數據在允許範圍內，無需調整')
+    }
+
+    return normalized
   }
 
   /**
@@ -481,6 +593,85 @@ export default class TrafficDataCollector {
       this.stop()
       setTimeout(() => this.start(), 1000)
     }
+  }
+
+  /**
+   * 設置VD數據兼容性配置
+   */
+  setVDCompatibilityConfig(config) {
+    const vdConfig = {
+      volumeLimits: {
+        maxVolumePerType: config.maxVolumePerType || 20,
+        maxTotalVolume: config.maxTotalVolume || 50,
+        enableVolumeNormalization: config.enableVolumeNormalization !== false,
+        enableDataCapping: config.enableDataCapping !== false,
+      },
+      speedLimits: {
+        minSpeed: config.minSpeed || 0,
+        maxSpeed: config.maxSpeed || 80,
+        defaultSpeed: config.defaultSpeed || 40,
+      },
+    }
+
+    this.updateConfig(vdConfig)
+    console.log('🔧 VD數據兼容性配置已更新:', vdConfig)
+  }
+
+  /**
+   * 獲取VD數據範圍統計
+   */
+  getVDRangeAnalysis() {
+    const summary = this.getCurrentPeriodSummary()
+    const directions = ['east', 'west', 'south', 'north']
+    const vehicleTypes = ['motor', 'small', 'large']
+
+    const analysis = {
+      volumeAnalysis: {},
+      speedAnalysis: {},
+      exceedsLimits: false,
+      recommendations: [],
+    }
+
+    directions.forEach((direction) => {
+      analysis.volumeAnalysis[direction] = {}
+      analysis.speedAnalysis[direction] = {}
+
+      vehicleTypes.forEach((type) => {
+        const volume = summary.totalCount[direction][type]
+        const speed = summary.averageSpeed[direction][type]
+
+        analysis.volumeAnalysis[direction][type] = {
+          current: volume,
+          maxAllowed: this.config.volumeLimits.maxVolumePerType,
+          exceeds: volume > this.config.volumeLimits.maxVolumePerType,
+          percentage: Math.round((volume / this.config.volumeLimits.maxVolumePerType) * 100),
+        }
+
+        analysis.speedAnalysis[direction][type] = {
+          current: speed,
+          minAllowed: this.config.speedLimits.minSpeed,
+          maxAllowed: this.config.speedLimits.maxSpeed,
+          inRange: speed >= this.config.speedLimits.minSpeed && speed <= this.config.speedLimits.maxSpeed,
+        }
+
+        if (volume > this.config.volumeLimits.maxVolumePerType) {
+          analysis.exceedsLimits = true
+          analysis.recommendations.push(
+            `${direction}-${type}: Volume ${volume} 超過建議上限 ${this.config.volumeLimits.maxVolumePerType}`,
+          )
+        }
+      })
+
+      const totalVolume = summary.totalCount[direction].total
+      if (totalVolume > this.config.volumeLimits.maxTotalVolume) {
+        analysis.exceedsLimits = true
+        analysis.recommendations.push(
+          `${direction}: 總Volume ${totalVolume} 超過建議上限 ${this.config.volumeLimits.maxTotalVolume}`,
+        )
+      }
+    })
+
+    return analysis
   }
 
   /**

@@ -559,12 +559,12 @@ export default class TrafficLightController {
     // 為每個方向生成 VD 數據
     Object.keys(this.vehicleData).forEach((direction, index) => {
       const data = this.vehicleData[direction]
-      
+
       // 應用縮放因子並確保最小車流量（模擬中等交通流量）
       const minMotor = 3 // 最少機車數量
       const minSmall = 2 // 最少小客車數量
       const minLarge = 1 // 最少大客車數量
-      
+
       const scaledMotor = Math.max(Math.round(data.motor * this.dataScalingFactor), minMotor)
       const scaledSmall = Math.max(Math.round(data.small * this.dataScalingFactor), minSmall)
       const scaledLarge = Math.max(Math.round(data.large * this.dataScalingFactor), minLarge)
