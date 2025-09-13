@@ -60,7 +60,8 @@
 
               <!-- 自動模式狀態顯示 -->
               <div class="simulation-status" v-if="isAutoMode">
-                {{ simulationStatus || '正在初始化...' }}
+                <span class="time-status">{{ simulationStatus || '正在初始化...' }}</span>
+                <span v-if="currentAutoInterval" class="interval-status">間隔: {{ currentAutoInterval }}s</span>
               </div>
 
               <!-- 時段場景快速切換 -->
@@ -316,6 +317,7 @@ const route = useRoute()
 // 新增：自動模式狀態
 const isAutoMode = ref(false)
 const simulationStatus = ref(null)
+const currentAutoInterval = ref(null)
 
 function navigateToSimulation() {
   router.push('/')
@@ -544,8 +546,15 @@ onMounted(() => {
       window.autoTrafficGenerator.setOnTimeUpdate((status) => {
         if (status) {
           simulationStatus.value = `${status.time} - ${status.description}`
+          // 獲取當前間隔時間（毫秒轉秒）
+          if (window.autoTrafficGenerator.config && window.autoTrafficGenerator.config.interval) {
+            const intervalMs =
+              window.autoTrafficGenerator.config.interval.normal || window.autoTrafficGenerator.config.interval.min
+            currentAutoInterval.value = Math.round(intervalMs / 1000)
+          }
         } else {
           simulationStatus.value = null
+          currentAutoInterval.value = null
         }
       })
     } else if (tries++ < 30) {
@@ -575,6 +584,18 @@ onUnmounted(() => {
   font-weight: bold;
   margin-top: 4px;
   text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.interval-status {
+  color: #ffb74d;
+  font-size: 12px;
+  background: rgba(255, 183, 77, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+  margin-left: 8px;
 }
 
 .q-header {

@@ -130,7 +130,7 @@ export default class AutoTrafficGenerator {
       this.simulationTime.setMinutes(this.simulationTime.getMinutes() + 30)
 
       this._applyTrafficProfile()
-    }, 12500) // 真實世界的30分鐘(1800秒) = 模擬世界的24小時 (1800 / 48 = 37.5秒/次)
+    }, 6250) // 真實世界的30分鐘(1800秒) = 模擬世界的24小時 (1800 / 48 = 37.5秒/次)
   }
 
   // 停止自動模式循環
@@ -148,7 +148,7 @@ export default class AutoTrafficGenerator {
       scenario = {
         name: '尖峰',
         interval: { min: 1000, max: 3000, normal: 2000 },
-        peakMultiplier: 0.8,
+        peakMultiplier: 5.0,
         vehicleTypes: [
           { type: 'motor', weight: 60 },
           { type: 'small', weight: 35 },
@@ -159,8 +159,8 @@ export default class AutoTrafficGenerator {
     } else if ((currentHour >= 9 && currentHour < 16) || (currentHour >= 19 && currentHour < 22)) {
       scenario = {
         name: '離峰',
-        interval: { min: 3000, max: 8000, normal: 5000 },
-        peakMultiplier: 0.4,
+        interval: { min: 4000, max: 6000, normal: 5000 },
+        peakMultiplier: 2.5,
         vehicleTypes: [
           { type: 'motor', weight: 30 },
           { type: 'small', weight: 55 },
@@ -172,7 +172,7 @@ export default class AutoTrafficGenerator {
       scenario = {
         name: '凌晨',
         interval: { min: 20000, max: 40000, normal: 30000 },
-        peakMultiplier: 0.1,
+        peakMultiplier: 1,
         vehicleTypes: [
           { type: 'motor', weight: 80 },
           { type: 'small', weight: 15 },
