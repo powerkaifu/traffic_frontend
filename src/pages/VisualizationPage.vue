@@ -317,7 +317,8 @@ const detailColumns = [
 const generateYearOptions = () => {
   const options = []
   const currentYear = new Date().getFullYear()
-  for (let year = 2020; year <= currentYear; year++) {
+  // 確保包含未來一年，以防資料可能在未來日期
+  for (let year = 2020; year <= currentYear + 1; year++) {
     options.push({ label: year.toString(), value: year })
   }
   return options
@@ -359,7 +360,8 @@ const formatDateTime = (timestamp) => {
 
 // 事件處理器
 const onDateChange = () => {
-  loadData()
+  // 日期改變時不自動載入數據，讓用戶主動點擊「載入數據」按鈕
+  console.log('日期已更新，請點擊載入數據按鈕以獲取新數據')
 }
 
 const navigateToTab = (tabName) => {
@@ -375,13 +377,63 @@ const navigateToTab = (tabName) => {
 
 // 數據載入
 const loadData = async () => {
-  if (!startYear.value || !startMonth.value || !startDay.value || !endYear.value || !endMonth.value || !endDay.value)
+  // 檢查必要的日期欄位
+  if (!startYear.value || !startMonth.value || !startDay.value || !endYear.value || !endMonth.value || !endDay.value) {
+    alert('請選擇完整的開始和結束日期')
     return
+  }
 
   loading.value = true
   try {
-    const startDate = `${startYear.value}-${startMonth.value.toString().padStart(2, '0')}-${startDay.value.toString().padStart(2, '0')}`
-    const endDate = `${endYear.value}-${endMonth.value.toString().padStart(2, '0')}-${endDay.value.toString().padStart(2, '0')}`
+    // 添加調試信息
+    console.log('=== 日期驗證調試 ===')
+    console.log('startYear:', startYear.value, typeof startYear.value)
+    console.log('startMonth:', startMonth.value, typeof startMonth.value)
+    console.log('startDay:', startDay.value, typeof startDay.value)
+    console.log('endYear:', endYear.value, typeof endYear.value)
+    console.log('endMonth:', endMonth.value, typeof endMonth.value)
+    console.log('endDay:', endDay.value, typeof endDay.value)
+
+    // 提取實際的值（處理可能的物件格式）
+    const startYearVal = typeof startYear.value === 'object' ? startYear.value.value : startYear.value
+    const startMonthVal = typeof startMonth.value === 'object' ? startMonth.value.value : startMonth.value
+    const startDayVal = typeof startDay.value === 'object' ? startDay.value.value : startDay.value
+    const endYearVal = typeof endYear.value === 'object' ? endYear.value.value : endYear.value
+    const endMonthVal = typeof endMonth.value === 'object' ? endMonth.value.value : endMonth.value
+    const endDayVal = typeof endDay.value === 'object' ? endDay.value.value : endDay.value
+
+    console.log('提取後的值:')
+    console.log('startYearVal:', startYearVal, typeof startYearVal)
+    console.log('startMonthVal:', startMonthVal, typeof startMonthVal)
+    console.log('startDayVal:', startDayVal, typeof startDayVal)
+    console.log('endYearVal:', endYearVal, typeof endYearVal)
+    console.log('endMonthVal:', endMonthVal, typeof endMonthVal)
+    console.log('endDayVal:', endDayVal, typeof endDayVal)
+
+    const startDate = `${startYearVal}-${startMonthVal.toString().padStart(2, '0')}-${startDayVal.toString().padStart(2, '0')}`
+    const endDate = `${endYearVal}-${endMonthVal.toString().padStart(2, '0')}-${endDayVal.toString().padStart(2, '0')}`
+
+    console.log('生成的日期字串:')
+    console.log('startDate:', startDate)
+    console.log('endDate:', endDate)
+
+    // 驗證日期格式
+    const startDateObj = new Date(startDate)
+    const endDateObj = new Date(endDate)
+
+    console.log('解析後的日期物件:')
+    console.log('startDateObj:', startDateObj, '有效:', !isNaN(startDateObj.getTime()))
+    console.log('endDateObj:', endDateObj, '有效:', !isNaN(endDateObj.getTime()))
+
+    if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
+      alert('日期格式無效，請檢查選擇的日期')
+      return
+    }
+
+    if (startDateObj > endDateObj) {
+      alert('開始日期不能晚於結束日期')
+      return
+    }
 
     console.log('=== API 呼叫開始 ===')
     console.log('載入數據範圍:', startDate, '到', endDate)
@@ -409,7 +461,6 @@ const loadData = async () => {
       alert('所選日期範圍內沒有數據')
     } else {
       console.log('成功載入數據:', trafficData.value.length, '筆')
-      alert(`成功載入 ${trafficData.value.length} 筆數據`)
     }
 
     calculateSummaryStats()
@@ -419,13 +470,31 @@ const loadData = async () => {
     console.error('=== API 呼叫失敗 ===')
     console.error('錯誤詳情:', error)
     console.error('錯誤消息:', error.message)
-    console.error('錯誤堆疊:', error.stack)
+
+    if (error.response) {
+      console.error('HTTP 狀態碼:', error.response.status)
+      console.error('響應數據:', error.response.data)
+      console.error('響應標頭:', error.response.headers)
+    } else if (error.request) {
+      console.error('網路錯誤，無響應:', error.request)
+    }
 
     // 清空數據
     trafficData.value = []
 
-    // 顯示錯誤提示
-    alert('載入數據失敗，請檢查網路連線或稍後再試。錯誤: ' + error.message)
+    // 根據錯誤類型顯示不同的錯誤訊息
+    let errorMessage = '載入數據失敗'
+    if (error.response?.status === 400) {
+      errorMessage = '請求參數錯誤，請檢查選擇的日期範圍是否正確'
+    } else if (error.response?.status === 404) {
+      errorMessage = 'API 端點不存在，請檢查後端服務'
+    } else if (error.response?.status === 500) {
+      errorMessage = '後端服務錯誤，請稍後再試'
+    } else if (error.code === 'ECONNREFUSED') {
+      errorMessage = '無法連接到後端服務，請確認後端是否正在運行'
+    }
+
+    alert(errorMessage + '。錯誤: ' + error.message)
   } finally {
     loading.value = false
   }
