@@ -7,8 +7,8 @@
           v-model="activeTab"
           dense
           class="text-grey"
-          active-color="primary"
-          indicator-color="primary"
+          active-color="info"
+          indicator-color="info"
           align="justify"
           narrow-indicator
         >
@@ -16,106 +16,6 @@
           <q-tab name="correlation" label="關聯性分析" @click="navigateToTab('correlation')" />
           <q-tab name="summary" label="統計摘要" @click="navigateToTab('summary')" />
         </q-tabs>
-      </div>
-
-      <!-- 控制面板 -->
-      <div class="control-panel">
-        <q-card class="control-card">
-          <q-card-section class="control-section">
-            <!-- 開始日期選擇器 -->
-            <div class="date-group">
-              <label class="date-label">開始日期</label>
-              <div class="date-controls">
-                <q-select
-                  v-model="startYear"
-                  :options="yearOptions"
-                  label="年"
-                  color="primary"
-                  dark
-                  outlined
-                  dense
-                  class="date-select"
-                  @update:model-value="onDateChange"
-                />
-                <q-select
-                  v-model="startMonth"
-                  :options="monthOptions"
-                  label="月"
-                  color="primary"
-                  dark
-                  outlined
-                  dense
-                  class="date-select"
-                  @update:model-value="onDateChange"
-                />
-                <q-select
-                  v-model="startDay"
-                  :options="getDayOptions(startYear, startMonth)"
-                  label="日"
-                  color="primary"
-                  dark
-                  outlined
-                  dense
-                  class="date-select"
-                  @update:model-value="onDateChange"
-                />
-              </div>
-            </div>
-
-            <!-- 結束日期選擇器 -->
-            <div class="date-group">
-              <label class="date-label">結束日期</label>
-              <div class="date-controls">
-                <q-select
-                  v-model="endYear"
-                  :options="yearOptions"
-                  label="年"
-                  color="primary"
-                  dark
-                  outlined
-                  dense
-                  class="date-select"
-                  @update:model-value="onDateChange"
-                />
-                <q-select
-                  v-model="endMonth"
-                  :options="monthOptions"
-                  label="月"
-                  color="primary"
-                  dark
-                  outlined
-                  dense
-                  class="date-select"
-                  @update:model-value="onDateChange"
-                />
-                <q-select
-                  v-model="endDay"
-                  :options="getDayOptions(endYear, endMonth)"
-                  label="日"
-                  color="primary"
-                  dark
-                  outlined
-                  dense
-                  class="date-select"
-                  @update:model-value="onDateChange"
-                />
-              </div>
-            </div>
-
-            <!-- 載入按鈕 -->
-            <div class="load-button">
-              <q-btn
-                @click="loadData"
-                :loading="loading"
-                color="primary"
-                icon="refresh"
-                label="載入數據"
-                size="md"
-                style="font-size: 16px"
-              />
-            </div>
-          </q-card-section>
-        </q-card>
       </div>
 
       <!-- 主要內容區域 -->
@@ -127,6 +27,106 @@
               <div class="chart-header">
                 <h3>交通燈秒數時間序列分析</h3>
               </div>
+              <!-- 控制面板 -->
+              <div class="control-panel">
+                <q-card class="control-card">
+                  <q-card-section class="control-section">
+                    <!-- 開始日期選擇器 -->
+                    <div class="date-group">
+                      <label class="date-label">開始日期</label>
+                      <div class="date-controls">
+                        <q-select
+                          v-model="startYear"
+                          :options="yearOptions"
+                          label="年"
+                          color="primary"
+                          dark
+                          outlined
+                          dense
+                          class="date-select"
+                          @update:model-value="onDateChange"
+                        />
+                        <q-select
+                          v-model="startMonth"
+                          :options="monthOptions"
+                          label="月"
+                          color="primary"
+                          dark
+                          outlined
+                          dense
+                          class="date-select"
+                          @update:model-value="onDateChange"
+                        />
+                        <q-select
+                          v-model="startDay"
+                          :options="getDayOptions(startYear, startMonth)"
+                          label="日"
+                          color="primary"
+                          dark
+                          outlined
+                          dense
+                          class="date-select"
+                          @update:model-value="onDateChange"
+                        />
+                      </div>
+                    </div>
+
+                    <!-- 結束日期選擇器 -->
+                    <div class="date-group">
+                      <label class="date-label">結束日期</label>
+                      <div class="date-controls">
+                        <q-select
+                          v-model="endYear"
+                          :options="yearOptions"
+                          label="年"
+                          color="primary"
+                          dark
+                          outlined
+                          dense
+                          class="date-select"
+                          @update:model-value="onDateChange"
+                        />
+                        <q-select
+                          v-model="endMonth"
+                          :options="monthOptions"
+                          label="月"
+                          color="primary"
+                          dark
+                          outlined
+                          dense
+                          class="date-select"
+                          @update:model-value="onDateChange"
+                        />
+                        <q-select
+                          v-model="endDay"
+                          :options="getDayOptions(endYear, endMonth)"
+                          label="日"
+                          color="primary"
+                          dark
+                          outlined
+                          dense
+                          class="date-select"
+                          @update:model-value="onDateChange"
+                        />
+                      </div>
+                    </div>
+
+                    <!-- 載入按鈕 -->
+                    <div class="load-button">
+                      <q-btn
+                        @click="loadData"
+                        :loading="loading"
+                        color="primary"
+                        icon="refresh"
+                        label="載入數據"
+                        size="md"
+                        style="font-size: 16px"
+                      />
+                    </div>
+                  </q-card-section>
+                </q-card>
+              </div>
+
               <div ref="timeSeriesChart" class="chart-area timeseries-chart"></div>
             </q-card-section>
           </q-card>
@@ -1176,7 +1176,7 @@ onMounted(() => {
 }
 
 .control-card {
-  background: rgba(255, 255, 255, 0.1);
+  background: transparent;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
@@ -1185,7 +1185,7 @@ onMounted(() => {
   display: flex;
   gap: 30px;
   align-items: start;
-  padding: 20px;
+  padding: 15px;
 }
 
 .date-group {
@@ -1224,14 +1224,13 @@ onMounted(() => {
 
 .nav-tabs {
   margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
 }
 
 .nav-tabs .q-tabs {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
   backdrop-filter: blur(10px);
   width: 400px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .main-content {
@@ -1252,7 +1251,8 @@ onMounted(() => {
 .chart-header {
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
+  justify-content: center;
 }
 
 .chart-header h3 {
