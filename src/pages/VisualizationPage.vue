@@ -876,23 +876,25 @@ const drawTimeSeriesChart = () => {
   const legend = g
     .append('g')
     .attr('font-family', 'sans-serif')
-    .attr('font-size', 10)
+    .attr('font-size', 12)
     .attr('text-anchor', 'end')
     .style('opacity', 0)
-    .selectAll('g')
-    .data(['東西向燈號', '南北向燈號'])
-    .enter()
-    .append('g')
-    .attr('transform', (d, i) => `translate(0,${i * 20})`)
 
-  // 圖例動畫
+  // 整個圖例容器動畫
   legend
     .transition()
     .delay(4000) // 在所有線條和點完成後出現
     .duration(600)
     .style('opacity', 1)
 
-  legend
+  const legendItems = legend
+    .selectAll('g')
+    .data(['東西向燈號', '南北向燈號'])
+    .enter()
+    .append('g')
+    .attr('transform', (d, i) => `translate(0,${i * 25})`)
+
+  legendItems
     .append('rect')
     .attr('x', width - 19)
     .attr('width', 0)
@@ -903,12 +905,14 @@ const drawTimeSeriesChart = () => {
     .duration(400)
     .attr('width', 19)
 
-  legend
+  legendItems
     .append('text')
-    .attr('x', width - 24)
+    .attr('x', width - 25)
     .attr('y', 9.5)
     .attr('dy', '0.32em')
     .style('fill', 'white')
+    .style('font-size', '14px')
+    .style('font-weight', 'bold')
     .style('opacity', 0)
     .text((d) => d)
     .transition()
