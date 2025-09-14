@@ -61,7 +61,7 @@
               <!-- 自動模式狀態顯示 -->
               <div class="simulation-status" v-if="isAutoMode">
                 <span class="time-status">{{ simulationStatus || '正在初始化...' }}</span>
-                <span v-if="currentAutoInterval" class="interval-status">間隔: {{ currentAutoInterval }}s</span>
+                <span v-if="currentAutoInterval" class="interval-status">生成間隔: {{ currentAutoInterval }}s</span>
               </div>
 
               <!-- 時段場景快速切換 -->
