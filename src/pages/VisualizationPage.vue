@@ -455,14 +455,6 @@ const loadData = async () => {
 
     trafficData.value = response.data || []
 
-    // 如果沒有數據，顯示提示
-    if (trafficData.value.length === 0) {
-      console.warn('所選日期範圍內沒有數據')
-      alert('所選日期範圍內沒有數據')
-    } else {
-      console.log('成功載入數據:', trafficData.value.length, '筆')
-    }
-
     calculateSummaryStats()
     calculateDetailStats()
     updateCharts()
@@ -571,7 +563,7 @@ const updateCharts = () => {
 
 // 時間序列圖表
 const drawTimeSeriesChart = () => {
-  if (!timeSeriesChart.value || trafficData.value.length === 0) return
+  if (!timeSeriesChart.value) return
 
   // 清除舊圖表
   d3.select(timeSeriesChart.value).selectAll('*').remove()
@@ -580,6 +572,72 @@ const drawTimeSeriesChart = () => {
   if (timeSeriesChart.value.clientWidth === 0) {
     // 如果容器寬度為 0，延遲重繪
     setTimeout(() => drawTimeSeriesChart(), 100)
+    return
+  }
+
+  // 如果沒有資料，顯示提示訊息
+  if (trafficData.value.length === 0) {
+    const containerWidth = timeSeriesChart.value.clientWidth
+    const containerHeight = Math.max(500, window.innerHeight - 350)
+
+    const svg = d3
+      .select(timeSeriesChart.value)
+      .append('svg')
+      .attr('width', containerWidth)
+      .attr('height', containerHeight)
+      .style('background', 'rgba(25, 118, 210, 0.02)')
+      .style('border-radius', '8px')
+      .style('border', '2px dashed rgba(25, 118, 210, 0.2)')
+
+    // 添加無資料提示
+    const noDataGroup = svg.append('g').attr('transform', `translate(${containerWidth / 2}, ${containerHeight / 2})`)
+
+    // 添加圖示
+    noDataGroup
+      .append('circle')
+      .attr('r', 50)
+      .attr('fill', 'none')
+      .attr('stroke', '#1976d2')
+      .attr('stroke-width', 3)
+      .attr('stroke-dasharray', '10,5')
+      .style('opacity', 0.6)
+
+    // 查無資料
+    noDataGroup
+      .append('text')
+      .attr('font-size', '50')
+      .attr('text-anchor', 'middle')
+      .attr('y', 10)
+      .style('fill', '#1976d2')
+      .text('📊')
+
+    noDataGroup
+      .append('text')
+      .attr('font-size', '30')
+      .attr('font-weight', 'bold')
+      .attr('text-anchor', 'middle')
+      .attr('y', 60)
+      .style('fill', '#1976d2')
+      .text('查無資料')
+
+    // 添加說明文字
+    noDataGroup
+      .append('text')
+      .attr('font-size', '22')
+      .attr('text-anchor', 'middle')
+      .attr('y', 100)
+      .style('fill', '#ccc')
+      .text('所選日期範圍沒有資料')
+
+    // 添加建議文字
+    noDataGroup
+      .append('text')
+      .attr('font-size', '20')
+      .attr('text-anchor', 'middle')
+      .attr('y', 130)
+      .style('fill', '#ccc')
+      .text('請選擇其他日期或檢查資料來源')
+
     return
   }
 
@@ -923,13 +981,70 @@ const drawTimeSeriesChart = () => {
 
 // 散點圖
 const drawScatterChart = () => {
-  if (!scatterChart.value || trafficData.value.length === 0) return
+  if (!scatterChart.value) return
 
   d3.select(scatterChart.value).selectAll('*').remove()
 
   // 確保容器有正確的尺寸
   if (scatterChart.value.clientWidth === 0) {
     setTimeout(() => drawScatterChart(), 100)
+    return
+  }
+
+  // 如果沒有資料，顯示提示訊息
+  if (trafficData.value.length === 0) {
+    const containerWidth = scatterChart.value.clientWidth
+    const containerHeight = 400
+
+    const svg = d3
+      .select(scatterChart.value)
+      .append('svg')
+      .attr('width', containerWidth)
+      .attr('height', containerHeight)
+      .style('background', 'rgba(56, 142, 60, 0.02)')
+      .style('border-radius', '8px')
+      .style('border', '2px dashed rgba(56, 142, 60, 0.2)')
+
+    // 添加無資料提示
+    const noDataGroup = svg.append('g').attr('transform', `translate(${containerWidth / 2}, ${containerHeight / 2})`)
+
+    // 添加圖示
+    noDataGroup
+      .append('circle')
+      .attr('r', 40)
+      .attr('fill', 'none')
+      .attr('stroke', '#388e3c')
+      .attr('stroke-width', 3)
+      .attr('stroke-dasharray', '8,4')
+      .style('opacity', 0.6)
+
+    noDataGroup
+      .append('text')
+      .attr('font-size', '24')
+      .attr('text-anchor', 'middle')
+      .attr('y', -8)
+      .style('fill', '#388e3c')
+      .text('📈')
+
+    // 添加主要訊息
+    noDataGroup
+      .append('text')
+      .attr('font-size', '16')
+      .attr('font-weight', 'bold')
+      .attr('text-anchor', 'middle')
+      .attr('y', 30)
+      .style('fill', '#388e3c')
+      .text('查無資料')
+
+    // 添加說明文字
+    noDataGroup
+      .append('text')
+      .attr('font-size', '12')
+      .attr('text-anchor', 'middle')
+      .attr('y', 50)
+      .style('fill', '#666')
+      .text('所選日期範圍內沒有散佈圖資料')
+
     return
   }
 
@@ -1048,13 +1163,74 @@ const drawScatterChart = () => {
 
 // 熱力圖
 const drawHeatmapChart = () => {
-  if (!heatmapChart.value || trafficData.value.length === 0) return
+  if (!heatmapChart.value) return
 
   d3.select(heatmapChart.value).selectAll('*').remove()
 
   // 確保容器有正確的尺寸
   if (heatmapChart.value.clientWidth === 0) {
     setTimeout(() => drawHeatmapChart(), 100)
+    return
+  }
+
+  // 如果沒有資料，顯示提示訊息
+  if (trafficData.value.length === 0) {
+    const containerWidth = heatmapChart.value.clientWidth
+    const containerHeight = 300
+
+    const svg = d3
+      .select(heatmapChart.value)
+      .append('svg')
+      .attr('width', containerWidth)
+      .attr('height', containerHeight)
+      .style('background', 'rgba(233, 30, 99, 0.02)')
+      .style('border-radius', '8px')
+      .style('border', '2px dashed rgba(233, 30, 99, 0.2)')
+
+    // 添加無資料提示
+    const noDataGroup = svg.append('g').attr('transform', `translate(${containerWidth / 2}, ${containerHeight / 2})`)
+
+    // 添加圖示
+    noDataGroup
+      .append('rect')
+      .attr('x', -30)
+      .attr('y', -25)
+      .attr('width', 60)
+      .attr('height', 35)
+      .attr('fill', 'none')
+      .attr('stroke', '#e91e63')
+      .attr('stroke-width', 3)
+      .attr('stroke-dasharray', '6,3')
+      .attr('rx', 5)
+      .style('opacity', 0.6)
+
+    noDataGroup
+      .append('text')
+      .attr('font-size', '20')
+      .attr('text-anchor', 'middle')
+      .attr('y', -5)
+      .style('fill', '#e91e63')
+      .text('🔥')
+
+    // 添加主要訊息
+    noDataGroup
+      .append('text')
+      .attr('font-size', '16')
+      .attr('font-weight', 'bold')
+      .attr('text-anchor', 'middle')
+      .attr('y', 25)
+      .style('fill', '#e91e63')
+      .text('查無資料')
+
+    // 添加說明文字
+    noDataGroup
+      .append('text')
+      .attr('font-size', '12')
+      .attr('text-anchor', 'middle')
+      .attr('y', 45)
+      .style('fill', '#666')
+      .text('所選日期範圍內沒有熱力圖資料')
+
     return
   }
 
