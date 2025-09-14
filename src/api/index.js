@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // 建立 axios 實例
 const api = axios.create({
-  baseURL: process.env.NODE_ENV === 'production' ? 'https://your-production-api.com/api' : 'http://localhost:8000/api', // 假設後端使用 8000 port
+  baseURL: 'http://127.0.0.1:8000/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -44,13 +44,69 @@ export const trafficAPI = {
    * @param {Object} params - 查詢參數
    * @param {string} params.startDate - 開始日期 (YYYY-MM-DD)
    * @param {string} params.endDate - 結束日期 (YYYY-MM-DD)
-   * @param {string[]} params.vdIds - VD ID 列表 (可選)
-   * @param {number} params.page - 頁碼 (可選，預設為 1)
-   * @param {number} params.limit - 每頁筆數 (可選，預設為 100)
    * @returns {Promise} API 響應
    */
-  getVisualizationData: (params) => {
-    return api.get('/traffic/visualization', { params })
+  getVisualizationData: async (params) => {
+    try {
+      console.log('API 呼叫參數:', params)
+      const requestParams = {
+        start_date: params.startDate,
+        end_date: params.endDate,
+      }
+      console.log('實際請求參數:', requestParams)
+
+      // 由於響應攔截器會自動返回 response.data，這裡直接獲取數據
+      const data = await api.get('/traffic/query/', {
+        params: requestParams,
+      })
+
+      console.log('API 響應數據:', data)
+
+      return data
+    } catch (error) {
+      console.error('API 呼叫錯誤:', error)
+      if (error.response) {
+        console.error('錯誤狀態:', error.response.status)
+        console.error('錯誤數據:', error.response.data)
+      } else if (error.request) {
+        console.error('網路錯誤，無響應:', error.request)
+      } else {
+        console.error('請求配置錯誤:', error.message)
+      }
+      throw error
+    }
+  },
+
+  /**
+   * 轉換後端數據格式為前端需要的格式
+   * @param {Object} backendResponse - 後端返回的原始響應
+   * @returns {Object} 轉換後的數據格式
+   */
+  transformBackendData: (backendResponse) => {
+    console.log('transformBackendData 收到的數據:', backendResponse)
+
+    // 檢查後端響應是否已經是正確的格式
+    if (backendResponse && backendResponse.data && Array.isArray(backendResponse.data)) {
+      console.log('後端數據已經是正確格式，直接返回')
+      return backendResponse
+    }
+
+    // 如果是舊格式的數組數據，進行轉換
+    const dataArray = Array.isArray(backendResponse) ? backendResponse : backendResponse?.data || []
+
+    if (!Array.isArray(dataArray) || dataArray.length === 0) {
+      console.log('沒有找到有效的數據數組')
+      return {
+        query_info: {
+          period: '',
+          data_points: 0,
+        },
+        data: [],
+      }
+    }
+
+    console.log('開始轉換數據，數據量:', dataArray.length)
+    return backendResponse
   },
 
   /**

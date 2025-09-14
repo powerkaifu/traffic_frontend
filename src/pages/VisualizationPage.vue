@@ -266,7 +266,7 @@ import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { date } from 'quasar'
 import * as d3 from 'd3'
-import { mockDataGenerator } from '../api/index.js'
+import { trafficAPI } from '../api/index.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -274,12 +274,17 @@ const route = useRoute()
 // 響應式數據
 const loading = ref(false)
 const activeTab = ref('timeseries')
-const startYear = ref(2024)
-const startMonth = ref(1)
-const startDay = ref(1)
-const endYear = ref(2024)
-const endMonth = ref(12)
-const endDay = ref(31)
+
+// 設定預設日期為最近一週
+const today = new Date()
+const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+const startYear = ref(oneWeekAgo.getFullYear())
+const startMonth = ref(oneWeekAgo.getMonth() + 1)
+const startDay = ref(oneWeekAgo.getDate())
+const endYear = ref(today.getFullYear())
+const endMonth = ref(today.getMonth() + 1)
+const endDay = ref(today.getDate())
 const showDetailDialog = ref(false)
 const selectedPoint = ref(null)
 const showEastWest = ref(true)
@@ -378,22 +383,49 @@ const loadData = async () => {
     const startDate = `${startYear.value}-${startMonth.value.toString().padStart(2, '0')}-${startDay.value.toString().padStart(2, '0')}`
     const endDate = `${endYear.value}-${endMonth.value.toString().padStart(2, '0')}-${endDay.value.toString().padStart(2, '0')}`
 
+    console.log('=== API 呼叫開始 ===')
+    console.log('載入數據範圍:', startDate, '到', endDate)
+    console.log('API URL: http://127.0.0.1:8000/api/traffic/query/')
+    console.log('參數:', { start_date: startDate, end_date: endDate })
+
     const params = {
       startDate: startDate,
       endDate: endDate,
-      vdIds: ['VLRJX20', 'VLRJX00', 'VLRJM60'], // 固定的 VD 站點
     }
 
-    // 使用模擬數據（開發階段）
-    const response = await mockDataGenerator.generateVisualizationData(params)
-    trafficData.value = response.data
+    // 使用真實的後端 API
+    const backendResponse = await trafficAPI.getVisualizationData(params)
+    console.log('後端原始響應:', backendResponse)
+
+    // 轉換後端數據格式
+    const response = trafficAPI.transformBackendData(backendResponse)
+    console.log('轉換後的數據:', response)
+
+    trafficData.value = response.data || []
+
+    // 如果沒有數據，顯示提示
+    if (trafficData.value.length === 0) {
+      console.warn('所選日期範圍內沒有數據')
+      alert('所選日期範圍內沒有數據')
+    } else {
+      console.log('成功載入數據:', trafficData.value.length, '筆')
+      alert(`成功載入 ${trafficData.value.length} 筆數據`)
+    }
 
     calculateSummaryStats()
     calculateDetailStats()
     updateCharts()
   } catch (error) {
-    console.error('載入數據失敗:', error)
-    // 這裡可以加入錯誤提示
+    console.error('=== API 呼叫失敗 ===')
+    console.error('錯誤詳情:', error)
+    console.error('錯誤消息:', error.message)
+    console.error('錯誤堆疊:', error.stack)
+
+    // 清空數據
+    trafficData.value = []
+
+    // 顯示錯誤提示
+    alert('載入數據失敗，請檢查網路連線或稍後再試。錯誤: ' + error.message)
   } finally {
     loading.value = false
   }
@@ -490,23 +522,43 @@ const drawTimeSeriesChart = () => {
   const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`)
 
   // 解析時間
-  const parseTime = d3.timeParse('%Y-%m-%dT%H:%M:%S.%fZ')
-  const data = trafficData.value.map((d) => ({
-    timestamp: parseTime(d.group.timestamp),
-    eastWest: d.group.east_west_seconds,
-    southNorth: d.group.south_north_seconds,
-    originalData: d,
-  }))
+  console.log('開始解析時間數據...')
+  console.log('第一筆數據的時間戳記:', trafficData.value[0]?.group?.timestamp)
+
+  // 使用 JavaScript 的 Date 構造函數來解析時間，因為它能更好地處理各種格式
+  const data = trafficData.value.map((d, index) => {
+    const timestamp = new Date(d.group.timestamp)
+    if (index < 3) {
+      console.log(`數據 ${index}: 原始時間=${d.group.timestamp}, 解析後=${timestamp}, 有效=${!isNaN(timestamp)}`)
+    }
+    return {
+      timestamp: timestamp,
+      eastWest: d.group.east_west_seconds,
+      southNorth: d.group.south_north_seconds,
+      originalData: d,
+    }
+  })
+
+  // 過濾掉無效的時間戳記
+  const validData = data.filter((d) => !isNaN(d.timestamp))
+  console.log(`總數據: ${data.length}, 有效時間數據: ${validData.length}`)
+  console.log(
+    '時間範圍:',
+    d3.extent(validData, (d) => d.timestamp),
+  )
+
+  // 使用有效數據
+  const finalData = validData
 
   // 設定比例尺
   const xScale = d3
     .scaleTime()
-    .domain(d3.extent(data, (d) => d.timestamp))
+    .domain(d3.extent(finalData, (d) => d.timestamp))
     .range([0, width])
 
   const yScale = d3
     .scaleLinear()
-    .domain([0, d3.max(data, (d) => Math.max(d.eastWest, d.southNorth))])
+    .domain([0, d3.max(finalData, (d) => Math.max(d.eastWest, d.southNorth))])
     .range([height, 0])
 
   // 創建線條
@@ -525,10 +577,13 @@ const drawTimeSeriesChart = () => {
   // 添加軸
   g.append('g')
     .attr('transform', `translate(0,${height})`)
-    .call(d3.axisBottom(xScale).tickFormat(d3.timeFormat('%m-%d %H:%M')))
+    .call(
+      d3.axisBottom(xScale).tickFormat(d3.timeFormat('%m/%d %H:%M')).ticks(Math.min(finalData.length, 10)), // 限制刻度數量
+    )
     .selectAll('text')
     .style('text-anchor', 'end')
     .style('fill', 'white')
+    .style('font-size', '12px')
     .attr('dx', '-.8em')
     .attr('dy', '.15em')
     .attr('transform', 'rotate(-45)')
@@ -559,7 +614,7 @@ const drawTimeSeriesChart = () => {
   // 繪製線條
   if (showEastWest.value) {
     g.append('path')
-      .datum(data)
+      .datum(finalData)
       .attr('fill', 'none')
       .attr('stroke', '#1976d2')
       .attr('stroke-width', 2)
@@ -567,7 +622,7 @@ const drawTimeSeriesChart = () => {
 
     // 添加數據點
     g.selectAll('.dot-east-west')
-      .data(data)
+      .data(finalData)
       .enter()
       .append('circle')
       .attr('class', 'dot-east-west')
@@ -611,7 +666,7 @@ const drawTimeSeriesChart = () => {
 
   if (showSouthNorth.value) {
     g.append('path')
-      .datum(data)
+      .datum(finalData)
       .attr('fill', 'none')
       .attr('stroke', '#388e3c')
       .attr('stroke-width', 2)
@@ -619,7 +674,7 @@ const drawTimeSeriesChart = () => {
 
     // 添加數據點
     g.selectAll('.dot-south-north')
-      .data(data)
+      .data(finalData)
       .enter()
       .append('circle')
       .attr('class', 'dot-south-north')
@@ -986,19 +1041,6 @@ watch(
 
 // 組件掛載
 onMounted(() => {
-  // 設定預設日期為當前日期
-  const today = new Date()
-  const weekAgo = new Date(today)
-  weekAgo.setDate(today.getDate() - 7)
-
-  startYear.value = weekAgo.getFullYear()
-  startMonth.value = weekAgo.getMonth() + 1
-  startDay.value = weekAgo.getDate()
-
-  endYear.value = today.getFullYear()
-  endMonth.value = today.getMonth() + 1
-  endDay.value = today.getDate()
-
   // 根據當前路由設定活動標籤
   const routeName = route.name
   if (routeName && ['TimeSeries', 'Correlation', 'Summary'].includes(routeName)) {
@@ -1059,6 +1101,11 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
+.control-panel .q-card {
+  display: flex;
+  justify-content: center;
+}
+
 .control-card {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
@@ -1087,7 +1134,7 @@ onMounted(() => {
 .date-controls {
   display: flex;
   gap: 10px;
-  width: 25vw;
+  width: 20vw;
   align-items: center;
 }
 
@@ -1102,7 +1149,7 @@ onMounted(() => {
 .load-button {
   display: flex;
   justify-content: center;
-  align-items: flex-end;
+  align-items: center;
   height: 42px;
 }
 
