@@ -576,11 +576,21 @@ const drawTimeSeriesChart = () => {
   // 清除舊圖表
   d3.select(timeSeriesChart.value).selectAll('*').remove()
 
+  // 確保容器有正確的尺寸
+  if (timeSeriesChart.value.clientWidth === 0) {
+    // 如果容器寬度為 0，延遲重繪
+    setTimeout(() => drawTimeSeriesChart(), 100)
+    return
+  }
+
   const margin = { top: 20, right: 80, bottom: 60, left: 60 }
-  const width = timeSeriesChart.value.clientWidth - margin.left - margin.right
+  const containerWidth = timeSeriesChart.value.clientWidth
+  const width = Math.max(300, containerWidth - margin.left - margin.right) // 最小寬度 300px
   // 計算動態高度，使圖表佔用更多視窗空間
   const availableHeight = window.innerHeight - 350 // 減去控制面板和標題的高度
   const height = Math.max(500, availableHeight) - margin.top - margin.bottom
+
+  console.log(`重繪時間序列圖表 - 容器寬度: ${containerWidth}px, 圖表寬度: ${width}px`)
 
   const svg = d3
     .select(timeSeriesChart.value)
@@ -818,9 +828,18 @@ const drawScatterChart = () => {
 
   d3.select(scatterChart.value).selectAll('*').remove()
 
+  // 確保容器有正確的尺寸
+  if (scatterChart.value.clientWidth === 0) {
+    setTimeout(() => drawScatterChart(), 100)
+    return
+  }
+
   const margin = { top: 20, right: 20, bottom: 40, left: 60 }
-  const width = scatterChart.value.clientWidth - margin.left - margin.right
+  const containerWidth = scatterChart.value.clientWidth
+  const width = Math.max(250, containerWidth - margin.left - margin.right)
   const height = 300 - margin.top - margin.bottom
+
+  console.log(`重繪散點圖 - 容器寬度: ${containerWidth}px, 圖表寬度: ${width}px`)
 
   const svg = d3
     .select(scatterChart.value)
@@ -934,9 +953,18 @@ const drawHeatmapChart = () => {
 
   d3.select(heatmapChart.value).selectAll('*').remove()
 
+  // 確保容器有正確的尺寸
+  if (heatmapChart.value.clientWidth === 0) {
+    setTimeout(() => drawHeatmapChart(), 100)
+    return
+  }
+
   const margin = { top: 20, right: 100, bottom: 40, left: 60 }
-  const width = heatmapChart.value.clientWidth - margin.left - margin.right
+  const containerWidth = heatmapChart.value.clientWidth
+  const width = Math.max(250, containerWidth - margin.left - margin.right)
   const height = 300 - margin.top - margin.bottom
+
+  console.log(`重繪熱力圖 - 容器寬度: ${containerWidth}px, 圖表寬度: ${width}px`)
 
   const svg = d3
     .select(heatmapChart.value)
@@ -1125,6 +1153,33 @@ onMounted(() => {
     }
   }
 
+  // 使用 ResizeObserver 監聽圖表容器大小變化
+  let resizeObserver = null
+  if (window.ResizeObserver) {
+    resizeObserver = new ResizeObserver(() => {
+      // 延遲執行，避免頻繁重繪
+      clearTimeout(window.chartResizeTimeout)
+      window.chartResizeTimeout = setTimeout(() => {
+        if (trafficData.value.length > 0) {
+          updateCharts()
+        }
+      }, 100)
+    })
+
+    // 監聽圖表容器
+    nextTick(() => {
+      if (timeSeriesChart.value) {
+        resizeObserver.observe(timeSeriesChart.value)
+      }
+      if (scatterChart.value) {
+        resizeObserver.observe(scatterChart.value)
+      }
+      if (heatmapChart.value) {
+        resizeObserver.observe(heatmapChart.value)
+      }
+    })
+  }
+
   window.addEventListener('resize', handleResize)
 
   // 載入初始數據
@@ -1133,6 +1188,12 @@ onMounted(() => {
   // 清理事件監聽器
   onUnmounted(() => {
     window.removeEventListener('resize', handleResize)
+    if (resizeObserver) {
+      resizeObserver.disconnect()
+    }
+    if (window.chartResizeTimeout) {
+      clearTimeout(window.chartResizeTimeout)
+    }
   })
 })
 </script>
@@ -1144,9 +1205,12 @@ onMounted(() => {
 }
 
 .visualization-container {
-  max-width: 1400px;
   margin: 0 auto;
   width: 100%;
+  max-width: none;
+  padding: 0 20px;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
 }
 
 .page-header {
@@ -1266,17 +1330,27 @@ onMounted(() => {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* 時間序列圖表使用更大的高度 */
 .timeseries-chart {
   min-height: calc(100vh - 350px);
+  width: 100%;
 }
 
 .correlation-charts {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
+  width: 100%;
+}
+
+.scatter-chart,
+.heatmap-chart {
+  width: 100%;
+  height: 350px;
 }
 
 .summary-grid {
@@ -1465,5 +1539,34 @@ onMounted(() => {
 
 :deep(.q-tabs__content .q-tab--active) {
   color: white;
+}
+
+/* 響應式調整 - 當側邊欄展開時 */
+@media screen and (max-width: 1200px) {
+  .correlation-charts {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .scatter-chart,
+  .heatmap-chart {
+    height: 300px;
+  }
+
+  .visualization-container {
+    padding: 0 10px;
+  }
+}
+
+/* 針對更小螢幕的調整 */
+@media screen and (max-width: 768px) {
+  .timeseries-chart {
+    min-height: calc(100vh - 400px);
+  }
+
+  .scatter-chart,
+  .heatmap-chart {
+    height: 250px;
+  }
 }
 </style>
