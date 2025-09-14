@@ -1,253 +1,268 @@
 <template>
   <q-page class="visualization-page">
-    <!-- 頁面標題 -->
-    <div class="page-header">
-      <h2>交通數據視覺化分析</h2>
-      <p>智慧交通控制信號數據可視化儀表板</p>
-    </div>
-
-    <!-- 控制面板 -->
-    <div class="control-panel">
-      <q-card class="control-card">
-        <q-card-section class="control-section">
-          <!-- 日期選擇器 -->
-          <div class="date-selector">
-            <q-date
-              v-model="dateRange"
-              range
-              :options="dateOptions"
-              color="primary"
-              class="date-picker"
-              @update:model-value="onDateRangeChange"
-            />
-          </div>
-
-          <!-- 快速選擇按鈕 -->
-          <div class="quick-select">
-            <q-btn-group spread>
-              <q-btn
-                @click="setQuickRange('today')"
-                :color="quickRange === 'today' ? 'primary' : 'grey-7'"
-                label="今天"
-                size="sm"
-              />
-              <q-btn
-                @click="setQuickRange('week')"
-                :color="quickRange === 'week' ? 'primary' : 'grey-7'"
-                label="一週"
-                size="sm"
-              />
-              <q-btn
-                @click="setQuickRange('month')"
-                :color="quickRange === 'month' ? 'primary' : 'grey-7'"
-                label="一個月"
-                size="sm"
-              />
-            </q-btn-group>
-          </div>
-
-          <!-- VD 站點選擇 -->
-          <div class="vd-selector">
-            <q-select
-              v-model="selectedVDs"
-              :options="vdOptions"
-              multiple
-              use-chips
-              stack-label
-              label="選擇 VD 站點"
-              color="primary"
-              option-value="value"
-              option-label="label"
-              emit-value
-              map-options
-              @update:model-value="onVDSelectionChange"
-            />
-          </div>
-
-          <!-- 載入按鈕 -->
-          <div class="load-button">
-            <q-btn @click="loadData" :loading="loading" color="primary" icon="refresh" label="載入數據" size="md" />
-          </div>
-        </q-card-section>
-      </q-card>
-    </div>
-
-    <!-- 子路由導航 -->
-    <div class="nav-tabs">
-      <q-tabs
-        v-model="activeTab"
-        dense
-        class="text-grey"
-        active-color="primary"
-        indicator-color="primary"
-        align="justify"
-        narrow-indicator
-      >
-        <q-tab name="timeseries" label="時間序列分析" @click="navigateToTab('timeseries')" />
-        <q-tab name="correlation" label="關聯性分析" @click="navigateToTab('correlation')" />
-        <q-tab name="summary" label="統計摘要" @click="navigateToTab('summary')" />
-      </q-tabs>
-    </div>
-
-    <!-- 主要內容區域 -->
-    <div class="main-content">
-      <!-- 時間序列分析 -->
-      <div v-show="activeTab === 'timeseries'" class="chart-container">
-        <q-card class="chart-card">
-          <q-card-section>
-            <div class="chart-header">
-              <h3>交通燈秒數時間序列分析</h3>
-              <q-space />
-              <q-btn-dropdown color="primary" icon="settings" label="圖表設定" size="sm">
-                <q-list>
-                  <q-item clickable v-close-popup @click="toggleEastWest">
-                    <q-item-section>
-                      <q-item-label>東西向燈號</q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
-                      <q-toggle v-model="showEastWest" />
-                    </q-item-section>
-                  </q-item>
-                  <q-item clickable v-close-popup @click="toggleSouthNorth">
-                    <q-item-section>
-                      <q-item-label>南北向燈號</q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
-                      <q-toggle v-model="showSouthNorth" />
-                    </q-item-section>
-                  </q-item>
-                </q-list>
-              </q-btn-dropdown>
-            </div>
-            <div ref="timeSeriesChart" class="chart-area" style="height: 400px"></div>
-          </q-card-section>
-        </q-card>
+    <div class="visualization-container">
+      <!-- 子路由導航 -->
+      <div class="nav-tabs">
+        <q-tabs
+          v-model="activeTab"
+          dense
+          class="text-grey"
+          active-color="primary"
+          indicator-color="primary"
+          align="justify"
+          narrow-indicator
+        >
+          <q-tab name="timeseries" label="時間序列分析" @click="navigateToTab('timeseries')" />
+          <q-tab name="correlation" label="關聯性分析" @click="navigateToTab('correlation')" />
+          <q-tab name="summary" label="統計摘要" @click="navigateToTab('summary')" />
+        </q-tabs>
       </div>
 
-      <!-- 關聯性分析 -->
-      <div v-show="activeTab === 'correlation'" class="chart-container">
-        <q-card class="chart-card">
-          <q-card-section>
-            <div class="chart-header">
-              <h3>交通流量與燈號關聯性分析</h3>
+      <!-- 控制面板 -->
+      <div class="control-panel">
+        <q-card class="control-card">
+          <q-card-section class="control-section">
+            <!-- 開始日期選擇器 -->
+            <div class="date-group">
+              <label class="date-label">開始日期</label>
+              <div class="date-controls">
+                <q-select
+                  v-model="startYear"
+                  :options="yearOptions"
+                  label="年"
+                  color="primary"
+                  dark
+                  outlined
+                  dense
+                  class="date-select"
+                  @update:model-value="onDateChange"
+                />
+                <q-select
+                  v-model="startMonth"
+                  :options="monthOptions"
+                  label="月"
+                  color="primary"
+                  dark
+                  outlined
+                  dense
+                  class="date-select"
+                  @update:model-value="onDateChange"
+                />
+                <q-select
+                  v-model="startDay"
+                  :options="getDayOptions(startYear, startMonth)"
+                  label="日"
+                  color="primary"
+                  dark
+                  outlined
+                  dense
+                  class="date-select"
+                  @update:model-value="onDateChange"
+                />
+              </div>
             </div>
-            <div class="correlation-charts">
-              <div ref="scatterChart" class="chart-area scatter-chart" style="height: 300px"></div>
-              <div ref="heatmapChart" class="chart-area heatmap-chart" style="height: 300px"></div>
+
+            <!-- 結束日期選擇器 -->
+            <div class="date-group">
+              <label class="date-label">結束日期</label>
+              <div class="date-controls">
+                <q-select
+                  v-model="endYear"
+                  :options="yearOptions"
+                  label="年"
+                  color="primary"
+                  dark
+                  outlined
+                  dense
+                  class="date-select"
+                  @update:model-value="onDateChange"
+                />
+                <q-select
+                  v-model="endMonth"
+                  :options="monthOptions"
+                  label="月"
+                  color="primary"
+                  dark
+                  outlined
+                  dense
+                  class="date-select"
+                  @update:model-value="onDateChange"
+                />
+                <q-select
+                  v-model="endDay"
+                  :options="getDayOptions(endYear, endMonth)"
+                  label="日"
+                  color="primary"
+                  dark
+                  outlined
+                  dense
+                  class="date-select"
+                  @update:model-value="onDateChange"
+                />
+              </div>
+            </div>
+
+            <!-- 載入按鈕 -->
+            <div class="load-button">
+              <q-btn
+                @click="loadData"
+                :loading="loading"
+                color="primary"
+                icon="refresh"
+                label="載入數據"
+                size="md"
+                style="font-size: 16px"
+              />
             </div>
           </q-card-section>
         </q-card>
       </div>
 
-      <!-- 統計摘要 -->
-      <div v-show="activeTab === 'summary'" class="summary-container">
-        <div class="summary-grid">
-          <q-card class="summary-card">
+      <!-- 主要內容區域 -->
+      <div class="main-content">
+        <!-- 時間序列分析 -->
+        <div v-show="activeTab === 'timeseries'" class="chart-container">
+          <q-card class="chart-card">
             <q-card-section>
-              <div class="summary-item">
-                <q-icon name="timeline" size="2rem" color="primary" />
-                <div class="summary-content">
-                  <div class="summary-label">平均東西向秒數</div>
-                  <div class="summary-value">{{ summaryStats.avgEastWest }}s</div>
-                </div>
+              <div class="chart-header">
+                <h3>交通燈秒數時間序列分析</h3>
               </div>
+              <div ref="timeSeriesChart" class="chart-area timeseries-chart"></div>
             </q-card-section>
           </q-card>
+        </div>
 
-          <q-card class="summary-card">
+        <!-- 關聯性分析 -->
+        <div v-show="activeTab === 'correlation'" class="chart-container">
+          <q-card class="chart-card">
             <q-card-section>
-              <div class="summary-item">
-                <q-icon name="timeline" size="2rem" color="secondary" />
-                <div class="summary-content">
-                  <div class="summary-label">平均南北向秒數</div>
-                  <div class="summary-value">{{ summaryStats.avgSouthNorth }}s</div>
-                </div>
+              <div class="chart-header">
+                <h3>交通流量與燈號關聯性分析</h3>
               </div>
-            </q-card-section>
-          </q-card>
-
-          <q-card class="summary-card">
-            <q-card-section>
-              <div class="summary-item">
-                <q-icon name="traffic" size="2rem" color="positive" />
-                <div class="summary-content">
-                  <div class="summary-label">總交通流量</div>
-                  <div class="summary-value">{{ summaryStats.totalVolume }}</div>
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-
-          <q-card class="summary-card">
-            <q-card-section>
-              <div class="summary-item">
-                <q-icon name="speed" size="2rem" color="info" />
-                <div class="summary-content">
-                  <div class="summary-label">平均車速</div>
-                  <div class="summary-value">{{ summaryStats.avgSpeed }} km/h</div>
-                </div>
+              <div class="correlation-charts">
+                <div ref="scatterChart" class="chart-area scatter-chart" style="height: 300px"></div>
+                <div ref="heatmapChart" class="chart-area heatmap-chart" style="height: 300px"></div>
               </div>
             </q-card-section>
           </q-card>
         </div>
 
-        <!-- 詳細統計表格 -->
-        <q-card class="detail-table-card">
-          <q-card-section>
-            <h3>詳細統計資料</h3>
-            <q-table
-              :rows="detailStats"
-              :columns="detailColumns"
-              row-key="vd_id"
-              :pagination="{ rowsPerPage: 10 }"
-              class="detail-table"
-            />
-          </q-card-section>
-        </q-card>
+        <!-- 統計摘要 -->
+        <div v-show="activeTab === 'summary'" class="summary-container">
+          <div class="summary-grid">
+            <q-card class="summary-card">
+              <q-card-section>
+                <div class="summary-item">
+                  <q-icon name="timeline" size="2rem" color="primary" />
+                  <div class="summary-content">
+                    <div class="summary-label">平均東西向秒數</div>
+                    <div class="summary-value">{{ summaryStats.avgEastWest }}s</div>
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+
+            <q-card class="summary-card">
+              <q-card-section>
+                <div class="summary-item">
+                  <q-icon name="timeline" size="2rem" color="secondary" />
+                  <div class="summary-content">
+                    <div class="summary-label">平均南北向秒數</div>
+                    <div class="summary-value">{{ summaryStats.avgSouthNorth }}s</div>
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+
+            <q-card class="summary-card">
+              <q-card-section>
+                <div class="summary-item">
+                  <q-icon name="traffic" size="2rem" color="positive" />
+                  <div class="summary-content">
+                    <div class="summary-label">總交通流量</div>
+                    <div class="summary-value">{{ summaryStats.totalVolume }}</div>
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+
+            <q-card class="summary-card">
+              <q-card-section>
+                <div class="summary-item">
+                  <q-icon name="speed" size="2rem" color="info" />
+                  <div class="summary-content">
+                    <div class="summary-label">平均車速</div>
+                    <div class="summary-value">{{ summaryStats.avgSpeed }} km/h</div>
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+
+          <!-- 詳細統計表格 -->
+          <q-card class="detail-table-card">
+            <q-card-section>
+              <h3>詳細統計資料</h3>
+              <q-table
+                :rows="detailStats"
+                :columns="detailColumns"
+                row-key="vd_id"
+                :pagination="{ rowsPerPage: 10 }"
+                class="detail-table"
+              />
+            </q-card-section>
+          </q-card>
+        </div>
       </div>
-    </div>
 
-    <!-- 詳細資訊彈出視窗 -->
-    <q-dialog v-model="showDetailDialog" position="right" full-height>
-      <q-card class="detail-dialog" style="width: 400px">
-        <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">詳細資訊</div>
-          <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
-        </q-card-section>
+      <!-- 詳細資訊彈出視窗 -->
+      <q-dialog v-model="showDetailDialog" position="right" full-height>
+        <q-card class="detail-dialog" style="width: 400px">
+          <q-card-section class="row items-center q-pb-none">
+            <div class="text-h6">詳細資訊</div>
+            <q-space />
+            <q-btn icon="close" flat round dense v-close-popup />
+          </q-card-section>
 
-        <q-card-section v-if="selectedPoint">
-          <div class="detail-content">
-            <div class="detail-item"><strong>時間:</strong> {{ formatDateTime(selectedPoint.group.timestamp) }}</div>
-            <div class="detail-item"><strong>東西向燈號:</strong> {{ selectedPoint.group.east_west_seconds }}秒</div>
-            <div class="detail-item"><strong>南北向燈號:</strong> {{ selectedPoint.group.south_north_seconds }}秒</div>
-            <div class="detail-item"><strong>VD 站點數:</strong> {{ selectedPoint.intersections.length }}</div>
+          <q-card-section v-if="selectedPoint">
+            <div class="detail-content">
+              <div class="detail-item"><strong>時間:</strong> {{ formatDateTime(selectedPoint.group.timestamp) }}</div>
+              <div class="detail-item"><strong>東西向燈號:</strong> {{ selectedPoint.group.east_west_seconds }}秒</div>
+              <div class="detail-item">
+                <strong>南北向燈號:</strong> {{ selectedPoint.group.south_north_seconds }}秒
+              </div>
+              <div class="detail-item"><strong>VD 站點數:</strong> {{ selectedPoint.intersections.length }}</div>
 
-            <q-separator class="q-my-md" />
+              <q-separator class="q-my-md" />
 
-            <div v-for="intersection in selectedPoint.intersections" :key="intersection.id" class="intersection-detail">
-              <h4>{{ intersection.VD_ID }}</h4>
-              <div class="intersection-stats">
-                <div>總流量: {{ intersection.total_volume }}</div>
-                <div>平均速度: {{ intersection.Speed.toFixed(1) }} km/h</div>
-                <div>佔有率: {{ intersection.Occupancy.toFixed(1) }}%</div>
-                <div>尖峰時段: {{ intersection.IsPeakHour ? '是' : '否' }}</div>
+              <div
+                v-for="intersection in selectedPoint.intersections"
+                :key="intersection.id"
+                class="intersection-detail"
+              >
+                <h4>{{ intersection.VD_ID }}</h4>
+                <div class="intersection-stats">
+                  <div>總流量: {{ intersection.total_volume }}</div>
+                  <div>平均速度: {{ intersection.Speed.toFixed(1) }} km/h</div>
+                  <div>佔有率: {{ intersection.Occupancy.toFixed(1) }}%</div>
+                  <div>尖峰時段: {{ intersection.IsPeakHour ? '是' : '否' }}</div>
+                </div>
               </div>
             </div>
-          </div>
-        </q-card-section>
-      </q-card>
-    </q-dialog>
+          </q-card-section>
+        </q-card>
+      </q-dialog>
 
-    <!-- 載入中覆蓋層 -->
-    <q-inner-loading :showing="loading">
-      <q-spinner-gears size="50px" color="primary" />
-    </q-inner-loading>
+      <!-- 載入中覆蓋層 -->
+      <q-inner-loading :showing="loading">
+        <q-spinner-gears size="50px" color="primary" />
+      </q-inner-loading>
+    </div>
   </q-page>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { date } from 'quasar'
 import * as d3 from 'd3'
@@ -259,9 +274,12 @@ const route = useRoute()
 // 響應式數據
 const loading = ref(false)
 const activeTab = ref('timeseries')
-const dateRange = ref({})
-const quickRange = ref('week')
-const selectedVDs = ref(['VLRJX20', 'VLRJX00', 'VLRJM60'])
+const startYear = ref(2024)
+const startMonth = ref(1)
+const startDay = ref(1)
+const endYear = ref(2024)
+const endMonth = ref(12)
+const endDay = ref(31)
 const showDetailDialog = ref(false)
 const selectedPoint = ref(null)
 const showEastWest = ref(true)
@@ -290,55 +308,52 @@ const detailColumns = [
   { name: 'peak_hours', label: '尖峰時段比例', field: 'peak_hours', format: (val) => `${(val * 100).toFixed(1)}%` },
 ]
 
-// VD 選項
-const vdOptions = [
-  { label: 'VLRJX20', value: 'VLRJX20' },
-  { label: 'VLRJX00', value: 'VLRJX00' },
-  { label: 'VLRJM60', value: 'VLRJM60' },
-]
-
-// 計算屬性和方法
-const dateOptions = (dateStr) => {
-  const currentDate = new Date()
-  const inputDate = new Date(dateStr)
-  return inputDate <= currentDate
+// 生成年份選項
+const generateYearOptions = () => {
+  const options = []
+  const currentYear = new Date().getFullYear()
+  for (let year = 2020; year <= currentYear; year++) {
+    options.push({ label: year.toString(), value: year })
+  }
+  return options
 }
+
+// 生成月份選項
+const generateMonthOptions = () => {
+  const options = []
+  for (let month = 1; month <= 12; month++) {
+    options.push({
+      label: month.toString().padStart(2, '0'),
+      value: month,
+    })
+  }
+  return options
+}
+
+// 生成日期選項
+const getDayOptions = (year, month) => {
+  if (!year || !month) return []
+
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const options = []
+  for (let day = 1; day <= daysInMonth; day++) {
+    options.push({
+      label: day.toString().padStart(2, '0'),
+      value: day,
+    })
+  }
+  return options
+}
+
+const yearOptions = generateYearOptions()
+const monthOptions = generateMonthOptions()
 
 const formatDateTime = (timestamp) => {
   return date.formatDate(new Date(timestamp), 'YYYY-MM-DD HH:mm:ss')
 }
 
-// 快速日期範圍設定
-const setQuickRange = (range) => {
-  quickRange.value = range
-  const today = new Date()
-  let startDate, endDate
-
-  switch (range) {
-    case 'today':
-      startDate = endDate = date.formatDate(today, 'YYYY/MM/DD')
-      break
-    case 'week':
-      startDate = date.formatDate(date.subtractFromDate(today, { days: 7 }), 'YYYY/MM/DD')
-      endDate = date.formatDate(today, 'YYYY/MM/DD')
-      break
-    case 'month':
-      startDate = date.formatDate(date.subtractFromDate(today, { days: 30 }), 'YYYY/MM/DD')
-      endDate = date.formatDate(today, 'YYYY/MM/DD')
-      break
-  }
-
-  dateRange.value = { from: startDate, to: endDate }
-  loadData()
-}
-
 // 事件處理器
-const onDateRangeChange = () => {
-  quickRange.value = null
-  loadData()
-}
-
-const onVDSelectionChange = () => {
+const onDateChange = () => {
   loadData()
 }
 
@@ -355,14 +370,18 @@ const navigateToTab = (tabName) => {
 
 // 數據載入
 const loadData = async () => {
-  if (!dateRange.value.from || !dateRange.value.to) return
+  if (!startYear.value || !startMonth.value || !startDay.value || !endYear.value || !endMonth.value || !endDay.value)
+    return
 
   loading.value = true
   try {
+    const startDate = `${startYear.value}-${startMonth.value.toString().padStart(2, '0')}-${startDay.value.toString().padStart(2, '0')}`
+    const endDate = `${endYear.value}-${endMonth.value.toString().padStart(2, '0')}-${endDay.value.toString().padStart(2, '0')}`
+
     const params = {
-      startDate: date.formatDate(new Date(dateRange.value.from), 'YYYY-MM-DD'),
-      endDate: date.formatDate(new Date(dateRange.value.to), 'YYYY-MM-DD'),
-      vdIds: selectedVDs.value,
+      startDate: startDate,
+      endDate: endDate,
+      vdIds: ['VLRJX20', 'VLRJX00', 'VLRJM60'], // 固定的 VD 站點
     }
 
     // 使用模擬數據（開發階段）
@@ -456,9 +475,11 @@ const drawTimeSeriesChart = () => {
   // 清除舊圖表
   d3.select(timeSeriesChart.value).selectAll('*').remove()
 
-  const margin = { top: 20, right: 80, bottom: 40, left: 60 }
+  const margin = { top: 20, right: 80, bottom: 60, left: 60 }
   const width = timeSeriesChart.value.clientWidth - margin.left - margin.right
-  const height = 400 - margin.top - margin.bottom
+  // 計算動態高度，使圖表佔用更多視窗空間
+  const availableHeight = window.innerHeight - 350 // 減去控制面板和標題的高度
+  const height = Math.max(500, availableHeight) - margin.top - margin.bottom
 
   const svg = d3
     .select(timeSeriesChart.value)
@@ -507,11 +528,17 @@ const drawTimeSeriesChart = () => {
     .call(d3.axisBottom(xScale).tickFormat(d3.timeFormat('%m-%d %H:%M')))
     .selectAll('text')
     .style('text-anchor', 'end')
+    .style('fill', 'white')
     .attr('dx', '-.8em')
     .attr('dy', '.15em')
     .attr('transform', 'rotate(-45)')
 
-  g.append('g').call(d3.axisLeft(yScale))
+  g.append('g').call(d3.axisLeft(yScale)).selectAll('text').style('fill', 'white')
+
+  // 設定軸線和刻度線為白色
+  g.selectAll('.domain').style('stroke', 'white')
+
+  g.selectAll('.tick line').style('stroke', 'white')
 
   // 添加軸標籤
   g.append('text')
@@ -703,12 +730,21 @@ const drawScatterChart = () => {
     .domain(d3.extent(scatterData, (d) => d.eastWestSeconds))
     .range([height, 0])
 
-  const colorScale = d3.scaleOrdinal().domain(selectedVDs.value).range(d3.schemeCategory10)
+  const colorScale = d3.scaleOrdinal().domain(['VLRJX20', 'VLRJX00', 'VLRJM60']).range(d3.schemeCategory10)
 
   // 添加軸
-  g.append('g').attr('transform', `translate(0,${height})`).call(d3.axisBottom(xScale))
+  g.append('g')
+    .attr('transform', `translate(0,${height})`)
+    .call(d3.axisBottom(xScale))
+    .selectAll('text')
+    .style('fill', 'white')
 
-  g.append('g').call(d3.axisLeft(yScale))
+  g.append('g').call(d3.axisLeft(yScale)).selectAll('text').style('fill', 'white')
+
+  // 設定軸線和刻度線為白色
+  g.selectAll('.domain').style('stroke', 'white')
+
+  g.selectAll('.tick line').style('stroke', 'white')
 
   // 添加軸標籤
   g.append('text')
@@ -824,9 +860,18 @@ const drawHeatmapChart = () => {
     .domain([0, d3.max(processedData, (d) => d.avgVolume)])
 
   // 添加軸
-  g.append('g').attr('transform', `translate(0,${height})`).call(d3.axisBottom(xScale))
+  g.append('g')
+    .attr('transform', `translate(0,${height})`)
+    .call(d3.axisBottom(xScale))
+    .selectAll('text')
+    .style('fill', 'white')
 
-  g.append('g').call(d3.axisLeft(yScale))
+  g.append('g').call(d3.axisLeft(yScale)).selectAll('text').style('fill', 'white')
+
+  // 設定軸線和刻度線為白色
+  g.selectAll('.domain').style('stroke', 'white')
+
+  g.selectAll('.tick line').style('stroke', 'white')
 
   // 添加熱力圖格子
   g.selectAll('.heatmap-rect')
@@ -901,6 +946,11 @@ const drawHeatmapChart = () => {
     .selectAll('text')
     .style('fill', 'white')
 
+  // 設定圖例軸線和刻度線為白色
+  legend.selectAll('.domain').style('stroke', 'white')
+
+  legend.selectAll('.tick line').style('stroke', 'white')
+
   // 添加標籤
   g.append('text')
     .attr('transform', 'rotate(-90)')
@@ -916,20 +966,6 @@ const drawHeatmapChart = () => {
     .style('text-anchor', 'middle')
     .style('fill', 'white')
     .text('小時')
-}
-
-const toggleEastWest = () => {
-  showEastWest.value = !showEastWest.value
-  if (activeTab.value === 'timeseries') {
-    drawTimeSeriesChart()
-  }
-}
-
-const toggleSouthNorth = () => {
-  showSouthNorth.value = !showSouthNorth.value
-  if (activeTab.value === 'timeseries') {
-    drawTimeSeriesChart()
-  }
 }
 
 // 監聽路由變化
@@ -950,22 +986,56 @@ watch(
 
 // 組件掛載
 onMounted(() => {
-  // 設定預設日期範圍為最近一週
-  setQuickRange('week')
+  // 設定預設日期為當前日期
+  const today = new Date()
+  const weekAgo = new Date(today)
+  weekAgo.setDate(today.getDate() - 7)
+
+  startYear.value = weekAgo.getFullYear()
+  startMonth.value = weekAgo.getMonth() + 1
+  startDay.value = weekAgo.getDate()
+
+  endYear.value = today.getFullYear()
+  endMonth.value = today.getMonth() + 1
+  endDay.value = today.getDate()
 
   // 根據當前路由設定活動標籤
   const routeName = route.name
   if (routeName && ['TimeSeries', 'Correlation', 'Summary'].includes(routeName)) {
     activeTab.value = routeName.toLowerCase()
   }
+
+  // 監聽視窗大小變化，重新繪製圖表
+  const handleResize = () => {
+    if (trafficData.value.length > 0) {
+      nextTick(() => {
+        updateCharts()
+      })
+    }
+  }
+
+  window.addEventListener('resize', handleResize)
+
+  // 載入初始數據
+  loadData()
+
+  // 清理事件監聽器
+  onUnmounted(() => {
+    window.removeEventListener('resize', handleResize)
+  })
 })
 </script>
 
 <style scoped>
 .visualization-page {
   padding: 20px;
-  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
   min-height: 100vh;
+}
+
+.visualization-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .page-header {
@@ -996,30 +1066,44 @@ onMounted(() => {
 }
 
 .control-section {
-  display: grid;
-  grid-template-columns: 300px 1fr 1fr 200px;
-  gap: 20px;
-  align-items: center;
+  display: flex;
+  gap: 30px;
+  align-items: start;
   padding: 20px;
 }
 
-.date-picker {
-  background: white;
-  border-radius: 8px;
+.date-group {
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
-.quick-select {
+.date-label {
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.date-controls {
   display: flex;
   gap: 10px;
+  width: 25vw;
+  align-items: center;
 }
 
-.vd-selector {
-  min-width: 200px;
+.date-select {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  backdrop-filter: blur(5px);
+  flex: 1;
+  min-width: 80px;
 }
 
 .load-button {
   display: flex;
   justify-content: center;
+  align-items: flex-end;
+  height: 42px;
 }
 
 .nav-tabs {
@@ -1030,11 +1114,12 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   backdrop-filter: blur(10px);
+  width: 400px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .main-content {
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .chart-container,
@@ -1065,6 +1150,11 @@ onMounted(() => {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 8px;
   overflow: hidden;
+}
+
+/* 時間序列圖表使用更大的高度 */
+.timeseries-chart {
+  min-height: calc(100vh - 350px);
 }
 
 .correlation-charts {
@@ -1177,9 +1267,13 @@ onMounted(() => {
 /* 響應式設計 */
 @media (max-width: 1200px) {
   .control-section {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
-    gap: 15px;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    text-align: center;
+  }
+
+  .date-controls {
+    justify-content: center;
   }
 
   .correlation-charts {
@@ -1191,6 +1285,15 @@ onMounted(() => {
   .control-section {
     grid-template-columns: 1fr;
     text-align: center;
+  }
+
+  .date-controls {
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .date-select {
+    min-width: 120px;
   }
 
   .summary-grid {
@@ -1211,18 +1314,33 @@ onMounted(() => {
 /* 深色主題的自定義樣式 */
 :deep(.q-field--dark .q-field__control) {
   color: white;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 :deep(.q-field--dark .q-field__label) {
   color: rgba(255, 255, 255, 0.7);
 }
 
-:deep(.q-btn-group .q-btn) {
-  border-color: rgba(255, 255, 255, 0.2);
+:deep(.q-field--outlined .q-field__control) {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-:deep(.q-date) {
-  background: white;
+:deep(.q-field--outlined.q-field--focused .q-field__control) {
+  border-color: #1976d2;
+}
+
+:deep(.q-select .q-field__native) {
+  color: white;
+}
+
+:deep(.q-item) {
+  color: white;
+}
+
+:deep(.q-item__label) {
+  color: white;
 }
 
 :deep(.q-tabs__content .q-tab) {

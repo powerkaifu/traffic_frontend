@@ -6,28 +6,25 @@ const routes = [
       { path: '', component: () => import('pages/IndexPage.vue') },
       {
         path: 'visualization',
+        redirect: '/visualization/timeseries',
+      },
+      {
+        path: 'visualization/timeseries',
+        name: 'TimeSeries',
         component: () => import('pages/VisualizationPage.vue'),
-        children: [
-          {
-            path: '',
-            redirect: 'timeseries',
-          },
-          {
-            path: 'timeseries',
-            name: 'TimeSeries',
-            meta: { title: '時間序列分析' },
-          },
-          {
-            path: 'correlation',
-            name: 'Correlation',
-            meta: { title: '關聯性分析' },
-          },
-          {
-            path: 'summary',
-            name: 'Summary',
-            meta: { title: '統計摘要' },
-          },
-        ],
+        meta: { title: '時間序列分析' },
+      },
+      {
+        path: 'visualization/correlation',
+        name: 'Correlation',
+        component: () => import('pages/VisualizationPage.vue'),
+        meta: { title: '關聯性分析' },
+      },
+      {
+        path: 'visualization/summary',
+        name: 'Summary',
+        component: () => import('pages/VisualizationPage.vue'),
+        meta: { title: '統計摘要' },
       },
     ],
   },
