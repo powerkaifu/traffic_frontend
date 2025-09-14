@@ -597,6 +597,10 @@ const drawTimeSeriesChart = () => {
     .append('svg')
     .attr('width', width + margin.left + margin.right)
     .attr('height', height + margin.top + margin.bottom)
+    .style('opacity', 0)
+
+  // 整體漸入動畫
+  svg.transition().duration(500).style('opacity', 1)
 
   const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`)
 
@@ -653,12 +657,16 @@ const drawTimeSeriesChart = () => {
     .y((d) => yScale(d.southNorth))
     .curve(d3.curveMonotoneX)
 
-  // 添加軸
-  g.append('g')
+  // 添加軸 - 帶動畫效果
+  const xAxis = g
+    .append('g')
     .attr('transform', `translate(0,${height})`)
+    .style('opacity', 0)
     .call(
       d3.axisBottom(xScale).tickFormat(d3.timeFormat('%m/%d %H:%M')).ticks(Math.min(finalData.length, 10)), // 限制刻度數量
     )
+
+  xAxis
     .selectAll('text')
     .style('text-anchor', 'end')
     .style('fill', 'white')
@@ -667,14 +675,21 @@ const drawTimeSeriesChart = () => {
     .attr('dy', '.15em')
     .attr('transform', 'rotate(-45)')
 
-  g.append('g').call(d3.axisLeft(yScale)).selectAll('text').style('fill', 'white')
+  // X軸動畫
+  xAxis.transition().delay(200).duration(600).style('opacity', 1)
+
+  const yAxis = g.append('g').style('opacity', 0).call(d3.axisLeft(yScale))
+
+  yAxis.selectAll('text').style('fill', 'white')
+
+  // Y軸動畫
+  yAxis.transition().delay(400).duration(600).style('opacity', 1)
 
   // 設定軸線和刻度線為白色
   g.selectAll('.domain').style('stroke', 'white')
-
   g.selectAll('.tick line').style('stroke', 'white')
 
-  // 添加軸標籤
+  // 添加軸標籤 - 帶動畫效果
   g.append('text')
     .attr('transform', 'rotate(-90)')
     .attr('y', 0 - margin.left)
@@ -682,24 +697,47 @@ const drawTimeSeriesChart = () => {
     .attr('dy', '1em')
     .style('text-anchor', 'middle')
     .style('fill', 'white')
+    .style('opacity', 0)
     .text('秒數')
+    .transition()
+    .delay(600)
+    .duration(500)
+    .style('opacity', 1)
 
   g.append('text')
     .attr('transform', `translate(${width / 2}, ${height + margin.bottom})`)
     .style('text-anchor', 'middle')
     .style('fill', 'white')
+    .style('opacity', 0)
     .text('時間')
+    .transition()
+    .delay(800)
+    .duration(500)
+    .style('opacity', 1)
 
-  // 繪製線條
+  // 繪製線條 - 添加動畫效果
   if (showEastWest.value) {
-    g.append('path')
+    // 東西向線條動畫
+    const eastWestPath = g
+      .append('path')
       .datum(finalData)
       .attr('fill', 'none')
       .attr('stroke', '#1976d2')
       .attr('stroke-width', 2)
       .attr('d', eastWestLine)
 
-    // 添加數據點
+    // 線條繪製動畫
+    const totalLength = eastWestPath.node().getTotalLength()
+    eastWestPath
+      .attr('stroke-dasharray', totalLength + ' ' + totalLength)
+      .attr('stroke-dashoffset', totalLength)
+      .transition()
+      .delay(1000) // 在軸線動畫完成後開始
+      .duration(2000)
+      .ease(d3.easeLinear)
+      .attr('stroke-dashoffset', 0)
+
+    // 添加數據點 - 立即顯示
     g.selectAll('.dot-east-west')
       .data(finalData)
       .enter()
@@ -710,48 +748,74 @@ const drawTimeSeriesChart = () => {
       .attr('r', 3)
       .attr('fill', '#1976d2')
       .style('cursor', 'pointer')
-      .on('click', (event, d) => {
-        selectedPoint.value = d.originalData
-        showDetailDialog.value = true
-      })
-      .on('mouseover', function (event, d) {
-        d3.select(this).attr('r', 5)
+      .style('opacity', 0)
+      .transition()
+      .delay(3100) // 在線條動畫完成後立即顯示
+      .duration(300)
+      .style('opacity', 1)
 
-        // 添加 tooltip
-        const tooltip = d3
-          .select('body')
-          .append('div')
-          .attr('class', 'tooltip')
-          .style('opacity', 0)
-          .style('position', 'absolute')
-          .style('background', 'rgba(0, 0, 0, 0.8)')
-          .style('color', 'white')
-          .style('padding', '10px')
-          .style('border-radius', '5px')
-          .style('pointer-events', 'none')
+    // 延遲添加事件監聽器
+    setTimeout(() => {
+      g.selectAll('.dot-east-west')
+        .on('click', (event, d) => {
+          selectedPoint.value = d.originalData
+          showDetailDialog.value = true
+        })
+        .on('mouseover', function (event, d) {
+          d3.select(this).transition().duration(200).attr('r', 6).style('fill', '#1565c0')
 
-        tooltip.transition().duration(200).style('opacity', 0.9)
+          const tooltip = d3
+            .select('body')
+            .append('div')
+            .attr('class', 'tooltip')
+            .style('opacity', 0)
+            .style('position', 'absolute')
+            .style('background', 'rgba(0, 0, 0, 0.9)')
+            .style('color', 'white')
+            .style('padding', '12px')
+            .style('border-radius', '8px')
+            .style('pointer-events', 'none')
+            .style('box-shadow', '0 4px 20px rgba(0,0,0,0.3)')
 
-        tooltip
-          .html(`時間: ${d3.timeFormat('%Y-%m-%d %H:%M')(d.timestamp)}<br/>東西向: ${d.eastWest}秒`)
-          .style('left', event.pageX + 10 + 'px')
-          .style('top', event.pageY - 28 + 'px')
-      })
-      .on('mouseout', function () {
-        d3.select(this).attr('r', 3)
-        d3.selectAll('.tooltip').remove()
-      })
+          tooltip.transition().duration(200).style('opacity', 1)
+
+          tooltip
+            .html(
+              `🕒 時間: ${d3.timeFormat('%Y-%m-%d %H:%M')(d.timestamp)}<br/>🔄 東西向燈號: <strong>${d.eastWest}秒</strong>`,
+            )
+            .style('left', event.pageX + 15 + 'px')
+            .style('top', event.pageY - 40 + 'px')
+        })
+        .on('mouseout', function () {
+          d3.select(this).transition().duration(200).attr('r', 3).style('fill', '#1976d2')
+
+          d3.selectAll('.tooltip').transition().duration(200).style('opacity', 0).remove()
+        })
+    }, 3500) // 調整時間
   }
 
   if (showSouthNorth.value) {
-    g.append('path')
+    // 南北向線條動畫
+    const southNorthPath = g
+      .append('path')
       .datum(finalData)
       .attr('fill', 'none')
       .attr('stroke', '#388e3c')
       .attr('stroke-width', 2)
       .attr('d', southNorthLine)
 
-    // 添加數據點
+    // 線條繪製動畫 (延遲開始)
+    const totalLength = southNorthPath.node().getTotalLength()
+    southNorthPath
+      .attr('stroke-dasharray', totalLength + ' ' + totalLength)
+      .attr('stroke-dashoffset', totalLength)
+      .transition()
+      .delay(1300) // 稍微延遲，讓兩條線有時差
+      .duration(2000)
+      .ease(d3.easeLinear)
+      .attr('stroke-dashoffset', 0)
+
+    // 添加數據點 - 立即顯示
     g.selectAll('.dot-south-north')
       .data(finalData)
       .enter()
@@ -762,56 +826,82 @@ const drawTimeSeriesChart = () => {
       .attr('r', 3)
       .attr('fill', '#388e3c')
       .style('cursor', 'pointer')
-      .on('click', (event, d) => {
-        selectedPoint.value = d.originalData
-        showDetailDialog.value = true
-      })
-      .on('mouseover', function (event, d) {
-        d3.select(this).attr('r', 5)
+      .style('opacity', 0)
+      .transition()
+      .delay(3400) // 在南北向線條動畫完成後立即顯示
+      .duration(300)
+      .style('opacity', 1)
 
-        const tooltip = d3
-          .select('body')
-          .append('div')
-          .attr('class', 'tooltip')
-          .style('opacity', 0)
-          .style('position', 'absolute')
-          .style('background', 'rgba(0, 0, 0, 0.8)')
-          .style('color', 'white')
-          .style('padding', '10px')
-          .style('border-radius', '5px')
-          .style('pointer-events', 'none')
+    // 延遲添加事件監聽器
+    setTimeout(() => {
+      g.selectAll('.dot-south-north')
+        .on('click', (event, d) => {
+          selectedPoint.value = d.originalData
+          showDetailDialog.value = true
+        })
+        .on('mouseover', function (event, d) {
+          d3.select(this).transition().duration(200).attr('r', 6).style('fill', '#2e7d32')
 
-        tooltip.transition().duration(200).style('opacity', 0.9)
+          const tooltip = d3
+            .select('body')
+            .append('div')
+            .attr('class', 'tooltip')
+            .style('opacity', 0)
+            .style('position', 'absolute')
+            .style('background', 'rgba(0, 0, 0, 0.9)')
+            .style('color', 'white')
+            .style('padding', '12px')
+            .style('border-radius', '8px')
+            .style('pointer-events', 'none')
+            .style('box-shadow', '0 4px 20px rgba(0,0,0,0.3)')
 
-        tooltip
-          .html(`時間: ${d3.timeFormat('%Y-%m-%d %H:%M')(d.timestamp)}<br/>南北向: ${d.southNorth}秒`)
-          .style('left', event.pageX + 10 + 'px')
-          .style('top', event.pageY - 28 + 'px')
-      })
-      .on('mouseout', function () {
-        d3.select(this).attr('r', 3)
-        d3.selectAll('.tooltip').remove()
-      })
+          tooltip.transition().duration(200).style('opacity', 1)
+
+          tooltip
+            .html(
+              `🕒 時間: ${d3.timeFormat('%Y-%m-%d %H:%M')(d.timestamp)}<br/>🔄 南北向燈號: <strong>${d.southNorth}秒</strong>`,
+            )
+            .style('left', event.pageX + 15 + 'px')
+            .style('top', event.pageY - 40 + 'px')
+        })
+        .on('mouseout', function () {
+          d3.select(this).transition().duration(200).attr('r', 3).style('fill', '#388e3c')
+
+          d3.selectAll('.tooltip').transition().duration(200).style('opacity', 0).remove()
+        })
+    }, 3800) // 調整時間
   }
 
-  // 添加圖例
+  // 添加圖例 - 帶動畫效果
   const legend = g
     .append('g')
     .attr('font-family', 'sans-serif')
     .attr('font-size', 10)
     .attr('text-anchor', 'end')
+    .style('opacity', 0)
     .selectAll('g')
     .data(['東西向燈號', '南北向燈號'])
     .enter()
     .append('g')
     .attr('transform', (d, i) => `translate(0,${i * 20})`)
 
+  // 圖例動畫
+  legend
+    .transition()
+    .delay(4000) // 在所有線條和點完成後出現
+    .duration(600)
+    .style('opacity', 1)
+
   legend
     .append('rect')
     .attr('x', width - 19)
-    .attr('width', 19)
+    .attr('width', 0)
     .attr('height', 19)
     .attr('fill', (d, i) => (i === 0 ? '#1976d2' : '#388e3c'))
+    .transition()
+    .delay(4200)
+    .duration(400)
+    .attr('width', 19)
 
   legend
     .append('text')
@@ -819,7 +909,12 @@ const drawTimeSeriesChart = () => {
     .attr('y', 9.5)
     .attr('dy', '0.32em')
     .style('fill', 'white')
+    .style('opacity', 0)
     .text((d) => d)
+    .transition()
+    .delay(4400)
+    .duration(400)
+    .style('opacity', 1)
 }
 
 // 散點圖
