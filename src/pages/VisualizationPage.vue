@@ -716,10 +716,7 @@ const drawTimeSeriesChart = () => {
     .append('svg')
     .attr('width', width + margin.left + margin.right)
     .attr('height', height + margin.top + margin.bottom)
-    .style('opacity', 0)
-
-  // 整體漸入動畫
-  svg.transition().duration(500).style('opacity', 1)
+    .style('opacity', 1)
 
   const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`)
 
@@ -763,11 +760,11 @@ const drawTimeSeriesChart = () => {
     .domain([0, d3.max(finalData, (d) => Math.max(d.eastWest, d.southNorth))])
     .range([height, 0])
 
-  // 添加軸 - 帶動畫效果
+  // 添加軸 - 直接顯示
   const xAxis = g
     .append('g')
     .attr('transform', `translate(0,${height})`)
-    .style('opacity', 0)
+    .style('opacity', 1)
     .call(
       d3.axisBottom(xScale).tickFormat(d3.timeFormat('%m/%d %H:%M')).ticks(Math.min(finalData.length, 10)), // 限制刻度數量
     )
@@ -781,21 +778,15 @@ const drawTimeSeriesChart = () => {
     .attr('dy', '.15em')
     .attr('transform', 'rotate(-45)')
 
-  // X軸動畫
-  xAxis.transition().delay(200).duration(600).style('opacity', 1)
-
-  const yAxis = g.append('g').style('opacity', 0).call(d3.axisLeft(yScale))
+  const yAxis = g.append('g').style('opacity', 1).call(d3.axisLeft(yScale))
 
   yAxis.selectAll('text').style('fill', 'white')
-
-  // Y軸動畫
-  yAxis.transition().delay(400).duration(600).style('opacity', 1)
 
   // 設定軸線和刻度線為白色
   g.selectAll('.domain').style('stroke', 'white')
   g.selectAll('.tick line').style('stroke', 'white')
 
-  // 添加軸標籤 - 帶動畫效果
+  // 添加軸標籤 - 直接顯示
   g.append('text')
     .attr('transform', 'rotate(-90)')
     .attr('y', 0 - margin.left)
@@ -803,27 +794,19 @@ const drawTimeSeriesChart = () => {
     .attr('dy', '1em')
     .style('text-anchor', 'middle')
     .style('fill', 'white')
-    .style('opacity', 0)
-    .text('秒數')
-    .transition()
-    .delay(600)
-    .duration(500)
     .style('opacity', 1)
+    .text('秒數')
 
   g.append('text')
     .attr('transform', `translate(${width / 2}, ${height + margin.bottom})`)
     .style('text-anchor', 'middle')
     .style('fill', 'white')
-    .style('opacity', 0)
-    .text('時間')
-    .transition()
-    .delay(800)
-    .duration(500)
     .style('opacity', 1)
+    .text('時間')
 
-  // 繪製散點圖 - 添加動畫效果
+  // 繪製散點圖 - 直接顯示
   if (showEastWest.value) {
-    // 添加東西向散點 - 延遲顯示
+    // 添加東西向散點 - 直接顯示
     g.selectAll('.dot-east-west')
       .data(finalData)
       .enter()
@@ -831,58 +814,47 @@ const drawTimeSeriesChart = () => {
       .attr('class', 'dot-east-west')
       .attr('cx', (d) => xScale(d.timestamp))
       .attr('cy', (d) => yScale(d.eastWest))
-      .attr('r', 0)
+      .attr('r', 4)
       .attr('fill', '#1976d2')
       .style('cursor', 'pointer')
-      .style('opacity', 0)
-      .transition()
-      .delay((d, i) => 1000 + i * 10) // 在軸線動畫完成後逐一顯示
-      .duration(300)
-      .attr('r', 4)
       .style('opacity', 0.8)
+      .on('click', (event, d) => {
+        selectedPoint.value = d.originalData
+        showDetailDialog.value = true
+      })
+      .on('mouseover', function (event, d) {
+        d3.select(this).attr('r', 6).style('fill', '#1565c0')
 
-    // 延遲添加事件監聽器
-    setTimeout(() => {
-      g.selectAll('.dot-east-west')
-        .on('click', (event, d) => {
-          selectedPoint.value = d.originalData
-          showDetailDialog.value = true
-        })
-        .on('mouseover', function (event, d) {
-          d3.select(this).transition().duration(200).attr('r', 6).style('fill', '#1565c0')
+        const tooltip = d3
+          .select('body')
+          .append('div')
+          .attr('class', 'tooltip')
+          .style('opacity', 0)
+          .style('position', 'absolute')
+          .style('background', 'rgba(0, 0, 0, 0.9)')
+          .style('color', 'white')
+          .style('padding', '12px')
+          .style('border-radius', '8px')
+          .style('pointer-events', 'none')
+          .style('box-shadow', '0 4px 20px rgba(0,0,0,0.3)')
 
-          const tooltip = d3
-            .select('body')
-            .append('div')
-            .attr('class', 'tooltip')
-            .style('opacity', 0)
-            .style('position', 'absolute')
-            .style('background', 'rgba(0, 0, 0, 0.9)')
-            .style('color', 'white')
-            .style('padding', '12px')
-            .style('border-radius', '8px')
-            .style('pointer-events', 'none')
-            .style('box-shadow', '0 4px 20px rgba(0,0,0,0.3)')
+        tooltip.transition().duration(200).style('opacity', 1)
 
-          tooltip.transition().duration(200).style('opacity', 1)
-
-          tooltip
-            .html(
-              `🕒 時間: ${d3.timeFormat('%Y-%m-%d %H:%M')(d.timestamp)}<br/>🔄 東西向燈號: <strong>${d.eastWest}秒</strong>`,
-            )
-            .style('left', event.pageX + 15 + 'px')
-            .style('top', event.pageY - 40 + 'px')
-        })
-        .on('mouseout', function () {
-          d3.select(this).transition().duration(200).attr('r', 3).style('fill', '#1976d2')
-
-          d3.selectAll('.tooltip').transition().duration(200).style('opacity', 0).remove()
-        })
-    }, 3500) // 調整時間
+        tooltip
+          .html(
+            `🕒 時間: ${d3.timeFormat('%Y-%m-%d %H:%M')(d.timestamp)}<br/>🔄 東西向燈號: <strong>${d.eastWest}秒</strong>`,
+          )
+          .style('left', event.pageX + 15 + 'px')
+          .style('top', event.pageY - 40 + 'px')
+      })
+      .on('mouseout', function () {
+        d3.select(this).attr('r', 4).style('fill', '#1976d2')
+        d3.selectAll('.tooltip').remove()
+      })
   }
 
   if (showSouthNorth.value) {
-    // 添加南北向散點 - 延遲顯示
+    // 添加南北向散點 - 直接顯示
     g.selectAll('.dot-south-north')
       .data(finalData)
       .enter()
@@ -890,69 +862,51 @@ const drawTimeSeriesChart = () => {
       .attr('class', 'dot-south-north')
       .attr('cx', (d) => xScale(d.timestamp))
       .attr('cy', (d) => yScale(d.southNorth))
-      .attr('r', 0)
+      .attr('r', 4)
       .attr('fill', '#388e3c')
       .style('cursor', 'pointer')
-      .style('opacity', 0)
-      .transition()
-      .delay((d, i) => 1300 + i * 10) // 稍微延遲，讓兩組散點有時差
-      .duration(300)
-      .attr('r', 4)
       .style('opacity', 0.8)
+      .on('click', (event, d) => {
+        selectedPoint.value = d.originalData
+        showDetailDialog.value = true
+      })
+      .on('mouseover', function (event, d) {
+        d3.select(this).attr('r', 6).style('fill', '#1976d2')
 
-    // 延遲添加事件監聽器
-    setTimeout(() => {
-      g.selectAll('.dot-south-north')
-        .on('click', (event, d) => {
-          selectedPoint.value = d.originalData
-          showDetailDialog.value = true
-        })
-        .on('mouseover', function (event, d) {
-          d3.select(this).transition().duration(200).attr('r', 6).style('fill', '#2e7d32')
+        const tooltip = d3
+          .select('body')
+          .append('div')
+          .attr('class', 'tooltip')
+          .style('opacity', 0)
+          .style('position', 'absolute')
+          .style('background', 'rgba(0, 0, 0, 0.9)')
+          .style('color', 'white')
+          .style('padding', '12px')
+          .style('border-radius', '8px')
+          .style('pointer-events', 'none')
+          .style('box-shadow', '0 4px 20px rgba(0,0,0,0.3)')
 
-          const tooltip = d3
-            .select('body')
-            .append('div')
-            .attr('class', 'tooltip')
-            .style('opacity', 0)
-            .style('position', 'absolute')
-            .style('background', 'rgba(0, 0, 0, 0.9)')
-            .style('color', 'white')
-            .style('padding', '12px')
-            .style('border-radius', '8px')
-            .style('pointer-events', 'none')
-            .style('box-shadow', '0 4px 20px rgba(0,0,0,0.3)')
+        tooltip.transition().duration(200).style('opacity', 1)
 
-          tooltip.transition().duration(200).style('opacity', 1)
-
-          tooltip
-            .html(
-              `🕒 時間: ${d3.timeFormat('%Y-%m-%d %H:%M')(d.timestamp)}<br/>🔄 南北向燈號: <strong>${d.southNorth}秒</strong>`,
-            )
-            .style('left', event.pageX + 15 + 'px')
-            .style('top', event.pageY - 40 + 'px')
-        })
-        .on('mouseout', function () {
-          d3.select(this).transition().duration(200).attr('r', 3).style('fill', '#388e3c')
-
-          d3.selectAll('.tooltip').transition().duration(200).style('opacity', 0).remove()
-        })
-    }, 3800) // 調整時間
+        tooltip
+          .html(
+            `🕒 時間: ${d3.timeFormat('%Y-%m-%d %H:%M')(d.timestamp)}<br/>🔄 南北向燈號: <strong>${d.southNorth}秒</strong>`,
+          )
+          .style('left', event.pageX + 15 + 'px')
+          .style('top', event.pageY - 40 + 'px')
+      })
+      .on('mouseout', function () {
+        d3.select(this).attr('r', 4).style('fill', '#388e3c')
+        d3.selectAll('.tooltip').remove()
+      })
   }
 
-  // 添加圖例 - 帶動畫效果
+  // 添加圖例 - 直接顯示
   const legend = g
     .append('g')
     .attr('font-family', 'sans-serif')
     .attr('font-size', 12)
     .attr('text-anchor', 'end')
-    .style('opacity', 0)
-
-  // 整個圖例容器動畫
-  legend
-    .transition()
-    .delay(4000) // 在所有線條和點完成後出現
-    .duration(600)
     .style('opacity', 1)
 
   const legendItems = legend
@@ -965,13 +919,9 @@ const drawTimeSeriesChart = () => {
   legendItems
     .append('rect')
     .attr('x', width - 19)
-    .attr('width', 0)
+    .attr('width', 19)
     .attr('height', 19)
     .attr('fill', (d, i) => (i === 0 ? '#1976d2' : '#388e3c'))
-    .transition()
-    .delay(4200)
-    .duration(400)
-    .attr('width', 19)
 
   legendItems
     .append('text')
@@ -981,17 +931,13 @@ const drawTimeSeriesChart = () => {
     .style('fill', 'white')
     .style('font-size', '14px')
     .style('font-weight', 'bold')
-    .style('opacity', 0)
-    .text((d) => d)
-    .transition()
-    .delay(4400)
-    .duration(400)
     .style('opacity', 1)
+    .text((d) => d)
 
   // 啟用滾輪縮放功能
   const zoom = d3
     .zoom()
-    .scaleExtent([0.5, 10]) // 調整縮放範圍，避免過度縮放
+    .scaleExtent([0.5, 6]) // 進一步限制縮放範圍，避免過度縮放
     .on('zoom', function (event) {
       const { transform } = event
 
@@ -1016,21 +962,32 @@ const drawTimeSeriesChart = () => {
       g.selectAll('.tick line').style('stroke', 'white')
       g.selectAll('.tick text').style('fill', 'white')
 
-      // 根據縮放級別智能調整散點大小，保持可見性
+      // 根據縮放級別智能調整散點大小，確保始終可見
       const zoomLevel = transform.k
       let dotRadius = 4 // 基礎半徑
       let dotOpacity = 0.8 // 基礎透明度
 
-      // 根據縮放級別調整，確保圓點不會過小
-      if (zoomLevel > 5) {
-        dotRadius = Math.max(2, 4 / Math.sqrt(zoomLevel)) // 縮放時保持最小半徑2px
-        dotOpacity = Math.max(0.6, 0.8 / Math.sqrt(zoomLevel / 2))
+      // 優化的縮放算法 - 圓點大小不會過度縮小
+      if (zoomLevel > 8) {
+        // 超高縮放級別：保持較大的最小半徑
+        dotRadius = Math.max(3, 4 / Math.log10(zoomLevel + 1))
+        dotOpacity = Math.max(0.5, 0.8 / Math.log10(zoomLevel / 2 + 1))
+      } else if (zoomLevel > 4) {
+        // 高縮放級別：使用對數函數而不是平方根，變化更緩慢
+        dotRadius = Math.max(3, 4 / Math.log(zoomLevel + 1))
+        dotOpacity = Math.max(0.6, 0.8 / Math.sqrt(zoomLevel / 3))
       } else if (zoomLevel > 2) {
-        dotRadius = Math.max(3, 4 / Math.sqrt(zoomLevel / 2))
-        dotOpacity = Math.max(0.7, 0.8 / Math.sqrt(zoomLevel / 3))
-      } else if (zoomLevel < 1) {
-        dotRadius = Math.min(6, 4 * (2 - zoomLevel)) // 縮小時可以稍微增大
-        dotOpacity = Math.min(0.9, 0.8 + (1 - zoomLevel) * 0.2)
+        // 中等縮放級別：緩慢縮小
+        dotRadius = Math.max(3.5, 4 - (zoomLevel - 2) * 0.25)
+        dotOpacity = Math.max(0.7, 0.8 - (zoomLevel - 2) * 0.05)
+      } else if (zoomLevel > 1) {
+        // 輕微縮放：幾乎不變
+        dotRadius = 4 - (zoomLevel - 1) * 0.2
+        dotOpacity = 0.8
+      } else {
+        // 縮小時：適當增大圓點
+        dotRadius = Math.min(6, 4 + (1 - zoomLevel) * 2)
+        dotOpacity = Math.min(0.9, 0.8 + (1 - zoomLevel) * 0.1)
       }
 
       // 更新東西向散點
