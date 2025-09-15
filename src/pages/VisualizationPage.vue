@@ -987,6 +987,76 @@ const drawTimeSeriesChart = () => {
     .delay(4400)
     .duration(400)
     .style('opacity', 1)
+
+  // 啟用滾輪縮放功能
+  const zoom = d3
+    .zoom()
+    .scaleExtent([1, 20]) // 縮放範圍 1x 到 20x
+    .on('zoom', function (event) {
+      const { transform } = event
+
+      // 更新比例尺
+      const newXScale = transform.rescaleX(xScale)
+      const newYScale = transform.rescaleY(yScale)
+
+      // 更新軸
+      g.select('.x-axis').call(d3.axisBottom(newXScale).tickFormat(d3.timeFormat('%m/%d %H:%M')).ticks(8))
+      g.select('.y-axis').call(d3.axisLeft(newYScale))
+
+      // 計算當前數據密度並調整散點大小
+      const visibleWidth = newXScale.range()[1] - newXScale.range()[0]
+      const density = finalData.length / (visibleWidth / 100) // 每100像素的點數
+
+      let dotConfig = { radius: 4, opacity: 0.8, strokeWidth: 0 }
+      if (density > 10) {
+        dotConfig = { radius: 1.5, opacity: 0.4, strokeWidth: 0 }
+      } else if (density > 5) {
+        dotConfig = { radius: 2.5, opacity: 0.6, strokeWidth: 0 }
+      } else if (density > 2) {
+        dotConfig = { radius: 3, opacity: 0.7, strokeWidth: 0 }
+      }
+
+      // 更新東西向散點
+      if (showEastWest.value) {
+        g.selectAll('.dot-east-west')
+          .attr('cx', (d) => newXScale(d.timestamp))
+          .attr('cy', (d) => newYScale(d.eastWest))
+          .attr('r', dotConfig.radius)
+          .style('opacity', dotConfig.opacity)
+          .style('stroke-width', dotConfig.strokeWidth)
+      }
+
+      // 更新南北向散點
+      if (showSouthNorth.value) {
+        g.selectAll('.dot-south-north')
+          .attr('cx', (d) => newXScale(d.timestamp))
+          .attr('cy', (d) => newYScale(d.southNorth))
+          .attr('r', dotConfig.radius)
+          .style('opacity', dotConfig.opacity)
+          .style('stroke-width', dotConfig.strokeWidth)
+      }
+
+      // 更新不可見的點擊區域
+      g.selectAll('.click-area-east-west, .click-area-south-north')
+        .attr('cx', function () {
+          const d = d3.select(this).datum()
+          if (d) {
+            return newXScale(d.timestamp)
+          }
+          return d3.select(this).attr('cx')
+        })
+        .attr('cy', function () {
+          const d = d3.select(this).datum()
+          if (d) {
+            const isEastWest = d3.select(this).classed('click-area-east-west')
+            return isEastWest ? newYScale(d.eastWest) : newYScale(d.southNorth)
+          }
+          return d3.select(this).attr('cy')
+        })
+    })
+
+  // 應用縮放到 SVG 容器
+  svg.call(zoom)
 }
 
 // 散點圖
