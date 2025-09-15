@@ -233,14 +233,8 @@
               </div>
               <div class="detail-item"><strong>VD 站點數:</strong> {{ selectedPoint.intersections.length }}</div>
 
-              <q-separator class="q-my-md" />
-
-              <div
-                v-for="intersection in selectedPoint.intersections"
-                :key="intersection.id"
-                class="intersection-detail"
-              >
-                <h4>{{ intersection.VD_ID }}</h4>
+              <div v-for="intersection in sortedIntersections" :key="intersection.id" class="intersection-detail">
+                <h4>{{ intersection.VD_ID }}{{ getDirectionLabel(intersection) }}</h4>
                 <div class="intersection-stats">
                   <div>總流量: {{ intersection.total_volume }}</div>
                   <div>平均速度: {{ intersection.Speed.toFixed(1) }} km/h</div>
@@ -262,7 +256,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, nextTick, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { date } from 'quasar'
 import * as d3 from 'd3'
@@ -353,6 +347,73 @@ const getDayOptions = (year, month) => {
 
 const yearOptions = generateYearOptions()
 const monthOptions = generateMonthOptions()
+
+// 排序路口資訊的 computed property
+const sortedIntersections = computed(() => {
+  if (!selectedPoint.value || !selectedPoint.value.intersections) {
+    return []
+  }
+
+  // 定義排序順序：VLRJX20（往東）、VLRJM60（往西）、VLRJX00（往南）、VLRJX00（往北）
+  const getOrderPriority = (intersection) => {
+    const vdId = intersection.VD_ID
+    const laneId = intersection.LaneID
+
+    if (vdId.includes('VLRJX20')) {
+      return 1 // 往東
+    } else if (vdId.includes('VLRJM60')) {
+      return 2 // 往西
+    } else if (vdId.includes('VLRJX00')) {
+      // 使用 LaneID 來區分南北方向
+      // 假設 LaneID 2 是往南，LaneID 3 是往北
+      if (laneId === 2) {
+        return 3 // 往南
+      } else if (laneId === 3) {
+        return 4 // 往北
+      } else {
+        return 3.5 // 其他 VLRJX00 的情況，放在南北之間
+      }
+    }
+    return 999 // 其他未知 VD_ID 排在最後
+  }
+
+  // 按照指定順序排序
+  const sorted = [...selectedPoint.value.intersections].sort((a, b) => {
+    const aPriority = getOrderPriority(a)
+    const bPriority = getOrderPriority(b)
+
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority
+    }
+
+    // 相同優先級，按 VD_ID 字母順序排序
+    return a.VD_ID.localeCompare(b.VD_ID)
+  })
+
+  return sorted
+})
+
+// 獲取 VD_ID 的方向說明
+const getDirectionLabel = (intersection) => {
+  const vdId = intersection.VD_ID
+  const laneId = intersection.LaneID
+
+  if (vdId.includes('VLRJX20')) {
+    return '（往東）'
+  } else if (vdId.includes('VLRJM60')) {
+    return '（往西）'
+  } else if (vdId.includes('VLRJX00')) {
+    // 使用 LaneID 來區分南北方向
+    if (laneId === 2) {
+      return '（往南）'
+    } else if (laneId === 3) {
+      return '（往北）'
+    } else {
+      return '（往南/北）' // 備用標籤
+    }
+  }
+  return ''
+}
 
 const formatDateTime = (timestamp) => {
   return date.formatDate(new Date(timestamp), 'YYYY-MM-DD HH:mm:ss')
@@ -1705,28 +1766,35 @@ onMounted(() => {
 }
 
 .detail-item {
-  margin-bottom: 10px;
+  margin-bottom: 5px;
+  margin-left: 15px;
   padding: 8px 0;
+  font-size: 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.detail-item:nth-child(4) {
+  margin-bottom: 20px !important;
+}
+
 .intersection-detail {
-  margin: 15px 0;
-  padding: 15px;
+  margin: 10px 0 15px;
+  padding: 10px 15px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 8px;
 }
 
 .intersection-detail h4 {
   color: #42a5f5;
-  margin-bottom: 10px;
+  margin: 5px 0;
+  font-size: 1.3rem;
 }
 
 .intersection-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 5px;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 /* 響應式設計 */
