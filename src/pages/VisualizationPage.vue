@@ -991,7 +991,7 @@ const drawTimeSeriesChart = () => {
   // 啟用滾輪縮放功能
   const zoom = d3
     .zoom()
-    .scaleExtent([1, 20]) // 縮放範圍 1x 到 20x
+    .scaleExtent([0.5, 10]) // 調整縮放範圍，避免過度縮放
     .on('zoom', function (event) {
       const { transform } = event
 
@@ -999,21 +999,38 @@ const drawTimeSeriesChart = () => {
       const newXScale = transform.rescaleX(xScale)
       const newYScale = transform.rescaleY(yScale)
 
-      // 更新軸
-      g.select('.x-axis').call(d3.axisBottom(newXScale).tickFormat(d3.timeFormat('%m/%d %H:%M')).ticks(8))
-      g.select('.y-axis').call(d3.axisLeft(newYScale))
+      // 更新軸，確保對齊
+      g.select('.x-axis').call(
+        d3
+          .axisBottom(newXScale)
+          .tickFormat(d3.timeFormat('%m/%d %H:%M'))
+          .ticks(Math.max(5, Math.min(15, Math.floor((width * transform.k) / 100)))),
+      )
 
-      // 計算當前數據密度並調整散點大小
-      const visibleWidth = newXScale.range()[1] - newXScale.range()[0]
-      const density = finalData.length / (visibleWidth / 100) // 每100像素的點數
+      g.select('.y-axis').call(
+        d3.axisLeft(newYScale).ticks(Math.max(5, Math.min(10, Math.floor((height * transform.k) / 80)))),
+      )
 
-      let dotConfig = { radius: 4, opacity: 0.8, strokeWidth: 0 }
-      if (density > 10) {
-        dotConfig = { radius: 1.5, opacity: 0.4, strokeWidth: 0 }
-      } else if (density > 5) {
-        dotConfig = { radius: 2.5, opacity: 0.6, strokeWidth: 0 }
-      } else if (density > 2) {
-        dotConfig = { radius: 3, opacity: 0.7, strokeWidth: 0 }
+      // 設定軸線和刻度線樣式
+      g.selectAll('.domain').style('stroke', 'white')
+      g.selectAll('.tick line').style('stroke', 'white')
+      g.selectAll('.tick text').style('fill', 'white')
+
+      // 根據縮放級別智能調整散點大小，保持可見性
+      const zoomLevel = transform.k
+      let dotRadius = 4 // 基礎半徑
+      let dotOpacity = 0.8 // 基礎透明度
+
+      // 根據縮放級別調整，確保圓點不會過小
+      if (zoomLevel > 5) {
+        dotRadius = Math.max(2, 4 / Math.sqrt(zoomLevel)) // 縮放時保持最小半徑2px
+        dotOpacity = Math.max(0.6, 0.8 / Math.sqrt(zoomLevel / 2))
+      } else if (zoomLevel > 2) {
+        dotRadius = Math.max(3, 4 / Math.sqrt(zoomLevel / 2))
+        dotOpacity = Math.max(0.7, 0.8 / Math.sqrt(zoomLevel / 3))
+      } else if (zoomLevel < 1) {
+        dotRadius = Math.min(6, 4 * (2 - zoomLevel)) // 縮小時可以稍微增大
+        dotOpacity = Math.min(0.9, 0.8 + (1 - zoomLevel) * 0.2)
       }
 
       // 更新東西向散點
@@ -1021,9 +1038,8 @@ const drawTimeSeriesChart = () => {
         g.selectAll('.dot-east-west')
           .attr('cx', (d) => newXScale(d.timestamp))
           .attr('cy', (d) => newYScale(d.eastWest))
-          .attr('r', dotConfig.radius)
-          .style('opacity', dotConfig.opacity)
-          .style('stroke-width', dotConfig.strokeWidth)
+          .attr('r', dotRadius)
+          .style('opacity', dotOpacity)
       }
 
       // 更新南北向散點
@@ -1031,12 +1047,12 @@ const drawTimeSeriesChart = () => {
         g.selectAll('.dot-south-north')
           .attr('cx', (d) => newXScale(d.timestamp))
           .attr('cy', (d) => newYScale(d.southNorth))
-          .attr('r', dotConfig.radius)
-          .style('opacity', dotConfig.opacity)
-          .style('stroke-width', dotConfig.strokeWidth)
+          .attr('r', dotRadius)
+          .style('opacity', dotOpacity)
       }
 
-      // 更新不可見的點擊區域
+      // 更新不可見的點擊區域，保持固定大小以便點擊
+      const clickRadius = Math.max(8, dotRadius + 4) // 確保點擊區域足夠大
       g.selectAll('.click-area-east-west, .click-area-south-north')
         .attr('cx', function () {
           const d = d3.select(this).datum()
@@ -1053,6 +1069,7 @@ const drawTimeSeriesChart = () => {
           }
           return d3.select(this).attr('cy')
         })
+        .attr('r', clickRadius) // 更新點擊區域半徑
     })
 
   // 應用縮放到 SVG 容器
