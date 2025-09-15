@@ -763,19 +763,6 @@ const drawTimeSeriesChart = () => {
     .domain([0, d3.max(finalData, (d) => Math.max(d.eastWest, d.southNorth))])
     .range([height, 0])
 
-  // 創建線條
-  const eastWestLine = d3
-    .line()
-    .x((d) => xScale(d.timestamp))
-    .y((d) => yScale(d.eastWest))
-    .curve(d3.curveMonotoneX)
-
-  const southNorthLine = d3
-    .line()
-    .x((d) => xScale(d.timestamp))
-    .y((d) => yScale(d.southNorth))
-    .curve(d3.curveMonotoneX)
-
   // 添加軸 - 帶動畫效果
   const xAxis = g
     .append('g')
@@ -834,29 +821,9 @@ const drawTimeSeriesChart = () => {
     .duration(500)
     .style('opacity', 1)
 
-  // 繪製線條 - 添加動畫效果
+  // 繪製散點圖 - 添加動畫效果
   if (showEastWest.value) {
-    // 東西向線條動畫
-    const eastWestPath = g
-      .append('path')
-      .datum(finalData)
-      .attr('fill', 'none')
-      .attr('stroke', '#1976d2')
-      .attr('stroke-width', 2)
-      .attr('d', eastWestLine)
-
-    // 線條繪製動畫
-    const totalLength = eastWestPath.node().getTotalLength()
-    eastWestPath
-      .attr('stroke-dasharray', totalLength + ' ' + totalLength)
-      .attr('stroke-dashoffset', totalLength)
-      .transition()
-      .delay(1000) // 在軸線動畫完成後開始
-      .duration(2000)
-      .ease(d3.easeLinear)
-      .attr('stroke-dashoffset', 0)
-
-    // 添加數據點 - 立即顯示
+    // 添加東西向散點 - 延遲顯示
     g.selectAll('.dot-east-west')
       .data(finalData)
       .enter()
@@ -864,14 +831,15 @@ const drawTimeSeriesChart = () => {
       .attr('class', 'dot-east-west')
       .attr('cx', (d) => xScale(d.timestamp))
       .attr('cy', (d) => yScale(d.eastWest))
-      .attr('r', 3)
+      .attr('r', 0)
       .attr('fill', '#1976d2')
       .style('cursor', 'pointer')
       .style('opacity', 0)
       .transition()
-      .delay(3100) // 在線條動畫完成後立即顯示
+      .delay((d, i) => 1000 + i * 10) // 在軸線動畫完成後逐一顯示
       .duration(300)
-      .style('opacity', 1)
+      .attr('r', 4)
+      .style('opacity', 0.8)
 
     // 延遲添加事件監聽器
     setTimeout(() => {
@@ -914,27 +882,7 @@ const drawTimeSeriesChart = () => {
   }
 
   if (showSouthNorth.value) {
-    // 南北向線條動畫
-    const southNorthPath = g
-      .append('path')
-      .datum(finalData)
-      .attr('fill', 'none')
-      .attr('stroke', '#388e3c')
-      .attr('stroke-width', 2)
-      .attr('d', southNorthLine)
-
-    // 線條繪製動畫 (延遲開始)
-    const totalLength = southNorthPath.node().getTotalLength()
-    southNorthPath
-      .attr('stroke-dasharray', totalLength + ' ' + totalLength)
-      .attr('stroke-dashoffset', totalLength)
-      .transition()
-      .delay(1300) // 稍微延遲，讓兩條線有時差
-      .duration(2000)
-      .ease(d3.easeLinear)
-      .attr('stroke-dashoffset', 0)
-
-    // 添加數據點 - 立即顯示
+    // 添加南北向散點 - 延遲顯示
     g.selectAll('.dot-south-north')
       .data(finalData)
       .enter()
@@ -942,14 +890,15 @@ const drawTimeSeriesChart = () => {
       .attr('class', 'dot-south-north')
       .attr('cx', (d) => xScale(d.timestamp))
       .attr('cy', (d) => yScale(d.southNorth))
-      .attr('r', 3)
+      .attr('r', 0)
       .attr('fill', '#388e3c')
       .style('cursor', 'pointer')
       .style('opacity', 0)
       .transition()
-      .delay(3400) // 在南北向線條動畫完成後立即顯示
+      .delay((d, i) => 1300 + i * 10) // 稍微延遲，讓兩組散點有時差
       .duration(300)
-      .style('opacity', 1)
+      .attr('r', 4)
+      .style('opacity', 0.8)
 
     // 延遲添加事件監聽器
     setTimeout(() => {
