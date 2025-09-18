@@ -702,7 +702,7 @@ const drawTimeSeriesChart = () => {
     return
   }
 
-  const margin = { top: 20, right: 80, bottom: 60, left: 60 }
+  const margin = { top: 30, right: 100, bottom: 80, left: 80 }
   const containerWidth = timeSeriesChart.value.clientWidth
   const width = Math.max(300, containerWidth - margin.left - margin.right) // 最小寬度 300px
   // 計算動態高度，使圖表佔用更多視窗空間
@@ -771,12 +771,11 @@ const drawTimeSeriesChart = () => {
 
   xAxis
     .selectAll('text')
-    .style('text-anchor', 'end')
+    .style('text-anchor', 'middle')
     .style('fill', 'white')
     .style('font-size', '12px')
-    .attr('dx', '-.8em')
-    .attr('dy', '.15em')
-    .attr('transform', 'rotate(-45)')
+    .attr('dx', '0')
+    .attr('dy', '1em')
 
   const yAxis = g.append('g').style('opacity', 1).call(d3.axisLeft(yScale))
 
@@ -789,18 +788,20 @@ const drawTimeSeriesChart = () => {
   // 添加軸標籤 - 直接顯示
   g.append('text')
     .attr('transform', 'rotate(-90)')
-    .attr('y', 0 - margin.left)
+    .attr('y', 0 - margin.left + 20)
     .attr('x', 0 - height / 2)
     .attr('dy', '1em')
     .style('text-anchor', 'middle')
     .style('fill', 'white')
+    .style('font-size', '16px')
     .style('opacity', 1)
     .text('秒數')
 
   g.append('text')
-    .attr('transform', `translate(${width / 2}, ${height + margin.bottom})`)
+    .attr('transform', `translate(${width / 2}, ${height + margin.bottom - 20})`)
     .style('text-anchor', 'middle')
     .style('fill', 'white')
+    .style('font-size', '16px')
     .style('opacity', 1)
     .text('時間')
 
@@ -1102,7 +1103,7 @@ const drawScatterChart = () => {
     return
   }
 
-  const margin = { top: 20, right: 20, bottom: 40, left: 60 }
+  const margin = { top: 30, right: 30, bottom: 60, left: 80 }
   const containerWidth = scatterChart.value.clientWidth
   const width = Math.max(250, containerWidth - margin.left - margin.right)
   const height = 300 - margin.top - margin.bottom
@@ -1160,7 +1161,7 @@ const drawScatterChart = () => {
   // 添加軸標籤
   g.append('text')
     .attr('transform', 'rotate(-90)')
-    .attr('y', 0 - margin.left)
+    .attr('y', 0 - margin.left + 15)
     .attr('x', 0 - height / 2)
     .attr('dy', '1em')
     .style('text-anchor', 'middle')
@@ -1168,7 +1169,7 @@ const drawScatterChart = () => {
     .text('東西向燈號秒數')
 
   g.append('text')
-    .attr('transform', `translate(${width / 2}, ${height + margin.bottom})`)
+    .attr('transform', `translate(${width / 2}, ${height + margin.bottom - 10})`)
     .style('text-anchor', 'middle')
     .style('fill', 'white')
     .text('交通流量')
@@ -1288,7 +1289,7 @@ const drawHeatmapChart = () => {
     return
   }
 
-  const margin = { top: 20, right: 100, bottom: 40, left: 60 }
+  const margin = { top: 30, right: 120, bottom: 60, left: 80 }
   const containerWidth = heatmapChart.value.clientWidth
   const width = Math.max(250, containerWidth - margin.left - margin.right)
   const height = 300 - margin.top - margin.bottom
@@ -1435,7 +1436,7 @@ const drawHeatmapChart = () => {
   // 添加標籤
   g.append('text')
     .attr('transform', 'rotate(-90)')
-    .attr('y', 0 - margin.left)
+    .attr('y', 0 - margin.left + 15)
     .attr('x', 0 - height / 2)
     .attr('dy', '1em')
     .style('text-anchor', 'middle')
@@ -1443,7 +1444,7 @@ const drawHeatmapChart = () => {
     .text('VD 站點')
 
   g.append('text')
-    .attr('transform', `translate(${width / 2}, ${height + margin.bottom})`)
+    .attr('transform', `translate(${width / 2}, ${height + margin.bottom - 10})`)
     .style('text-anchor', 'middle')
     .style('fill', 'white')
     .text('小時')
