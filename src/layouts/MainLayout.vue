@@ -16,7 +16,9 @@
           />
           <img
             :src="
-              currentRoute.startsWith('/visualization') ? '/images/button/VisualBtnOn.png' : '/images/button/VisualBtnOff.png'
+              currentRoute.startsWith('/visualization')
+                ? '/images/button/VisualBtnOn.png'
+                : '/images/button/VisualBtnOff.png'
             "
             alt="視覺化數據"
             class="nav-button"
