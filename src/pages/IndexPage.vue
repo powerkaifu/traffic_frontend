@@ -311,7 +311,7 @@ const aiPrediction = ref({
 // 路徑計算函數（會在 onMounted 後被初始化）
 // 提供預設值以防在初始化前被呼叫
 let getEastLane1Path = () => 'M-200,600 L1400,600'
-let getEastLane2Path = () => 'M-200,570 L1400,570' 
+let getEastLane2Path = () => 'M-200,570 L1400,570'
 let getEastLane3Path = () => 'M-200,540 L1400,540'
 let getEastLane4Path = () => 'M-200,510 L1400,510'
 
