@@ -26,7 +26,7 @@ export function createLanePathCalculator(containerElement) {
     // 起點：畫面左側外部，更遠 (-200)
     // 終點：畫面右側外部，延伸更遠 (containerWidth + 400)
     const startX = -200
-    const endX = containerWidth + 400
+    const endX = containerWidth + 40
 
     return `M${startX},${eastLane1Y} L${endX},${eastLane1Y}`
   }
