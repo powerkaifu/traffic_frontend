@@ -138,6 +138,12 @@
             <q-card-section>
               <div class="chart-header">
                 <h3>交通流量與燈號關聯性分析</h3>
+                <!-- 添加日期範圍顯示 -->
+                <div class="date-range-display" v-if="trafficData.length > 0">
+                  <q-chip color="transparent" text-color="white" icon="date_range" class="date-chip">
+                    搜尋日期範圍：{{ getFormattedDateRange() }}
+                  </q-chip>
+                </div>
               </div>
               <div class="correlation-charts">
                 <div ref="scatterChart" class="chart-area scatter-chart" style="height: 300px"></div>
@@ -149,6 +155,16 @@
 
         <!-- 統計摘要 -->
         <div v-show="activeTab === 'summary'" class="summary-container">
+          <!-- 統計摘要標題和日期範圍 -->
+          <div class="summary-header">
+            <h3>統計摘要</h3>
+            <div class="date-range-display" v-if="trafficData.length > 0">
+              <q-chip color="transparent" text-color="white" icon="date_range" class="date-chip">
+                搜尋日期範圍：{{ getFormattedDateRange() }}
+              </q-chip>
+            </div>
+          </div>
+
           <div class="summary-grid">
             <q-card class="summary-card">
               <q-card-section>
@@ -417,6 +433,21 @@ const getDirectionLabel = (intersection) => {
 
 const formatDateTime = (timestamp) => {
   return date.formatDate(new Date(timestamp), 'YYYY-MM-DD HH:mm:ss')
+}
+
+// 格式化日期範圍顯示
+const getFormattedDateRange = () => {
+  const startYearVal = typeof startYear.value === 'object' ? startYear.value.value : startYear.value
+  const startMonthVal = typeof startMonth.value === 'object' ? startMonth.value.value : startMonth.value
+  const startDayVal = typeof startDay.value === 'object' ? startDay.value.value : startDay.value
+  const endYearVal = typeof endYear.value === 'object' ? endYear.value.value : endYear.value
+  const endMonthVal = typeof endMonth.value === 'object' ? endMonth.value.value : endMonth.value
+  const endDayVal = typeof endDay.value === 'object' ? endDay.value.value : endDay.value
+
+  const startDate = `${startYearVal}-${startMonthVal.toString().padStart(2, '0')}-${startDayVal.toString().padStart(2, '0')}`
+  const endDate = `${endYearVal}-${endMonthVal.toString().padStart(2, '0')}-${endDayVal.toString().padStart(2, '0')}`
+
+  return `${startDate} ~ ${endDate}`
 }
 
 // 事件處理器
@@ -1647,6 +1678,9 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 10px;
   justify-content: center;
+  flex-direction: row;
+  gap: 20px;
+  position: relative;
 }
 
 .chart-header h3 {
@@ -1654,6 +1688,45 @@ onMounted(() => {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 400;
+}
+
+.chart-header .date-range-display {
+  position: absolute;
+  right: 0;
+}
+
+.summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: row;
+  gap: 20px;
+  margin-bottom: 30px;
+  position: relative;
+}
+
+.summary-header .date-range-display {
+  position: absolute;
+  right: 0;
+}
+
+.summary-header h3 {
+  color: white;
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 400;
+}
+
+.date-range-display {
+  display: flex;
+  justify-content: center;
+}
+
+.date-chip {
+  font-size: 0.9rem;
+  font-weight: 500;
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .chart-area {
@@ -1835,6 +1908,22 @@ onMounted(() => {
     flex-direction: column;
     gap: 10px;
     text-align: center;
+  }
+
+  .chart-header .date-range-display {
+    position: static;
+    align-self: center;
+  }
+
+  .summary-header {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .summary-header .date-range-display {
+    position: static;
+    align-self: center;
   }
 }
 
