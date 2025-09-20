@@ -3,7 +3,11 @@
     <!-- 十字路口場景模擬頁面內容 -->
     <div ref="crossroadContainer" class="crossroad-area">
       <!-- 車道路徑 SVG (for GSAP MotionPath) -->
-      <svg width="1400" height="800" style="position: absolute; top: 5; left: -200; pointer-events: none; z-index: 10">
+      <svg
+        width="1400"
+        height="1000"
+        style="position: absolute; top: -100; left: -200; pointer-events: none; z-index: 10"
+      >
         <!-- 往東車道1 直行路徑（車輛從畫面外進入到離開畫面） -->
         <path
           id="eastLane1Straight"
@@ -282,7 +286,7 @@ const getEastLane1Path = () => {
   const centerY = containerHeight / 2
 
   // 根據 TrafficLightController.js 中的計算：往東車道1的 Y 偏移為 92
-  const eastLane1Y = centerY + 92
+  const eastLane1Y = centerY + 197
 
   // 起點：畫面左側外部，更遠 (-200)
   // 終點：畫面右側外部，延伸更遠 (containerWidth + 400)
@@ -303,7 +307,7 @@ const getEastLane2Path = () => {
   const centerY = containerHeight / 2
 
   // 根據 TrafficLightController.js 中的計算：往東車道2的 Y 偏移為 63
-  const eastLane2Y = centerY + 65
+  const eastLane2Y = centerY + 170
 
   // 起點：畫面左側外部，更遠 (-200)
   // 終點：畫面右側外部，延伸更遠 (containerWidth + 400)
@@ -324,7 +328,7 @@ const getEastLane3Path = () => {
   const centerY = containerHeight / 2
 
   // 根據 TrafficLightController.js 中的計算：往東車道3的 Y 偏移為 35
-  const eastLane3Y = centerY + 37
+  const eastLane3Y = centerY + 142
 
   // 起點：畫面左側外部，更遠 (-200)
   // 終點：畫面右側外部，延伸更遠 (containerWidth + 400)
@@ -345,7 +349,7 @@ const getEastLane4Path = () => {
   const centerY = containerHeight / 2
 
   // 根據 TrafficLightController.js 中的計算：往東車道4的 Y 偏移為 6
-  const eastLane4Y = centerY + 8
+  const eastLane4Y = centerY + 113
 
   // 起點：畫面左側外部，更遠 (-200)
   // 終點：畫面右側外部，延伸更遠 (containerWidth + 400)
@@ -366,7 +370,7 @@ const getWestLane1Path = () => {
   const centerY = containerHeight / 2
 
   // 根據 TrafficLightController.js 中的計算：往西車道1的 Y 偏移為 -23
-  const westLane1Y = centerY - 20
+  const westLane1Y = centerY + 85
 
   // 起點：畫面右側外部 (containerWidth + 400)
   // 終點：畫面左側外部 (-200)
@@ -387,7 +391,7 @@ const getWestLane2Path = () => {
   const centerY = containerHeight / 2
 
   // 往西車道2的 Y 偏移為 -52
-  const westLane2Y = centerY - 48
+  const westLane2Y = centerY + 57
 
   // 起點：畫面右側外部 (containerWidth + 400)
   // 終點：畫面左側外部 (-200)
@@ -408,7 +412,7 @@ const getWestLane3Path = () => {
   const centerY = containerHeight / 2
 
   // 往西車道3的 Y 偏移為 -79
-  const westLane3Y = centerY - 75
+  const westLane3Y = centerY + 30
 
   // 起點：畫面右側外部 (containerWidth + 400)
   // 終點：畫面左側外部 (-200)
@@ -429,7 +433,7 @@ const getWestLane4Path = () => {
   const centerY = containerHeight / 2
 
   // 往西車道4的 Y 偏移為 -109
-  const westLane4Y = centerY - 103
+  const westLane4Y = centerY + 2
 
   // 起點：畫面右側外部 (containerWidth + 400)
   // 終點：畫面左側外部 (-200)
