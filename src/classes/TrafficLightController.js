@@ -163,7 +163,7 @@ export default class TrafficLightController {
     if (lanes.length === 0) return null
 
     const randomIndex = Math.floor(Math.random() * lanes.length)
-    
+
     // 針對往東方向調整車道編號順序（視覺上從上到下為1,2,3,4）
     let laneNumber
     if (direction === 'east') {
@@ -173,7 +173,7 @@ export default class TrafficLightController {
       // 其他方向：正常編號（索引0=車道1）
       laneNumber = randomIndex + 1
     }
-    
+
     return {
       position: lanes[randomIndex],
       laneNumber: laneNumber, // 調整後的車道編號
