@@ -154,69 +154,68 @@
         </div>
 
         <!-- 智能分析與數據統計 -->
-        <div v-show="activeTab === 'summary'" class="summary-container">
-          <div class="summary-header">
-            <h3>智能分析與數據統計</h3>
-            <div class="date-range-display" v-if="trafficData.length > 0">
-              <q-chip color="transparent" text-color="white" icon="date_range" class="date-chip">
-                搜尋日期範圍：{{ getFormattedDateRange() }}
-              </q-chip>
-            </div>
-          </div>
-
-          <div class="summary-grid">
-            <q-card class="summary-card">
-              <q-card-section>
-                <div class="summary-item">
-                  <q-icon name="timeline" size="2rem" color="primary" />
-                  <div class="summary-content">
-                    <div class="summary-label">平均東西向秒數</div>
-                    <div class="summary-value">{{ summaryStats.avgEastWest }}s</div>
-                  </div>
-                </div>
-              </q-card-section>
-            </q-card>
-
-            <q-card class="summary-card">
-              <q-card-section>
-                <div class="summary-item">
-                  <q-icon name="timeline" size="2rem" color="secondary" />
-                  <div class="summary-content">
-                    <div class="summary-label">平均南北向秒數</div>
-                    <div class="summary-value">{{ summaryStats.avgSouthNorth }}s</div>
-                  </div>
-                </div>
-              </q-card-section>
-            </q-card>
-
-            <q-card class="summary-card">
-              <q-card-section>
-                <div class="summary-item">
-                  <q-icon name="traffic" size="2rem" color="positive" />
-                  <div class="summary-content">
-                    <div class="summary-label">總交通流量</div>
-                    <div class="summary-value">{{ summaryStats.totalVolume }}</div>
-                  </div>
-                </div>
-              </q-card-section>
-            </q-card>
-
-            <q-card class="summary-card">
-              <q-card-section>
-                <div class="summary-item">
-                  <q-icon name="speed" size="2rem" color="info" />
-                  <div class="summary-content">
-                    <div class="summary-label">平均車速</div>
-                    <div class="summary-value">{{ summaryStats.avgSpeed }} km/h</div>
-                  </div>
-                </div>
-              </q-card-section>
-            </q-card>
-          </div>
-
-          <!-- 詳細統計表格 -->
-          <q-card class="detail-table-card">
+        <div v-show="activeTab === 'summary'" class="chart-container">
+          <q-card class="chart-card">
             <q-card-section>
+              <div class="chart-header">
+                <h3>智能分析與數據統計</h3>
+                <div class="date-range-display" v-if="trafficData.length > 0">
+                  <q-chip color="transparent" text-color="white" icon="date_range" class="date-chip">
+                    搜尋日期範圍：{{ getFormattedDateRange() }}
+                  </q-chip>
+                </div>
+              </div>
+
+              <div class="summary-grid">
+                <q-card class="summary-card">
+                  <q-card-section>
+                    <div class="summary-item">
+                      <q-icon name="timeline" size="2rem" color="primary" />
+                      <div class="summary-content">
+                        <div class="summary-label">平均東西向秒數</div>
+                        <div class="summary-value">{{ summaryStats.avgEastWest }}s</div>
+                      </div>
+                    </div>
+                  </q-card-section>
+                </q-card>
+
+                <q-card class="summary-card">
+                  <q-card-section>
+                    <div class="summary-item">
+                      <q-icon name="timeline" size="2rem" color="secondary" />
+                      <div class="summary-content">
+                        <div class="summary-label">平均南北向秒數</div>
+                        <div class="summary-value">{{ summaryStats.avgSouthNorth }}s</div>
+                      </div>
+                    </div>
+                  </q-card-section>
+                </q-card>
+
+                <q-card class="summary-card">
+                  <q-card-section>
+                    <div class="summary-item">
+                      <q-icon name="traffic" size="2rem" color="positive" />
+                      <div class="summary-content">
+                        <div class="summary-label">總交通流量</div>
+                        <div class="summary-value">{{ summaryStats.totalVolume }}</div>
+                      </div>
+                    </div>
+                  </q-card-section>
+                </q-card>
+
+                <q-card class="summary-card">
+                  <q-card-section>
+                    <div class="summary-item">
+                      <q-icon name="speed" size="2rem" color="info" />
+                      <div class="summary-content">
+                        <div class="summary-label">平均車速</div>
+                        <div class="summary-value">{{ summaryStats.avgSpeed }} km/h</div>
+                      </div>
+                    </div>
+                  </q-card-section>
+                </q-card>
+              </div>
+
               <!-- OpenAI 智能分析區塊 -->
               <div class="ai-analysis-section">
                 <div class="ai-controls">
@@ -2011,6 +2010,9 @@ onMounted(() => {
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
+.summary-card .q-card__section {
+  padding: 10px;
+}
 
 .summary-item {
   display: flex;
@@ -2331,6 +2333,7 @@ onMounted(() => {
   flex-direction: row;
   gap: 15px;
   align-items: flex-start;
+  margin-bottom: 20px;
 }
 
 .ai-question-row {
@@ -2382,10 +2385,43 @@ onMounted(() => {
   color: white;
   white-space: pre-wrap;
   word-wrap: break-word;
-  max-height: 350px;
+  /* 響應式高度設定 */
+  max-height: 30vh; /* 使用視窗高度的 30% */
+  min-height: 200px; /* 最小高度確保可讀性 */
   overflow-y: auto;
   padding: 15px;
   background: rgba(0, 0, 0, 0.2);
+}
+
+/* 針對不同螢幕尺寸的高度調整 - 基於寬度判斷 */
+@media (min-width: 768px) {
+  .ai-result-content {
+    max-height: 35vh; /* 平板尺寸 */
+  }
+}
+
+@media (min-width: 1024px) {
+  .ai-result-content {
+    max-height: 40vh; /* 小筆電尺寸 */
+  }
+}
+
+@media (min-width: 1366px) {
+  .ai-result-content {
+    max-height: 45vh; /* 標準筆電尺寸 */
+  }
+}
+
+@media (min-width: 1920px) {
+  .ai-result-content {
+    max-height: 45vh; /* Full HD 桌機 */
+  }
+}
+
+@media (min-width: 2560px) {
+  .ai-result-content {
+    max-height: 60vh; /* 2K 螢幕 (2560x1440) */
+  }
 }
 
 /* 自訂滾動條樣式 - 交通科技感 */
