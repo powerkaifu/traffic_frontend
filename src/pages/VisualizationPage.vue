@@ -230,7 +230,7 @@
                     outlined
                     dense
                     class="ai-question-select"
-                    :hint="selectedQuestion ? selectedQuestion.description : ''"
+                    hide-hint
                   />
                   <q-btn
                     @click="analyzeWithAI"
@@ -244,8 +244,19 @@
                   />
                 </div>
 
+                <!-- AI 分析載入中 -->
+                <div v-if="aiAnalyzing" class="ai-loading-card">
+                  <div class="ai-loading-content">
+                    <q-spinner-ios size="40px" color="primary" />
+                    <div class="ai-loading-text">
+                      <div class="ai-loading-title">AI 正在分析中...</div>
+                      <div class="ai-loading-subtitle">請稍候，正在處理您的數據</div>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- AI 分析結果顯示 -->
-                <div v-if="aiAnalysisResult" class="ai-result-card">
+                <div v-else-if="aiAnalysisResult" class="ai-result-card">
                   <div class="ai-result-header">
                     <q-icon name="psychology" size="1.5rem" color="primary" />
                     <span class="ai-result-title">AI 智能分析結果</span>
@@ -258,6 +269,17 @@
                     </q-btn>
                   </div>
                   <div class="ai-result-content" v-html="formatAnalysisResult(aiAnalysisResult)"></div>
+                </div>
+
+                <!-- 空白狀態提示 -->
+                <div v-else class="ai-empty-state">
+                  <div class="ai-empty-content">
+                    <q-icon name="psychology" size="3rem" color="primary" class="ai-empty-icon" />
+                    <div class="ai-empty-text">
+                      <div class="ai-empty-title">AI 智能分析</div>
+                      <div class="ai-empty-subtitle">選擇問題並點擊「AI 分析」開始數據解讀</div>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- 錯誤提示 -->
@@ -2380,7 +2402,7 @@ onMounted(() => {
 
 @media (min-width: 1920px) {
   .ai-result-content {
-    max-height: 45vh;
+    max-height: 50vh;
   }
 }
 
@@ -2513,6 +2535,115 @@ onMounted(() => {
   gap: 10px;
   color: rgba(255, 255, 255, 0.8);
   font-style: italic;
+}
+
+.ai-loading-card {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 30px;
+  text-align: center;
+  margin-top: 15px;
+}
+
+.ai-loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.ai-loading-text {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ai-loading-title {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.87);
+}
+
+.ai-loading-subtitle {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.ai-empty-state {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 40px;
+  text-align: center;
+  margin-top: 15px;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 針對不同解析度調整 AI 分析區域高度 */
+@media (min-width: 1920px) {
+  .ai-empty-state {
+    min-height: 500px;
+  }
+
+  .ai-loading-card {
+    min-height: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ai-result-card {
+    min-height: 300px;
+  }
+}
+
+@media (min-width: 2560px) {
+  .ai-empty-state {
+    min-height: 860px;
+  }
+
+  .ai-loading-card {
+    min-height: 860px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ai-result-card {
+    min-height: 300px;
+  }
+}
+
+.ai-empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.ai-empty-icon {
+  opacity: 0.6;
+}
+
+.ai-empty-text {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ai-empty-title {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ai-empty-subtitle {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* =============== 自訂滾動條樣式 =============== */
