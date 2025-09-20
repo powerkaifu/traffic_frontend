@@ -325,13 +325,14 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { date, Notify, copyToClipboard } from 'quasar'
+import { date, copyToClipboard, useQuasar } from 'quasar'
 import * as d3 from 'd3'
 import { trafficAPI } from '../api/index.js'
 import { analyzeTrafficDataWithAI, prepareTrafficDataSummary, ANALYSIS_QUESTIONS } from '../api/openai.js'
 
 const router = useRouter()
 const route = useRoute()
+const $q = useQuasar()
 
 // 響應式數據
 const loading = ref(false)
@@ -508,7 +509,18 @@ const onDateChange = () => {
 
 const navigateToTab = (tabName) => {
   activeTab.value = tabName
-  router.push({ name: tabName })
+
+  // 將小寫的 tab 名稱轉換為對應的路由名稱
+  const routeNameMap = {
+    timeseries: 'TimeSeries',
+    correlation: 'Correlation',
+    summary: 'Summary',
+  }
+
+  const routeName = routeNameMap[tabName]
+  if (routeName) {
+    router.push({ name: routeName })
+  }
 
   nextTick(() => {
     if (trafficData.value.length > 0) {
@@ -666,6 +678,120 @@ const updateCharts = () => {
     drawScatterChart()
     drawHeatmapChart()
   }
+}
+
+// OpenAI 智能分析方法
+const analyzeWithAI = async () => {
+  if (!selectedQuestion.value) {
+    aiAnalysisError.value = '請選擇一個分析問題'
+    return
+  }
+
+  if (!trafficData.value || trafficData.value.length === 0) {
+    aiAnalysisError.value = '目前沒有交通數據可供分析'
+    return
+  }
+
+  try {
+    aiAnalyzing.value = true
+    aiAnalysisError.value = ''
+    aiAnalysisResult.value = ''
+
+    // 準備數據摘要
+    const { startDate, endDate } = getFormattedDateRange()
+    const dateRange = `${startDate} 至 ${endDate}`
+    const dataSummary = prepareTrafficDataSummary(trafficData.value, summaryStats, [], dateRange)
+
+    // 調用 OpenAI API 分析
+    const questionText = selectedQuestion.value.label || selectedQuestion.value
+    const result = await analyzeTrafficDataWithAI(questionText, dataSummary)
+    aiAnalysisResult.value = result
+
+    $q.notify({
+      type: 'positive',
+      message: 'AI 分析完成',
+      position: 'top',
+    })
+  } catch (error) {
+    console.error('AI分析錯誤:', error)
+    aiAnalysisError.value = error.message || '分析過程中發生錯誤，請稍後再試'
+
+    $q.notify({
+      type: 'negative',
+      message: 'AI 分析失敗',
+      position: 'top',
+    })
+  } finally {
+    aiAnalyzing.value = false
+  }
+}
+
+const copyAnalysisResult = async () => {
+  if (!aiAnalysisResult.value) return
+
+  try {
+    await copyToClipboard(aiAnalysisResult.value)
+    $q.notify({
+      type: 'positive',
+      message: '分析結果已複製到剪貼簿',
+      position: 'top',
+    })
+  } catch (error) {
+    console.error('複製失敗:', error)
+    $q.notify({
+      type: 'negative',
+      message: '複製失敗',
+      position: 'top',
+    })
+  }
+}
+
+const downloadAnalysisReport = () => {
+  if (!aiAnalysisResult.value) return
+
+  const { startDate, endDate } = getFormattedDateRange()
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+  const filename = `AI交通分析報告_${startDate}_${endDate}_${timestamp}.txt`
+
+  const content = `交通流量AI分析報告
+生成時間: ${new Date().toLocaleString('zh-TW')}
+數據期間: ${startDate} 至 ${endDate}
+分析問題: ${selectedQuestion.value.label || selectedQuestion.value}
+
+分析結果:
+${aiAnalysisResult.value}
+`
+
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+
+  $q.notify({
+    type: 'positive',
+    message: '分析報告已下載',
+    position: 'top',
+  })
+}
+
+const retryAnalysis = () => {
+  aiAnalysisError.value = ''
+  analyzeWithAI()
+}
+
+const formatAnalysisResult = (result) => {
+  if (!result) return ''
+
+  // 格式化結果，添加適當的換行和縮排
+  return result
+    .replace(/\n/g, '<br>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
 }
 
 // 時間序列圖表
@@ -1660,121 +1786,6 @@ onMounted(() => {
 
   // 載入初始數據
   loadData()
-
-  // OpenAI 智能分析方法
-  const analyzeWithAI = async () => {
-    if (!selectedQuestion.value) {
-      aiAnalysisError.value = '請選擇一個分析問題'
-      return
-    }
-
-    if (!trafficData.value || trafficData.value.length === 0) {
-      aiAnalysisError.value = '目前沒有交通數據可供分析'
-      return
-    }
-
-    try {
-      aiAnalyzing.value = true
-      aiAnalysisError.value = ''
-      aiAnalysisResult.value = ''
-
-      // 準備數據摘要
-      const dataSummary = prepareTrafficDataSummary(trafficData.value)
-
-      // 調用 OpenAI API 分析
-      const result = await analyzeTrafficDataWithAI(dataSummary, selectedQuestion.value)
-      aiAnalysisResult.value = result
-
-      Notify.create({
-        type: 'positive',
-        message: 'AI 分析完成',
-        position: 'top',
-      })
-    } catch (error) {
-      console.error('AI分析錯誤:', error)
-      aiAnalysisError.value = error.message || '分析過程中發生錯誤，請稍後再試'
-
-      Notify.create({
-        type: 'negative',
-        message: 'AI 分析失敗',
-        position: 'top',
-      })
-    } finally {
-      aiAnalyzing.value = false
-    }
-  }
-
-  // eslint-disable-next-line no-unused-vars
-  const copyAnalysisResult = async () => {
-    if (!aiAnalysisResult.value) return
-
-    try {
-      await copyToClipboard(aiAnalysisResult.value)
-      Notify.create({
-        type: 'positive',
-        message: '分析結果已複製到剪貼簿',
-        position: 'top',
-      })
-    } catch (error) {
-      console.error('複製失敗:', error)
-      Notify.create({
-        type: 'negative',
-        message: '複製失敗',
-        position: 'top',
-      })
-    }
-  }
-
-  // eslint-disable-next-line no-unused-vars
-  const downloadAnalysisReport = () => {
-    if (!aiAnalysisResult.value) return
-
-    const { startDate, endDate } = getFormattedDateRange()
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
-    const filename = `AI交通分析報告_${startDate}_${endDate}_${timestamp}.txt`
-
-    const content = `交通流量AI分析報告
-生成時間: ${new Date().toLocaleString('zh-TW')}
-數據期間: ${startDate} 至 ${endDate}
-分析問題: ${selectedQuestion.value}
-
-分析結果:
-${aiAnalysisResult.value}
-`
-
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-
-    Notify.create({
-      type: 'positive',
-      message: '分析報告已下載',
-      position: 'top',
-    })
-  }
-
-  // eslint-disable-next-line no-unused-vars
-  const retryAnalysis = () => {
-    aiAnalysisError.value = ''
-    analyzeWithAI()
-  }
-
-  // eslint-disable-next-line no-unused-vars
-  const formatAnalysisResult = (result) => {
-    if (!result) return ''
-
-    // 格式化結果，添加適當的換行和縮排
-    return result
-      .replace(/\n/g, '<br>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-  }
 
   // 清理事件監聽器
   onUnmounted(() => {
