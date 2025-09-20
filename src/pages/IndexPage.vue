@@ -2,6 +2,50 @@
   <q-page class="simulation-page">
     <!-- 十字路口場景模擬頁面內容 -->
     <div ref="crossroadContainer" class="crossroad-area">
+      <!-- 車道路徑 SVG (for GSAP MotionPath) -->
+      <svg width="1400" height="800" style="position: absolute; top: 5; left: -200; pointer-events: none; z-index: 10">
+        <!-- 往東車道1 直行路徑（車輛從畫面外進入到離開畫面） -->
+        <path
+          id="eastLane1Straight"
+          :d="getEastLane1Path()"
+          stroke="rgba(255, 255, 255, 0.3)"
+          stroke-width="1"
+          fill="none"
+        />
+        <!-- 往東車道2 直行路徑（車輛從畫面外進入到離開畫面） -->
+        <path
+          id="eastLane2Straight"
+          :d="getEastLane2Path()"
+          stroke="rgba(255, 255, 255, 0.3)"
+          stroke-width="1"
+          fill="none"
+        />
+        <!-- 往東車道3 直行路徑（車輛從畫面外進入到離開畫面） -->
+        <path
+          id="eastLane3Straight"
+          :d="getEastLane3Path()"
+          stroke="rgba(255, 255, 255, 0.3)"
+          stroke-width="1"
+          fill="none"
+        />
+        <!-- 往東車道4 直行路徑（車輛從畫面外進入到離開畫面） -->
+        <path
+          id="eastLane4Straight"
+          :d="getEastLane4Path()"
+          stroke="rgba(255, 255, 255, 0.3)"
+          stroke-width="1"
+          fill="none"
+        />
+        <!--往西車道1 直行路徑（車輛從畫面外進入到離開畫面）-->
+        <path
+          id="westLane1Straight"
+          :d="getWestLane1Path()"
+          stroke="rgba(255, 255, 255, 0.3)"
+          stroke-width="1"
+          fill="none"
+        />
+      </svg>
+
       <!-- 道路標籤背景 -->
       <div class="road-label">
         <div class="road-label-bg"></div>
@@ -170,6 +214,111 @@ const aiPrediction = ref({
   eastWest: 0,
   northSouth: 0,
 })
+
+// 計算往東車道1的SVG路徑
+const getEastLane1Path = () => {
+  if (!crossroadContainer.value) {
+    return 'M-200,600 L1400,600' // 預設路徑，橫跨更廣
+  }
+
+  const containerHeight = crossroadContainer.value.offsetHeight
+  const containerWidth = crossroadContainer.value.offsetWidth
+  const centerY = containerHeight / 2
+
+  // 根據 TrafficLightController.js 中的計算：往東車道1的 Y 偏移為 92
+  const eastLane1Y = centerY + 92
+
+  // 起點：畫面左側外部，更遠 (-200)
+  // 終點：畫面右側外部，延伸更遠 (containerWidth + 400)
+  const startX = -200
+  const endX = containerWidth + 400
+
+  return `M${startX},${eastLane1Y} L${endX},${eastLane1Y}`
+}
+
+// 計算往東車道2的SVG路徑
+const getEastLane2Path = () => {
+  if (!crossroadContainer.value) {
+    return 'M-200,570 L1400,570' // 預設路徑，橫跨更廣
+  }
+
+  const containerHeight = crossroadContainer.value.offsetHeight
+  const containerWidth = crossroadContainer.value.offsetWidth
+  const centerY = containerHeight / 2
+
+  // 根據 TrafficLightController.js 中的計算：往東車道2的 Y 偏移為 63
+  const eastLane2Y = centerY + 65
+
+  // 起點：畫面左側外部，更遠 (-200)
+  // 終點：畫面右側外部，延伸更遠 (containerWidth + 400)
+  const startX = -200
+  const endX = containerWidth + 400
+
+  return `M${startX},${eastLane2Y} L${endX},${eastLane2Y}`
+}
+
+// 計算往東車道3的SVG路徑
+const getEastLane3Path = () => {
+  if (!crossroadContainer.value) {
+    return 'M-200,540 L1400,540' // 預設路徑，橫跨更廣
+  }
+
+  const containerHeight = crossroadContainer.value.offsetHeight
+  const containerWidth = crossroadContainer.value.offsetWidth
+  const centerY = containerHeight / 2
+
+  // 根據 TrafficLightController.js 中的計算：往東車道3的 Y 偏移為 35
+  const eastLane3Y = centerY + 37
+
+  // 起點：畫面左側外部，更遠 (-200)
+  // 終點：畫面右側外部，延伸更遠 (containerWidth + 400)
+  const startX = -200
+  const endX = containerWidth + 400
+
+  return `M${startX},${eastLane3Y} L${endX},${eastLane3Y}`
+}
+
+// 計算往東車道4的SVG路徑
+const getEastLane4Path = () => {
+  if (!crossroadContainer.value) {
+    return 'M-200,510 L1400,510' // 預設路徑，橫跨更廣
+  }
+
+  const containerHeight = crossroadContainer.value.offsetHeight
+  const containerWidth = crossroadContainer.value.offsetWidth
+  const centerY = containerHeight / 2
+
+  // 根據 TrafficLightController.js 中的計算：往東車道4的 Y 偏移為 6
+  const eastLane4Y = centerY + 8
+
+  // 起點：畫面左側外部，更遠 (-200)
+  // 終點：畫面右側外部，延伸更遠 (containerWidth + 400)
+  const startX = -200
+  const endX = containerWidth + 400
+
+  return `M${startX},${eastLane4Y} L${endX},${eastLane4Y}`
+}
+
+// 計算往西車道1的SVG路徑
+const getWestLane1Path = () => {
+  if (!crossroadContainer.value) {
+    return 'M1400,400 L-200,400' // 預設路徑，從右到左
+  }
+
+  const containerHeight = crossroadContainer.value.offsetHeight
+  const containerWidth = crossroadContainer.value.offsetWidth
+  const centerY = containerHeight / 2
+
+  // 根據 TrafficLightController.js 中的計算：往西車道1的 Y 偏移為 -23
+  const westLane1Y = centerY - 23
+
+  // 起點：畫面右側外部 (containerWidth + 400)
+  // 終點：畫面左側外部 (-200)
+  const startX = containerWidth + 400
+  const endX = -200
+
+  return `M${startX},${westLane1Y} L${endX},${westLane1Y}`
+}
 
 onMounted(() => {
   if (crossroadContainer.value) {
