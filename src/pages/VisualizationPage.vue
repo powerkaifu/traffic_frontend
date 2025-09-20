@@ -1183,8 +1183,14 @@ const drawScatterChart = () => {
     .call(d3.axisBottom(xScale))
     .selectAll('text')
     .style('fill', 'white')
+    .style('font-size', '12px')
 
-  g.append('g').call(d3.axisLeft(yScale)).selectAll('text').style('fill', 'white')
+  g.append('g')
+    .call(d3.axisLeft(yScale))
+    .selectAll('text')
+    .style('fill', 'white')
+    .style('font-size', '12px')
+    .attr('dx', '-0.5em')
 
   // 設定軸線和刻度線為白色
   g.selectAll('.domain').style('stroke', 'white')
@@ -1382,8 +1388,14 @@ const drawHeatmapChart = () => {
     .call(d3.axisBottom(xScale))
     .selectAll('text')
     .style('fill', 'white')
+    .style('font-size', '12px')
 
-  g.append('g').call(d3.axisLeft(yScale)).selectAll('text').style('fill', 'white')
+  g.append('g')
+    .call(d3.axisLeft(yScale))
+    .selectAll('text')
+    .style('fill', 'white')
+    .style('font-size', '12px')
+    .attr('dx', '-0.5em')
 
   // 設定軸線和刻度線為白色
   g.selectAll('.domain').style('stroke', 'white')
