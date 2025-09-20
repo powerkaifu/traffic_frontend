@@ -641,6 +641,15 @@ onUnmounted(() => {
   min-height: 150px;
 }
 
+/* 2560x1440 解析度的基礎優化 */
+@media (min-width: 2560px) and (min-height: 1440px) {
+  .set-window-section {
+    background-size: 100% 100%; /* 在高解析度下使用 100% 100% 確保完整填滿 */
+    height: clamp(220px, 30vh, 300px); /* 增加高度範圍 */
+    min-height: 180px; /* 提高最小高度 */
+  }
+}
+
 .section-content {
   position: absolute;
   top: 0;
@@ -1179,11 +1188,10 @@ onUnmounted(() => {
     width: 650px !important;
   }
 
-  /* 優化場景參數設定區域 */
+  /* 場景參數設定區域進一步優化 */
   .set-window-section {
-    height: clamp(200px, 28vh, 280px);
-    background-size: cover; /* 改為 cover 確保背景圖完整填滿 */
-    background-position: center center;
+    height: clamp(220px, 30vh, 300px); /* 覆蓋基礎樣式，提供更大的高度範圍 */
+    background-attachment: local; /* 確保背景圖固定在容器內 */
   }
 
   .section-content {

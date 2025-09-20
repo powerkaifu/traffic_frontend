@@ -174,35 +174,27 @@ ${dataSummary}
 }
 
 /**
- * 預定義的分析問題列表
+ * 預定義的分析問題列表 (操作者感興趣的問題)
  */
 export const ANALYSIS_QUESTIONS = [
   {
-    value: 'peak_valley',
-    label: '這段期間的交通流量有什麼高峰或低谷？',
+    value: 'traffic_overview',
+    label: '這段期間內各路口的整體車流量分佈如何？哪個時段最繁忙？',
   },
   {
-    value: 'anomaly_detection',
-    label: '哪些時段或路口出現異常流量或燈號秒數？',
+    value: 'peak_hours_analysis',
+    label: '識別這段期間的交通尖峰時段，並分析每個尖峰的持續時間',
   },
   {
-    value: 'correlation_analysis',
-    label: '流量與燈號秒數之間有明顯的關聯性嗎？',
+    value: 'congestion_diagnosis',
+    label: '根據速度與占有率數據，找出交通擁堵最嚴重的時段與路口',
   },
   {
-    value: 'optimization_suggestions',
-    label: '哪些路口或時段建議調整燈號設定以改善交通？',
+    value: 'signal_timing_evaluation',
+    label: '評估當前號誌配時對這段期間交通流暢度的影響',
   },
   {
-    value: 'traffic_summary',
-    label: '請用簡單文字摘要這段期間的交通流量與燈號特性',
-  },
-  {
-    value: 'efficiency_analysis',
-    label: '這段期間的交通效率如何？有何改善空間？',
-  },
-  {
-    value: 'pattern_recognition',
-    label: '交通數據中有哪些明顯的模式或規律？',
+    value: 'optimization_recommendations',
+    label: '基於這段期間的數據表現，建議如何調整號誌時間以改善效率？',
   },
 ]
