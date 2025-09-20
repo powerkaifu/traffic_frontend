@@ -20,38 +20,18 @@ export function createLanePathCalculator(containerElement) {
     const containerWidth = containerElement.offsetWidth
     const centerY = containerHeight / 2
 
-    // 根據 TrafficLightController.js 中的計算：往東車道1的 Y 偏移為 92
-    const eastLane1Y = centerY + 197
+    // 根據 TrafficLightController.js 中的計算：往東車道4的 Y 偏移為 6
+    const eastLane4Y = centerY + 113
 
     // 起點：畫面左側外部，更遠 (-200)
     // 終點：畫面右側外部，延伸更遠 (containerWidth + 400)
     const startX = -200
     const endX = containerWidth + 40
 
-    return `M${startX},${eastLane1Y} L${endX},${eastLane1Y}`
+    return `M${startX},${eastLane4Y} L${endX},${eastLane4Y}`
   }
 
   const getEastLane2Path = () => {
-    if (!containerElement) {
-      return 'M-200,570 L1400,570' // 預設路徑，橫跨更廣
-    }
-
-    const containerHeight = containerElement.offsetHeight
-    const containerWidth = containerElement.offsetWidth
-    const centerY = containerHeight / 2
-
-    // 根據 TrafficLightController.js 中的計算：往東車道2的 Y 偏移為 63
-    const eastLane2Y = centerY + 170
-
-    // 起點：畫面左側外部，更遠 (-200)
-    // 終點：畫面右側外部，延伸更遠 (containerWidth + 400)
-    const startX = -200
-    const endX = containerWidth + 400
-
-    return `M${startX},${eastLane2Y} L${endX},${eastLane2Y}`
-  }
-
-  const getEastLane3Path = () => {
     if (!containerElement) {
       return 'M-200,540 L1400,540' // 預設路徑，橫跨更廣
     }
@@ -71,6 +51,26 @@ export function createLanePathCalculator(containerElement) {
     return `M${startX},${eastLane3Y} L${endX},${eastLane3Y}`
   }
 
+  const getEastLane3Path = () => {
+    if (!containerElement) {
+      return 'M-200,570 L1400,570' // 預設路徑，橫跨更廣
+    }
+
+    const containerHeight = containerElement.offsetHeight
+    const containerWidth = containerElement.offsetWidth
+    const centerY = containerHeight / 2
+
+    // 根據 TrafficLightController.js 中的計算：往東車道2的 Y 偏移為 63
+    const eastLane2Y = centerY + 170
+
+    // 起點：畫面左側外部，更遠 (-200)
+    // 終點：畫面右側外部，延伸更遠 (containerWidth + 400)
+    const startX = -200
+    const endX = containerWidth + 400
+
+    return `M${startX},${eastLane2Y} L${endX},${eastLane2Y}`
+  }
+
   const getEastLane4Path = () => {
     if (!containerElement) {
       return 'M-200,510 L1400,510' // 預設路徑，橫跨更廣
@@ -80,15 +80,15 @@ export function createLanePathCalculator(containerElement) {
     const containerWidth = containerElement.offsetWidth
     const centerY = containerHeight / 2
 
-    // 根據 TrafficLightController.js 中的計算：往東車道4的 Y 偏移為 6
-    const eastLane4Y = centerY + 113
+    // 根據 TrafficLightController.js 中的計算：往東車道1的 Y 偏移為 92
+    const eastLane1Y = centerY + 200
 
     // 起點：畫面左側外部，更遠 (-200)
     // 終點：畫面右側外部，延伸更遠 (containerWidth + 400)
     const startX = -200
     const endX = containerWidth + 400
 
-    return `M${startX},${eastLane4Y} L${endX},${eastLane4Y}`
+    return `M${startX},${eastLane1Y} L${endX},${eastLane1Y}`
   }
 
   // ==================== 往西車道路徑 ====================
