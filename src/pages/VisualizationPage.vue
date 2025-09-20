@@ -1184,7 +1184,7 @@ const drawScatterChart = () => {
     return
   }
 
-  const margin = { top: 30, right: 100, bottom: 60, left: 80 }
+  const margin = { top: 30, right: 100, bottom: 60, left: 140 }
   const containerWidth = scatterChart.value.clientWidth
   const width = Math.max(300, containerWidth - margin.left - margin.right + 50)
   // 動態計算散點圖高度，避免固定高度造成推擠
@@ -1402,7 +1402,7 @@ const drawHeatmapChart = () => {
     return
   }
 
-  const margin = { top: 30, right: 120, bottom: 60, left: 140 }
+  const margin = { top: 30, right: 100, bottom: 60, left: 140 }
   const containerWidth = heatmapChart.value.clientWidth
   const width = Math.max(300, containerWidth - margin.left - margin.right)
   // 動態計算熱力圖高度，避免固定高度造成推擠
