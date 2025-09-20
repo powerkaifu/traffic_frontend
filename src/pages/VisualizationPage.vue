@@ -1904,10 +1904,8 @@ onMounted(() => {
 }
 
 .chart-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 0 20px;
+  background: transparent;
+  box-shadow: none;
 }
 
 .chart-header {
@@ -1950,7 +1948,7 @@ onMounted(() => {
 .summary-header h3 {
   color: white;
   margin: 0;
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   font-weight: 400;
 }
 
@@ -1972,6 +1970,7 @@ onMounted(() => {
   overflow: hidden;
   width: 100%;
   box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 /* 時間序列圖表響應式高度調整 */
@@ -1979,10 +1978,6 @@ onMounted(() => {
   min-height: 400px;
   max-height: calc(100vh - 300px);
   width: 100%;
-}
-
-.chart-container {
-  margin-bottom: 20px;
 }
 
 /* 關聯性分析圖表保持上下排列，參考時間序列分析的底部空間進行調整 */
@@ -2115,12 +2110,12 @@ onMounted(() => {
 @media screen and (min-width: 1600px) {
   .timeseries-chart {
     /* 裝置尺寸 */
-    max-height: calc(100vh - 335px);
+    max-height: calc(100vh - 320px);
   }
 
   .correlation-charts {
     /* 裝置尺寸 */
-    max-height: calc(100vh - 240px);
+    max-height: calc(100vh - 220px);
   }
 
   .scatter-chart,
@@ -2334,7 +2329,6 @@ onMounted(() => {
   display: flex;
   flex-direction: row;
   gap: 15px;
-  margin-bottom: 20px;
   align-items: flex-start;
 }
 

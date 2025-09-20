@@ -180,36 +180,29 @@ export const ANALYSIS_QUESTIONS = [
   {
     value: 'peak_valley',
     label: '這段期間的交通流量有什麼高峰或低谷？',
-    description: '分析流量變化趨勢，找出尖峰和離峰時段',
   },
   {
     value: 'anomaly_detection',
     label: '哪些時段或路口出現異常流量或燈號秒數？',
-    description: '檢測異常數據，找出可能的問題點',
   },
   {
     value: 'correlation_analysis',
     label: '流量與燈號秒數之間有明顯的關聯性嗎？',
-    description: '分析流量與燈號秒數的相關性',
   },
   {
     value: 'optimization_suggestions',
     label: '哪些路口或時段建議調整燈號設定以改善交通？',
-    description: '基於數據提供燈號優化建議',
   },
   {
     value: 'traffic_summary',
     label: '請用簡單文字摘要這段期間的交通流量與燈號特性',
-    description: '生成整體交通狀況摘要報告',
   },
   {
     value: 'efficiency_analysis',
     label: '這段期間的交通效率如何？有何改善空間？',
-    description: '評估交通效率和改善建議',
   },
   {
     value: 'pattern_recognition',
     label: '交通數據中有哪些明顯的模式或規律？',
-    description: '識別交通流量的模式和規律',
   },
 ]
