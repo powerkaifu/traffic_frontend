@@ -300,14 +300,32 @@ export default class Vehicle {
 
   // Strategy Pattern: 檢查車輛是否已離開畫面邊界
   checkOutOfBounds(position) {
-    // 定義畫面邊界（包含安全邊距）
-    const bounds = {
-      left: -50, // 縮小左邊界，讓車輛更容易觸發完成
-      right: 1050, // 縮小右邊界
-      top: -50, // 縮小上邊界
-      bottom: 650, // 縮小下邊界
+    // 動態獲取容器尺寸，適應不同螢幕大小
+    const container = document.querySelector('.crossroad-area')
+    if (!container) {
+      // 如果找不到容器，使用視窗尺寸作為備選
+      const bounds = {
+        left: -50,
+        right: window.innerWidth + 50,
+        top: -50,
+        bottom: window.innerHeight + 50,
+      }
+      return this.checkBoundsForDirection(position, bounds)
     }
 
+    // 基於實際容器尺寸定義畫面邊界（包含安全邊距）
+    const bounds = {
+      left: -50, // 左側安全邊距
+      right: container.offsetWidth + 50, // 動態右邊界
+      top: -50, // 上方安全邊距
+      bottom: container.offsetHeight + 50, // 動態下邊界
+    }
+
+    return this.checkBoundsForDirection(position, bounds)
+  }
+
+  // 輔助方法：根據方向檢查邊界
+  checkBoundsForDirection(position, bounds) {
     // 根據方向檢查是否已完全離開對應邊界
     switch (this.direction) {
       case 'east':
