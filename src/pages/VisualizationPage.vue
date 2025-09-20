@@ -1255,6 +1255,30 @@ const drawScatterChart = () => {
       d3.select(this).attr('r', 4)
       d3.selectAll('.tooltip').remove()
     })
+
+  // 右下角 VD 色彩說明
+  const vdColorMap = [
+    { vdId: 'VLRJX20', color: '#2ca02c' },
+    { vdId: 'VLRJX00', color: '#1f77b4' },
+    { vdId: 'VLRJM60', color: '#ff7f0e' },
+  ]
+  // 橫向排列，置於最下方中央
+  const legendGroup = svg
+    .append('g')
+    .attr('class', 'vd-legend')
+    .attr('transform', `translate(${margin.left + width / 2 + 280}, ${height + margin.top + margin.bottom - 30})`)
+
+  vdColorMap.forEach((item, i) => {
+    const xOffset = i * 110
+    legendGroup.append('circle').attr('cx', xOffset).attr('cy', 8).attr('r', 8).style('fill', item.color)
+    legendGroup
+      .append('text')
+      .attr('x', xOffset + 16)
+      .attr('y', 14)
+      .text(`${item.vdId}`)
+      .style('fill', 'white')
+      .style('font-size', '14px')
+  })
 }
 
 // 熱力圖
