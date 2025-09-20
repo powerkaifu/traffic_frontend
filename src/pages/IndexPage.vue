@@ -4,9 +4,18 @@
     <div ref="crossroadContainer" class="crossroad-area">
       <!-- 車道路徑 SVG (for GSAP MotionPath) -->
       <svg
-        width="1400"
-        height="1000"
-        style="position: absolute; top: -100; left: -200; pointer-events: none; z-index: 10"
+        viewBox="0 0 1400 1000"
+        preserveAspectRatio="xMidYMid meet"
+        style="
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+          z-index: 10;
+        "
       >
         <!-- 往東車道1 直行路徑（車輛從畫面外進入到離開畫面） -->
         <path
