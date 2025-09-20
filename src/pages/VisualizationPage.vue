@@ -12,9 +12,9 @@
           align="justify"
           narrow-indicator
         >
-          <q-tab name="timeseries" label="時間序列分析" @click="navigateToTab('timeseries')" />
-          <q-tab name="correlation" label="關聯性分析" @click="navigateToTab('correlation')" />
-          <q-tab name="summary" label="統計摘要" @click="navigateToTab('summary')" />
+          <q-tab name="timeseries" label="綠燈秒數時間序列分析" @click="navigateToTab('timeseries')" />
+          <q-tab name="correlation" label="流量與燈號關聯性分析" @click="navigateToTab('correlation')" />
+          <q-tab name="summary" label="智能分析與數據統計" @click="navigateToTab('summary')" />
         </q-tabs>
       </div>
 
@@ -25,7 +25,7 @@
           <q-card class="chart-card">
             <q-card-section>
               <div class="chart-header">
-                <h3>交通燈秒數時間序列分析</h3>
+                <h3>綠燈秒數時間序列分析</h3>
               </div>
               <!-- 控制面板 -->
               <div class="control-panel">
@@ -137,7 +137,7 @@
           <q-card class="chart-card">
             <q-card-section>
               <div class="chart-header">
-                <h3>交通流量與燈號關聯性分析</h3>
+                <h3>流量與燈號關聯性分析</h3>
                 <!-- 添加日期範圍顯示 -->
                 <div class="date-range-display" v-if="trafficData.length > 0">
                   <q-chip color="transparent" text-color="white" icon="date_range" class="date-chip">
@@ -153,11 +153,10 @@
           </q-card>
         </div>
 
-        <!-- 統計摘要 -->
+        <!-- 智能分析與數據統計 -->
         <div v-show="activeTab === 'summary'" class="summary-container">
-          <!-- 統計摘要標題和日期範圍 -->
           <div class="summary-header">
-            <h3>統計摘要</h3>
+            <h3>智能分析與數據統計</h3>
             <div class="date-range-display" v-if="trafficData.length > 0">
               <q-chip color="transparent" text-color="white" icon="date_range" class="date-chip">
                 搜尋日期範圍：{{ getFormattedDateRange() }}
@@ -1182,7 +1181,6 @@ const drawScatterChart = () => {
       .attr('y', 50)
       .style('fill', '#666')
       .text('所選日期範圍內沒有散佈圖資料')
-
     return
   }
 
@@ -1192,8 +1190,6 @@ const drawScatterChart = () => {
   // 動態計算散點圖高度，避免固定高度造成推擠
   const containerHeight = scatterChart.value.clientHeight || 280
   const height = Math.max(200, containerHeight - margin.top - margin.bottom)
-
-  console.log(`重繪散點圖 - 容器寬度: ${containerWidth}px, 容器高度: ${containerHeight}px, 圖表高度: ${height}px`)
 
   const svg = d3
     .select(scatterChart.value)
@@ -1574,7 +1570,7 @@ const drawHeatmapChart = () => {
     .style('text-anchor', 'middle')
     .style('fill', 'white')
     .style('font-size', '16px')
-    .text('VD 站點')
+    .text('VD 車輛偵測器')
 
   g.append('text')
     .attr('transform', `translate(${width / 2}, ${height + margin.bottom - 10})`)
@@ -1758,7 +1754,7 @@ onMounted(() => {
 
 .nav-tabs .q-tabs {
   backdrop-filter: blur(10px);
-  width: 400px;
+  width: 600px;
 }
 
 .main-content {
@@ -1873,7 +1869,7 @@ onMounted(() => {
 }
 
 .summary-card {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
@@ -1901,7 +1897,7 @@ onMounted(() => {
 }
 
 .detail-table-card {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
