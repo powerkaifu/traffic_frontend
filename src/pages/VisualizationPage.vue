@@ -146,8 +146,8 @@
                 </div>
               </div>
               <div class="correlation-charts">
-                <div ref="scatterChart" class="chart-area scatter-chart" style="height: 320px"></div>
-                <div ref="heatmapChart" class="chart-area heatmap-chart" style="height: 320px"></div>
+                <div ref="scatterChart" class="chart-area scatter-chart"></div>
+                <div ref="heatmapChart" class="chart-area heatmap-chart"></div>
               </div>
             </q-card-section>
           </q-card>
@@ -1941,7 +1941,8 @@ onMounted(() => {
 @media screen and (min-width: 1600px) {
   .timeseries-chart {
     min-height: 450px;
-    max-height: calc(100vh - 250px);
+    /* 裝置尺寸 */
+    max-height: calc(100vh - 335px);
   }
 
   .correlation-charts {
@@ -1951,7 +1952,7 @@ onMounted(() => {
 
   .scatter-chart,
   .heatmap-chart {
-    min-height: 350px;
+    min-height: 330px;
   }
 }
 
