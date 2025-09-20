@@ -217,7 +217,7 @@
           <!-- 詳細統計表格 -->
           <q-card class="detail-table-card">
             <q-card-section>
-              <h5 class="text-white">詳細統計資料</h5>
+              <h5 class="text-white">智能分析數據</h5>
               <q-table
                 :rows="detailStats"
                 :columns="detailColumns"
