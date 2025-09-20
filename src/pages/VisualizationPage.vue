@@ -1139,9 +1139,11 @@ const drawScatterChart = () => {
   const margin = { top: 30, right: 100, bottom: 60, left: 80 }
   const containerWidth = scatterChart.value.clientWidth
   const width = Math.max(300, containerWidth - margin.left - margin.right + 50)
-  const height = 310 - margin.top - margin.bottom
+  // 動態計算散點圖高度，避免固定高度造成推擠
+  const containerHeight = scatterChart.value.clientHeight || 280
+  const height = Math.max(200, containerHeight - margin.top - margin.bottom)
 
-  console.log(`重繪散點圖 - 容器寬度: ${containerWidth}px, 圖表寬度: ${width}px`)
+  console.log(`重繪散點圖 - 容器寬度: ${containerWidth}px, 容器高度: ${containerHeight}px, 圖表高度: ${height}px`)
 
   const svg = d3
     .select(scatterChart.value)
@@ -1357,9 +1359,11 @@ const drawHeatmapChart = () => {
   const margin = { top: 30, right: 120, bottom: 60, left: 140 }
   const containerWidth = heatmapChart.value.clientWidth
   const width = Math.max(300, containerWidth - margin.left - margin.right)
-  const height = 310 - margin.top - margin.bottom
+  // 動態計算熱力圖高度，避免固定高度造成推擠
+  const containerHeight = heatmapChart.value.clientHeight || 280
+  const height = Math.max(200, containerHeight - margin.top - margin.bottom)
 
-  console.log(`重繪熱力圖 - 容器寬度: ${containerWidth}px, 圖表寬度: ${width}px`)
+  console.log(`重繪熱力圖 - 容器寬度: ${containerWidth}px, 容器高度: ${containerHeight}px, 圖表高度: ${height}px`)
 
   const svg = d3
     .select(heatmapChart.value)
@@ -1677,7 +1681,7 @@ onMounted(() => {
 .date-controls {
   display: flex;
   gap: 10px;
-  width: 16vw;
+  width: 18vw;
   align-items: center;
 }
 
@@ -1794,13 +1798,12 @@ onMounted(() => {
   width: 100%;
 }
 
-/* 關聯性分析圖表保持上下排列，動態填滿剩餘空間 */
+/* 關聯性分析圖表保持上下排列，參考時間序列分析的底部空間進行調整 */
 .correlation-charts {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 20px;
   width: 100%;
-  height: calc(100vh - 200px); /* 減去標題和控制面板高度 */
+  height: calc(100vh - 220px); /* 增加底部預留空間，避免被瀏覽器邊界遮住 */
   grid-template-rows: 1fr 1fr; /* 兩個圖表平分剩餘空間 */
 }
 
@@ -1808,7 +1811,8 @@ onMounted(() => {
 .heatmap-chart {
   width: 100%;
   height: 100%; /* 填滿Grid容器分配的空間 */
-  min-height: 300px; /* 確保最小高度 */
+  min-height: 200px;
+  max-height: 300px; /* 下修最大高度，避免超出瀏覽器 */
 }
 
 .summary-grid {
@@ -1927,32 +1931,36 @@ onMounted(() => {
   }
 
   .correlation-charts {
-    gap: 15px;
-    height: calc(100vh - 220px); /* 筆電螢幕優化 */
+    gap: 12px;
+    height: calc(100vh - 240px); /* 筆電螢幕增加底部預留空間 */
+    margin-bottom: 15px;
+    max-height: 700px;
   }
 
   .scatter-chart,
   .heatmap-chart {
-    min-height: 280px;
+    min-height: 180px;
+    max-height: 260px;
   }
 }
 
 /* 大螢幕桌機適配 (1920x1080 及以上) */
 @media screen and (min-width: 1600px) {
   .timeseries-chart {
-    min-height: 450px;
     /* 裝置尺寸 */
     max-height: calc(100vh - 335px);
   }
 
   .correlation-charts {
-    gap: 25px;
-    height: calc(100vh - 180px); /* 大螢幕充分利用空間 */
+    margin-bottom: 25px;
+    /* 裝置尺寸 */
+    max-height: calc(100vh - 270px);
   }
 
   .scatter-chart,
   .heatmap-chart {
-    min-height: 330px;
+    min-height: 200px;
+    max-height: 320px;
   }
 }
 
@@ -1964,13 +1972,16 @@ onMounted(() => {
   }
 
   .correlation-charts {
-    gap: 20px;
-    height: calc(100vh - 200px);
+    gap: 15px;
+    height: calc(100vh - 220px); /* 中等桌機增加底部預留空間 */
+    margin-bottom: 20px;
+    max-height: 800px;
   }
 
   .scatter-chart,
   .heatmap-chart {
-    min-height: 320px;
+    min-height: 180px;
+    max-height: 260px;
   }
 }
 
@@ -1982,13 +1993,16 @@ onMounted(() => {
   }
 
   .correlation-charts {
-    gap: 15px;
-    height: calc(100vh - 240px);
+    gap: 12px;
+    height: calc(100vh - 260px); /* 小螢幕增加底部預留空間 */
+    margin-bottom: 15px;
+    max-height: 700px;
   }
 
   .scatter-chart,
   .heatmap-chart {
-    min-height: 280px;
+    min-height: 140px;
+    max-height: 220px;
   }
 }
 
@@ -2059,13 +2073,14 @@ onMounted(() => {
   }
 
   .correlation-charts {
-    gap: 12px;
-    height: calc(100vh - 280px); /* 手機螢幕優化 */
+    gap: 10px;
+    height: calc(100vh - 260px); /* 手機螢幕優化，參考時間序列空間 */
+    margin-bottom: 10px;
   }
 
   .scatter-chart,
   .heatmap-chart {
-    min-height: 250px;
+    min-height: 280px;
   }
 }
 
@@ -2113,12 +2128,15 @@ onMounted(() => {
 @media screen and (max-width: 1200px) {
   .correlation-charts {
     grid-template-columns: 1fr;
-    gap: 15px;
+    gap: 12px;
+    height: calc(100vh - 200px); /* 參考時間序列分析的空間配置 */
+    margin-bottom: 15px;
   }
 
   .scatter-chart,
   .heatmap-chart {
-    height: 300px;
+    height: 320px;
+    min-height: 300px;
   }
 
   .visualization-container {
@@ -2132,9 +2150,15 @@ onMounted(() => {
     min-height: calc(100vh - 400px);
   }
 
+  .correlation-charts {
+    height: calc(100vh - 240px); /* 小螢幕參考時間序列底部空間 */
+    margin-bottom: 10px;
+  }
+
   .scatter-chart,
   .heatmap-chart {
-    height: 250px;
+    height: 280px;
+    min-height: 250px;
   }
 }
 </style>
