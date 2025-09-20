@@ -2089,100 +2089,9 @@ onMounted(() => {
   font-size: 1rem;
 }
 
-/* 筆電螢幕尺寸適配 (1366x768, 1440x900, 1600x900) */
-@media screen and (min-width: 1024px) and (max-width: 1600px) and (max-height: 1024px) {
-  .timeseries-chart {
-    min-height: 350px;
-    max-height: 480px;
-  }
+/* =============== 響應式媒體查詢 (依據斷點排序) =============== */
 
-  .correlation-charts {
-    gap: 12px;
-    height: calc(100vh - 240px); /* 筆電螢幕增加底部預留空間 */
-    max-height: 700px;
-  }
-
-  .scatter-chart,
-  .heatmap-chart {
-    min-height: 180px;
-    max-height: 260px;
-  }
-}
-
-/* 大螢幕桌機適配 (1920x1080 及以上) */
-@media screen and (min-width: 1600px) {
-  .timeseries-chart {
-    /* 裝置尺寸 */
-    max-height: calc(100vh - 320px);
-  }
-
-  .correlation-charts {
-    /* 裝置尺寸 */
-    max-height: calc(100vh - 220px);
-  }
-
-  .scatter-chart,
-  .heatmap-chart {
-    max-height: 320px;
-  }
-}
-
-/* 中等桌機適配 (1200px-1600px) */
-@media screen and (min-width: 1200px) and (max-width: 1599px) {
-  .timeseries-chart {
-    min-height: 400px;
-    max-height: calc(100vh - 280px);
-  }
-
-  .correlation-charts {
-    gap: 15px;
-    height: calc(100vh - 220px); /* 中等桌機增加底部預留空間 */
-    max-height: 800px;
-  }
-
-  .scatter-chart,
-  .heatmap-chart {
-    min-height: 180px;
-    max-height: 260px;
-  }
-}
-
-/* 響應式設計 */
-@media (max-width: 1199px) {
-  .timeseries-chart {
-    min-height: 350px;
-    max-height: 450px;
-  }
-
-  .correlation-charts {
-    gap: 12px;
-    height: calc(100vh - 260px); /* 小螢幕增加底部預留空間 */
-    max-height: 700px;
-  }
-
-  .scatter-chart,
-  .heatmap-chart {
-    min-height: 140px;
-    max-height: 220px;
-  }
-}
-
-@media (max-width: 1200px) {
-  .control-section {
-    grid-template-columns: 1fr;
-    gap: 20px;
-    text-align: center;
-  }
-
-  .date-controls {
-    justify-content: center;
-  }
-
-  .correlation-charts {
-    grid-template-columns: 1fr;
-  }
-}
-
+/* 手機和小螢幕設備 (768px 以下) */
 @media (max-width: 768px) {
   .control-section {
     grid-template-columns: 1fr;
@@ -2235,7 +2144,7 @@ onMounted(() => {
 
   .correlation-charts {
     gap: 10px;
-    height: calc(100vh - 260px); /* 手機螢幕優化，參考時間序列空間 */
+    height: calc(100vh - 260px);
     margin-bottom: 10px;
   }
 
@@ -2243,9 +2152,246 @@ onMounted(() => {
   .heatmap-chart {
     min-height: 280px;
   }
+
+  .visualization-container {
+    padding: 0 10px;
+  }
+
+  /* AI 分析區域響應式 */
+  .ai-controls {
+    flex-direction: column;
+  }
+
+  .ai-question-select {
+    min-width: auto;
+  }
+
+  .ai-analyze-btn {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .ai-question-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ai-question-row .q-select {
+    min-width: auto;
+  }
+
+  .ai-result-actions {
+    flex-direction: column;
+  }
+
+  .ai-result-actions .q-btn {
+    width: 100%;
+  }
 }
 
-/* 深色主題的自定義樣式 */
+/* 小螢幕到中等螢幕 (769px - 1023px) */
+@media (min-width: 769px) and (max-width: 1023px) {
+  .timeseries-chart {
+    min-height: calc(100vh - 400px);
+  }
+
+  .correlation-charts {
+    height: calc(100vh - 240px);
+    margin-bottom: 10px;
+  }
+
+  .scatter-chart,
+  .heatmap-chart {
+    height: 280px;
+    min-height: 250px;
+  }
+}
+
+/* 筆電螢幕尺寸 (1024px - 1199px) */
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .timeseries-chart {
+    min-height: 350px;
+    max-height: 450px;
+  }
+
+  .correlation-charts {
+    gap: 12px;
+    height: calc(100vh - 260px);
+    max-height: 700px;
+  }
+
+  .scatter-chart,
+  .heatmap-chart {
+    min-height: 140px;
+    max-height: 220px;
+  }
+}
+
+/* 中等桌機 (1200px - 1599px) */
+@media (min-width: 1200px) and (max-width: 1599px) {
+  .control-section {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    text-align: center;
+  }
+
+  .date-controls {
+    justify-content: center;
+  }
+
+  .correlation-charts {
+    grid-template-columns: 1fr;
+    gap: 15px;
+    height: calc(100vh - 220px);
+    max-height: 800px;
+  }
+
+  .timeseries-chart {
+    min-height: 400px;
+    max-height: calc(100vh - 280px);
+  }
+
+  .scatter-chart,
+  .heatmap-chart {
+    min-height: 180px;
+    max-height: 260px;
+    height: 320px;
+    min-height: 300px;
+  }
+
+  .visualization-container {
+    padding: 0 10px;
+  }
+}
+
+/* 大螢幕桌機 (1600px - 2559px) */
+@media (min-width: 1600px) and (max-width: 2559px) {
+  .timeseries-chart {
+    max-height: calc(100vh - 320px);
+  }
+
+  .correlation-charts {
+    max-height: calc(100vh - 220px);
+  }
+
+  .scatter-chart,
+  .heatmap-chart {
+    max-height: 320px;
+  }
+}
+
+/* 特定筆電螢幕尺寸 (1024px - 1600px 且高度 ≤ 1024px) */
+@media screen and (min-width: 1024px) and (max-width: 1600px) and (max-height: 1024px) {
+  .timeseries-chart {
+    min-height: 350px;
+    max-height: 480px;
+  }
+
+  .correlation-charts {
+    gap: 12px;
+    height: calc(100vh - 240px);
+    max-height: 700px;
+  }
+
+  .scatter-chart,
+  .heatmap-chart {
+    min-height: 180px;
+    max-height: 260px;
+  }
+}
+
+/* 2K 螢幕專屬優化 (2560x1440) */
+@media screen and (min-width: 2560px) and (min-height: 1440px) {
+  .visualization-container {
+    padding: 0 40px;
+    margin-left: 20px;
+  }
+
+  .chart-container {
+    padding: 0 30px;
+  }
+
+  .chart-card {
+    padding: 20px;
+  }
+
+  .chart-card .q-card__section {
+    padding: 30px;
+  }
+
+  .control-panel {
+    padding: 0 20px;
+    margin-bottom: 30px;
+  }
+
+  .nav-tabs {
+    padding: 0 20px;
+    margin-bottom: 30px;
+  }
+
+  .ai-analysis-section {
+    padding: 0 20px;
+    margin-top: 40px;
+  }
+
+  .summary-grid {
+    padding: 0 20px;
+    margin-bottom: 40px;
+  }
+}
+
+/* =============== AI 分析結果響應式高度設定 =============== */
+
+/* AI 分析基礎樣式 */
+.ai-result-content {
+  border-radius: 4px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: white;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 30vh; /* 基礎高度 */
+  min-height: 200px;
+  overflow-y: auto;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.2);
+  scrollbar-width: thin;
+  scrollbar-color: #0096ff rgba(0, 0, 0, 0.3);
+}
+
+/* AI 分析結果高度響應式調整 */
+@media (min-width: 768px) {
+  .ai-result-content {
+    max-height: 35vh;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ai-result-content {
+    max-height: 40vh;
+  }
+}
+
+@media (min-width: 1366px) {
+  .ai-result-content {
+    max-height: 45vh;
+  }
+}
+
+@media (min-width: 1920px) {
+  .ai-result-content {
+    max-height: 45vh;
+  }
+}
+
+@media (min-width: 2560px) {
+  .ai-result-content {
+    max-height: 60vh;
+  }
+}
+
+/* =============== 深色主題樣式 =============== */
+
 :deep(.q-field--dark .q-field__control) {
   color: white;
   background: rgba(255, 255, 255, 0.1);
@@ -2285,45 +2431,8 @@ onMounted(() => {
   color: white;
 }
 
-/* 響應式調整 - 當側邊欄展開時 */
-@media screen and (max-width: 1200px) {
-  .correlation-charts {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    height: calc(100vh - 200px); /* 參考時間序列分析的空間配置 */
-    margin-bottom: 15px;
-  }
+/* =============== OpenAI 智能分析樣式 =============== */
 
-  .scatter-chart,
-  .heatmap-chart {
-    height: 320px;
-    min-height: 300px;
-  }
-
-  .visualization-container {
-    padding: 0 10px;
-  }
-}
-
-/* 針對更小螢幕的調整 */
-@media screen and (max-width: 768px) {
-  .timeseries-chart {
-    min-height: calc(100vh - 400px);
-  }
-
-  .correlation-charts {
-    height: calc(100vh - 240px); /* 小螢幕參考時間序列底部空間 */
-    margin-bottom: 10px;
-  }
-
-  .scatter-chart,
-  .heatmap-chart {
-    height: 280px;
-    min-height: 250px;
-  }
-}
-
-/* OpenAI 智能分析樣式 */
 .ai-analysis-section {
   border: 1px solid rgba(255, 255, 255, 0);
 }
@@ -2378,89 +2487,6 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.87);
 }
 
-.ai-result-content {
-  border-radius: 4px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  line-height: 1.6;
-  color: white;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  /* 響應式高度設定 */
-  max-height: 30vh; /* 使用視窗高度的 30% */
-  min-height: 200px; /* 最小高度確保可讀性 */
-  overflow-y: auto;
-  padding: 15px;
-  background: rgba(0, 0, 0, 0.2);
-}
-
-/* 針對不同螢幕尺寸的高度調整 - 基於寬度判斷 */
-@media (min-width: 768px) {
-  .ai-result-content {
-    max-height: 35vh; /* 平板尺寸 */
-  }
-}
-
-@media (min-width: 1024px) {
-  .ai-result-content {
-    max-height: 40vh; /* 小筆電尺寸 */
-  }
-}
-
-@media (min-width: 1366px) {
-  .ai-result-content {
-    max-height: 45vh; /* 標準筆電尺寸 */
-  }
-}
-
-@media (min-width: 1920px) {
-  .ai-result-content {
-    max-height: 45vh; /* Full HD 桌機 */
-  }
-}
-
-@media (min-width: 2560px) {
-  .ai-result-content {
-    max-height: 60vh; /* 2K 螢幕 (2560x1440) */
-  }
-}
-
-/* 自訂滾動條樣式 - 交通科技感 */
-.ai-result-content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.ai-result-content::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 4px;
-  border: 1px solid rgba(0, 150, 255, 0.1);
-}
-
-.ai-result-content::-webkit-scrollbar-thumb {
-  background: linear-gradient(45deg, #0096ff, #00d4ff);
-  border-radius: 4px;
-  border: 1px solid rgba(0, 150, 255, 0.3);
-  box-shadow:
-    0 0 3px rgba(0, 150, 255, 0.5),
-    inset 0 1px 1px rgba(255, 255, 255, 0.2);
-}
-
-.ai-result-content::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(45deg, #00b4ff, #00f0ff);
-  box-shadow:
-    0 0 5px rgba(0, 180, 255, 0.7),
-    inset 0 1px 1px rgba(255, 255, 255, 0.3);
-}
-
-.ai-result-content::-webkit-scrollbar-thumb:active {
-  background: linear-gradient(45deg, #007acc, #00c8ff);
-}
-
-/* Firefox 滾動條樣式 */
-.ai-result-content {
-  scrollbar-width: thin;
-  scrollbar-color: #0096ff rgba(0, 0, 0, 0.3);
-}
-
 .ai-result-actions {
   display: flex;
   gap: 10px;
@@ -2489,36 +2515,35 @@ onMounted(() => {
   font-style: italic;
 }
 
-/* 響應式設計 */
-@media screen and (max-width: 768px) {
-  .ai-controls {
-    flex-direction: column;
-  }
+/* =============== 自訂滾動條樣式 =============== */
 
-  .ai-question-select {
-    min-width: auto;
-  }
+.ai-result-content::-webkit-scrollbar {
+  width: 8px;
+}
 
-  .ai-analyze-btn {
-    min-width: auto;
-    width: 100%;
-  }
+.ai-result-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  border: 1px solid rgba(0, 150, 255, 0.1);
+}
 
-  .ai-question-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
+.ai-result-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(45deg, #0096ff, #00d4ff);
+  border-radius: 4px;
+  border: 1px solid rgba(0, 150, 255, 0.3);
+  box-shadow:
+    0 0 3px rgba(0, 150, 255, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
 
-  .ai-question-row .q-select {
-    min-width: auto;
-  }
+.ai-result-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(45deg, #00b4ff, #00f0ff);
+  box-shadow:
+    0 0 5px rgba(0, 180, 255, 0.7),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
 
-  .ai-result-actions {
-    flex-direction: column;
-  }
-
-  .ai-result-actions .q-btn {
-    width: 100%;
-  }
+.ai-result-content::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(45deg, #007acc, #00c8ff);
 }
 </style>
