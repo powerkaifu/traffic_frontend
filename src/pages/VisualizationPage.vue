@@ -146,8 +146,8 @@
                 </div>
               </div>
               <div class="correlation-charts">
-                <div ref="scatterChart" class="chart-area scatter-chart" style="height: 310px"></div>
-                <div ref="heatmapChart" class="chart-area heatmap-chart" style="height: 310px"></div>
+                <div ref="scatterChart" class="chart-area scatter-chart" style="height: 320px"></div>
+                <div ref="heatmapChart" class="chart-area heatmap-chart" style="height: 320px"></div>
               </div>
             </q-card-section>
           </q-card>
@@ -1138,7 +1138,7 @@ const drawScatterChart = () => {
 
   const margin = { top: 30, right: 100, bottom: 60, left: 80 }
   const containerWidth = scatterChart.value.clientWidth
-  const width = Math.max(300, containerWidth - margin.left - margin.right)
+  const width = Math.max(300, containerWidth - margin.left - margin.right + 50)
   const height = 310 - margin.top - margin.bottom
 
   console.log(`重繪散點圖 - 容器寬度: ${containerWidth}px, 圖表寬度: ${width}px`)
@@ -1266,7 +1266,7 @@ const drawScatterChart = () => {
   const legendGroup = svg
     .append('g')
     .attr('class', 'vd-legend')
-    .attr('transform', `translate(${margin.left + width / 2 + 280}, ${height + margin.top + margin.bottom - 30})`)
+    .attr('transform', `translate(${margin.left + width / 2 + 230}, ${height + margin.top + margin.bottom - 25})`)
 
   vdColorMap.forEach((item, i) => {
     const xOffset = i * 110
@@ -1717,7 +1717,7 @@ onMounted(() => {
 }
 
 .chart-card {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 0 10px;
@@ -1796,7 +1796,7 @@ onMounted(() => {
 .correlation-charts {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 50px;
+  gap: 30px;
   width: 100%;
 }
 
