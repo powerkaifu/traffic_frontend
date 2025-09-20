@@ -217,14 +217,66 @@
           <!-- 詳細統計表格 -->
           <q-card class="detail-table-card">
             <q-card-section>
-              <h5 class="text-white">智能分析數據</h5>
-              <q-table
-                :rows="detailStats"
-                :columns="detailColumns"
-                row-key="vd_id"
-                :pagination="{ rowsPerPage: 10 }"
-                class="detail-table"
-              />
+              <!-- OpenAI 智能分析區塊 -->
+              <div class="ai-analysis-section">
+                <div class="ai-controls">
+                  <q-select
+                    v-model="selectedQuestion"
+                    :options="analysisQuestions"
+                    option-value="value"
+                    option-label="label"
+                    label="選擇分析問題"
+                    color="primary"
+                    dark
+                    outlined
+                    dense
+                    class="ai-question-select"
+                    :hint="selectedQuestion ? selectedQuestion.description : ''"
+                  />
+                  <q-btn
+                    @click="analyzeWithAI"
+                    :loading="aiAnalyzing"
+                    :disable="!selectedQuestion || trafficData.length === 0"
+                    color="primary"
+                    icon="psychology"
+                    label="AI 分析"
+                    size="md"
+                    class="ai-analyze-btn"
+                  />
+                </div>
+
+                <!-- AI 分析結果顯示 -->
+                <div v-if="aiAnalysisResult" class="ai-result-card">
+                  <div class="ai-result-header">
+                    <q-icon name="psychology" size="1.5rem" color="primary" />
+                    <span class="ai-result-title">AI 智能分析結果</span>
+                    <q-space />
+                    <q-btn @click="copyAnalysisResult" icon="content_copy" flat round dense color="white" size="sm">
+                      <q-tooltip>複製分析結果</q-tooltip>
+                    </q-btn>
+                    <q-btn @click="downloadAnalysisReport" icon="download" flat round dense color="white" size="sm">
+                      <q-tooltip>下載分析報告</q-tooltip>
+                    </q-btn>
+                  </div>
+                  <div class="ai-result-content" v-html="formatAnalysisResult(aiAnalysisResult)"></div>
+                </div>
+
+                <!-- 錯誤提示 -->
+                <div v-if="aiAnalysisError" class="ai-error-card">
+                  <q-icon name="error" size="1.5rem" color="negative" />
+                  <span class="ai-error-message">{{ aiAnalysisError }}</span>
+                  <q-btn
+                    @click="retryAnalysis"
+                    icon="refresh"
+                    flat
+                    dense
+                    color="negative"
+                    label="重試"
+                    size="sm"
+                    class="ai-retry-btn"
+                  />
+                </div>
+              </div>
             </q-card-section>
           </q-card>
         </div>
@@ -273,9 +325,10 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, nextTick, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { date } from 'quasar'
+import { date, Notify, copyToClipboard } from 'quasar'
 import * as d3 from 'd3'
 import { trafficAPI } from '../api/index.js'
+import { analyzeTrafficDataWithAI, prepareTrafficDataSummary, ANALYSIS_QUESTIONS } from '../api/openai.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -304,6 +357,13 @@ const timeSeriesChart = ref(null)
 const scatterChart = ref(null)
 const heatmapChart = ref(null)
 
+// OpenAI 智能分析相關變數
+const selectedQuestion = ref('')
+const aiAnalyzing = ref(false)
+const aiAnalysisResult = ref('')
+const aiAnalysisError = ref('')
+const analysisQuestions = ref(ANALYSIS_QUESTIONS)
+
 // 數據
 const trafficData = ref([])
 const summaryStats = reactive({
@@ -312,15 +372,6 @@ const summaryStats = reactive({
   totalVolume: 0,
   avgSpeed: 0,
 })
-
-const detailStats = ref([])
-const detailColumns = [
-  { name: 'vd_id', label: 'VD ID', field: 'vd_id', align: 'left' },
-  { name: 'avg_volume', label: '平均流量', field: 'avg_volume', format: (val) => `${val}` },
-  { name: 'avg_speed', label: '平均速度', field: 'avg_speed', format: (val) => `${val.toFixed(1)} km/h` },
-  { name: 'avg_occupancy', label: '平均佔有率', field: 'avg_occupancy', format: (val) => `${val.toFixed(1)}%` },
-  { name: 'peak_hours', label: '尖峰時段比例', field: 'peak_hours', format: (val) => `${(val * 100).toFixed(1)}%` },
-]
 
 // 生成年份選項
 const generateYearOptions = () => {
@@ -547,7 +598,6 @@ const loadData = async () => {
     trafficData.value = response.data || []
 
     calculateSummaryStats()
-    calculateDetailStats()
     updateCharts()
   } catch (error) {
     console.error('=== API 呼叫失敗 ===')
@@ -606,40 +656,6 @@ const calculateSummaryStats = () => {
   summaryStats.avgSouthNorth = Math.round(southNorthSum / trafficData.value.length)
   summaryStats.totalVolume = totalVolumeSum.toLocaleString()
   summaryStats.avgSpeed = (speedSum / intersectionCount).toFixed(1)
-}
-
-const calculateDetailStats = () => {
-  const vdStats = {}
-
-  trafficData.value.forEach((item) => {
-    item.intersections.forEach((intersection) => {
-      const vdId = intersection.VD_ID
-      if (!vdStats[vdId]) {
-        vdStats[vdId] = {
-          vd_id: vdId,
-          volumes: [],
-          speeds: [],
-          occupancies: [],
-          peakHours: 0,
-          totalRecords: 0,
-        }
-      }
-
-      vdStats[vdId].volumes.push(intersection.total_volume)
-      vdStats[vdId].speeds.push(intersection.Speed)
-      vdStats[vdId].occupancies.push(intersection.Occupancy)
-      if (intersection.IsPeakHour) vdStats[vdId].peakHours++
-      vdStats[vdId].totalRecords++
-    })
-  })
-
-  detailStats.value = Object.values(vdStats).map((stat) => ({
-    vd_id: stat.vd_id,
-    avg_volume: Math.round(stat.volumes.reduce((a, b) => a + b, 0) / stat.volumes.length),
-    avg_speed: stat.speeds.reduce((a, b) => a + b, 0) / stat.speeds.length,
-    avg_occupancy: stat.occupancies.reduce((a, b) => a + b, 0) / stat.occupancies.length,
-    peak_hours: stat.peakHours / stat.totalRecords,
-  }))
 }
 
 // 圖表更新
@@ -1645,6 +1661,121 @@ onMounted(() => {
   // 載入初始數據
   loadData()
 
+  // OpenAI 智能分析方法
+  const analyzeWithAI = async () => {
+    if (!selectedQuestion.value) {
+      aiAnalysisError.value = '請選擇一個分析問題'
+      return
+    }
+
+    if (!trafficData.value || trafficData.value.length === 0) {
+      aiAnalysisError.value = '目前沒有交通數據可供分析'
+      return
+    }
+
+    try {
+      aiAnalyzing.value = true
+      aiAnalysisError.value = ''
+      aiAnalysisResult.value = ''
+
+      // 準備數據摘要
+      const dataSummary = prepareTrafficDataSummary(trafficData.value)
+
+      // 調用 OpenAI API 分析
+      const result = await analyzeTrafficDataWithAI(dataSummary, selectedQuestion.value)
+      aiAnalysisResult.value = result
+
+      Notify.create({
+        type: 'positive',
+        message: 'AI 分析完成',
+        position: 'top',
+      })
+    } catch (error) {
+      console.error('AI分析錯誤:', error)
+      aiAnalysisError.value = error.message || '分析過程中發生錯誤，請稍後再試'
+
+      Notify.create({
+        type: 'negative',
+        message: 'AI 分析失敗',
+        position: 'top',
+      })
+    } finally {
+      aiAnalyzing.value = false
+    }
+  }
+
+  // eslint-disable-next-line no-unused-vars
+  const copyAnalysisResult = async () => {
+    if (!aiAnalysisResult.value) return
+
+    try {
+      await copyToClipboard(aiAnalysisResult.value)
+      Notify.create({
+        type: 'positive',
+        message: '分析結果已複製到剪貼簿',
+        position: 'top',
+      })
+    } catch (error) {
+      console.error('複製失敗:', error)
+      Notify.create({
+        type: 'negative',
+        message: '複製失敗',
+        position: 'top',
+      })
+    }
+  }
+
+  // eslint-disable-next-line no-unused-vars
+  const downloadAnalysisReport = () => {
+    if (!aiAnalysisResult.value) return
+
+    const { startDate, endDate } = getFormattedDateRange()
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+    const filename = `AI交通分析報告_${startDate}_${endDate}_${timestamp}.txt`
+
+    const content = `交通流量AI分析報告
+生成時間: ${new Date().toLocaleString('zh-TW')}
+數據期間: ${startDate} 至 ${endDate}
+分析問題: ${selectedQuestion.value}
+
+分析結果:
+${aiAnalysisResult.value}
+`
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    Notify.create({
+      type: 'positive',
+      message: '分析報告已下載',
+      position: 'top',
+    })
+  }
+
+  // eslint-disable-next-line no-unused-vars
+  const retryAnalysis = () => {
+    aiAnalysisError.value = ''
+    analyzeWithAI()
+  }
+
+  // eslint-disable-next-line no-unused-vars
+  const formatAnalysisResult = (result) => {
+    if (!result) return ''
+
+    // 格式化結果，添加適當的換行和縮排
+    return result
+      .replace(/\n/g, '<br>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+  }
+
   // 清理事件監聽器
   onUnmounted(() => {
     window.removeEventListener('resize', handleResize)
@@ -1905,26 +2036,6 @@ onMounted(() => {
 .detail-table-card h3 {
   color: white;
   margin-bottom: 20px;
-}
-
-.detail-table {
-  background: transparent;
-}
-
-.detail-table :deep(.q-table__card) {
-  background: transparent;
-  color: white;
-}
-
-.detail-table :deep(.q-table thead tr th) {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.detail-table :deep(.q-table tbody tr td) {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  color: white;
 }
 
 .detail-dialog {
@@ -2200,6 +2311,126 @@ onMounted(() => {
   .heatmap-chart {
     height: 280px;
     min-height: 250px;
+  }
+}
+
+/* OpenAI 智能分析樣式 */
+.ai-analysis-section {
+  margin-top: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ai-controls {
+  display: flex;
+  flex-direction: row;
+  gap: 15px;
+  margin-bottom: 20px;
+  align-items: flex-start;
+}
+
+.ai-question-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ai-question-row .q-select {
+  flex: 1;
+  min-width: 300px;
+}
+
+.ai-question-select {
+  flex: 1;
+  min-width: 300px;
+}
+
+.ai-analyze-btn {
+  flex-shrink: 0;
+  min-width: 120px;
+}
+
+.ai-result-card {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  margin-top: 15px;
+}
+
+.ai-result-content {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  padding: 15px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.ai-result-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.ai-error-card {
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 15px;
+}
+
+.ai-error-content {
+  color: #ffcdd2;
+  margin-bottom: 10px;
+}
+
+.ai-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.8);
+  font-style: italic;
+}
+
+/* 響應式設計 */
+@media screen and (max-width: 768px) {
+  .ai-controls {
+    flex-direction: column;
+  }
+
+  .ai-question-select {
+    min-width: auto;
+  }
+
+  .ai-analyze-btn {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .ai-question-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ai-question-row .q-select {
+    min-width: auto;
+  }
+
+  .ai-result-actions {
+    flex-direction: column;
+  }
+
+  .ai-result-actions .q-btn {
+    width: 100%;
   }
 }
 </style>
