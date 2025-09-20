@@ -1936,8 +1936,9 @@ onMounted(() => {
   justify-content: center;
   flex-direction: row;
   gap: 20px;
-  margin-bottom: 30px;
+  margin-bottom: 10px;
   position: relative;
+  padding-top: 15px;
 }
 
 .summary-header .date-range-display {
