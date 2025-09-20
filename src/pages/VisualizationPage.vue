@@ -853,9 +853,30 @@ const drawTimeSeriesChart = () => {
       .on('click', (event, d) => {
         selectedPoint.value = d.originalData
         showDetailDialog.value = true
+
+        // 高亮對應的南北向點
+        g.selectAll('.dot-south-north')
+          .style('stroke', function (southD) {
+            return southD.timestamp.getTime() === d.timestamp.getTime() ? '#FFD700' : 'none'
+          })
+          .style('stroke-width', function (southD) {
+            return southD.timestamp.getTime() === d.timestamp.getTime() ? 3 : 0
+          })
       })
       .on('mouseover', function (event, d) {
         d3.select(this).attr('r', 6).style('fill', '#1565c0')
+
+        // 高亮對應的南北向點
+        g.selectAll('.dot-south-north')
+          .attr('r', function (southD) {
+            return southD.timestamp.getTime() === d.timestamp.getTime() ? 6 : 4
+          })
+          .style('stroke', function (southD) {
+            return southD.timestamp.getTime() === d.timestamp.getTime() ? '#FFD700' : 'none'
+          })
+          .style('stroke-width', function (southD) {
+            return southD.timestamp.getTime() === d.timestamp.getTime() ? 2 : 0
+          })
 
         const tooltip = d3
           .select('body')
@@ -874,13 +895,17 @@ const drawTimeSeriesChart = () => {
 
         tooltip
           .html(
-            `🕒 時間: ${d3.timeFormat('%Y-%m-%d %H:%M')(d.timestamp)}<br/>🔄 東西向燈號: <strong>${d.eastWest}秒</strong>`,
+            `🕒 時間: ${d3.timeFormat('%Y-%m-%d %H:%M')(d.timestamp)}<br/>🔄 東西向燈號: <strong>${d.eastWest}秒</strong><br/>🔄 南北向燈號: <strong>${d.southNorth}秒</strong>`,
           )
           .style('left', event.pageX + 15 + 'px')
           .style('top', event.pageY - 40 + 'px')
       })
       .on('mouseout', function () {
         d3.select(this).attr('r', 4).style('fill', '#1976d2')
+
+        // 移除對應南北向點的高亮
+        g.selectAll('.dot-south-north').attr('r', 4).style('stroke', 'none').style('stroke-width', 0)
+
         d3.selectAll('.tooltip').remove()
       })
   }
@@ -901,9 +926,30 @@ const drawTimeSeriesChart = () => {
       .on('click', (event, d) => {
         selectedPoint.value = d.originalData
         showDetailDialog.value = true
+
+        // 高亮對應的東西向點
+        g.selectAll('.dot-east-west')
+          .style('stroke', function (eastD) {
+            return eastD.timestamp.getTime() === d.timestamp.getTime() ? '#FFD700' : 'none'
+          })
+          .style('stroke-width', function (eastD) {
+            return eastD.timestamp.getTime() === d.timestamp.getTime() ? 3 : 0
+          })
       })
       .on('mouseover', function (event, d) {
-        d3.select(this).attr('r', 6).style('fill', '#1976d2')
+        d3.select(this).attr('r', 6).style('fill', '#2e7d32')
+
+        // 高亮對應的東西向點
+        g.selectAll('.dot-east-west')
+          .attr('r', function (eastD) {
+            return eastD.timestamp.getTime() === d.timestamp.getTime() ? 6 : 4
+          })
+          .style('stroke', function (eastD) {
+            return eastD.timestamp.getTime() === d.timestamp.getTime() ? '#FFD700' : 'none'
+          })
+          .style('stroke-width', function (eastD) {
+            return eastD.timestamp.getTime() === d.timestamp.getTime() ? 2 : 0
+          })
 
         const tooltip = d3
           .select('body')
@@ -922,13 +968,17 @@ const drawTimeSeriesChart = () => {
 
         tooltip
           .html(
-            `🕒 時間: ${d3.timeFormat('%Y-%m-%d %H:%M')(d.timestamp)}<br/>🔄 南北向燈號: <strong>${d.southNorth}秒</strong>`,
+            `🕒 時間: ${d3.timeFormat('%Y-%m-%d %H:%M')(d.timestamp)}<br/>🔄 東西向燈號: <strong>${d.eastWest}秒</strong><br/>🔄 南北向燈號: <strong>${d.southNorth}秒</strong>`,
           )
           .style('left', event.pageX + 15 + 'px')
           .style('top', event.pageY - 40 + 'px')
       })
       .on('mouseout', function () {
         d3.select(this).attr('r', 4).style('fill', '#388e3c')
+
+        // 移除對應東西向點的高亮
+        g.selectAll('.dot-east-west').attr('r', 4).style('stroke', 'none').style('stroke-width', 0)
+
         d3.selectAll('.tooltip').remove()
       })
   }
@@ -1794,7 +1844,7 @@ onMounted(() => {
 }
 
 .chart-container {
-  /* box-shadow: 0 0 30px rgb(40, 29, 108); */
+  margin-bottom: 20px;
 }
 
 /* 關聯性分析圖表保持上下排列，參考時間序列分析的底部空間進行調整 */
