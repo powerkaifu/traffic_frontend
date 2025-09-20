@@ -15,134 +15,136 @@
           height: 100%;
           pointer-events: none;
           z-index: 10;
+          background-color: rgba(0, 100, 200, 0.1);
+          border: 2px dashed rgba(255, 255, 0, 0.3);
         "
       >
         <!-- 往東車道1 直行路徑（車輛從畫面外進入到離開畫面） -->
         <path
           id="eastLane1Straight"
           :d="getEastLane1Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(255, 100, 100, 0.6)"
+          stroke-width="2"
           fill="none"
         />
         <!-- 往東車道2 直行路徑（車輛從畫面外進入到離開畫面） -->
         <path
           id="eastLane2Straight"
           :d="getEastLane2Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(255, 120, 120, 0.6)"
+          stroke-width="2"
           fill="none"
         />
         <!-- 往東車道3 直行路徑（車輛從畫面外進入到離開畫面） -->
         <path
           id="eastLane3Straight"
           :d="getEastLane3Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(255, 140, 140, 0.6)"
+          stroke-width="2"
           fill="none"
         />
         <!-- 往東車道4 直行路徑（車輛從畫面外進入到離開畫面） -->
         <path
           id="eastLane4Straight"
           :d="getEastLane4Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(255, 160, 160, 0.6)"
+          stroke-width="2"
           fill="none"
         />
         <!--往西車道1 直行路徑（車輛從畫面外進入到離開畫面）-->
         <path
           id="westLane1Straight"
           :d="getWestLane1Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(100, 150, 255, 0.6)"
+          stroke-width="2"
           fill="none"
         />
         <!--往西車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
         <path
           id="westLane2Straight"
           :d="getWestLane2Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(120, 170, 255, 0.6)"
+          stroke-width="2"
           fill="none"
         />
         <!--往西車道3 直行路徑（車輛從畫面外進入到離開畫面）-->
         <path
           id="westLane3Straight"
           :d="getWestLane3Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(140, 190, 255, 0.6)"
+          stroke-width="2"
           fill="none"
         />
         <!--往西車道4 直行路徑（車輛從畫面外進入到離開畫面）-->
         <path
           id="westLane4Straight"
           :d="getWestLane4Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(160, 210, 255, 0.6)"
+          stroke-width="2"
           fill="none"
         />
         <!--往南車道1 直行路徑（車輛從畫面外進入到離開畫面）-->
         <path
           id="southLane1Straight"
           :d="getSouthLane1Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(100, 255, 150, 0.6)"
+          stroke-width="2"
           fill="none"
         />
         <!--往南車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
         <path
           id="southLane2Straight"
           :d="getSouthLane2Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(120, 255, 170, 0.6)"
+          stroke-width="2"
           fill="none"
         />
         <!--往南車道3 直行路徑（車輛從畫面外進入到離開畫面）-->
         <path
           id="southLane3Straight"
           :d="getSouthLane3Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(140, 255, 190, 0.6)"
+          stroke-width="2"
           fill="none"
         />
         <!--往南車道4 直行路徑（車輛從畫面外進入到離開畫面）-->
         <path
           id="southLane4Straight"
           :d="getSouthLane4Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(160, 255, 210, 0.6)"
+          stroke-width="2"
           fill="none"
         />
         <!--往北車道1 直行路徑（車輛從畫面外進入到離開畫面）-->
         <path
           id="northLane1Straight"
           :d="getNorthLane1Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(200, 100, 255, 0.6)"
+          stroke-width="2"
           fill="none"
         />
         <!--往北車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
         <path
           id="northLane2Straight"
           :d="getNorthLane2Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(220, 120, 255, 0.6)"
+          stroke-width="2"
           fill="none"
         />
         <!--往北車道3 直行路徑（車輛從畫面外進入到離開畫面）-->
         <path
           id="northLane3Straight"
           :d="getNorthLane3Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(240, 140, 255, 0.6)"
+          stroke-width="2"
           fill="none"
         />
         <!--往北車道4 直行路徑（車輛從畫面外進入到離開畫面）-->
         <path
           id="northLane4Straight"
           :d="getNorthLane4Path()"
-          stroke="rgba(255, 255, 255, 0.3)"
-          stroke-width="1"
+          stroke="rgba(255, 160, 255, 0.6)"
+          stroke-width="2"
           fill="none"
         />
       </svg>
