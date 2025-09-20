@@ -1787,23 +1787,28 @@ onMounted(() => {
   box-sizing: border-box;
 }
 
-/* 時間序列圖表使用更大的高度 */
+/* 時間序列圖表響應式高度調整 */
 .timeseries-chart {
-  min-height: calc(100vh - 350px);
+  min-height: 400px;
+  max-height: calc(100vh - 300px);
   width: 100%;
 }
 
+/* 關聯性分析圖表保持上下排列，動態填滿剩餘空間 */
 .correlation-charts {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 30px;
+  gap: 20px;
   width: 100%;
+  height: calc(100vh - 200px); /* 減去標題和控制面板高度 */
+  grid-template-rows: 1fr 1fr; /* 兩個圖表平分剩餘空間 */
 }
 
 .scatter-chart,
 .heatmap-chart {
   width: 100%;
-  height: 350px;
+  height: 100%; /* 填滿Grid容器分配的空間 */
+  min-height: 300px; /* 確保最小高度 */
 }
 
 .summary-grid {
@@ -1914,7 +1919,78 @@ onMounted(() => {
   font-size: 1rem;
 }
 
+/* 筆電螢幕尺寸適配 (1366x768, 1440x900, 1600x900) */
+@media screen and (min-width: 1024px) and (max-width: 1600px) and (max-height: 1024px) {
+  .timeseries-chart {
+    min-height: 350px;
+    max-height: 480px;
+  }
+
+  .correlation-charts {
+    gap: 15px;
+    height: calc(100vh - 220px); /* 筆電螢幕優化 */
+  }
+
+  .scatter-chart,
+  .heatmap-chart {
+    min-height: 280px;
+  }
+}
+
+/* 大螢幕桌機適配 (1920x1080 及以上) */
+@media screen and (min-width: 1600px) {
+  .timeseries-chart {
+    min-height: 450px;
+    max-height: calc(100vh - 250px);
+  }
+
+  .correlation-charts {
+    gap: 25px;
+    height: calc(100vh - 180px); /* 大螢幕充分利用空間 */
+  }
+
+  .scatter-chart,
+  .heatmap-chart {
+    min-height: 350px;
+  }
+}
+
+/* 中等桌機適配 (1200px-1600px) */
+@media screen and (min-width: 1200px) and (max-width: 1599px) {
+  .timeseries-chart {
+    min-height: 400px;
+    max-height: calc(100vh - 280px);
+  }
+
+  .correlation-charts {
+    gap: 20px;
+    height: calc(100vh - 200px);
+  }
+
+  .scatter-chart,
+  .heatmap-chart {
+    min-height: 320px;
+  }
+}
+
 /* 響應式設計 */
+@media (max-width: 1199px) {
+  .timeseries-chart {
+    min-height: 350px;
+    max-height: 450px;
+  }
+
+  .correlation-charts {
+    gap: 15px;
+    height: calc(100vh - 240px);
+  }
+
+  .scatter-chart,
+  .heatmap-chart {
+    min-height: 280px;
+  }
+}
+
 @media (max-width: 1200px) {
   .control-section {
     grid-template-columns: 1fr;
@@ -1974,6 +2050,21 @@ onMounted(() => {
   .summary-header .date-range-display {
     position: static;
     align-self: center;
+  }
+
+  .timeseries-chart {
+    min-height: 300px;
+    max-height: 400px;
+  }
+
+  .correlation-charts {
+    gap: 12px;
+    height: calc(100vh - 280px); /* 手機螢幕優化 */
+  }
+
+  .scatter-chart,
+  .heatmap-chart {
+    min-height: 250px;
   }
 }
 
