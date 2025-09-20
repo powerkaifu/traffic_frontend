@@ -2039,7 +2039,7 @@ onMounted(() => {
 }
 
 .detail-table-card {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
@@ -2327,11 +2327,7 @@ onMounted(() => {
 
 /* OpenAI 智能分析樣式 */
 .ai-analysis-section {
-  margin-top: 20px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  padding: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0);
 }
 
 .ai-controls {
@@ -2369,19 +2365,69 @@ onMounted(() => {
   border-radius: 8px;
   padding: 20px;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  margin-top: 15px;
+}
+
+.ai-result-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.ai-result-title {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.87);
 }
 
 .ai-result-content {
-  background: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
-  padding: 15px;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.6;
+  color: white;
   white-space: pre-wrap;
   word-wrap: break-word;
-  max-height: 400px;
+  max-height: 350px;
   overflow-y: auto;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* 自訂滾動條樣式 - 交通科技感 */
+.ai-result-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ai-result-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  border: 1px solid rgba(0, 150, 255, 0.1);
+}
+
+.ai-result-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(45deg, #0096ff, #00d4ff);
+  border-radius: 4px;
+  border: 1px solid rgba(0, 150, 255, 0.3);
+  box-shadow:
+    0 0 3px rgba(0, 150, 255, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+
+.ai-result-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(45deg, #00b4ff, #00f0ff);
+  box-shadow:
+    0 0 5px rgba(0, 180, 255, 0.7),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+.ai-result-content::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(45deg, #007acc, #00c8ff);
+}
+
+/* Firefox 滾動條樣式 */
+.ai-result-content {
+  scrollbar-width: thin;
+  scrollbar-color: #0096ff rgba(0, 0, 0, 0.3);
 }
 
 .ai-result-actions {
