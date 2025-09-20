@@ -1197,12 +1197,14 @@ const drawScatterChart = () => {
     .attr('dy', '1em')
     .style('text-anchor', 'middle')
     .style('fill', 'white')
+    .style('font-size', '16px')
     .text('東西向燈號秒數')
 
   g.append('text')
     .attr('transform', `translate(${width / 2}, ${height + margin.bottom - 10})`)
     .style('text-anchor', 'middle')
     .style('fill', 'white')
+    .style('font-size', '16px')
     .text('交通流量')
 
   // 添加散點
@@ -1320,8 +1322,8 @@ const drawHeatmapChart = () => {
     return
   }
 
-  const margin = { top: 30, right: 120, bottom: 60, left: 80 }
-  const containerWidth = heatmapChart.value.clientWidth
+  const margin = { top: 30, right: 120, bottom: 60, left: 100 } // left 增加，整個圖往右移
+  const containerWidth = heatmapChart.value.clientWidth + 50
   const width = Math.max(250, containerWidth - margin.left - margin.right)
   const height = 300 - margin.top - margin.bottom
 
@@ -1448,15 +1450,22 @@ const drawHeatmapChart = () => {
     .enter()
     .append('stop')
     .attr('offset', (d) => d.offset)
+    .style('font-size', '12px')
     .attr('stop-color', (d) => d.color)
 
-  legend.append('rect').attr('width', legendWidth).attr('height', legendHeight).style('fill', 'url(#legend-gradient)')
+  legend
+    .append('rect')
+    .attr('width', legendWidth)
+    .attr('height', legendHeight)
+    .style('font-size', '12px')
+    .style('fill', 'url(#legend-gradient)')
 
   legend
     .append('g')
     .attr('transform', `translate(${legendWidth}, 0)`)
     .call(legendAxis)
     .selectAll('text')
+    .style('font-size', '12px')
     .style('fill', 'white')
 
   // 設定圖例軸線和刻度線為白色
@@ -1472,12 +1481,14 @@ const drawHeatmapChart = () => {
     .attr('dy', '1em')
     .style('text-anchor', 'middle')
     .style('fill', 'white')
+    .style('font-size', '16px')
     .text('VD 站點')
 
   g.append('text')
     .attr('transform', `translate(${width / 2}, ${height + margin.bottom - 10})`)
     .style('text-anchor', 'middle')
     .style('fill', 'white')
+    .style('font-size', '16px')
     .text('小時')
 }
 
