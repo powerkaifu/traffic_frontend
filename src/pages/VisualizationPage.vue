@@ -146,8 +146,8 @@
                 </div>
               </div>
               <div class="correlation-charts">
-                <div ref="scatterChart" class="chart-area scatter-chart" style="height: 300px"></div>
-                <div ref="heatmapChart" class="chart-area heatmap-chart" style="height: 300px"></div>
+                <div ref="scatterChart" class="chart-area scatter-chart" style="height: 310px"></div>
+                <div ref="heatmapChart" class="chart-area heatmap-chart" style="height: 310px"></div>
               </div>
             </q-card-section>
           </q-card>
@@ -218,7 +218,7 @@
           <!-- 詳細統計表格 -->
           <q-card class="detail-table-card">
             <q-card-section>
-              <h3>詳細統計資料</h3>
+              <h5 class="text-white">詳細統計資料</h5>
               <q-table
                 :rows="detailStats"
                 :columns="detailColumns"
@@ -735,10 +735,10 @@ const drawTimeSeriesChart = () => {
 
   const margin = { top: 30, right: 100, bottom: 80, left: 80 }
   const containerWidth = timeSeriesChart.value.clientWidth
-  const width = Math.max(300, containerWidth - margin.left - margin.right) // 最小寬度 300px
+  const width = Math.max(830, containerWidth - margin.left - margin.right + 30) // 寬度增加 30px
   // 計算動態高度，使圖表佔用更多視窗空間
   const availableHeight = window.innerHeight - 350 // 減去控制面板和標題的高度
-  const height = Math.max(500, availableHeight) - margin.top - margin.bottom
+  const height = Math.max(530, availableHeight + 30) - margin.top - margin.bottom // 高度增加 30px
 
   console.log(`重繪時間序列圖表 - 容器寬度: ${containerWidth}px, 圖表寬度: ${width}px`)
 
@@ -934,11 +934,13 @@ const drawTimeSeriesChart = () => {
   }
 
   // 添加圖例 - 直接顯示
+  // 右下角 legend
   const legend = g
     .append('g')
     .attr('font-family', 'sans-serif')
     .attr('font-size', 12)
-    .attr('text-anchor', 'end')
+    .attr('text-anchor', 'start')
+    .attr('transform', `translate(${width - 100},${height - 60})`)
     .style('opacity', 1)
 
   const legendItems = legend
@@ -950,14 +952,14 @@ const drawTimeSeriesChart = () => {
 
   legendItems
     .append('rect')
-    .attr('x', width - 19)
+    .attr('x', 0)
     .attr('width', 19)
     .attr('height', 19)
     .attr('fill', (d, i) => (i === 0 ? '#1976d2' : '#388e3c'))
 
   legendItems
     .append('text')
-    .attr('x', width - 25)
+    .attr('x', 25)
     .attr('y', 9.5)
     .attr('dy', '0.32em')
     .style('fill', 'white')
@@ -1134,10 +1136,10 @@ const drawScatterChart = () => {
     return
   }
 
-  const margin = { top: 30, right: 30, bottom: 60, left: 80 }
+  const margin = { top: 30, right: 100, bottom: 60, left: 80 }
   const containerWidth = scatterChart.value.clientWidth
-  const width = Math.max(250, containerWidth - margin.left - margin.right)
-  const height = 300 - margin.top - margin.bottom
+  const width = Math.max(300, containerWidth - margin.left - margin.right)
+  const height = 310 - margin.top - margin.bottom
 
   console.log(`重繪散點圖 - 容器寬度: ${containerWidth}px, 圖表寬度: ${width}px`)
 
@@ -1205,7 +1207,7 @@ const drawScatterChart = () => {
     .style('text-anchor', 'middle')
     .style('fill', 'white')
     .style('font-size', '16px')
-    .text('交通流量')
+    .text('交通車流量')
 
   // 添加散點
   g.selectAll('.dot')
@@ -1322,10 +1324,10 @@ const drawHeatmapChart = () => {
     return
   }
 
-  const margin = { top: 30, right: 120, bottom: 60, left: 100 } // left 增加，整個圖往右移
-  const containerWidth = heatmapChart.value.clientWidth + 50
-  const width = Math.max(250, containerWidth - margin.left - margin.right)
-  const height = 300 - margin.top - margin.bottom
+  const margin = { top: 30, right: 120, bottom: 60, left: 140 }
+  const containerWidth = heatmapChart.value.clientWidth
+  const width = Math.max(300, containerWidth - margin.left - margin.right)
+  const height = 310 - margin.top - margin.bottom
 
   console.log(`重繪熱力圖 - 容器寬度: ${containerWidth}px, 圖表寬度: ${width}px`)
 
@@ -1639,7 +1641,7 @@ onMounted(() => {
 .date-controls {
   display: flex;
   gap: 10px;
-  width: 20vw;
+  width: 16vw;
   align-items: center;
 }
 
@@ -1682,6 +1684,7 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0 10px;
 }
 
 .chart-header {
@@ -1756,8 +1759,8 @@ onMounted(() => {
 
 .correlation-charts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  grid-template-columns: 1fr;
+  gap: 50px;
   width: 100%;
 }
 
