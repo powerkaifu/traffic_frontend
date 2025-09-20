@@ -1715,16 +1715,11 @@ onMounted(() => {
   width: 100%;
 }
 
-.chart-container,
-.summary-container {
-  margin-bottom: 20px;
-}
-
 .chart-card {
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 0 10px;
+  padding: 0 20px;
 }
 
 .chart-header {
@@ -1798,11 +1793,16 @@ onMounted(() => {
   width: 100%;
 }
 
+.chart-container {
+  /* box-shadow: 0 0 30px rgb(40, 29, 108); */
+}
+
 /* 關聯性分析圖表保持上下排列，參考時間序列分析的底部空間進行調整 */
 .correlation-charts {
   display: grid;
   grid-template-columns: 1fr;
   width: 100%;
+  gap: 25px;
   height: calc(100vh - 220px); /* 增加底部預留空間，避免被瀏覽器邊界遮住 */
   grid-template-rows: 1fr 1fr; /* 兩個圖表平分剩餘空間 */
 }
@@ -1933,7 +1933,6 @@ onMounted(() => {
   .correlation-charts {
     gap: 12px;
     height: calc(100vh - 240px); /* 筆電螢幕增加底部預留空間 */
-    margin-bottom: 15px;
     max-height: 700px;
   }
 
@@ -1952,14 +1951,12 @@ onMounted(() => {
   }
 
   .correlation-charts {
-    margin-bottom: 25px;
     /* 裝置尺寸 */
-    max-height: calc(100vh - 270px);
+    max-height: calc(100vh - 240px);
   }
 
   .scatter-chart,
   .heatmap-chart {
-    min-height: 200px;
     max-height: 320px;
   }
 }
@@ -1974,7 +1971,6 @@ onMounted(() => {
   .correlation-charts {
     gap: 15px;
     height: calc(100vh - 220px); /* 中等桌機增加底部預留空間 */
-    margin-bottom: 20px;
     max-height: 800px;
   }
 
@@ -1995,7 +1991,6 @@ onMounted(() => {
   .correlation-charts {
     gap: 12px;
     height: calc(100vh - 260px); /* 小螢幕增加底部預留空間 */
-    margin-bottom: 15px;
     max-height: 700px;
   }
 
