@@ -104,6 +104,38 @@
           stroke-width="1"
           fill="none"
         />
+        <!--往北車道1 直行路徑（車輛從畫面外進入到離開畫面）-->
+        <path
+          id="northLane1Straight"
+          :d="getNorthLane1Path()"
+          stroke="rgba(255, 255, 255, 0.3)"
+          stroke-width="1"
+          fill="none"
+        />
+        <!--往北車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
+        <path
+          id="northLane2Straight"
+          :d="getNorthLane2Path()"
+          stroke="rgba(255, 255, 255, 0.3)"
+          stroke-width="1"
+          fill="none"
+        />
+        <!--往北車道3 直行路徑（車輛從畫面外進入到離開畫面）-->
+        <path
+          id="northLane3Straight"
+          :d="getNorthLane3Path()"
+          stroke="rgba(255, 255, 255, 0.3)"
+          stroke-width="1"
+          fill="none"
+        />
+        <!--往北車道4 直行路徑（車輛從畫面外進入到離開畫面）-->
+        <path
+          id="northLane4Straight"
+          :d="getNorthLane4Path()"
+          stroke="rgba(255, 255, 255, 0.3)"
+          stroke-width="1"
+          fill="none"
+        />
       </svg>
 
       <!-- 道路標籤背景 -->
@@ -529,6 +561,94 @@ const getSouthLane4Path = () => {
   const endY = browserHeight * 2
 
   return `M${southLane4X},${startY} L${southLane4X},${endY}`
+}
+
+// 計算往北車道1的SVG路徑
+const getNorthLane1Path = () => {
+  if (!crossroadContainer.value) {
+    return 'M530,-600 L530,1400' // 預設路徑，從下到上，橫跨瀏覽器高度
+  }
+
+  const containerWidth = crossroadContainer.value.offsetWidth
+  const centerX = containerWidth / 2
+
+  // 往北車道1在往南車道1的右邊，X偏移為 +28 (往南是+185，往北從+213開始)
+  const northLane1X = centerX + 213
+
+  // 使用瀏覽器視窗高度來計算完全橫跨的垂直路徑
+  const browserHeight = window.innerHeight
+  // 起點：從瀏覽器底部更下方開始 (browserHeight * 2)
+  // 終點：延伸到瀏覽器頂部更上方 (-browserHeight)
+  const startY = browserHeight * 2
+  const endY = -browserHeight
+
+  return `M${northLane1X},${startY} L${northLane1X},${endY}`
+}
+
+// 計算往北車道2的SVG路徑
+const getNorthLane2Path = () => {
+  if (!crossroadContainer.value) {
+    return 'M560,-600 L560,1400' // 預設路徑，從下到上，橫跨瀏覽器高度
+  }
+
+  const containerWidth = crossroadContainer.value.offsetWidth
+  const centerX = containerWidth / 2
+
+  // 往北車道2的 X 偏移為 +241
+  const northLane2X = centerX + 241
+
+  // 使用瀏覽器視窗高度來計算完全橫跨的垂直路徑
+  const browserHeight = window.innerHeight
+  // 起點：從瀏覽器底部更下方開始 (browserHeight * 2)
+  // 終點：延伸到瀏覽器頂部更上方 (-browserHeight)
+  const startY = browserHeight * 2
+  const endY = -browserHeight
+
+  return `M${northLane2X},${startY} L${northLane2X},${endY}`
+}
+
+// 計算往北車道3的SVG路徑
+const getNorthLane3Path = () => {
+  if (!crossroadContainer.value) {
+    return 'M590,-600 L590,1400' // 預設路徑，從下到上，橫跨瀏覽器高度
+  }
+
+  const containerWidth = crossroadContainer.value.offsetWidth
+  const centerX = containerWidth / 2
+
+  // 往北車道3的 X 偏移為 +268
+  const northLane3X = centerX + 268
+
+  // 使用瀏覽器視窗高度來計算完全橫跨的垂直路徑
+  const browserHeight = window.innerHeight
+  // 起點：從瀏覽器底部更下方開始 (browserHeight * 2)
+  // 終點：延伸到瀏覽器頂部更上方 (-browserHeight)
+  const startY = browserHeight * 2
+  const endY = -browserHeight
+
+  return `M${northLane3X},${startY} L${northLane3X},${endY}`
+}
+
+// 計算往北車道4的SVG路徑
+const getNorthLane4Path = () => {
+  if (!crossroadContainer.value) {
+    return 'M620,-600 L620,1400' // 預設路徑，從下到上，橫跨瀏覽器高度
+  }
+
+  const containerWidth = crossroadContainer.value.offsetWidth
+  const centerX = containerWidth / 2
+
+  // 往北車道4的 X 偏移為 +296
+  const northLane4X = centerX + 296
+
+  // 使用瀏覽器視窗高度來計算完全橫跨的垂直路徑
+  const browserHeight = window.innerHeight
+  // 起點：從瀏覽器底部更下方開始 (browserHeight * 2)
+  // 終點：延伸到瀏覽器頂部更上方 (-browserHeight)
+  const startY = browserHeight * 2
+  const endY = -browserHeight
+
+  return `M${northLane4X},${startY} L${northLane4X},${endY}`
 }
 
 onMounted(() => {
