@@ -1171,4 +1171,117 @@ onUnmounted(() => {
     font-size: 9px;
   }
 }
+
+/* 2560x1440 高解析度螢幕優化 */
+@media (min-width: 2560px) {
+  /* 調整側邊欄寬度以適配高解析度 */
+  .q-drawer {
+    width: 650px !important;
+  }
+
+  /* 優化場景參數設定區域 */
+  .set-window-section {
+    height: clamp(200px, 28vh, 280px);
+    background-size: cover; /* 改為 cover 確保背景圖完整填滿 */
+    background-position: center center;
+  }
+
+  .section-content {
+    padding: 60px 16px 0;
+  }
+
+  .system-header {
+    right: 0;
+    top: 20px;
+    left: 180px;
+  }
+
+  /* 優化智能分派系統 */
+  .compact-dispatch-system {
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .system-title {
+    font-size: 15px;
+  }
+
+  .time-scenarios-compact {
+    height: 70px;
+    gap: 6px;
+  }
+
+  .scenario-btn-compact {
+    border-radius: 8px;
+  }
+
+  .scenario-icon {
+    font-size: 22px;
+  }
+
+  .scenario-name {
+    font-size: 18px;
+  }
+
+  /* 優化數據展示區域 */
+  .data-section-content {
+    background-size: 100% 100%; /* 確保背景圖完整覆蓋 */
+    padding: 30px 25px;
+    min-height: 200px;
+  }
+
+  /* 調整交通數據網格，使數據更靠上顯示 */
+  .traffic-data-grid {
+    gap: 8px 15px;
+    margin-top: -20px; /* 向上調整數據位置 */
+    transform: translateY(-10px); /* 額外向上微調 */
+  }
+
+  /* 優化各個方向區域的位置 - 進一步微調 */
+  .east-zone {
+    top: -40px; /* 從 -10px 進一步上移到 -20px */
+    left: -5px;
+  }
+
+  .west-zone {
+    top: -40px; /* 從 -10px 進一步上移到 -20px */
+    left: 18px;
+  }
+
+  .south-zone {
+    top: 100px; /* 從 25px 進一步下移到 35px */
+    left: -6px;
+  }
+
+  .north-zone {
+    top: 100px; /* 從 25px 進一步下移到 35px */
+    left: 19px;
+  }
+
+  /* 優化數據行顯示 */
+  .data-row {
+    font-size: 14px;
+    padding: 3px 12px;
+    margin-bottom: 3px;
+  }
+
+  .data-row.main-stats {
+    font-size: 14px;
+    padding: 5px 12px;
+  }
+
+  .data-row.speed-stat {
+    font-size: 14px;
+    padding: 5px 12px;
+  }
+
+  .data-value {
+    font-size: 15px;
+    min-width: 60px;
+  }
+
+  .main-stats .data-value {
+    font-size: 15px;
+  }
+}
 </style>
