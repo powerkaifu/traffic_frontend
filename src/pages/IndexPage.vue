@@ -285,6 +285,9 @@
             <div>• <strong>DELETE</strong>：刪除選中錨點</div>
             <div>• <strong>CTRL+Z</strong>：撤銷操作</div>
             <div class="highlight-note">只能編輯高亮的車道1和車道4</div>
+            <div v-if="currentEditingPath" class="current-editing">
+              🎯 當前編輯: <strong>{{ currentEditingPath }}</strong>
+            </div>
           </div>
         </div>
       </div>
@@ -416,6 +419,7 @@ const aiPrediction = ref({
 
 // MotionPathHelper 控制
 const isPathEditMode = ref(false)
+const currentEditingPath = ref('') // 當前正在編輯的路徑
 const pathHelpers = ref([])
 const pathObservers = ref([]) // 路徑變化觀察器
 const editedPaths = ref({}) // 編輯後的路徑數據
@@ -450,7 +454,8 @@ const togglePathEditMode = () => {
 const enablePathEditing = () => {
   console.log('🎯 啟用路徑編輯模式')
 
-  // 清空暫存的編輯結果
+  // 清空當前編輯路徑和暫存的編輯結果
+  currentEditingPath.value = ''
   tempEditedPaths.value = {}
 
   // 只允許編輯每個方向的車道 1 和車道 4
@@ -651,20 +656,32 @@ const updateTooltipPosition = (event) => {
 const handlePathClick = (pathName) => {
   if (!isPathEditMode.value) return
 
+  // 設置當前編輯的路徑
+  currentEditingPath.value = pathName
   console.log(`🎯 點擊編輯路徑: ${pathName}`)
 
   $q.notify({
     message: `正在編輯: ${pathName}`,
-    color: 'info',
+    color: 'primary',
     icon: 'edit',
-    timeout: 2000,
+    timeout: 4000,
     position: 'top-right',
+    actions: [
+      {
+        label: '確定',
+        color: 'white',
+        handler: () => {},
+      },
+    ],
   })
 }
 
 // 停用路徑編輯功能
 const disablePathEditing = () => {
   console.log('🔒 停用路徑編輯模式')
+
+  // 清空當前編輯路徑
+  currentEditingPath.value = ''
 
   // 清理所有編輯器
   pathHelpers.value.forEach((item) => {
@@ -1445,5 +1462,33 @@ onUnmounted(() => {
   color: #00ff88;
   font-style: italic;
   text-align: center;
+}
+
+.current-editing {
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(0, 150, 255, 0.2);
+  border: 1px solid rgba(0, 150, 255, 0.5);
+  border-radius: 4px;
+  color: #00bfff;
+  font-weight: bold;
+  text-align: center;
+  animation: pulse 2s infinite;
+}
+
+.current-editing strong {
+  color: #ffffff;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 </style>
