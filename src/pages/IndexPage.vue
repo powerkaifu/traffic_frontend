@@ -209,7 +209,18 @@
         <button v-if="isPathEditMode" @click="exportPathData" class="export-btn" title="導出編輯後的路徑資料">
           📋 導出路徑
         </button>
-        <div v-if="isPathEditMode" class="edit-instructions">只能編輯每個方向的車道1和車道4（高亮顯示的路徑）</div>
+        <div v-if="isPathEditMode" class="edit-instructions">
+          <div class="instructions-title">🎯 路徑編輯指南</div>
+          <div class="instructions-list">
+            <div>• <strong>ALT+Click</strong> 路徑：新增控制點</div>
+            <div>• <strong>ALT+Click</strong> 錨點：切換平滑/尖角</div>
+            <div>• <strong>ALT+拖拽</strong> 錨點：獲取手柄</div>
+            <div>• <strong>SHIFT+Click</strong>：多選錨點</div>
+            <div>• <strong>DELETE</strong>：刪除選中錨點</div>
+            <div>• <strong>CTRL+Z</strong>：撤銷操作</div>
+            <div class="highlight-note">只能編輯高亮的車道1和車道4</div>
+          </div>
+        </div>
       </div>
     </div>
     <!-- lumo 小機器人助手 -->
@@ -367,6 +378,8 @@ const enablePathEditing = () => {
     'northLane4Straight', // 北向車道4 - 可編輯
   ]
 
+  console.log('🔧 開始為可編輯路徑啟用 MotionPathHelper...')
+
   // 為每個可編輯路徑啟用 MotionPathHelper
   editablePathIds.forEach((pathId) => {
     try {
@@ -376,38 +389,150 @@ const enablePathEditing = () => {
         return
       }
 
-      console.log(`🔍 為路徑 ${pathId} 創建 MotionPathHelper`)
-      console.log(`路徑數據: ${pathElement.getAttribute('d')}`)
+      const pathData = pathElement.getAttribute('d')
+      console.log(`🔍 路徑 ${pathId} 數據:`, pathData)
 
-      // 使用正確的 MotionPathHelper API
-      const helper = MotionPathHelper.create(pathElement, {
-        handles: true,
-        anchors: true,
-        stroke: 'yellow',
-        strokeWidth: 4,
-        opacity: 0.9,
-      })
+      // 檢查路徑格式
+      if (!pathData || (!pathData.includes('C') && !pathData.includes('c'))) {
+        console.warn(`⚠️ 路徑 ${pathId} 不是貝茲曲線格式，可能影響編輯功能`)
+      }
 
-      pathHelpers.value.push(helper)
-      console.log(`✅ ${pathId} 路徑編輯器已啟用`)
+      console.log(`🔧 為路徑 ${pathId} 創建 MotionPathHelper`)
+
+      // 嘗試方法1: 使用 editPath
+      try {
+        const pathEditor = MotionPathHelper.editPath(pathElement, {
+          selected: true,
+        })
+
+        if (pathEditor) {
+          pathHelpers.value.push(pathEditor)
+          console.log(`✅ ${pathId} 路徑編輯器已啟用 (使用 editPath)`)
+          return
+        }
+      } catch (editPathError) {
+        console.warn(`⚠️ editPath 方法失敗，嘗試其他方法:`, editPathError.message)
+      }
+
+      // 嘗試方法2: 創建一個 tween 然後傳遞給 create
+      try {
+        // 創建一個隱藏的測試元素
+        const testDiv = document.createElement('div')
+        testDiv.style.position = 'absolute'
+        testDiv.style.left = '-9999px'
+        testDiv.style.opacity = '0'
+        testDiv.style.pointerEvents = 'none'
+        document.body.appendChild(testDiv)
+
+        // 創建 motionPath tween
+        const tween = gsap.to(testDiv, {
+          duration: 1,
+          motionPath: {
+            path: pathElement,
+            autoRotate: false,
+          },
+          paused: true,
+        })
+
+        // 使用 tween 創建 MotionPathHelper
+        const helper = MotionPathHelper.create(tween)
+
+        if (helper) {
+          pathHelpers.value.push({ helper, testDiv, tween })
+          console.log(`✅ ${pathId} 路徑編輯器已啟用 (使用 create + tween)`)
+          return
+        }
+      } catch (tweenError) {
+        console.warn(`⚠️ tween 方法失敗，嘗試最後方法:`, tweenError.message)
+      }
+
+      // 嘗試方法3: 直接傳遞元素
+      try {
+        const helper = MotionPathHelper.create(pathElement)
+
+        if (helper) {
+          pathHelpers.value.push(helper)
+          console.log(`✅ ${pathId} 路徑編輯器已啟用 (直接傳遞元素)`)
+        } else {
+          console.error(`❌ ${pathId} 所有方法都失敗了`)
+        }
+      } catch (elementError) {
+        console.error(`❌ 直接傳遞元素方法也失敗:`, elementError.message)
+      }
     } catch (error) {
       console.error(`❌ 無法啟用 ${pathId} 路徑編輯器:`, error)
       console.error('Error details:', error.message)
+      console.error('Stack trace:', error.stack)
     }
   })
+
+  console.log(`🎯 MotionPathHelper 啟用完成，共啟用 ${pathHelpers.value.length} 個路徑編輯器`)
+
+  // 添加鍵盤事件監聽器
+  document.addEventListener('keydown', handleKeyDown)
+  document.addEventListener('keyup', handleKeyUp)
+
+  console.log('⌨️ 鍵盤事件監聽器已啟用')
+  console.log('💡 使用提示:')
+  console.log('   • ALT+Click: 在路徑上新增控制點')
+  console.log('   • ALT+Click 錨點: 切換平滑/尖角')
+  console.log('   • ALT+拖拽錨點: 從尖角獲取手柄')
+  console.log('   • SHIFT+Click: 選擇多個錨點')
+  console.log('   • DELETE: 刪除選中的錨點')
+  console.log('   • CTRL+Z: 撤銷')
+}
+
+// 鍵盤事件處理
+const handleKeyDown = (e) => {
+  if (isPathEditMode.value) {
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      console.log('🗑️ 刪除鍵被按下')
+    } else if (e.ctrlKey && e.key === 'z') {
+      console.log('↶ 撤銷操作 (Ctrl+Z)')
+    }
+  }
+}
+
+const handleKeyUp = () => {
+  // 處理鍵盤釋放事件
 }
 
 // 停用路徑編輯功能
 const disablePathEditing = () => {
   console.log('🔒 停用路徑編輯模式')
 
-  // 清理所有 MotionPathHelper
-  pathHelpers.value.forEach((helper) => {
-    if (helper && helper.kill) {
-      helper.kill()
+  // 清理所有編輯器
+  pathHelpers.value.forEach((item) => {
+    try {
+      if (item && typeof item === 'object') {
+        // 處理複合對象 { helper, testDiv, tween }
+        if (item.helper && typeof item.helper.kill === 'function') {
+          item.helper.kill()
+        }
+        if (item.tween && typeof item.tween.kill === 'function') {
+          item.tween.kill()
+        }
+        if (item.testDiv && item.testDiv.parentNode) {
+          item.testDiv.parentNode.removeChild(item.testDiv)
+        }
+      } else if (item && typeof item.kill === 'function') {
+        // 處理直接的編輯器對象
+        item.kill()
+      } else if (item && typeof item.destroy === 'function') {
+        // 處理可能有 destroy 方法的對象
+        item.destroy()
+      }
+    } catch (cleanupError) {
+      console.warn('清理編輯器時出現錯誤:', cleanupError.message)
     }
   })
   pathHelpers.value = []
+
+  // 移除鍵盤事件監聽器
+  document.removeEventListener('keydown', handleKeyDown)
+  document.removeEventListener('keyup', handleKeyUp)
+
+  console.log('🧹 路徑編輯器和事件監聽器已清理完成')
 }
 
 // 導出所有路徑資料（編輯後）
@@ -670,6 +795,10 @@ onUnmounted(() => {
     vehicle.remove()
   })
   activeCars.value = []
+
+  // 確保鍵盤事件監聽器被移除
+  document.removeEventListener('keydown', handleKeyDown)
+  document.removeEventListener('keyup', handleKeyUp)
 
   console.log('🧹 IndexPage 資源清理完成')
 })
@@ -1033,12 +1162,43 @@ onUnmounted(() => {
 
 .edit-instructions {
   margin-top: 8px;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.7);
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.8);
   color: #ffff99;
   font-size: 12px;
-  border-radius: 6px;
+  border-radius: 8px;
+  text-align: left;
+  max-width: 280px;
+  border: 1px solid rgba(255, 255, 153, 0.3);
+}
+
+.instructions-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #ffffff;
+  font-size: 13px;
   text-align: center;
-  max-width: 200px;
+}
+
+.instructions-list {
+  line-height: 1.4;
+}
+
+.instructions-list > div {
+  margin-bottom: 3px;
+}
+
+.instructions-list strong {
+  color: #ffcc00;
+  font-weight: bold;
+}
+
+.highlight-note {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 153, 0.2);
+  color: #00ff88;
+  font-style: italic;
+  text-align: center;
 }
 </style>
