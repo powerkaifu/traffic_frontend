@@ -1145,20 +1145,8 @@ export default class Vehicle {
         // 使用 MotionPathPlugin 創建路徑動畫 - 根據官方文件的建議語法
         console.log(`🚗 [${this.id}] 開始 MotionPath 動畫，路徑: #${this.getSvgPathId()}`)
 
-        // 🚨 防止位置跳躍：在動畫開始前確保車輛位置與路徑起始位置完全一致
-        const pathElement = document.querySelector(`#${this.getSvgPathId()}`)
-        if (pathElement) {
-          try {
-            const startPoint = pathElement.getPointAtLength(0)
-            // 精確設置車輛位置到路徑起始點，避免跳躍
-            gsap.set(this.element, { x: startPoint.x, y: startPoint.y })
-            console.log(
-              `🚗 [${this.id}] 已同步到路徑起始位置: (${startPoint.x.toFixed(1)}, ${startPoint.y.toFixed(1)})`,
-            )
-          } catch (error) {
-            console.warn(`⚠️ 無法獲取路徑起始位置:`, error)
-          }
-        }
+        // 🚨 車輛已在 IndexPage.vue 中使用 getPathStartPosition() 創建在正確位置
+        // 移除多餘的位置設置，避免視覺跳躍
 
         // 邊界檢測標記 - 避免重複觸發
         let hasBeenRemovedFromCollision = false
