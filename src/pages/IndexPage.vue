@@ -26,6 +26,10 @@
           :stroke="isPathEditMode ? 'rgba(255, 200, 100, 0.9)' : 'rgba(255, 100, 100, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
+          @mouseenter="showPathTooltip($event, '東向車道1 (可編輯)')"
+          @mouseleave="hidePathTooltip"
+          @mousemove="updateTooltipPosition"
+          :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!-- 往東車道2 直行路徑（車輛從畫面外進入到離開畫面） -->
         <path
@@ -50,6 +54,10 @@
           :stroke="isPathEditMode ? 'rgba(255, 200, 100, 0.9)' : 'rgba(255, 160, 160, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
+          @mouseenter="showPathTooltip($event, '東向車道4 (可編輯)')"
+          @mouseleave="hidePathTooltip"
+          @mousemove="updateTooltipPosition"
+          :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往西車道1 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
         <path
@@ -58,6 +66,10 @@
           :stroke="isPathEditMode ? 'rgba(100, 200, 255, 0.9)' : 'rgba(100, 150, 255, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
+          @mouseenter="showPathTooltip($event, '西向車道1 (可編輯)')"
+          @mouseleave="hidePathTooltip"
+          @mousemove="updateTooltipPosition"
+          :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往西車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
         <path
@@ -82,6 +94,10 @@
           :stroke="isPathEditMode ? 'rgba(100, 200, 255, 0.9)' : 'rgba(160, 210, 255, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
+          @mouseenter="showPathTooltip($event, '西向車道4 (可編輯)')"
+          @mouseleave="hidePathTooltip"
+          @mousemove="updateTooltipPosition"
+          :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往南車道1 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
         <path
@@ -90,6 +106,10 @@
           :stroke="isPathEditMode ? 'rgba(100, 255, 200, 0.9)' : 'rgba(100, 255, 150, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
+          @mouseenter="showPathTooltip($event, '南向車道1 (可編輯)')"
+          @mouseleave="hidePathTooltip"
+          @mousemove="updateTooltipPosition"
+          :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往南車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
         <path
@@ -114,6 +134,10 @@
           :stroke="isPathEditMode ? 'rgba(100, 255, 200, 0.9)' : 'rgba(160, 255, 210, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
+          @mouseenter="showPathTooltip($event, '南向車道4 (可編輯)')"
+          @mouseleave="hidePathTooltip"
+          @mousemove="updateTooltipPosition"
+          :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往北車道1 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
         <path
@@ -122,6 +146,10 @@
           :stroke="isPathEditMode ? 'rgba(255, 100, 255, 0.9)' : 'rgba(200, 100, 255, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
+          @mouseenter="showPathTooltip($event, '北向車道1 (可編輯)')"
+          @mouseleave="hidePathTooltip"
+          @mousemove="updateTooltipPosition"
+          :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往北車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
         <path
@@ -146,8 +174,35 @@
           :stroke="isPathEditMode ? 'rgba(255, 100, 255, 0.9)' : 'rgba(255, 160, 255, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
+          @mouseenter="showPathTooltip($event, '北向車道4 (可編輯)')"
+          @mouseleave="hidePathTooltip"
+          @mousemove="updateTooltipPosition"
+          :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
       </svg>
+
+      <!-- 路徑名稱 Tooltip -->
+      <div
+        v-if="isPathEditMode && pathTooltip.show"
+        :style="{
+          position: 'absolute',
+          left: pathTooltip.x + 'px',
+          top: pathTooltip.y + 'px',
+          background: 'rgba(0, 0, 0, 0.8)',
+          color: 'white',
+          padding: '8px 12px',
+          borderRadius: '4px',
+          fontSize: '14px',
+          fontWeight: 'bold',
+          pointerEvents: 'none',
+          zIndex: 1000,
+          whiteSpace: 'nowrap',
+          transform: 'translate(-50%, -100%)',
+          marginTop: '-8px',
+        }"
+      >
+        {{ pathTooltip.text }}
+      </div>
 
       <!-- 道路標籤背景 -->
       <div class="road-label">
@@ -209,6 +264,9 @@
         <button v-if="isPathEditMode" @click="exportPathData" class="export-btn" title="導出編輯後的路徑資料">
           📋 導出路徑
         </button>
+        <button v-if="isPathEditMode" @click="resetAllPaths" class="reset-btn" title="重置所有路徑到原始狀態">
+          🔄 重置路徑
+        </button>
         <div v-if="isPathEditMode" class="edit-instructions">
           <div class="instructions-title">🎯 路徑編輯指南</div>
           <div class="instructions-list">
@@ -232,6 +290,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useQuasar } from 'quasar'
 import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { MotionPathHelper } from 'gsap/MotionPathHelper'
@@ -350,6 +409,22 @@ const aiPrediction = ref({
 // MotionPathHelper 控制
 const isPathEditMode = ref(false)
 const pathHelpers = ref([])
+const pathObservers = ref([]) // 路徑變化觀察器
+const editedPaths = ref({}) // 編輯後的路徑數據
+
+// Tooltip 狀態
+const pathTooltip = ref({
+  show: false,
+  text: '',
+  x: 0,
+  y: 0,
+})
+
+// Quasar 實例
+const $q = useQuasar()
+
+// 路徑計算器實例
+let lanePathCalculator = null
 
 // 啟用/停用路徑編輯模式
 const togglePathEditMode = () => {
@@ -468,6 +543,9 @@ const enablePathEditing = () => {
 
   console.log(`🎯 MotionPathHelper 啟用完成，共啟用 ${pathHelpers.value.length} 個路徑編輯器`)
 
+  // 設置路徑變化監聽器
+  setupPathChangeListeners(editablePathIds)
+
   // 添加鍵盤事件監聽器
   document.addEventListener('keydown', handleKeyDown)
   document.addEventListener('keyup', handleKeyUp)
@@ -476,10 +554,198 @@ const enablePathEditing = () => {
   console.log('💡 使用提示:')
   console.log('   • ALT+Click: 在路徑上新增控制點')
   console.log('   • ALT+Click 錨點: 切換平滑/尖角')
-  console.log('   • ALT+拖拽錨點: 從尖角獲取手柄')
+  console.log('   • ALT+拖拽錨點: 從尖角獲得手柄')
   console.log('   • SHIFT+Click: 選擇多個錨點')
   console.log('   • DELETE: 刪除選中的錨點')
   console.log('   • CTRL+Z: 撤銷')
+  console.log('   • 編輯會自動保存到路徑計算器！')
+}
+
+// 設置路徑變化監聽器
+const setupPathChangeListeners = (pathIds) => {
+  console.log('🔄 設置路徑變化監聽器...')
+
+  pathIds.forEach((pathId) => {
+    const pathElement = document.getElementById(pathId)
+    if (!pathElement) return
+
+    // 使用 MutationObserver 監聽路徑 'd' 屬性變化
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'd') {
+          const newPathData = pathElement.getAttribute('d')
+          console.log(`🔄 檢測到路徑 ${pathId} 變化:`, newPathData)
+
+          // 自動保存到 lanePathCalculator
+          savePathToCalculator(pathId, newPathData)
+        }
+      })
+    })
+
+    observer.observe(pathElement, {
+      attributes: true,
+      attributeFilter: ['d'],
+    })
+
+    // 保存觀察器引用以便後續清理
+    pathObservers.value.push(observer)
+  })
+}
+
+// 保存路徑到計算器的映射
+const pathCalculatorMap = {
+  eastLane1Straight: 'getEastLane1Path',
+  eastLane4Straight: 'getEastLane4Path',
+  westLane1Straight: 'getWestLane1Path',
+  westLane4Straight: 'getWestLane4Path',
+  southLane1Straight: 'getSouthLane1Path',
+  southLane4Straight: 'getSouthLane4Path',
+  northLane1Straight: 'getNorthLane1Path',
+  northLane4Straight: 'getNorthLane4Path',
+}
+
+// 自動保存路徑到計算器
+const savePathToCalculator = async (pathId, newPathData) => {
+  const functionName = pathCalculatorMap[pathId]
+  if (!functionName) {
+    console.error('❌ 無法找到對應的計算器函數:', pathId)
+    return
+  }
+
+  try {
+    console.log(`💾 自動保存路徑 ${pathId} -> ${functionName}`)
+
+    // 動態更新路徑計算器
+    updateLanePathCalculator(functionName, newPathData)
+
+    // 更新本地路徑數據
+    updateLocalPathData(pathId, newPathData)
+
+    console.log(`✅ 路徑 ${pathId} 已自動保存`)
+
+    // 顯示保存提示
+    $q.notify({
+      message: `路徑 ${pathId} 已自動保存`,
+      color: 'positive',
+      icon: 'save',
+      timeout: 1000,
+      position: 'top-right',
+    })
+  } catch (error) {
+    console.error('❌ 自動保存路徑失敗:', error)
+    $q.notify({
+      message: '自動保存失敗: ' + error.message,
+      color: 'negative',
+      icon: 'error',
+      timeout: 3000,
+      position: 'top-right',
+    })
+  }
+}
+
+// 動態更新路徑計算器函數
+const updateLanePathCalculator = (functionName, newPathData) => {
+  // 直接修改導入的函數映射
+  if (lanePathCalculator[functionName]) {
+    // 創建新的函數來返回編輯後的路徑
+    lanePathCalculator[functionName] = () => newPathData
+    console.log(`🔄 已更新 ${functionName} 函數`)
+  }
+}
+
+// 更新本地路徑數據存儲
+const updateLocalPathData = (pathId, newPathData) => {
+  if (!editedPaths.value) {
+    editedPaths.value = {}
+  }
+  editedPaths.value[pathId] = newPathData
+
+  // 保存到 localStorage
+  try {
+    localStorage.setItem('trafficEditedPaths', JSON.stringify(editedPaths.value))
+    console.log('💾 路徑數據已保存到本地存儲')
+  } catch (error) {
+    console.warn('⚠️ 保存到本地存儲失敗:', error)
+  }
+}
+
+// 從本地存儲載入編輯後的路徑數據
+const loadEditedPathsFromStorage = () => {
+  try {
+    const storedPaths = localStorage.getItem('trafficEditedPaths')
+    if (storedPaths) {
+      const parsedPaths = JSON.parse(storedPaths)
+      editedPaths.value = parsedPaths
+
+      console.log('📂 從本地存儲載入編輯路徑:', parsedPaths)
+
+      // 應用已編輯的路徑到路徑計算器
+      Object.keys(parsedPaths).forEach((pathId) => {
+        const pathData = parsedPaths[pathId]
+        const functionName = pathCalculatorMap[pathId]
+
+        if (functionName && lanePathCalculator) {
+          // 更新路徑計算器函數
+          lanePathCalculator[functionName] = () => pathData
+          console.log(`🔄 已恢復 ${functionName} 的編輯路徑`)
+
+          // 同時更新全局路徑函數
+          updateGlobalPathFunction(functionName, pathData)
+        }
+      })
+
+      console.log('✅ 已恢復所有編輯後的路徑')
+
+      $q.notify({
+        message: `已恢復 ${Object.keys(parsedPaths).length} 條編輯路徑`,
+        color: 'info',
+        icon: 'restore',
+        timeout: 2000,
+        position: 'top-right',
+      })
+    } else {
+      console.log('📂 本地存儲中沒有編輯路徑數據')
+    }
+  } catch (error) {
+    console.error('❌ 載入本地存儲的路徑數據失敗:', error)
+    $q.notify({
+      message: '載入編輯路徑失敗: ' + error.message,
+      color: 'negative',
+      icon: 'error',
+      timeout: 3000,
+      position: 'top-right',
+    })
+  }
+}
+
+// 更新全局路徑函數
+const updateGlobalPathFunction = (functionName, pathData) => {
+  switch (functionName) {
+    case 'getEastLane1Path':
+      getEastLane1Path = () => pathData
+      break
+    case 'getEastLane4Path':
+      getEastLane4Path = () => pathData
+      break
+    case 'getWestLane1Path':
+      getWestLane1Path = () => pathData
+      break
+    case 'getWestLane4Path':
+      getWestLane4Path = () => pathData
+      break
+    case 'getSouthLane1Path':
+      getSouthLane1Path = () => pathData
+      break
+    case 'getSouthLane4Path':
+      getSouthLane4Path = () => pathData
+      break
+    case 'getNorthLane1Path':
+      getNorthLane1Path = () => pathData
+      break
+    case 'getNorthLane4Path':
+      getNorthLane4Path = () => pathData
+      break
+  }
 }
 
 // 鍵盤事件處理
@@ -495,6 +761,31 @@ const handleKeyDown = (e) => {
 
 const handleKeyUp = () => {
   // 處理鍵盤釋放事件
+}
+
+// Tooltip 處理函數
+const showPathTooltip = (event, text) => {
+  if (!isPathEditMode.value) return
+
+  const rect = event.target.closest('svg').getBoundingClientRect()
+  pathTooltip.value = {
+    show: true,
+    text: text,
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  }
+}
+
+const hidePathTooltip = () => {
+  pathTooltip.value.show = false
+}
+
+const updateTooltipPosition = (event) => {
+  if (!pathTooltip.value.show) return
+
+  const rect = event.target.closest('svg').getBoundingClientRect()
+  pathTooltip.value.x = event.clientX - rect.left
+  pathTooltip.value.y = event.clientY - rect.top
 }
 
 // 停用路徑編輯功能
@@ -528,11 +819,21 @@ const disablePathEditing = () => {
   })
   pathHelpers.value = []
 
+  // 清理路徑變化觀察器
+  pathObservers.value.forEach((observer) => {
+    try {
+      observer.disconnect()
+    } catch (error) {
+      console.warn('清理路徑觀察器時出現錯誤:', error.message)
+    }
+  })
+  pathObservers.value = []
+
   // 移除鍵盤事件監聽器
   document.removeEventListener('keydown', handleKeyDown)
   document.removeEventListener('keyup', handleKeyUp)
 
-  console.log('🧹 路徑編輯器和事件監聽器已清理完成')
+  console.log('🧹 路徑編輯器、觀察器和事件監聽器已清理完成')
 }
 
 // 導出所有路徑資料（編輯後）
@@ -584,6 +885,66 @@ const exportPathData = () => {
   return pathData
 }
 
+// 重置所有路徑到原始狀態
+const resetAllPaths = () => {
+  const confirmReset = confirm('⚠️ 確定要重置所有路徑到原始狀態嗎？這將清除所有編輯內容！')
+
+  if (!confirmReset) {
+    return
+  }
+
+  try {
+    // 清除本地存儲
+    localStorage.removeItem('trafficEditedPaths')
+    editedPaths.value = {}
+
+    // 重新初始化路徑計算器（恢復原始路徑）
+    if (lanePathCalculator && crossroadContainer.value) {
+      const originalCalculator = createLanePathCalculator(crossroadContainer.value)
+
+      // 恢復原始路徑函數
+      getEastLane1Path = originalCalculator.getEastLane1Path
+      getEastLane4Path = originalCalculator.getEastLane4Path
+      getWestLane1Path = originalCalculator.getWestLane1Path
+      getWestLane4Path = originalCalculator.getWestLane4Path
+      getSouthLane1Path = originalCalculator.getSouthLane1Path
+      getSouthLane4Path = originalCalculator.getSouthLane4Path
+      getNorthLane1Path = originalCalculator.getNorthLane1Path
+      getNorthLane4Path = originalCalculator.getNorthLane4Path
+
+      // 更新路徑計算器實例
+      lanePathCalculator = originalCalculator
+    }
+
+    console.log('🔄 所有路徑已重置到原始狀態')
+
+    $q.notify({
+      message: '所有路徑已重置到原始狀態',
+      color: 'warning',
+      icon: 'refresh',
+      timeout: 2000,
+      position: 'top-right',
+    })
+
+    // 如果目前在編輯模式，重新啟用編輯以更新顯示
+    if (isPathEditMode.value) {
+      disablePathEditing()
+      setTimeout(() => {
+        enablePathEditing()
+      }, 100)
+    }
+  } catch (error) {
+    console.error('❌ 重置路徑失敗:', error)
+    $q.notify({
+      message: '重置路徑失敗: ' + error.message,
+      color: 'negative',
+      icon: 'error',
+      timeout: 3000,
+      position: 'top-right',
+    })
+  }
+}
+
 // 路徑計算函數（會在 onMounted 後被初始化）
 // 提供預設值以防在初始化前被呼叫
 let getEastLane1Path = () => 'M-200,600 L1400,600'
@@ -609,28 +970,31 @@ let getNorthLane4Path = () => 'M620,-600 L620,1400'
 onMounted(() => {
   // 初始化路徑計算器並設定所有路徑函數
   if (crossroadContainer.value) {
-    const pathCalculator = createLanePathCalculator(crossroadContainer.value)
+    lanePathCalculator = createLanePathCalculator(crossroadContainer.value)
 
     // 指派所有路徑計算函數
-    getEastLane1Path = pathCalculator.getEastLane1Path
-    getEastLane2Path = pathCalculator.getEastLane2Path
-    getEastLane3Path = pathCalculator.getEastLane3Path
-    getEastLane4Path = pathCalculator.getEastLane4Path
+    getEastLane1Path = lanePathCalculator.getEastLane1Path
+    getEastLane2Path = lanePathCalculator.getEastLane2Path
+    getEastLane3Path = lanePathCalculator.getEastLane3Path
+    getEastLane4Path = lanePathCalculator.getEastLane4Path
 
-    getWestLane1Path = pathCalculator.getWestLane1Path
-    getWestLane2Path = pathCalculator.getWestLane2Path
-    getWestLane3Path = pathCalculator.getWestLane3Path
-    getWestLane4Path = pathCalculator.getWestLane4Path
+    getWestLane1Path = lanePathCalculator.getWestLane1Path
+    getWestLane2Path = lanePathCalculator.getWestLane2Path
+    getWestLane3Path = lanePathCalculator.getWestLane3Path
+    getWestLane4Path = lanePathCalculator.getWestLane4Path
 
-    getSouthLane1Path = pathCalculator.getSouthLane1Path
-    getSouthLane2Path = pathCalculator.getSouthLane2Path
-    getSouthLane3Path = pathCalculator.getSouthLane3Path
-    getSouthLane4Path = pathCalculator.getSouthLane4Path
+    getSouthLane1Path = lanePathCalculator.getSouthLane1Path
+    getSouthLane2Path = lanePathCalculator.getSouthLane2Path
+    getSouthLane3Path = lanePathCalculator.getSouthLane3Path
+    getSouthLane4Path = lanePathCalculator.getSouthLane4Path
 
-    getNorthLane1Path = pathCalculator.getNorthLane1Path
-    getNorthLane2Path = pathCalculator.getNorthLane2Path
-    getNorthLane3Path = pathCalculator.getNorthLane3Path
-    getNorthLane4Path = pathCalculator.getNorthLane4Path
+    getNorthLane1Path = lanePathCalculator.getNorthLane1Path
+    getNorthLane2Path = lanePathCalculator.getNorthLane2Path
+    getNorthLane3Path = lanePathCalculator.getNorthLane3Path
+    getNorthLane4Path = lanePathCalculator.getNorthLane4Path
+
+    // 載入並應用本地存儲的編輯路徑
+    loadEditedPathsFromStorage()
   }
 
   if (crossroadContainer.value) {
@@ -1111,7 +1475,8 @@ onUnmounted(() => {
 }
 
 .edit-btn,
-.export-btn {
+.export-btn,
+.reset-btn {
   padding: 12px 20px;
   border: 2px solid rgb(63, 117, 205);
   border-radius: 8px;
@@ -1130,8 +1495,14 @@ onUnmounted(() => {
   border-color: rgb(34, 139, 34);
 }
 
+.reset-btn {
+  background: linear-gradient(135deg, rgba(220, 53, 69, 0.9), rgba(178, 34, 34, 0.9));
+  border-color: rgb(220, 53, 69);
+}
+
 .edit-btn:hover,
-.export-btn:hover {
+.export-btn:hover,
+.reset-btn:hover {
   background: linear-gradient(135deg, rgba(45, 90, 160, 0.9), rgba(45, 40, 110, 0.9));
   transform: translateY(-2px);
   box-shadow: 0 0 20px rgba(30, 30, 100, 0.8);
@@ -1139,6 +1510,10 @@ onUnmounted(() => {
 
 .export-btn:hover {
   background: linear-gradient(135deg, rgba(44, 149, 44, 0.9), rgba(10, 110, 10, 0.9));
+}
+
+.reset-btn:hover {
+  background: linear-gradient(135deg, rgba(230, 63, 79, 0.9), rgba(188, 44, 44, 0.9));
 }
 
 .edit-btn.active {
