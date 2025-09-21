@@ -470,13 +470,17 @@ const enablePathEditing = () => {
 
       // 嘗試方法1: 使用 editPath
       try {
+        console.log(`🔧 為 ${pathId} 初始化 MotionPathHelper...`)
         const pathEditor = MotionPathHelper.editPath(pathElement, {
-          selected: true,
+          selected: false,
           createPoints: false, // 禁止自動創建錨點
           handleSize: 8,
         })
 
         if (pathEditor) {
+          console.log(`📏 ${pathId} 路徑數據:`, pathElement.getAttribute('d'))
+          console.log(`⚙️ ${pathId} MotionPathHelper 配置:`, { selected: false, createPoints: false, handleSize: 8 })
+
           pathHelpers.value.push(pathEditor)
           console.log(`✅ ${pathId} 路徑編輯器已啟用 (使用 editPath)`)
           return
