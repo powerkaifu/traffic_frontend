@@ -305,28 +305,28 @@ export default class Vehicle {
 
   // Strategy Pattern: 檢查車輛是否已離開畫面邊界
   checkOutOfBounds(position) {
-    // 動態獲取容器尺寸，適應不同螢幕大小
-    const container = document.querySelector('.crossroad-area')
-    if (!container) {
-      // 如果找不到容器，使用視窗尺寸作為備選
-      const bounds = {
-        left: -50,
-        right: window.innerWidth + 50,
-        top: -50,
-        bottom: window.innerHeight + 50,
-      }
-      return this.checkBoundsForDirection(position, bounds)
+    // 🚨 改進：使用SVG座標系統定義邊界，更適合MotionPath
+    // SVG viewBox="0 0 1400 1000"，所以我們基於這個座標系統定義邊界
+    const svgBounds = {
+      left: -100, // 左側邊界（SVG座標）
+      right: 1500, // 右側邊界（SVG座標）- 比viewBox稍大
+      top: -100, // 上方邊界（SVG座標）
+      bottom: 1100, // 下方邊界（SVG座標）- 比viewBox稍大
     }
 
-    // 基於實際容器尺寸定義畫面邊界（包含安全邊距）
-    const bounds = {
-      left: -50, // 左側安全邊距
-      right: container.offsetWidth + 50, // 動態右邊界
-      top: -50, // 上方安全邊距
-      bottom: container.offsetHeight + 50, // 動態下邊界
+    const isOutOfBounds = this.checkBoundsForDirection(position, svgBounds)
+
+    // 添加更詳細的邊界檢測調試信息
+    if (isOutOfBounds && (this.id.endsWith('1') || Math.random() < 0.1)) {
+      console.log(`🚗 [${this.id}] 邊界檢測詳情:`, {
+        position: `(${position.x.toFixed(1)}, ${position.y.toFixed(1)})`,
+        direction: this.direction,
+        bounds: svgBounds,
+        isOutOfBounds,
+      })
     }
 
-    return this.checkBoundsForDirection(position, bounds)
+    return isOutOfBounds
   }
 
   // 輔助方法：根據方向檢查邊界
@@ -503,9 +503,9 @@ export default class Vehicle {
     const currentPos = this.getCurrentPosition()
     const currentBox = this.getBoundingBox()
 
-    // 安全跟車距離 - 根據車輛狀態動態調整
-    const safeDistance = isJustStartedMoving ? 8 : 15 // 提高安全距離
-    const stopDistance = isJustStartedMoving ? 5 : 10 // 提高停止距離
+    // 🚨 強化安全距離 - 大幅提高安全距離，防止重疊
+    const safeDistance = isJustStartedMoving ? 25 : 35 // 大幅提高安全距離
+    const stopDistance = isJustStartedMoving ? 15 : 25 // 大幅提高停止距離
 
     // 根據車輛狀態進一步調整安全距離
     let adjustedSafeDistance = safeDistance
@@ -513,8 +513,8 @@ export default class Vehicle {
 
     // 如果前方車輛在等待紅綠燈，需要更大的安全距離防止重疊
     if (this.currentState === 'slowing_for_light' || this.waitingForGreen) {
-      adjustedSafeDistance = safeDistance * 1.5
-      adjustedStopDistance = stopDistance * 1.5
+      adjustedSafeDistance = safeDistance * 2.0 // 增加到2倍
+      adjustedStopDistance = stopDistance * 2.0 // 增加到2倍
     }
 
     for (let vehicle of allVehicles) {
@@ -531,22 +531,22 @@ export default class Vehicle {
 
       if (this.direction === 'east') {
         // 東向：檢查Y軸位置是否在同一車道，X軸是否在前方
-        inSameLane = Math.abs(currentPos.y - otherPos.y) < 25 // 車道寬度容錯
+        inSameLane = Math.abs(currentPos.y - otherPos.y) < 15 // 🚨 縮小車道容錯範圍，更嚴格
         isFront = otherBox.left > currentBox.right // 前車的左邊 > 本車的右邊
         distanceToFrontVehicle = otherBox.left - currentBox.right
       } else if (this.direction === 'west') {
         // 西向：檢查Y軸位置是否在同一車道，X軸是否在前方
-        inSameLane = Math.abs(currentPos.y - otherPos.y) < 25
+        inSameLane = Math.abs(currentPos.y - otherPos.y) < 15 // 🚨 縮小車道容錯範圍
         isFront = otherBox.right < currentBox.left // 前車的右邊 < 本車的左邊
         distanceToFrontVehicle = currentBox.left - otherBox.right
       } else if (this.direction === 'north') {
         // 北向：檢查X軸位置是否在同一車道，Y軸是否在前方
-        inSameLane = Math.abs(currentPos.x - otherPos.x) < 25
+        inSameLane = Math.abs(currentPos.x - otherPos.x) < 15 // 🚨 縮小車道容錯範圍
         isFront = otherBox.bottom < currentBox.top // 前車的底部 < 本車的頂部
         distanceToFrontVehicle = currentBox.top - otherBox.bottom
       } else if (this.direction === 'south') {
         // 南向：檢查X軸位置是否在同一車道，Y軸是否在前方
-        inSameLane = Math.abs(currentPos.x - otherPos.x) < 25
+        inSameLane = Math.abs(currentPos.x - otherPos.x) < 15 // 🚨 縮小車道容錯範圍
         isFront = otherBox.top > currentBox.bottom // 前車的頂部 > 本車的底部
         distanceToFrontVehicle = otherBox.top - currentBox.bottom
       }
@@ -1103,12 +1103,35 @@ export default class Vehicle {
 
             this.currentState = 'completed'
             console.log(`🚗 [${this.id}] 路徑動畫已完成`)
+
+            // 🚨 立即移除機制：動畫完成時立刻從碰撞檢測中移除
+            if (!hasBeenRemovedFromCollision && onVehicleOutOfBounds) {
+              hasBeenRemovedFromCollision = true
+              console.log(`🚗 [${this.id}] 動畫完成，立即從碰撞檢測中移除`)
+              onVehicleOutOfBounds(this.id)
+            }
+
             resolve()
           },
         })
 
         // 使用 MotionPathPlugin 創建路徑動畫 - 根據官方文件的建議語法
         console.log(`🚗 [${this.id}] 開始 MotionPath 動畫，路徑: #${this.getSvgPathId()}`)
+
+        // 🚨 防止位置跳躍：在動畫開始前確保車輛位置與路徑起始位置完全一致
+        const pathElement = document.querySelector(`#${this.getSvgPathId()}`)
+        if (pathElement) {
+          try {
+            const startPoint = pathElement.getPointAtLength(0)
+            // 精確設置車輛位置到路徑起始點，避免跳躍
+            gsap.set(this.element, { x: startPoint.x, y: startPoint.y })
+            console.log(
+              `🚗 [${this.id}] 已同步到路徑起始位置: (${startPoint.x.toFixed(1)}, ${startPoint.y.toFixed(1)})`,
+            )
+          } catch (error) {
+            console.warn(`⚠️ 無法獲取路徑起始位置:`, error)
+          }
+        }
 
         // 邊界檢測標記 - 避免重複觸發
         let hasBeenRemovedFromCollision = false
@@ -1123,14 +1146,30 @@ export default class Vehicle {
           },
           ease: 'none',
           onUpdate: () => {
-            // 🚨 關鍵改進：邊界檢測提前移除機制
+            // 🚨 雙重移除機制：邊界檢測 + 動畫進度檢測
             if (!hasBeenRemovedFromCollision && onVehicleOutOfBounds) {
               const currentPos = this.getCurrentPosition()
+
+              // 方法1: 邊界檢測
               const isOutOfBounds = this.checkOutOfBounds(currentPos)
 
-              if (isOutOfBounds) {
+              // 方法2: 🚨 超積極移除機制 - 動畫進度超過30%時就開始移除，防止塞車
+              const progress = this.movementTimeline.progress()
+              const shouldRemoveByProgress = progress > 0.3 // 🚨 從50%改為30%，更積極移除
+
+              // 添加詳細的調試信息
+              if (this.id.endsWith('1') || Math.random() < 0.02) {
+                console.log(
+                  `🚗 [${this.id}] 檢查: 位置(${currentPos.x.toFixed(1)}, ${currentPos.y.toFixed(1)}), 進度${(progress * 100).toFixed(1)}%, 超界${isOutOfBounds}, 進度觸發${shouldRemoveByProgress}`,
+                )
+              }
+
+              if (isOutOfBounds || shouldRemoveByProgress) {
                 hasBeenRemovedFromCollision = true
-                console.log(`🚗 [${this.id}] 車輛已離開邊界，提前從碰撞檢測中移除`)
+                const reason = isOutOfBounds ? '邊界檢測' : '動畫進度50%'
+                console.log(
+                  `🚗 [${this.id}] 車輛已移除(${reason}) - 位置: (${currentPos.x.toFixed(1)}, ${currentPos.y.toFixed(1)}), 進度: ${(progress * 100).toFixed(1)}%`,
+                )
                 onVehicleOutOfBounds(this.id)
               }
             }

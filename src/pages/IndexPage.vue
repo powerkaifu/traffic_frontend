@@ -340,16 +340,55 @@ const handleAutoGenerate = (event) => {
     `🚗 車輛將從路徑起始位置生成: ${direction}Lane${laneNumber} (${pathStartPosition.x}, ${pathStartPosition.y})`,
   )
 
-  // 檢查路徑起始位置是否有其他車輛，避免重疊生成
+  // 🚨 強化空間檢查：檢查更大範圍內是否有其他車輛，避免重疊生成
   const isPositionOccupied = activeCars.value.some((car) => {
     if (car.direction !== direction) return false
     const carPos = car.getCurrentPosition()
     const distance = Math.sqrt(
       Math.pow(carPos.x - pathStartPosition.x, 2) + Math.pow(carPos.y - pathStartPosition.y, 2),
     )
-    return distance < 50
+    // 🚨 大幅增加檢查範圍，從50px增加到100px，確保足夠的生成空間
+    return distance < 100
   })
-  if (isPositionOccupied) {
+
+  // 🚨 額外檢查：確保同方向同車道沒有太近的車輛
+  const isLaneOccupied = activeCars.value.some((car) => {
+    if (car.direction !== direction || car.laneNumber !== laneNumber) return false
+    const carPos = car.getCurrentPosition()
+
+    // 根據方向檢查車道內的距離
+    let isInSafePath = false
+    if (direction === 'east') {
+      // 東向：檢查X軸距離，確保前方至少150px空間
+      isInSafePath =
+        Math.abs(carPos.y - pathStartPosition.y) < 20 &&
+        carPos.x - pathStartPosition.x < 150 &&
+        carPos.x - pathStartPosition.x > -50
+    } else if (direction === 'west') {
+      // 西向：檢查X軸距離
+      isInSafePath =
+        Math.abs(carPos.y - pathStartPosition.y) < 20 &&
+        pathStartPosition.x - carPos.x < 150 &&
+        pathStartPosition.x - carPos.x > -50
+    } else if (direction === 'north') {
+      // 北向：檢查Y軸距離
+      isInSafePath =
+        Math.abs(carPos.x - pathStartPosition.x) < 20 &&
+        pathStartPosition.y - carPos.y < 150 &&
+        pathStartPosition.y - carPos.y > -50
+    } else if (direction === 'south') {
+      // 南向：檢查Y軸距離
+      isInSafePath =
+        Math.abs(carPos.x - pathStartPosition.x) < 20 &&
+        carPos.y - pathStartPosition.y < 150 &&
+        carPos.y - pathStartPosition.y > -50
+    }
+
+    return isInSafePath
+  })
+
+  if (isPositionOccupied || isLaneOccupied) {
+    console.log(`🚗 車道空間不足，暫停生成 ${direction}Lane${laneNumber}`)
     return
   }
 
@@ -383,32 +422,40 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => 
         const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicleId)
         if (vehicleIndex > -1) {
           activeCars.value.splice(vehicleIndex, 1)
-          console.log(`🚗 [${vehicleId}] 已從 activeCars 中提前移除，避免塞車`)
+          console.log(`🚗 [${vehicleId}] 已從 activeCars 中立即移除，避免塞車`)
         }
       }
 
       // 使用新的 MotionPath 動畫方法，傳入邊界檢測回調
       await vehicle.moveAlongPath(trafficController, activeCars.value, handleVehicleOutOfBounds)
 
-      // 動畫完成後的清理工作（可能車輛已經被提前移除）
+      // 🚨 動畫完成後立即清理，不等待淡出
       const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
       if (vehicleIndex > -1) {
         activeCars.value.splice(vehicleIndex, 1)
+        console.log(`🚗 [${vehicle.id}] 動畫完成，最終清理`)
       }
 
-      await vehicle.fadeOut(1.5)
-      vehicle.remove()
-      window.dispatchEvent(
-        new CustomEvent('vehicleRemoved', {
-          detail: {
-            direction,
-            type: vehicleType,
-            vehicleId: vehicle.id,
-            finalSpeed: vehicle.currentSpeed || 0,
-            travelTime: vehicle.travelTime || 0,
-          },
-        }),
-      )
+      // 背景執行淡出和移除，不阻塞後續車輛生成
+      setTimeout(async () => {
+        try {
+          await vehicle.fadeOut(1.5)
+          vehicle.remove()
+          window.dispatchEvent(
+            new CustomEvent('vehicleRemoved', {
+              detail: {
+                direction,
+                type: vehicleType,
+                vehicleId: vehicle.id,
+                finalSpeed: vehicle.currentSpeed || 0,
+                travelTime: vehicle.travelTime || 0,
+              },
+            }),
+          )
+        } catch (error) {
+          console.warn(`⚠️ 車輛淡出清理失敗:`, error)
+        }
+      }, 0)
     } catch (error) {
       console.error('❌ 自動生成車輛動畫錯誤:', error)
       const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
