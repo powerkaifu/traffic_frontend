@@ -277,6 +277,7 @@
             <div>• <strong>DELETE</strong>：刪除選中錨點</div>
             <div>• <strong>CTRL+Z</strong>：撤銷操作</div>
             <div class="highlight-note">只能編輯高亮的車道1和車道4</div>
+            <div class="save-note">📝 編輯結果在停止編輯時保存</div>
           </div>
         </div>
       </div>
@@ -411,6 +412,7 @@ const isPathEditMode = ref(false)
 const pathHelpers = ref([])
 const pathObservers = ref([]) // 路徑變化觀察器
 const editedPaths = ref({}) // 編輯後的路徑數據
+const tempEditedPaths = ref({}) // 暫存編輯中的路徑數據
 
 // Tooltip 狀態
 const pathTooltip = ref({
@@ -440,6 +442,9 @@ const togglePathEditMode = () => {
 // 啟用路徑編輯功能
 const enablePathEditing = () => {
   console.log('🎯 啟用路徑編輯模式')
+
+  // 清空暫存的編輯結果
+  tempEditedPaths.value = {}
 
   // 只允許編輯每個方向的車道 1 和車道 4
   const editablePathIds = [
@@ -558,7 +563,7 @@ const enablePathEditing = () => {
   console.log('   • SHIFT+Click: 選擇多個錨點')
   console.log('   • DELETE: 刪除選中的錨點')
   console.log('   • CTRL+Z: 撤銷')
-  console.log('   • 編輯會自動保存到路徑計算器！')
+  console.log('   • 按下停止編輯時會保存所有編輯結果！')
 }
 
 // 設置路徑變化監聽器
@@ -576,8 +581,9 @@ const setupPathChangeListeners = (pathIds) => {
           const newPathData = pathElement.getAttribute('d')
           console.log(`🔄 檢測到路徑 ${pathId} 變化:`, newPathData)
 
-          // 自動保存到 lanePathCalculator
-          savePathToCalculator(pathId, newPathData)
+          // 暫存編輯結果，不立即保存
+          tempEditedPaths.value[pathId] = newPathData
+          console.log(`📝 暫存路徑 ${pathId} 編輯結果`)
         }
       })
     })
@@ -602,71 +608,6 @@ const pathCalculatorMap = {
   southLane4Straight: 'getSouthLane4Path',
   northLane1Straight: 'getNorthLane1Path',
   northLane4Straight: 'getNorthLane4Path',
-}
-
-// 自動保存路徑到計算器
-const savePathToCalculator = async (pathId, newPathData) => {
-  const functionName = pathCalculatorMap[pathId]
-  if (!functionName) {
-    console.error('❌ 無法找到對應的計算器函數:', pathId)
-    return
-  }
-
-  try {
-    console.log(`💾 自動保存路徑 ${pathId} -> ${functionName}`)
-
-    // 動態更新路徑計算器
-    updateLanePathCalculator(functionName, newPathData)
-
-    // 更新本地路徑數據
-    updateLocalPathData(pathId, newPathData)
-
-    console.log(`✅ 路徑 ${pathId} 已自動保存`)
-
-    // 顯示保存提示
-    $q.notify({
-      message: `路徑 ${pathId} 已自動保存`,
-      color: 'positive',
-      icon: 'save',
-      timeout: 1000,
-      position: 'top-right',
-    })
-  } catch (error) {
-    console.error('❌ 自動保存路徑失敗:', error)
-    $q.notify({
-      message: '自動保存失敗: ' + error.message,
-      color: 'negative',
-      icon: 'error',
-      timeout: 3000,
-      position: 'top-right',
-    })
-  }
-}
-
-// 動態更新路徑計算器函數
-const updateLanePathCalculator = (functionName, newPathData) => {
-  // 直接修改導入的函數映射
-  if (lanePathCalculator[functionName]) {
-    // 創建新的函數來返回編輯後的路徑
-    lanePathCalculator[functionName] = () => newPathData
-    console.log(`🔄 已更新 ${functionName} 函數`)
-  }
-}
-
-// 更新本地路徑數據存儲
-const updateLocalPathData = (pathId, newPathData) => {
-  if (!editedPaths.value) {
-    editedPaths.value = {}
-  }
-  editedPaths.value[pathId] = newPathData
-
-  // 保存到 localStorage
-  try {
-    localStorage.setItem('trafficEditedPaths', JSON.stringify(editedPaths.value))
-    console.log('💾 路徑數據已保存到本地存儲')
-  } catch (error) {
-    console.warn('⚠️ 保存到本地存儲失敗:', error)
-  }
 }
 
 // 從本地存儲載入編輯後的路徑數據
@@ -788,9 +729,71 @@ const updateTooltipPosition = (event) => {
   pathTooltip.value.y = event.clientY - rect.top
 }
 
+// 保存暫存的編輯結果
+const saveTempEditedPaths = () => {
+  if (!tempEditedPaths.value || Object.keys(tempEditedPaths.value).length === 0) {
+    console.log('📝 沒有暫存的編輯結果需要保存')
+    return
+  }
+
+  console.log('💾 保存暫存的編輯結果:', tempEditedPaths.value)
+
+  // 將暫存的編輯結果合併到正式的編輯路徑
+  Object.keys(tempEditedPaths.value).forEach((pathId) => {
+    const pathData = tempEditedPaths.value[pathId]
+    const functionName = pathCalculatorMap[pathId]
+
+    if (functionName) {
+      // 更新路徑計算器
+      if (lanePathCalculator && lanePathCalculator[functionName]) {
+        lanePathCalculator[functionName] = () => pathData
+        console.log(`🔄 已更新 ${functionName} 的路徑`)
+      }
+
+      // 更新全局路徑函數
+      updateGlobalPathFunction(functionName, pathData)
+
+      // 保存到正式的編輯路徑
+      if (!editedPaths.value) {
+        editedPaths.value = {}
+      }
+      editedPaths.value[pathId] = pathData
+    }
+  })
+
+  // 保存到 localStorage
+  try {
+    localStorage.setItem('trafficEditedPaths', JSON.stringify(editedPaths.value))
+    console.log('💾 編輯結果已保存到本地存儲')
+
+    $q.notify({
+      message: `已保存 ${Object.keys(tempEditedPaths.value).length} 條路徑編輯`,
+      color: 'positive',
+      icon: 'save',
+      timeout: 2000,
+      position: 'top-right',
+    })
+  } catch (error) {
+    console.error('❌ 保存編輯結果失敗:', error)
+    $q.notify({
+      message: '保存編輯結果失敗: ' + error.message,
+      color: 'negative',
+      icon: 'error',
+      timeout: 3000,
+      position: 'top-right',
+    })
+  }
+
+  // 清空暫存
+  tempEditedPaths.value = {}
+}
+
 // 停用路徑編輯功能
 const disablePathEditing = () => {
   console.log('🔒 停用路徑編輯模式')
+
+  // 保存所有暫存的編輯結果
+  saveTempEditedPaths()
 
   // 清理所有編輯器
   pathHelpers.value.forEach((item) => {
@@ -900,7 +903,7 @@ const resetAllPaths = () => {
 
     // 重新初始化路徑計算器（恢復原始路徑）
     if (lanePathCalculator && crossroadContainer.value) {
-      const originalCalculator = createLanePathCalculator(crossroadContainer.value)
+      const originalCalculator = createLanePathCalculator()
 
       // 恢復原始路徑函數
       getEastLane1Path = originalCalculator.getEastLane1Path
@@ -970,7 +973,7 @@ let getNorthLane4Path = () => 'M620,-600 L620,1400'
 onMounted(() => {
   // 初始化路徑計算器並設定所有路徑函數
   if (crossroadContainer.value) {
-    lanePathCalculator = createLanePathCalculator(crossroadContainer.value)
+    lanePathCalculator = createLanePathCalculator()
 
     // 指派所有路徑計算函數
     getEastLane1Path = lanePathCalculator.getEastLane1Path
@@ -1574,6 +1577,14 @@ onUnmounted(() => {
   border-top: 1px solid rgba(255, 255, 153, 0.2);
   color: #00ff88;
   font-style: italic;
+  text-align: center;
+}
+
+.save-note {
+  margin-top: 5px;
+  color: #ff6b35;
+  font-weight: bold;
+  font-size: 12px;
   text-align: center;
 }
 </style>
