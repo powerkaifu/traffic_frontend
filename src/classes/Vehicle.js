@@ -1192,6 +1192,9 @@ export default class Vehicle {
           }
         }, 2000)
 
+        // 邊界檢測標記 - 避免重複觸發 (移到正確位置)
+        let hasBeenRemovedFromCollision = false
+
         // Template Method Pattern: 創建 MotionPath 移動時間線
         this.movementTimeline = gsap.timeline({
           onUpdate: () => {
@@ -1218,7 +1221,10 @@ export default class Vehicle {
 
             // 檢查是否離開畫面邊界
             const isOutOfBounds = this.checkOutOfBounds(currentPos)
-            if (isOutOfBounds) {
+            if (isOutOfBounds && !hasBeenRemovedFromCollision && onVehicleOutOfBounds) {
+              hasBeenRemovedFromCollision = true
+              console.log(`🚗 [${this.id}] 離開邊界，從碰撞檢測中移除`)
+              onVehicleOutOfBounds(this.id)
               return
             }
 
@@ -1388,24 +1394,7 @@ export default class Vehicle {
               this.resumeMovement(allVehicles)
             }
 
-            // 🚨 邊界檢測和移除機制
-            if (!hasBeenRemovedFromCollision && onVehicleOutOfBounds) {
-              // 方法1: 邊界檢測
-              const isOutOfBounds = this.checkOutOfBounds(currentPos)
-
-              // 方法2: 動畫進度檢測
-              const progress = this.movementTimeline.progress()
-              const shouldRemoveByProgress = progress > 0.3
-
-              if (isOutOfBounds || shouldRemoveByProgress) {
-                hasBeenRemovedFromCollision = true
-                const reason = isOutOfBounds ? '邊界檢測' : '動畫進度30%'
-                console.log(
-                  `🚗 [${this.id}] 車輛移除(${reason}) - 位置: (${currentPos.x.toFixed(1)}, ${currentPos.y.toFixed(1)}), 進度: ${(progress * 100).toFixed(1)}%`,
-                )
-                onVehicleOutOfBounds(this.id)
-              }
-            }
+            // 🚨 移除冗餘的邊界檢測 - 統一在 onUpdate 開頭處理
 
             // 紅燈減速檢查（與原方法相同的邏輯）
             if (!highestThreat) {
@@ -1541,9 +1530,6 @@ export default class Vehicle {
 
         // 🚨 車輛已在 IndexPage.vue 中使用 getPathStartPosition() 創建在正確位置
         // 移除多餘的位置設置，避免視覺跳躍
-
-        // 邊界檢測標記 - 避免重複觸發
-        let hasBeenRemovedFromCollision = false
 
         this.movementTimeline.to(this.element, {
           duration: animationDuration,
