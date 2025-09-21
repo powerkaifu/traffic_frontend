@@ -350,15 +350,9 @@ const handleAutoGenerate = (event) => {
   const startVehicleAnimation = async () => {
     try {
       await vehicle.fadeIn(1)
-      const animationDuration = vehicle.calculateAnimationDuration()
-      const endPosition = trafficController.getEndPosition(direction)
-      await vehicle.moveToWithTrafficControl(
-        endPosition.x,
-        endPosition.y,
-        animationDuration,
-        trafficController,
-        activeCars.value,
-      )
+      // 使用新的 MotionPath 動畫方法
+      await vehicle.moveAlongPath(trafficController, activeCars.value)
+
       const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
       if (vehicleIndex > -1) {
         activeCars.value.splice(vehicleIndex, 1)
