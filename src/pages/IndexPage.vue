@@ -272,9 +272,6 @@
         <button v-if="isPathEditMode" @click="exportPathData" class="export-btn" title="導出編輯後的路徑資料">
           📋 導出路徑
         </button>
-        <button v-if="isPathEditMode" @click="resetAllPaths" class="reset-btn" title="重置所有路徑到原始狀態">
-          🔄 重置路徑
-        </button>
         <div v-if="isPathEditMode" class="edit-instructions">
           <div class="instructions-title">🎯 路徑編輯指南</div>
           <div class="instructions-list">
@@ -422,7 +419,6 @@ const isPathEditMode = ref(false)
 const currentEditingPath = ref('') // 當前正在編輯的路徑
 const pathHelpers = ref([])
 const pathObservers = ref([]) // 路徑變化觀察器
-const editedPaths = ref({}) // 編輯後的路徑數據
 const tempEditedPaths = ref({}) // 暫存編輯中的路徑數據
 
 // Tooltip 狀態
@@ -566,8 +562,12 @@ const enablePathEditing = () => {
   setupPathChangeListeners(editablePathIds)
 
   // 添加鍵盤事件監聽器
-  document.addEventListener('keydown', handleKeyDown)
-  document.addEventListener('keyup', handleKeyUp)
+  // 只在編輯模式下啟用鍵盤事件監聽，但優先級設為低
+  if (isPathEditMode.value) {
+    // 使用較低的優先級，讓 MotionPathHelper 先處理事件
+    document.addEventListener('keydown', handleKeyDown, { capture: false, passive: true })
+    document.addEventListener('keyup', handleKeyUp, { capture: false, passive: true })
+  }
 
   console.log('⌨️ 鍵盤事件監聽器已啟用')
   console.log('💡 使用提示:')
@@ -614,12 +614,15 @@ const setupPathChangeListeners = (pathIds) => {
 
 // 鍵盤事件處理
 const handleKeyDown = (e) => {
+  // 在編輯模式下，完全讓 MotionPathHelper 處理所有鍵盤事件
   if (isPathEditMode.value) {
-    if (e.key === 'Delete' || e.key === 'Backspace') {
-      console.log('🗑️ 刪除鍵被按下')
-    } else if (e.ctrlKey && e.key === 'z') {
-      console.log('↶ 撤銷操作 (Ctrl+Z)')
+    // 只記錄日誌，不做任何處理，確保不干擾 MotionPathHelper
+    if (e.ctrlKey && e.key === 'z') {
+      console.log('↶ Ctrl+Z - 由 MotionPathHelper 處理撤銷')
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      console.log('🗑️ Delete/Backspace - 由 MotionPathHelper 處理刪除')
     }
+    // 不阻止事件，不調用 preventDefault 或 stopPropagation
   }
 }
 
@@ -720,9 +723,9 @@ const disablePathEditing = () => {
   })
   pathObservers.value = []
 
-  // 移除鍵盤事件監聽器
-  document.removeEventListener('keydown', handleKeyDown)
-  document.removeEventListener('keyup', handleKeyUp)
+  // 移除鍵盤事件監聽器（使用與添加時相同的選項）
+  document.removeEventListener('keydown', handleKeyDown, { capture: false })
+  document.removeEventListener('keyup', handleKeyUp, { capture: false })
 
   console.log('🧹 路徑編輯器、觀察器和事件監聽器已清理完成')
 }
@@ -774,65 +777,6 @@ const exportPathData = () => {
     })
 
   return pathData
-}
-
-// 重置所有路徑到原始狀態
-const resetAllPaths = () => {
-  const confirmReset = confirm('⚠️ 確定要重置所有路徑到原始狀態嗎？這將清除所有編輯內容！')
-
-  if (!confirmReset) {
-    return
-  }
-
-  try {
-    // 清除編輯路徑數據
-    editedPaths.value = {}
-
-    // 重新初始化路徑計算器（恢復原始路徑）
-    if (lanePathCalculator && crossroadContainer.value) {
-      const originalCalculator = createLanePathCalculator()
-
-      // 恢復原始路徑函數
-      getEastLane1Path = originalCalculator.getEastLane1Path
-      getEastLane4Path = originalCalculator.getEastLane4Path
-      getWestLane1Path = originalCalculator.getWestLane1Path
-      getWestLane4Path = originalCalculator.getWestLane4Path
-      getSouthLane1Path = originalCalculator.getSouthLane1Path
-      getSouthLane4Path = originalCalculator.getSouthLane4Path
-      getNorthLane1Path = originalCalculator.getNorthLane1Path
-      getNorthLane4Path = originalCalculator.getNorthLane4Path
-
-      // 更新路徑計算器實例
-      lanePathCalculator = originalCalculator
-    }
-
-    console.log('🔄 所有路徑已重置到原始狀態')
-
-    $q.notify({
-      message: '所有路徑已重置到原始狀態',
-      color: 'warning',
-      icon: 'refresh',
-      timeout: 2000,
-      position: 'top-right',
-    })
-
-    // 如果目前在編輯模式，重新啟用編輯以更新顯示
-    if (isPathEditMode.value) {
-      disablePathEditing()
-      setTimeout(() => {
-        enablePathEditing()
-      }, 100)
-    }
-  } catch (error) {
-    console.error('❌ 重置路徑失敗:', error)
-    $q.notify({
-      message: '重置路徑失敗: ' + error.message,
-      color: 'negative',
-      icon: 'error',
-      timeout: 3000,
-      position: 'top-right',
-    })
-  }
 }
 
 // 路徑計算函數（會在 onMounted 後被初始化）
@@ -1047,9 +991,9 @@ onUnmounted(() => {
   })
   activeCars.value = []
 
-  // 確保鍵盤事件監聽器被移除
-  document.removeEventListener('keydown', handleKeyDown)
-  document.removeEventListener('keyup', handleKeyUp)
+  // 確保鍵盤事件監聽器被移除（使用與添加時相同的選項）
+  document.removeEventListener('keydown', handleKeyDown, { capture: false })
+  document.removeEventListener('keyup', handleKeyUp, { capture: false })
 
   console.log('🧹 IndexPage 資源清理完成')
 })
@@ -1362,8 +1306,7 @@ onUnmounted(() => {
 }
 
 .edit-btn,
-.export-btn,
-.reset-btn {
+.export-btn {
   padding: 12px 20px;
   border: 2px solid rgb(63, 117, 205);
   border-radius: 8px;
@@ -1382,14 +1325,8 @@ onUnmounted(() => {
   border-color: rgb(34, 139, 34);
 }
 
-.reset-btn {
-  background: linear-gradient(135deg, rgba(220, 53, 69, 0.9), rgba(178, 34, 34, 0.9));
-  border-color: rgb(220, 53, 69);
-}
-
 .edit-btn:hover,
-.export-btn:hover,
-.reset-btn:hover {
+.export-btn:hover {
   background: linear-gradient(135deg, rgba(45, 90, 160, 0.9), rgba(45, 40, 110, 0.9));
   transform: translateY(-2px);
   box-shadow: 0 0 20px rgba(30, 30, 100, 0.8);
@@ -1397,10 +1334,6 @@ onUnmounted(() => {
 
 .export-btn:hover {
   background: linear-gradient(135deg, rgba(44, 149, 44, 0.9), rgba(10, 110, 10, 0.9));
-}
-
-.reset-btn:hover {
-  background: linear-gradient(135deg, rgba(230, 63, 79, 0.9), rgba(188, 44, 44, 0.9));
 }
 
 .edit-btn.active {
