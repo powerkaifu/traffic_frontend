@@ -347,8 +347,9 @@ const handleAutoGenerate = (event) => {
     const distance = Math.sqrt(
       Math.pow(carPos.x - pathStartPosition.x, 2) + Math.pow(carPos.y - pathStartPosition.y, 2),
     )
-    // 🚨 大幅增加檢查範圍，從50px增加到100px，確保足夠的生成空間
-    return distance < 100
+    // 🚨 大幅增加檢查範圍：從100px增加到150px，高車流量時加倍
+    const checkRange = activeCars.value.length > 20 ? 200 : 150
+    return distance < checkRange
   })
 
   // 🚨 額外檢查：確保同方向同車道沒有太近的車輛
@@ -358,29 +359,33 @@ const handleAutoGenerate = (event) => {
 
     // 根據方向檢查車道內的距離
     let isInSafePath = false
+    // 🚨 高車流量時增加安全距離
+    const safePathDistance = activeCars.value.length > 20 ? 200 : 150
+    const laneWidth = 20 // 車道寬度檢查範圍
+
     if (direction === 'east') {
       // 東向：檢查X軸距離，確保前方至少150px空間
       isInSafePath =
-        Math.abs(carPos.y - pathStartPosition.y) < 20 &&
-        carPos.x - pathStartPosition.x < 150 &&
+        Math.abs(carPos.y - pathStartPosition.y) < laneWidth &&
+        carPos.x - pathStartPosition.x < safePathDistance &&
         carPos.x - pathStartPosition.x > -50
     } else if (direction === 'west') {
       // 西向：檢查X軸距離
       isInSafePath =
-        Math.abs(carPos.y - pathStartPosition.y) < 20 &&
-        pathStartPosition.x - carPos.x < 150 &&
+        Math.abs(carPos.y - pathStartPosition.y) < laneWidth &&
+        pathStartPosition.x - carPos.x < safePathDistance &&
         pathStartPosition.x - carPos.x > -50
     } else if (direction === 'north') {
       // 北向：檢查Y軸距離
       isInSafePath =
-        Math.abs(carPos.x - pathStartPosition.x) < 20 &&
-        pathStartPosition.y - carPos.y < 150 &&
+        Math.abs(carPos.x - pathStartPosition.x) < laneWidth &&
+        pathStartPosition.y - carPos.y < safePathDistance &&
         pathStartPosition.y - carPos.y > -50
     } else if (direction === 'south') {
       // 南向：檢查Y軸距離
       isInSafePath =
-        Math.abs(carPos.x - pathStartPosition.x) < 20 &&
-        carPos.y - pathStartPosition.y < 150 &&
+        Math.abs(carPos.x - pathStartPosition.x) < laneWidth &&
+        carPos.y - pathStartPosition.y < safePathDistance &&
         carPos.y - pathStartPosition.y > -50
     }
 

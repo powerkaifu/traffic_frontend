@@ -509,8 +509,15 @@ export default class Vehicle {
     const currentBox = this.getBoundingBox()
 
     // 🚨 強化安全距離 - 大幅提高安全距離，防止重疊
-    const safeDistance = isJustStartedMoving ? 25 : 35 // 大幅提高安全距離
-    const stopDistance = isJustStartedMoving ? 15 : 25 // 大幅提高停止距離
+    const baseSafeDistance = isJustStartedMoving ? 30 : 45 // 進一步提高基礎安全距離
+    const baseStopDistance = isJustStartedMoving ? 20 : 30 // 進一步提高停止距離
+
+    // 🚨 根據當前車輛數量動態調整安全距離
+    const vehicleCount = allVehicles.length
+    const crowdingFactor = vehicleCount > 15 ? 1.5 : vehicleCount > 10 ? 1.3 : 1.0
+
+    const safeDistance = baseSafeDistance * crowdingFactor
+    const stopDistance = baseStopDistance * crowdingFactor
 
     // 根據車輛狀態進一步調整安全距離
     let adjustedSafeDistance = safeDistance
@@ -518,8 +525,8 @@ export default class Vehicle {
 
     // 如果前方車輛在等待紅綠燈，需要更大的安全距離防止重疊
     if (this.currentState === 'slowing_for_light' || this.waitingForGreen) {
-      adjustedSafeDistance = safeDistance * 2.0 // 增加到2倍
-      adjustedStopDistance = stopDistance * 2.0 // 增加到2倍
+      adjustedSafeDistance = safeDistance * 2.5 // 增加到2.5倍
+      adjustedStopDistance = stopDistance * 2.5 // 增加到2.5倍
     }
 
     for (let vehicle of allVehicles) {
@@ -578,19 +585,20 @@ export default class Vehicle {
 
       // 如果在同一車道且在前方，且距離小於安全距離
       if (inSameLane && isFront && distanceToFrontVehicle < adjustedSafeDistance) {
-        // 根據距離判斷應該採取的行動
-        const followingDistance = adjustedSafeDistance * 0.6 // 跟隨距離為安全距離的60%
-        const shouldFollow =
-          distanceToFrontVehicle > adjustedStopDistance && distanceToFrontVehicle <= followingDistance
+        // 🚨 優化跟車觸發邏輯：擴大跟車範圍，更自然的跟車行為
+        const followingDistance = adjustedSafeDistance * 0.8 // 跟隨距離為安全距離的80%（原60%）
+        const shouldFollow = distanceToFrontVehicle > adjustedStopDistance // 只要不在停止區域，就可以跟車
+        const shouldStop = distanceToFrontVehicle < adjustedStopDistance
 
         return {
           vehicle: vehicle,
           distance: distanceToFrontVehicle,
-          shouldStop: distanceToFrontVehicle < adjustedStopDistance,
-          shouldFollow: shouldFollow,
-          followingSpeed: shouldFollow
-            ? this.calculateFollowingSpeed(vehicle, distanceToFrontVehicle, followingDistance)
-            : null,
+          shouldStop: shouldStop,
+          shouldFollow: shouldFollow && !shouldStop, // 確保不會同時停止和跟車
+          followingSpeed:
+            shouldFollow && !shouldStop
+              ? this.calculateFollowingSpeed(vehicle, distanceToFrontVehicle, followingDistance)
+              : null,
           isOverlapping: false,
         }
       }
@@ -598,9 +606,9 @@ export default class Vehicle {
     return null
   }
 
-  // 計算跟隨前車的速度
+  // 計算跟隨前車的速度 - 🚨 優化反應速度和跟車邏輯
   calculateFollowingSpeed(frontVehicle, distance, idealDistance) {
-    // 獲取前車的當前速度
+    // 獲取前車的當前速度 - 🚨 優先使用實際運行速度
     let frontVehicleSpeed = frontVehicle.currentSpeed || frontVehicle.initialSpeed
 
     // 如果前車停止，本車也應該停止
@@ -612,17 +620,47 @@ export default class Vehicle {
       return 0
     }
 
-    // 距離因子：距離越近，速度越慢
-    const distanceFactor = Math.min(1, distance / idealDistance)
+    // 🚨 動態距離係數：根據距離調整跟車緊密度
+    const normalizedDistance = Math.min(1, distance / idealDistance)
 
-    // 基本跟隨速度：不超過前車速度的90%
-    const baseFollowingSpeed = Math.min(frontVehicleSpeed * 0.9, this.initialSpeed)
+    // 🚨 使用更平滑的距離因子計算
+    let distanceFactor
+    if (normalizedDistance < 0.3) {
+      // 距離很近時：急劇減速
+      distanceFactor = normalizedDistance * 0.5
+    } else if (normalizedDistance < 0.7) {
+      // 中等距離：線性調整
+      distanceFactor = 0.15 + (normalizedDistance - 0.3) * 1.5
+    } else {
+      // 距離較遠：接近前車速度
+      distanceFactor = 0.75 + (normalizedDistance - 0.7) * 0.83
+    }
+
+    // 🚨 危險距離檢測：如果距離過近，立即大幅減速
+    const criticalDistance = idealDistance * 0.4 // 臨界距離為理想距離的40%
+    if (distance < criticalDistance) {
+      return this.initialSpeed * 0.15 // 緊急減速到15%速度
+    }
+
+    // 🚨 更智能的跟車速度：根據距離動態調整跟車係數
+    let followingRatio
+    if (distance < idealDistance * 0.5) {
+      followingRatio = 0.7 // 近距離：保守跟車
+    } else if (distance < idealDistance * 0.8) {
+      followingRatio = 0.85 // 中距離：正常跟車
+    } else {
+      followingRatio = 0.95 // 遠距離：接近前車速度
+    }
+
+    // 基本跟隨速度：根據距離動態調整跟車係數
+    const baseFollowingSpeed = Math.min(frontVehicleSpeed * followingRatio, this.initialSpeed)
 
     // 根據距離調整速度
     const adjustedSpeed = baseFollowingSpeed * distanceFactor
 
-    // 確保最低速度為原速度的20%
-    return Math.max(adjustedSpeed, this.initialSpeed * 0.2)
+    // 🚨 動態最低速度：保持流動性，防止過度緩慢
+    const minSpeedRatio = distance < idealDistance * 0.3 ? 0.1 : 0.2
+    return Math.max(adjustedSpeed, this.initialSpeed * minSpeedRatio)
   }
 
   // 進入跟隨模式
@@ -1161,6 +1199,57 @@ export default class Vehicle {
           },
           ease: 'none',
           onUpdate: () => {
+            // 🚨 實時碰撞檢測 - 防止車輛重疊，優化跟車體驗
+            const frontCollision = this.checkFrontCollision(allVehicles)
+            if (frontCollision) {
+              if (frontCollision.isOverlapping) {
+                // 立即停止或減速，防止重疊
+                this.movementTimeline.timeScale(0.1)
+                this.currentState = 'emergency_stop'
+                console.log(`🚨 [${this.id}] 檢測到重疊，緊急減速`)
+              } else if (frontCollision.shouldStop) {
+                // 前方車輛太近，停止
+                this.movementTimeline.timeScale(0)
+                this.currentState = 'waitingForVehicle'
+                console.log(`🚨 [${this.id}] 前方車輛太近，停止 - 距離: ${frontCollision.distance.toFixed(1)}px`)
+              } else if (frontCollision.shouldFollow) {
+                // 🚨 優化跟車模式：更平滑的速度調整
+                const currentTimeScale = this.movementTimeline.timeScale()
+                const targetTimeScale = Math.max(0.15, frontCollision.followingSpeed / this.initialSpeed)
+
+                // 🚨 平滑速度調整：避免突兀的速度變化
+                const speedDifference = Math.abs(currentTimeScale - targetTimeScale)
+                if (speedDifference > 0.05) {
+                  // 只有當速度差異超過5%時才調整
+                  // 使用 GSAP 進行平滑的速度過渡
+                  gsap.to(this.movementTimeline, {
+                    timeScale: targetTimeScale,
+                    duration: 0.3, // 0.3秒過渡時間
+                    ease: 'power2.out',
+                  })
+                  this.currentState = 'following'
+                  console.log(
+                    `🚗 [${this.id}] 平滑跟車調速: ${currentTimeScale.toFixed(2)} → ${targetTimeScale.toFixed(2)}`,
+                  )
+                }
+              }
+            } else {
+              // 🚨 無碰撞風險：平滑恢復正常速度
+              const currentTimeScale = this.movementTimeline.timeScale()
+              if (
+                currentTimeScale < 1 &&
+                (this.currentState === 'following' || this.currentState === 'emergency_stop')
+              ) {
+                gsap.to(this.movementTimeline, {
+                  timeScale: 1,
+                  duration: 0.5, // 0.5秒恢復時間
+                  ease: 'power2.inOut',
+                })
+                this.currentState = 'moving'
+                console.log(`🚗 [${this.id}] 平滑恢復正常速度`)
+              }
+            }
+
             // 🚨 雙重移除機制：邊界檢測 + 動畫進度檢測
             if (!hasBeenRemovedFromCollision && onVehicleOutOfBounds) {
               const currentPos = this.getCurrentPosition()
