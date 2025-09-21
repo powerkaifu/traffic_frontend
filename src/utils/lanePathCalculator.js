@@ -168,11 +168,11 @@ export function createLanePathCalculator(containerElement) {
     const svgCenterX = 700 // SVG viewBox 中心X座標
 
     // 所有南向車道使用相同的X座標：SVG中心垂直線
-    const southLaneX = svgCenterX
+    const southLaneX = svgCenterX - 20
 
     // 垂直線從上到下，延伸到viewBox邊緣
-    const startY = 100 // 從viewBox上邊開始
-    const endY = 900 // 到viewBox下邊結束
+    const startY = -70 // 從viewBox上邊開始
+    const endY = 1070 // 到viewBox下邊結束
 
     return `M${southLaneX},${startY} L${southLaneX},${endY}`
   }
@@ -186,11 +186,11 @@ export function createLanePathCalculator(containerElement) {
     const svgCenterX = 700 // SVG viewBox 中心X座標
 
     // 所有南向車道使用相同的X座標：SVG中心垂直線
-    const southLaneX = svgCenterX
+    const southLaneX = svgCenterX - 60
 
     // 垂直線從上到下，延伸到viewBox邊緣
-    const startY = 100 // 從viewBox上邊開始
-    const endY = 900 // 到viewBox下邊結束
+    const startY = -70 // 從viewBox上邊開始
+    const endY = 1070 // 到viewBox下邊結束
 
     return `M${southLaneX},${startY} L${southLaneX},${endY}`
   }
@@ -204,11 +204,11 @@ export function createLanePathCalculator(containerElement) {
     const svgCenterX = 700 // SVG viewBox 中心X座標
 
     // 所有南向車道使用相同的X座標：SVG中心垂直線
-    const southLaneX = svgCenterX
+    const southLaneX = svgCenterX - 99
 
     // 垂直線從上到下，延伸到viewBox邊緣
-    const startY = 100 // 從viewBox上邊開始
-    const endY = 900 // 到viewBox下邊結束
+    const startY = -70 // 從viewBox上邊開始
+    const endY = 1070 // 到viewBox下邊結束
 
     return `M${southLaneX},${startY} L${southLaneX},${endY}`
   }
@@ -222,11 +222,11 @@ export function createLanePathCalculator(containerElement) {
     const svgCenterX = 700 // SVG viewBox 中心X座標
 
     // 所有南向車道使用相同的X座標：SVG中心垂直線
-    const southLaneX = svgCenterX
+    const southLaneX = svgCenterX - 138
 
     // 垂直線從上到下，延伸到viewBox邊緣
-    const startY = 100 // 從viewBox上邊開始
-    const endY = 900 // 到viewBox下邊結束
+    const startY = -70 // 從viewBox上邊開始
+    const endY = 1070 // 到viewBox下邊結束
 
     return `M${southLaneX},${startY} L${southLaneX},${endY}`
   }
@@ -242,11 +242,11 @@ export function createLanePathCalculator(containerElement) {
     const svgCenterX = 700 // SVG viewBox 中心X座標
 
     // 所有北向車道使用相同的X座標：SVG中心垂直線
-    const northLaneX = svgCenterX
+    const northLaneX = svgCenterX + 20
 
     // 垂直線從下到上，延伸到viewBox邊緣
-    const startY = 900 // 從viewBox下邊開始
-    const endY = 100 // 到viewBox上邊結束
+    const startY = 1070 // 從viewBox下邊開始
+    const endY = -70 // 到viewBox上邊結束
 
     return `M${northLaneX},${startY} L${northLaneX},${endY}`
   }
@@ -260,11 +260,11 @@ export function createLanePathCalculator(containerElement) {
     const svgCenterX = 700 // SVG viewBox 中心X座標
 
     // 所有北向車道使用相同的X座標：SVG中心垂直線
-    const northLaneX = svgCenterX
+    const northLaneX = svgCenterX + 60
 
     // 垂直線從下到上，延伸到viewBox邊緣
-    const startY = 900 // 從viewBox下邊開始
-    const endY = 100 // 到viewBox上邊結束
+    const startY = 1070 // 從viewBox下邊開始
+    const endY = -70 // 到viewBox上邊結束
 
     return `M${northLaneX},${startY} L${northLaneX},${endY}`
   }
@@ -278,11 +278,11 @@ export function createLanePathCalculator(containerElement) {
     const svgCenterX = 700 // SVG viewBox 中心X座標
 
     // 所有北向車道使用相同的X座標：SVG中心垂直線
-    const northLaneX = svgCenterX
+    const northLaneX = svgCenterX + 99
 
     // 垂直線從下到上，延伸到viewBox邊緣
-    const startY = 900 // 從viewBox下邊開始
-    const endY = 100 // 到viewBox上邊結束
+    const startY = 1070 // 從viewBox下邊開始
+    const endY = -70 // 到viewBox上邊結束
 
     return `M${northLaneX},${startY} L${northLaneX},${endY}`
   }
@@ -296,11 +296,11 @@ export function createLanePathCalculator(containerElement) {
     const svgCenterX = 700 // SVG viewBox 中心X座標
 
     // 所有北向車道使用相同的X座標：SVG中心垂直線
-    const northLaneX = svgCenterX
+    const northLaneX = svgCenterX + 138
 
     // 垂直線從下到上，延伸到viewBox邊緣
-    const startY = 900 // 從viewBox下邊開始
-    const endY = 100 // 到viewBox上邊結束
+    const startY = 1070 // 從viewBox下邊開始
+    const endY = -70 // 到viewBox上邊結束
 
     return `M${northLaneX},${startY} L${northLaneX},${endY}`
   }
