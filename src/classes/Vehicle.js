@@ -565,6 +565,27 @@ export default class Vehicle {
 
       // 🚨 立即檢測重疊：任何負距離都是重疊
       if (inSameLane && distance < 0) {
+        // 🚨 特殊情況：如果兩車都在等待紅燈，使用更寬鬆的重疊標準
+        const bothWaitingForLight =
+          (this.waitingForGreen || this.currentState === 'slowing_for_light') &&
+          (vehicle.waitingForGreen || vehicle.currentState === 'slowing_for_light')
+
+        // 如果兩車都在等紅燈，只有重疊超過車輛長度的50%才認為是真正重疊
+        if (bothWaitingForLight) {
+          const overlapThreshold = -(vehicleLength * 0.5) // 負值表示重疊程度
+          if (distance > overlapThreshold) {
+            // 輕微重疊，在紅燈等待狀態下可以容忍
+            console.log(`⚠️ [${this.id}] 紅燈排隊時輕微重疊，可容忍 距離: ${distance.toFixed(1)}px`)
+            return {
+              vehicle: vehicle,
+              distance: distance,
+              shouldStop: false, // 不要停車，允許排隊
+              isOverlapping: false, // 不認為是重疊
+              emergencyStop: false,
+            }
+          }
+        }
+
         console.log(`🚨 [${this.id}] 檢測到重疊！與車輛 [${vehicle.id}] 重疊 ${Math.abs(distance).toFixed(1)}px`)
         return {
           vehicle: vehicle,
@@ -590,15 +611,34 @@ export default class Vehicle {
     // 🚨 基於最近車輛的距離決定行為
     const distance = minDistance
 
+    // 🚨 特殊情況：檢查是否兩車都在等待紅燈
+    const bothWaitingForLight =
+      (this.waitingForGreen || this.currentState === 'slowing_for_light') &&
+      (closestVehicle.waitingForGreen || closestVehicle.currentState === 'slowing_for_light')
+
+    // 🚨 如果兩車都在等紅燈，使用更寬鬆的距離標準
+    let finalMinGap = actualMinGap
+    let finalSafeDistance = actualSafeDistance
+    let finalStopDistance = actualStopDistance
+
+    if (bothWaitingForLight) {
+      // 紅燈排隊時允許更近的距離
+      finalMinGap = vehicleLength * 0.3 // 從80%減少到30%
+      finalSafeDistance = vehicleLength * 0.5 // 從150%減少到50%
+      finalStopDistance = vehicleLength * 0.1 // 從30%減少到10%
+
+      console.log(`🚦 [${this.id}] 紅燈排隊模式，使用寬鬆距離標準`)
+    }
+
     // 調試信息
     if (Math.random() < 0.1 || this.id.endsWith('1')) {
       console.log(
-        `🔍 [${this.id}] 前方車輛 [${closestVehicle.id}] 距離: ${distance.toFixed(1)}px (最小:${actualMinGap.toFixed(1)}, 安全:${actualSafeDistance.toFixed(1)})`,
+        `🔍 [${this.id}] 前方車輛 [${closestVehicle.id}] 距離: ${distance.toFixed(1)}px (最小:${finalMinGap.toFixed(1)}, 安全:${finalSafeDistance.toFixed(1)})${bothWaitingForLight ? ' [紅燈排隊]' : ''}`,
       )
     }
 
     // 🚨 危險距離：立即緊急停車
-    if (distance < actualStopDistance) {
+    if (distance < finalStopDistance) {
       console.log(`🚨 [${this.id}] 緊急停車！距離過近: ${distance.toFixed(1)}px`)
       return {
         vehicle: closestVehicle,
@@ -610,7 +650,13 @@ export default class Vehicle {
     }
 
     // 🚨 最小間隙：必須停車
-    if (distance < actualMinGap) {
+    if (distance < finalMinGap) {
+      // 如果是紅燈排隊，不需要停車，允許貼近排隊
+      if (bothWaitingForLight) {
+        console.log(`🚦 [${this.id}] 紅燈排隊中，允許貼近前車`)
+        return null // 不採取任何行動
+      }
+
       return {
         vehicle: closestVehicle,
         distance: distance,
@@ -621,9 +667,14 @@ export default class Vehicle {
     }
 
     // 🚨 安全跟車區域：智能跟車
-    if (distance < actualSafeDistance) {
+    if (distance < finalSafeDistance) {
+      // 如果是紅燈排隊，不需要跟車邏輯
+      if (bothWaitingForLight) {
+        return null
+      }
+
       // 根據前車狀態決定跟車速度
-      let followingSpeed = this.calculateIntelligentFollowingSpeed(closestVehicle, distance, actualSafeDistance)
+      let followingSpeed = this.calculateIntelligentFollowingSpeed(closestVehicle, distance, finalSafeDistance)
 
       return {
         vehicle: closestVehicle,
