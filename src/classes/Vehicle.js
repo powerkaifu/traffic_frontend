@@ -4,7 +4,6 @@
 import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { speedConfig } from './config/trafficConfig.js' // 引入統一的速度設定
-import { getLanePathsConfig } from '../utils/lanePathCalculator.js' // 引入路徑配置
 
 // 註冊 GSAP 插件
 gsap.registerPlugin(MotionPathPlugin)
@@ -789,22 +788,41 @@ export default class Vehicle {
     return `${this.direction}Lane${this.laneNumber}Straight`
   }
 
-  // Command Pattern + Observer Pattern: 使用 MotionPath 的移動命令
-  moveAlongPath(trafficController, allVehicles = []) {
+  // Static Method: 獲取指定方向和車道的路徑起始位置
+  static getPathStartPosition(direction, laneNumber) {
+    const pathId = `${direction}Lane${laneNumber}Straight`
+    const pathElement = document.querySelector(`#${pathId}`)
+
+    if (!pathElement) {
+      console.warn(`⚠️ 找不到路徑元素: #${pathId}`)
+      return null
+    }
+
+    try {
+      // 獲取路徑的起始點（t=0的位置）
+      const startPoint = pathElement.getPointAtLength(0)
+
+      // 根據 SVG viewBox="0 0 1400 1000" 座標系統返回位置
+      return {
+        x: startPoint.x,
+        y: startPoint.y,
+      }
+    } catch (error) {
+      console.error(`❌ 獲取路徑起始位置失敗: ${pathId}`, error)
+      return null
+    }
+  }
+
+  // Command Pattern + Observer Pattern: 使用 MotionPath 的移動命令（專注於往東路徑）
+  moveAlongPath(trafficController, allVehicles = [], onVehicleOutOfBounds = null) {
     // Command Pattern: 將複雜的路徑移動邏輯封裝為可執行的命令
     return new Promise((resolve) => {
-      // 獲取路徑配置
-      const pathsConfig = getLanePathsConfig()
-      const pathKey = this.getPathId()
-      const pathData = pathsConfig[pathKey]
-
-      console.log(
-        `🚗 [${this.id}] 開始 MotionPath 動畫 - 方向: ${this.direction}, 車道: ${this.laneNumber}, 路徑: ${pathKey}`,
-      )
-
-      if (!pathData) {
-        console.error(`❌ 找不到路徑配置: ${pathKey}`)
-        resolve()
+      // 只處理往東的路徑
+      if (this.direction !== 'east') {
+        console.log(`🚗 [${this.id}] 非東向車輛，使用舊的移動方式`)
+        // 暫時使用舊方法
+        const endPosition = { x: 1400, y: this.getCurrentPosition().y }
+        this.moveToWithTrafficControl(endPosition.x, endPosition.y, 10, trafficController, allVehicles).then(resolve)
         return
       }
 
@@ -816,7 +834,7 @@ export default class Vehicle {
         return
       }
 
-      console.log(`✅ [${this.id}] 找到路徑元素，路徑長度: ${pathElement.getTotalLength().toFixed(2)}px`)
+      console.log(`🚗 [${this.id}] 東向車輛開始 MotionPath 動畫 - 車道: ${this.laneNumber}`)
 
       // 記錄移動開始時間和初始化數據
       this.movementStartTime = new Date().toISOString()
@@ -1082,32 +1100,41 @@ export default class Vehicle {
               clearInterval(this.periodicCheckTimer)
               this.periodicCheckTimer = null
             }
+
             this.currentState = 'completed'
+            console.log(`🚗 [${this.id}] 路徑動畫已完成`)
             resolve()
           },
         })
 
-        // 使用 MotionPathPlugin 創建路徑動畫
-        // 重要：設置正確的座標轉換
-        const svg = pathElement.closest('svg')
-        if (!svg) {
-          console.error(`❌ 找不到 SVG 容器`)
-          resolve()
-          return
-        }
+        // 使用 MotionPathPlugin 創建路徑動畫 - 根據官方文件的建議語法
+        console.log(`🚗 [${this.id}] 開始 MotionPath 動畫，路徑: #${this.getSvgPathId()}`)
 
-        console.log(`🚗 [${this.id}] 找到 SVG 容器，開始路徑動畫`)
+        // 邊界檢測標記 - 避免重複觸發
+        let hasBeenRemovedFromCollision = false
 
         this.movementTimeline.to(this.element, {
           duration: animationDuration,
           motionPath: {
-            path: pathElement,
-            autoRotate: false, // 不自動旋轉，保持車輛原始方向
-            alignOrigin: [0.5, 0.5], // 設置旋轉中心點為車輛中心
-            offsetX: 0,
-            offsetY: 0,
+            path: `#${this.getSvgPathId()}`, // 使用選擇器字串
+            align: `#${this.getSvgPathId()}`, // 重要：對齊到路徑
+            alignOrigin: [0.5, 0.5], // 車輛中心對齊
+            autoRotate: true, // 啟用自動旋轉，車輛會跟隨路徑方向
           },
           ease: 'none',
+          onUpdate: () => {
+            // 🚨 關鍵改進：邊界檢測提前移除機制
+            if (!hasBeenRemovedFromCollision && onVehicleOutOfBounds) {
+              const currentPos = this.getCurrentPosition()
+              const isOutOfBounds = this.checkOutOfBounds(currentPos)
+
+              if (isOutOfBounds) {
+                hasBeenRemovedFromCollision = true
+                console.log(`🚗 [${this.id}] 車輛已離開邊界，提前從碰撞檢測中移除`)
+                onVehicleOutOfBounds(this.id)
+              }
+            }
+          },
         })
       }, 100) // 延遲100毫秒開始移動
     })

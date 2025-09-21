@@ -316,24 +316,51 @@ const handleScenarioChange = (event) => {
 // 自動產生車輛的事件處理函數
 const handleAutoGenerate = (event) => {
   const { direction, vehicleType } = event.detail
-  // 使用現有的車輛創建邏輯
+
+  // 🚗 改進：使用路徑起始位置生成車輛
+  // 獲取車道資訊（保留車道選擇邏輯）
   const laneInfo = trafficController.getRandomLanePosition(direction)
   if (!laneInfo) {
     console.error(`❌ 無法獲取方向 ${direction} 的車道位置`)
     return
   }
-  const { position: randomLane, laneNumber } = laneInfo
-  // 檢查起始位置是否有其他車輛，避免重疊生成
+  const { laneNumber } = laneInfo
+
+  // 使用路徑起始位置替代隨機車道位置
+  const pathStartPosition = Vehicle.getPathStartPosition(direction, laneNumber)
+  if (!pathStartPosition) {
+    console.warn(`⚠️ 無法獲取路徑起始位置，使用傳統方法`)
+    // 如果無法獲取路徑位置，回退到原始方法
+    const { position: randomLane } = laneInfo
+    createVehicleWithPosition(randomLane.x, randomLane.y, direction, vehicleType, laneNumber)
+    return
+  }
+
+  console.log(
+    `🚗 車輛將從路徑起始位置生成: ${direction}Lane${laneNumber} (${pathStartPosition.x}, ${pathStartPosition.y})`,
+  )
+
+  // 檢查路徑起始位置是否有其他車輛，避免重疊生成
   const isPositionOccupied = activeCars.value.some((car) => {
     if (car.direction !== direction) return false
     const carPos = car.getCurrentPosition()
-    const distance = Math.sqrt(Math.pow(carPos.x - randomLane.x, 2) + Math.pow(carPos.y - randomLane.y, 2))
+    const distance = Math.sqrt(
+      Math.pow(carPos.x - pathStartPosition.x, 2) + Math.pow(carPos.y - pathStartPosition.y, 2),
+    )
     return distance < 50
   })
   if (isPositionOccupied) {
     return
   }
-  const vehicle = new Vehicle(randomLane.x, randomLane.y, direction, vehicleType, laneNumber)
+
+  // 創建車輛
+  createVehicleWithPosition(pathStartPosition.x, pathStartPosition.y, direction, vehicleType, laneNumber)
+}
+
+// 通用車輛創建函數
+const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => {
+  // 使用指定位置創建車輛
+  const vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber)
   vehicle.addTo(crossroadContainer.value)
   activeCars.value.push(vehicle)
   window.dispatchEvent(
@@ -350,13 +377,25 @@ const handleAutoGenerate = (event) => {
   const startVehicleAnimation = async () => {
     try {
       await vehicle.fadeIn(1)
-      // 使用新的 MotionPath 動畫方法
-      await vehicle.moveAlongPath(trafficController, activeCars.value)
 
+      // 🚨 改進：提前移除機制 - 當車輛離開邊界時立即從碰撞檢測中移除
+      const handleVehicleOutOfBounds = (vehicleId) => {
+        const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicleId)
+        if (vehicleIndex > -1) {
+          activeCars.value.splice(vehicleIndex, 1)
+          console.log(`🚗 [${vehicleId}] 已從 activeCars 中提前移除，避免塞車`)
+        }
+      }
+
+      // 使用新的 MotionPath 動畫方法，傳入邊界檢測回調
+      await vehicle.moveAlongPath(trafficController, activeCars.value, handleVehicleOutOfBounds)
+
+      // 動畫完成後的清理工作（可能車輛已經被提前移除）
       const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
       if (vehicleIndex > -1) {
         activeCars.value.splice(vehicleIndex, 1)
       }
+
       await vehicle.fadeOut(1.5)
       vehicle.remove()
       window.dispatchEvent(

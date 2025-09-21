@@ -6,10 +6,16 @@
 
 // 速度設定 (單位: km/h)
 // 這是所有車輛速度的唯一來源。
+// export const speedConfig = {
+//   large: { min: 25, max: 35 }, // 大型車速度範圍
+//   small: { min: 30, max: 50 }, // 小型車速度範圍
+//   motor: { min: 30, max: 60 }, // 機車速度範圍
+// }
+
 export const speedConfig = {
-  large: { min: 25, max: 35 }, // 大型車速度範圍
-  small: { min: 30, max: 50 }, // 小型車速度範圍
-  motor: { min: 30, max: 60 }, // 機車速度範圍
+  large: { min: 125, max: 135 }, // 大型車速度範圍
+  small: { min: 130, max: 150 }, // 小型車速度範圍
+  motor: { min: 130, max: 160 }, // 機車速度範圍
 }
 
 // 自動為每個速度範圍計算平均值，方便其他模組直接使用
