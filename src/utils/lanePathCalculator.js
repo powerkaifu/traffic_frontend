@@ -13,18 +13,24 @@ export function createLanePathCalculator(containerElement) {
 
   const getEastLane1Path = () => {
     if (!containerElement) {
-      return 'M100,500 L1300,500' // 預設路徑，SVG viewBox中心水平線
+      return 'M-200,521 L1600,521' // 預設路徑，延伸更長的水平線
     }
 
-    // 使用SVG viewBox坐標系統 (0,0,1400,1000)
+    // 使用SVG viewBox坐標系統 (0,0,1400,1000) + 動態延伸
     const svgCenterY = 500 // SVG viewBox 中心Y座標
+    const containerWidth = containerElement.offsetWidth
+
+    // 計算延伸比例，確保在所有裝置上都能覆蓋整個螢幕
+    const widthExtensionRatio = Math.max(1.5, containerWidth / 1400) // 最少延伸1.5倍
+    const baseExtension = 200 // 基礎延伸距離
+    const dynamicExtension = baseExtension * widthExtensionRatio
 
     // 所有東向車道使用相同的Y座標：SVG中心水平線
     const eastLaneY = svgCenterY + 21
 
-    // 水平線從左到右，延伸到viewBox邊緣
-    const startX = 0 // 從viewBox左邊開始
-    const endX = 1400 // 到viewBox右邊結束
+    // 水平線從左到右，動態計算延伸距離
+    const startX = -dynamicExtension // 根據容器寬度動態計算起始點
+    const endX = 1400 + dynamicExtension // 根據容器寬度動態計算結束點
 
     return `M${startX},${eastLaneY} L${endX},${eastLaneY}`
   }
@@ -161,72 +167,96 @@ export function createLanePathCalculator(containerElement) {
 
   const getSouthLane1Path = () => {
     if (!containerElement) {
-      return 'M700,100 L700,900' // 預設路徑，SVG viewBox中心垂直線，從上到下
+      return 'M680,-200 L680,1200' // 預設路徑，延伸更長的垂直線
     }
 
-    // 使用SVG viewBox坐標系統 (0,0,1400,1000)
+    // 使用SVG viewBox坐標系統 (0,0,1400,1000) + 動態延伸
     const svgCenterX = 700 // SVG viewBox 中心X座標
+    const containerHeight = containerElement.offsetHeight
+
+    // 計算延伸比例，確保在所有裝置上都能覆蓋整個螢幕
+    const heightExtensionRatio = Math.max(1.5, containerHeight / 1000) // 最少延伸1.5倍
+    const baseExtension = 200 // 基礎延伸距離
+    const dynamicExtension = baseExtension * heightExtensionRatio
 
     // 所有南向車道使用相同的X座標：SVG中心垂直線
     const southLaneX = svgCenterX - 20
 
-    // 垂直線從上到下，延伸到viewBox邊緣
-    const startY = -70 // 從viewBox上邊開始
-    const endY = 1070 // 到viewBox下邊結束
+    // 垂直線從上到下，動態計算延伸距離
+    const startY = -dynamicExtension // 根據容器高度動態計算起始點
+    const endY = 1000 + dynamicExtension // 根據容器高度動態計算結束點
 
     return `M${southLaneX},${startY} L${southLaneX},${endY}`
   }
 
   const getSouthLane2Path = () => {
     if (!containerElement) {
-      return 'M700,100 L700,900' // 預設路徑，SVG viewBox中心垂直線，從上到下
+      return 'M640,-200 L640,1200' // 預設路徑，延伸更長的垂直線
     }
 
-    // 使用SVG viewBox坐標系統 (0,0,1400,1000)
+    // 使用SVG viewBox坐標系統 (0,0,1400,1000) + 動態延伸
     const svgCenterX = 700 // SVG viewBox 中心X座標
+    const containerHeight = containerElement.offsetHeight
+
+    // 計算延伸比例，確保在所有裝置上都能覆蓋整個螢幕
+    const heightExtensionRatio = Math.max(1.5, containerHeight / 1000) // 最少延伸1.5倍
+    const baseExtension = 200 // 基礎延伸距離
+    const dynamicExtension = baseExtension * heightExtensionRatio
 
     // 所有南向車道使用相同的X座標：SVG中心垂直線
     const southLaneX = svgCenterX - 60
 
-    // 垂直線從上到下，延伸到viewBox邊緣
-    const startY = -70 // 從viewBox上邊開始
-    const endY = 1070 // 到viewBox下邊結束
+    // 垂直線從上到下，動態計算延伸距離
+    const startY = -dynamicExtension // 根據容器高度動態計算起始點
+    const endY = 1000 + dynamicExtension // 根據容器高度動態計算結束點
 
     return `M${southLaneX},${startY} L${southLaneX},${endY}`
   }
 
   const getSouthLane3Path = () => {
     if (!containerElement) {
-      return 'M700,100 L700,900' // 預設路徑，SVG viewBox中心垂直線，從上到下
+      return 'M601,-200 L601,1200' // 預設路徑，延伸更長的垂直線
     }
 
-    // 使用SVG viewBox坐標系統 (0,0,1400,1000)
+    // 使用SVG viewBox坐標系統 (0,0,1400,1000) + 動態延伸
     const svgCenterX = 700 // SVG viewBox 中心X座標
+    const containerHeight = containerElement.offsetHeight
+
+    // 計算延伸比例，確保在所有裝置上都能覆蓋整個螢幕
+    const heightExtensionRatio = Math.max(1.5, containerHeight / 1000) // 最少延伸1.5倍
+    const baseExtension = 200 // 基礎延伸距離
+    const dynamicExtension = baseExtension * heightExtensionRatio
 
     // 所有南向車道使用相同的X座標：SVG中心垂直線
     const southLaneX = svgCenterX - 99
 
-    // 垂直線從上到下，延伸到viewBox邊緣
-    const startY = -70 // 從viewBox上邊開始
-    const endY = 1070 // 到viewBox下邊結束
+    // 垂直線從上到下，動態計算延伸距離
+    const startY = -dynamicExtension // 根據容器高度動態計算起始點
+    const endY = 1000 + dynamicExtension // 根據容器高度動態計算結束點
 
     return `M${southLaneX},${startY} L${southLaneX},${endY}`
   }
 
   const getSouthLane4Path = () => {
     if (!containerElement) {
-      return 'M700,100 L700,900' // 預設路徑，SVG viewBox中心垂直線，從上到下
+      return 'M562,-200 L562,1200' // 預設路徑，延伸更長的垂直線
     }
 
-    // 使用SVG viewBox坐標系統 (0,0,1400,1000)
+    // 使用SVG viewBox坐標系統 (0,0,1400,1000) + 動態延伸
     const svgCenterX = 700 // SVG viewBox 中心X座標
+    const containerHeight = containerElement.offsetHeight
+
+    // 計算延伸比例，確保在所有裝置上都能覆蓋整個螢幕
+    const heightExtensionRatio = Math.max(1.5, containerHeight / 1000) // 最少延伸1.5倍
+    const baseExtension = 200 // 基礎延伸距離
+    const dynamicExtension = baseExtension * heightExtensionRatio
 
     // 所有南向車道使用相同的X座標：SVG中心垂直線
     const southLaneX = svgCenterX - 138
 
-    // 垂直線從上到下，延伸到viewBox邊緣
-    const startY = -70 // 從viewBox上邊開始
-    const endY = 1070 // 到viewBox下邊結束
+    // 垂直線從上到下，動態計算延伸距離
+    const startY = -dynamicExtension // 根據容器高度動態計算起始點
+    const endY = 1000 + dynamicExtension // 根據容器高度動態計算結束點
 
     return `M${southLaneX},${startY} L${southLaneX},${endY}`
   }
@@ -235,72 +265,96 @@ export function createLanePathCalculator(containerElement) {
 
   const getNorthLane1Path = () => {
     if (!containerElement) {
-      return 'M700,900 L700,100' // 預設路徑，SVG viewBox中心垂直線，從下到上
+      return 'M720,1200 L720,-200' // 預設路徑，延伸更長的垂直線，從下到上
     }
 
-    // 使用SVG viewBox坐標系統 (0,0,1400,1000)
+    // 使用SVG viewBox坐標系統 (0,0,1400,1000) + 動態延伸
     const svgCenterX = 700 // SVG viewBox 中心X座標
+    const containerHeight = containerElement.offsetHeight
+
+    // 計算延伸比例，確保在所有裝置上都能覆蓋整個螢幕
+    const heightExtensionRatio = Math.max(1.5, containerHeight / 1000) // 最少延伸1.5倍
+    const baseExtension = 200 // 基礎延伸距離
+    const dynamicExtension = baseExtension * heightExtensionRatio
 
     // 所有北向車道使用相同的X座標：SVG中心垂直線
     const northLaneX = svgCenterX + 20
 
-    // 垂直線從下到上，延伸到viewBox邊緣
-    const startY = 1070 // 從viewBox下邊開始
-    const endY = -70 // 到viewBox上邊結束
+    // 垂直線從下到上，動態計算延伸距離
+    const startY = 1000 + dynamicExtension // 根據容器高度動態計算起始點
+    const endY = -dynamicExtension // 根據容器高度動態計算結束點
 
     return `M${northLaneX},${startY} L${northLaneX},${endY}`
   }
 
   const getNorthLane2Path = () => {
     if (!containerElement) {
-      return 'M700,900 L700,100' // 預設路徑，SVG viewBox中心垂直線，從下到上
+      return 'M760,1200 L760,-200' // 預設路徑，延伸更長的垂直線，從下到上
     }
 
-    // 使用SVG viewBox坐標系統 (0,0,1400,1000)
+    // 使用SVG viewBox坐標系統 (0,0,1400,1000) + 動態延伸
     const svgCenterX = 700 // SVG viewBox 中心X座標
+    const containerHeight = containerElement.offsetHeight
+
+    // 計算延伸比例，確保在所有裝置上都能覆蓋整個螢幕
+    const heightExtensionRatio = Math.max(1.5, containerHeight / 1000) // 最少延伸1.5倍
+    const baseExtension = 200 // 基礎延伸距離
+    const dynamicExtension = baseExtension * heightExtensionRatio
 
     // 所有北向車道使用相同的X座標：SVG中心垂直線
     const northLaneX = svgCenterX + 60
 
-    // 垂直線從下到上，延伸到viewBox邊緣
-    const startY = 1070 // 從viewBox下邊開始
-    const endY = -70 // 到viewBox上邊結束
+    // 垂直線從下到上，動態計算延伸距離
+    const startY = 1000 + dynamicExtension // 根據容器高度動態計算起始點
+    const endY = -dynamicExtension // 根據容器高度動態計算結束點
 
     return `M${northLaneX},${startY} L${northLaneX},${endY}`
   }
 
   const getNorthLane3Path = () => {
     if (!containerElement) {
-      return 'M700,900 L700,100' // 預設路徑，SVG viewBox中心垂直線，從下到上
+      return 'M799,1200 L799,-200' // 預設路徑，延伸更長的垂直線，從下到上
     }
 
-    // 使用SVG viewBox坐標系統 (0,0,1400,1000)
+    // 使用SVG viewBox坐標系統 (0,0,1400,1000) + 動態延伸
     const svgCenterX = 700 // SVG viewBox 中心X座標
+    const containerHeight = containerElement.offsetHeight
+
+    // 計算延伸比例，確保在所有裝置上都能覆蓋整個螢幕
+    const heightExtensionRatio = Math.max(1.5, containerHeight / 1000) // 最少延伸1.5倍
+    const baseExtension = 200 // 基礎延伸距離
+    const dynamicExtension = baseExtension * heightExtensionRatio
 
     // 所有北向車道使用相同的X座標：SVG中心垂直線
     const northLaneX = svgCenterX + 99
 
-    // 垂直線從下到上，延伸到viewBox邊緣
-    const startY = 1070 // 從viewBox下邊開始
-    const endY = -70 // 到viewBox上邊結束
+    // 垂直線從下到上，動態計算延伸距離
+    const startY = 1000 + dynamicExtension // 根據容器高度動態計算起始點
+    const endY = -dynamicExtension // 根據容器高度動態計算結束點
 
     return `M${northLaneX},${startY} L${northLaneX},${endY}`
   }
 
   const getNorthLane4Path = () => {
     if (!containerElement) {
-      return 'M700,900 L700,100' // 預設路徑，SVG viewBox中心垂直線，從下到上
+      return 'M838,1200 L838,-200' // 預設路徑，延伸更長的垂直線，從下到上
     }
 
-    // 使用SVG viewBox坐標系統 (0,0,1400,1000)
+    // 使用SVG viewBox坐標系統 (0,0,1400,1000) + 動態延伸
     const svgCenterX = 700 // SVG viewBox 中心X座標
+    const containerHeight = containerElement.offsetHeight
+
+    // 計算延伸比例，確保在所有裝置上都能覆蓋整個螢幕
+    const heightExtensionRatio = Math.max(1.5, containerHeight / 1000) // 最少延伸1.5倍
+    const baseExtension = 200 // 基礎延伸距離
+    const dynamicExtension = baseExtension * heightExtensionRatio
 
     // 所有北向車道使用相同的X座標：SVG中心垂直線
     const northLaneX = svgCenterX + 138
 
-    // 垂直線從下到上，延伸到viewBox邊緣
-    const startY = 1070 // 從viewBox下邊開始
-    const endY = -70 // 到viewBox上邊結束
+    // 垂直線從下到上，動態計算延伸距離
+    const startY = 1000 + dynamicExtension // 根據容器高度動態計算起始點
+    const endY = -dynamicExtension // 根據容器高度動態計算結束點
 
     return `M${northLaneX},${startY} L${northLaneX},${endY}`
   }
