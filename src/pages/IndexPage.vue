@@ -338,24 +338,19 @@ const handleScenarioChange = (event) => {
 
 // 自動產生車輛的事件處理函數
 const handleAutoGenerate = (event) => {
+  console.log('🔍 handleAutoGenerate 被調用:', event.detail)
   const { direction, vehicleType } = event.detail
 
-  // 🚗 改進：使用路徑起始位置生成車輛
-  // 獲取車道資訊（保留車道選擇邏輯）
-  const laneInfo = trafficController.getRandomLanePosition(direction)
-  if (!laneInfo) {
-    console.error(`❌ 無法獲取方向 ${direction} 的車道位置`)
-    return
-  }
-  const { laneNumber } = laneInfo
+  // 🚗 修改：直接使用隨機車道號，然後獲取對應路徑起始位置
+  const laneNumber = Math.floor(Math.random() * 4) + 1 // 隨機選擇1-4車道
+  console.log(`🔍 隨機選擇車道: ${direction}Lane${laneNumber}`)
 
-  // 使用路徑起始位置替代隨機車道位置
+  // 使用路徑起始位置生成車輛
   const pathStartPosition = Vehicle.getPathStartPosition(direction, laneNumber)
+  console.log('🔍 pathStartPosition:', pathStartPosition)
+
   if (!pathStartPosition) {
-    console.warn(`⚠️ 無法獲取路徑起始位置，使用傳統方法`)
-    // 如果無法獲取路徑位置，回退到原始方法
-    const { position: randomLane } = laneInfo
-    createVehicleWithPosition(randomLane.x, randomLane.y, direction, vehicleType, laneNumber)
+    console.error(`❌ 無法獲取路徑起始位置: ${direction}Lane${laneNumber}`)
     return
   }
 
@@ -427,7 +422,7 @@ const handleAutoGenerate = (event) => {
 // 通用車輛創建函數
 const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => {
   // 使用指定位置創建車輛
-  const vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber)
+  const vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, trafficController)
   vehicle.addTo(crossroadContainer.value)
   activeCars.value.push(vehicle)
   window.dispatchEvent(
@@ -443,7 +438,8 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => 
   )
   const startVehicleAnimation = async () => {
     try {
-      await vehicle.fadeIn(1)
+      // 🚗 修改：車輛直接顯示，不使用淡入動畫
+      console.log(`🚗 [${vehicle.id}] 直接開始移動，無淡入動畫`)
 
       // 🚨 改進：提前移除機制 - 當車輛離開邊界時立即從碰撞檢測中移除
       const handleVehicleOutOfBounds = (vehicleId) => {

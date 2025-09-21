@@ -56,9 +56,11 @@ export default class Vehicle {
     gsap.set(this.element, {
       x: x,
       y: y,
-      opacity: 0, // 初始設為透明
-      scale: 0.5, // 初始設為縮小
+      opacity: 1, // 🚗 修改：立即可見，不使用淡入動畫
+      scale: 1, // 🚗 修改：正常大小，不使用縮放動畫
     })
+
+    console.log(`🚗 [${this.id}] 車輛在 (${x}, ${y}) 立即顯示`)
 
     // 新增車道編號標籤顯示
     this.createLaneLabel()
@@ -1055,6 +1057,7 @@ export default class Vehicle {
   // Static Method: 獲取指定方向和車道的路徑起始位置
   static getPathStartPosition(direction, laneNumber) {
     const pathId = `${direction}Lane${laneNumber}Straight`
+    console.log(`🔍 查找路徑元素: #${pathId}`)
     const pathElement = document.querySelector(`#${pathId}`)
 
     if (!pathElement) {
@@ -1065,6 +1068,7 @@ export default class Vehicle {
     try {
       // 獲取路徑的起始點（t=0的位置）
       const startPoint = pathElement.getPointAtLength(0)
+      console.log(`✅ 獲取路徑起始位置 ${pathId}:`, startPoint)
 
       // 根據 SVG viewBox="0 0 1400 1000" 座標系統返回位置
       return {
@@ -2003,14 +2007,19 @@ export default class Vehicle {
     })
   }
 
-  // Command Pattern: 淡入動畫命令
+  // 🚗 淡入效果 - 修改為立即顯示，不使用動畫
+  // eslint-disable-next-line no-unused-vars
   fadeIn(duration = 1) {
-    // Command Pattern: 將淡入動畫封裝為可執行的命令
-    return gsap.to(this.element, {
-      opacity: 1,
-      scale: 1,
-      duration: duration,
-      ease: 'back.out(1.7)',
+    // 🚗 修改：立即設置為完全可見，不使用動畫
+    return new Promise((resolve) => {
+      if (!this.element) {
+        resolve()
+        return
+      }
+
+      gsap.set(this.element, { opacity: 1, scale: 1 })
+      console.log(`🚗 [${this.id}] 車輛立即顯示`)
+      resolve()
     })
   }
 
