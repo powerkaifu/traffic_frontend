@@ -610,55 +610,6 @@ const pathCalculatorMap = {
   northLane4Straight: 'getNorthLane4Path',
 }
 
-// 從本地存儲載入編輯後的路徑數據
-const loadEditedPathsFromStorage = () => {
-  try {
-    const storedPaths = localStorage.getItem('trafficEditedPaths')
-    if (storedPaths) {
-      const parsedPaths = JSON.parse(storedPaths)
-      editedPaths.value = parsedPaths
-
-      console.log('📂 從本地存儲載入編輯路徑:', parsedPaths)
-
-      // 應用已編輯的路徑到路徑計算器
-      Object.keys(parsedPaths).forEach((pathId) => {
-        const pathData = parsedPaths[pathId]
-        const functionName = pathCalculatorMap[pathId]
-
-        if (functionName && lanePathCalculator) {
-          // 更新路徑計算器函數
-          lanePathCalculator[functionName] = () => pathData
-          console.log(`🔄 已恢復 ${functionName} 的編輯路徑`)
-
-          // 同時更新全局路徑函數
-          updateGlobalPathFunction(functionName, pathData)
-        }
-      })
-
-      console.log('✅ 已恢復所有編輯後的路徑')
-
-      $q.notify({
-        message: `已恢復 ${Object.keys(parsedPaths).length} 條編輯路徑`,
-        color: 'info',
-        icon: 'restore',
-        timeout: 2000,
-        position: 'top-right',
-      })
-    } else {
-      console.log('📂 本地存儲中沒有編輯路徑數據')
-    }
-  } catch (error) {
-    console.error('❌ 載入本地存儲的路徑數據失敗:', error)
-    $q.notify({
-      message: '載入編輯路徑失敗: ' + error.message,
-      color: 'negative',
-      icon: 'error',
-      timeout: 3000,
-      position: 'top-right',
-    })
-  }
-}
-
 // 更新全局路徑函數
 const updateGlobalPathFunction = (functionName, pathData) => {
   switch (functionName) {
@@ -761,28 +712,15 @@ const saveTempEditedPaths = () => {
     }
   })
 
-  // 保存到 localStorage
-  try {
-    localStorage.setItem('trafficEditedPaths', JSON.stringify(editedPaths.value))
-    console.log('💾 編輯結果已保存到本地存儲')
+  console.log('💾 編輯結果已保存（不含本地存儲）')
 
-    $q.notify({
-      message: `已保存 ${Object.keys(tempEditedPaths.value).length} 條路徑編輯`,
-      color: 'positive',
-      icon: 'save',
-      timeout: 2000,
-      position: 'top-right',
-    })
-  } catch (error) {
-    console.error('❌ 保存編輯結果失敗:', error)
-    $q.notify({
-      message: '保存編輯結果失敗: ' + error.message,
-      color: 'negative',
-      icon: 'error',
-      timeout: 3000,
-      position: 'top-right',
-    })
-  }
+  $q.notify({
+    message: `已保存 ${Object.keys(tempEditedPaths.value).length} 條路徑編輯`,
+    color: 'positive',
+    icon: 'save',
+    timeout: 2000,
+    position: 'top-right',
+  })
 
   // 清空暫存
   tempEditedPaths.value = {}
@@ -897,8 +835,7 @@ const resetAllPaths = () => {
   }
 
   try {
-    // 清除本地存儲
-    localStorage.removeItem('trafficEditedPaths')
+    // 清除編輯路徑數據
     editedPaths.value = {}
 
     // 重新初始化路徑計算器（恢復原始路徑）
@@ -995,9 +932,6 @@ onMounted(() => {
     getNorthLane2Path = lanePathCalculator.getNorthLane2Path
     getNorthLane3Path = lanePathCalculator.getNorthLane3Path
     getNorthLane4Path = lanePathCalculator.getNorthLane4Path
-
-    // 載入並應用本地存儲的編輯路徑
-    loadEditedPathsFromStorage()
   }
 
   if (crossroadContainer.value) {
