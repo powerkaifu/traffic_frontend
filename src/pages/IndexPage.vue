@@ -1403,8 +1403,8 @@ onUnmounted(() => {
 /* 路徑編輯控制按鈕樣式 ---------------------------------------- */
 .path-edit-control {
   position: absolute;
-  bottom: 5%;
-  left: 5%;
+  bottom: 0%;
+  right: -21%;
   z-index: 1001;
   display: flex;
   flex-direction: column;
