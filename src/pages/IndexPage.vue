@@ -25,6 +25,7 @@
           :d="getEastLane1Path()"
           :stroke="isPathEditMode ? 'rgba(255, 200, 100, 0.9)' : 'rgba(255, 100, 100, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
           @mouseenter="showPathTooltip($event, '東向車道1 (可編輯)')"
           @mouseleave="hidePathTooltip"
@@ -37,6 +38,7 @@
           :d="getEastLane2Path()"
           stroke="rgba(255, 120, 120, 0.6)"
           stroke-width="2"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
         />
         <!-- 往東車道3 直行路徑（車輛從畫面外進入到離開畫面） -->
@@ -45,6 +47,7 @@
           :d="getEastLane3Path()"
           stroke="rgba(255, 140, 140, 0.6)"
           stroke-width="2"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
         />
         <!-- 往東車道4 直行路徑（車輛從畫面外進入到離開畫面） - 可編輯 -->
@@ -53,6 +56,7 @@
           :d="getEastLane4Path()"
           :stroke="isPathEditMode ? 'rgba(255, 200, 100, 0.9)' : 'rgba(255, 160, 160, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
           @mouseenter="showPathTooltip($event, '東向車道4 (可編輯)')"
           @mouseleave="hidePathTooltip"
@@ -65,6 +69,7 @@
           :d="getWestLane1Path()"
           :stroke="isPathEditMode ? 'rgba(100, 200, 255, 0.9)' : 'rgba(100, 150, 255, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
           @mouseenter="showPathTooltip($event, '西向車道1 (可編輯)')"
           @mouseleave="hidePathTooltip"
@@ -77,6 +82,7 @@
           :d="getWestLane2Path()"
           stroke="rgba(120, 170, 255, 0.6)"
           stroke-width="2"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
         />
         <!--往西車道3 直行路徑（車輛從畫面外進入到離開畫面）-->
@@ -85,6 +91,7 @@
           :d="getWestLane3Path()"
           stroke="rgba(140, 190, 255, 0.6)"
           stroke-width="2"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
         />
         <!--往西車道4 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
@@ -93,6 +100,7 @@
           :d="getWestLane4Path()"
           :stroke="isPathEditMode ? 'rgba(100, 200, 255, 0.9)' : 'rgba(160, 210, 255, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
           @mouseenter="showPathTooltip($event, '西向車道4 (可編輯)')"
           @mouseleave="hidePathTooltip"
@@ -105,6 +113,7 @@
           :d="getSouthLane1Path()"
           :stroke="isPathEditMode ? 'rgba(100, 255, 200, 0.9)' : 'rgba(100, 255, 150, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
           @mouseenter="showPathTooltip($event, '南向車道1 (可編輯)')"
           @mouseleave="hidePathTooltip"
@@ -117,6 +126,7 @@
           :d="getSouthLane2Path()"
           stroke="rgba(120, 255, 170, 0.6)"
           stroke-width="2"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
         />
         <!--往南車道3 直行路徑（車輛從畫面外進入到離開畫面）-->
@@ -125,6 +135,7 @@
           :d="getSouthLane3Path()"
           stroke="rgba(140, 255, 190, 0.6)"
           stroke-width="2"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
         />
         <!--往南車道4 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
@@ -133,6 +144,7 @@
           :d="getSouthLane4Path()"
           :stroke="isPathEditMode ? 'rgba(100, 255, 200, 0.9)' : 'rgba(160, 255, 210, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
           @mouseenter="showPathTooltip($event, '南向車道4 (可編輯)')"
           @mouseleave="hidePathTooltip"
@@ -145,6 +157,7 @@
           :d="getNorthLane1Path()"
           :stroke="isPathEditMode ? 'rgba(255, 100, 255, 0.9)' : 'rgba(200, 100, 255, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
           @mouseenter="showPathTooltip($event, '北向車道1 (可編輯)')"
           @mouseleave="hidePathTooltip"
@@ -157,6 +170,7 @@
           :d="getNorthLane2Path()"
           stroke="rgba(220, 120, 255, 0.6)"
           stroke-width="2"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
         />
         <!--往北車道3 直行路徑（車輛從畫面外進入到離開畫面）-->
@@ -165,6 +179,7 @@
           :d="getNorthLane3Path()"
           stroke="rgba(240, 140, 255, 0.6)"
           stroke-width="2"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
         />
         <!--往北車道4 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
@@ -173,6 +188,7 @@
           :d="getNorthLane4Path()"
           :stroke="isPathEditMode ? 'rgba(255, 100, 255, 0.9)' : 'rgba(255, 160, 255, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
+          :opacity="isPathVisible ? 1 : 0"
           fill="none"
           @mouseenter="showPathTooltip($event, '北向車道4 (可編輯)')"
           @mouseleave="hidePathTooltip"
@@ -260,6 +276,13 @@
       <div class="path-edit-control">
         <button @click="togglePathEditMode" :class="['edit-btn', { active: isPathEditMode }]" title="切換路徑編輯模式">
           {{ isPathEditMode ? '🔒 停用編輯' : '✏️ 編輯路徑' }}
+        </button>
+        <button
+          @click="togglePathVisibility"
+          :class="['visibility-btn', { 'path-hidden': !isPathVisible }]"
+          title="切換路徑顯示/隱藏"
+        >
+          {{ isPathVisible ? '👁️ 隱藏路徑' : '👁️‍🗨️ 顯示路徑' }}
         </button>
         <button v-if="isPathEditMode" @click="exportPathData" class="export-btn" title="導出編輯後的路徑資料">
           📋 導出路徑
@@ -490,6 +513,7 @@ const aiPrediction = ref({
 
 // MotionPathHelper 控制
 const isPathEditMode = ref(false)
+const isPathVisible = ref(true) // 路徑可見性控制
 const pathHelpers = ref([])
 const pathObservers = ref([]) // 路徑變化觀察器
 const tempEditedPaths = ref({}) // 暫存編輯中的路徑數據
@@ -513,6 +537,11 @@ const togglePathEditMode = () => {
   } else {
     disablePathEditing()
   }
+}
+
+// 切換路徑顯示/隱藏
+const togglePathVisibility = () => {
+  isPathVisible.value = !isPathVisible.value
 }
 
 // 啟用路徑編輯功能
@@ -1351,7 +1380,8 @@ onUnmounted(() => {
 }
 
 .edit-btn,
-.export-btn {
+.export-btn,
+.visibility-btn {
   padding: 12px 20px;
   border: 2px solid rgb(63, 117, 205);
   border-radius: 8px;
@@ -1370,8 +1400,19 @@ onUnmounted(() => {
   border-color: rgb(34, 139, 34);
 }
 
+.visibility-btn {
+  background: linear-gradient(135deg, rgba(138, 43, 226, 0.9), rgba(75, 0, 130, 0.9));
+  border-color: rgb(138, 43, 226);
+}
+
+.visibility-btn.path-hidden {
+  background: linear-gradient(135deg, rgba(128, 128, 128, 0.9), rgba(64, 64, 64, 0.9));
+  border-color: rgb(128, 128, 128);
+}
+
 .edit-btn:hover,
-.export-btn:hover {
+.export-btn:hover,
+.visibility-btn:hover {
   background: linear-gradient(135deg, rgba(45, 90, 160, 0.9), rgba(45, 40, 110, 0.9));
   transform: translateY(-2px);
   box-shadow: 0 0 20px rgba(30, 30, 100, 0.8);
@@ -1379,6 +1420,14 @@ onUnmounted(() => {
 
 .export-btn:hover {
   background: linear-gradient(135deg, rgba(44, 149, 44, 0.9), rgba(10, 110, 10, 0.9));
+}
+
+.visibility-btn:hover {
+  background: linear-gradient(135deg, rgba(148, 53, 236, 0.9), rgba(85, 10, 140, 0.9));
+}
+
+.visibility-btn.path-hidden:hover {
+  background: linear-gradient(135deg, rgba(138, 138, 138, 0.9), rgba(74, 74, 74, 0.9));
 }
 
 .edit-btn.active {

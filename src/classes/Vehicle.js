@@ -1680,7 +1680,7 @@ export default class Vehicle {
             // 🚨 持續碰撞檢測系統 - 所有檢測同時進行，根據威脅等級決定動作
             const frontCollision = this.checkFrontCollision(allVehicles)
             const crossCollision = this.checkCrossDirectionCollision(allVehicles)
-            
+
             // 🚨 威脅等級評估系統
             let highestThreat = null
             let threatLevel = 0 // 0=無威脅, 1=減速, 2=停車, 3=緊急停車, 4=重疊
@@ -1711,7 +1711,8 @@ export default class Vehicle {
                 highestThreat = { type: 'cross_stop', data: crossCollision }
                 threatLevel = Math.max(threatLevel, 2)
               } else if (crossCollision.shouldSlowDown) {
-                if (threatLevel < 2) { // 只有在沒有更高威脅時才選擇減速
+                if (threatLevel < 2) {
+                  // 只有在沒有更高威脅時才選擇減速
                   highestThreat = { type: 'cross_slow', data: crossCollision }
                   threatLevel = Math.max(threatLevel, 1)
                 }
@@ -1748,7 +1749,9 @@ export default class Vehicle {
                 case 'cross_stop':
                   this.stopMovement()
                   this.currentState = 'intersection_waiting'
-                  console.log(`🛑 [${this.id}] 十字路口停車等待！與 [${data.vehicle.id}] 距離: ${data.distance.toFixed(1)}px`)
+                  console.log(
+                    `🛑 [${this.id}] 十字路口停車等待！與 [${data.vehicle.id}] 距離: ${data.distance.toFixed(1)}px`,
+                  )
                   return
 
                 case 'front_follow': {
@@ -1765,7 +1768,9 @@ export default class Vehicle {
                     ease: 'power2.out',
                   })
                   this.currentState = 'intersection_slowing'
-                  console.log(`⚠️ [${this.id}] 十字路口減速！與 [${data.vehicle.id}] 距離: ${data.distance.toFixed(1)}px`)
+                  console.log(
+                    `⚠️ [${this.id}] 十字路口減速！與 [${data.vehicle.id}] 距離: ${data.distance.toFixed(1)}px`,
+                  )
                   return
                 }
               }
