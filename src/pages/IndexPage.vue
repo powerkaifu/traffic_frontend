@@ -29,7 +29,6 @@
           @mouseenter="showPathTooltip($event, '東向車道1 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
-          @click="handlePathClick('東向車道1')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!-- 往東車道2 直行路徑（車輛從畫面外進入到離開畫面） -->
@@ -58,7 +57,6 @@
           @mouseenter="showPathTooltip($event, '東向車道4 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
-          @click="handlePathClick('東向車道4')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往西車道1 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
@@ -71,7 +69,6 @@
           @mouseenter="showPathTooltip($event, '西向車道1 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
-          @click="handlePathClick('西向車道1')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往西車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
@@ -100,7 +97,6 @@
           @mouseenter="showPathTooltip($event, '西向車道4 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
-          @click="handlePathClick('西向車道4')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往南車道1 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
@@ -113,7 +109,6 @@
           @mouseenter="showPathTooltip($event, '南向車道1 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
-          @click="handlePathClick('南向車道1')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往南車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
@@ -142,7 +137,6 @@
           @mouseenter="showPathTooltip($event, '南向車道4 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
-          @click="handlePathClick('南向車道4')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往北車道1 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
@@ -155,7 +149,6 @@
           @mouseenter="showPathTooltip($event, '北向車道1 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
-          @click="handlePathClick('北向車道1')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往北車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
@@ -184,7 +177,6 @@
           @mouseenter="showPathTooltip($event, '北向車道4 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
-          @click="handlePathClick('北向車道4')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
       </svg>
@@ -282,9 +274,6 @@
             <div>• <strong>DELETE</strong>：刪除選中錨點</div>
             <div>• <strong>CTRL+Z</strong>：撤銷操作</div>
             <div class="highlight-note">只能編輯高亮的車道1和車道4</div>
-            <div v-if="currentEditingPath" class="current-editing">
-              🎯 當前編輯: <strong>{{ currentEditingPath }}</strong>
-            </div>
           </div>
         </div>
       </div>
@@ -298,7 +287,6 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useQuasar } from 'quasar'
 import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { MotionPathHelper } from 'gsap/MotionPathHelper'
@@ -416,7 +404,6 @@ const aiPrediction = ref({
 
 // MotionPathHelper 控制
 const isPathEditMode = ref(false)
-const currentEditingPath = ref('') // 當前正在編輯的路徑
 const pathHelpers = ref([])
 const pathObservers = ref([]) // 路徑變化觀察器
 const tempEditedPaths = ref({}) // 暫存編輯中的路徑數據
@@ -428,10 +415,6 @@ const pathTooltip = ref({
   x: 0,
   y: 0,
 })
-
-// Quasar 實例
-const $q = useQuasar()
-
 // 路徑計算器實例
 let lanePathCalculator = null
 
@@ -449,9 +432,7 @@ const togglePathEditMode = () => {
 // 啟用路徑編輯功能
 const enablePathEditing = () => {
   console.log('🎯 啟用路徑編輯模式')
-
-  // 清空當前編輯路徑和暫存的編輯結果
-  currentEditingPath.value = ''
+  // 清空暫存的編輯結果
   tempEditedPaths.value = {}
 
   // 只允許編輯每個方向的車道 1 和車道 4
@@ -656,35 +637,9 @@ const updateTooltipPosition = (event) => {
 }
 
 // 點擊路徑處理函數
-const handlePathClick = (pathName) => {
-  if (!isPathEditMode.value) return
-
-  // 設置當前編輯的路徑
-  currentEditingPath.value = pathName
-  console.log(`🎯 點擊編輯路徑: ${pathName}`)
-
-  $q.notify({
-    message: `正在編輯: ${pathName}`,
-    color: 'primary',
-    icon: 'edit',
-    timeout: 4000,
-    position: 'top-right',
-    actions: [
-      {
-        label: '確定',
-        color: 'white',
-        handler: () => {},
-      },
-    ],
-  })
-}
-
 // 停用路徑編輯功能
 const disablePathEditing = () => {
   console.log('🔒 停用路徑編輯模式')
-
-  // 清空當前編輯路徑
-  currentEditingPath.value = ''
 
   // 清理所有編輯器
   pathHelpers.value.forEach((item) => {
