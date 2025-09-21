@@ -32,7 +32,8 @@ const LANE_PATHS_CONFIG = {
   southLane1Straight: 'M680,-300C680,200,680,1000,680,1300',
   southLane2Straight: 'M640,-300 L640,1300',
   southLane3Straight: 'M601,-300 L601,1300',
-  southLane4Straight: 'M562,-300 L562,1300',
+  southLane4Straight:
+    'M562,-300C562,-60,565.803,236.257,564.904,355.624,431.177,354.701,190.49385,358.18255,-5.871,355.421',
   northLane1Straight: 'M720,1300C720,800,720,600,720,500,720,400,720,200,720,-300',
   northLane2Straight: 'M760,1300 L760,-300',
   northLane3Straight: 'M799,1300 L799,-300',
