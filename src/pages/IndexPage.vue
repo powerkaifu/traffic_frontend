@@ -223,14 +223,15 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
+import { MotionPathHelper } from 'gsap/MotionPathHelper'
 import TrafficLightController from '../classes/TrafficLightController.js'
 import AutoTrafficGenerator from '../classes/AutoTrafficGenerator.js'
 import TrafficDataCollector from '../classes/TrafficDataCollector.js'
 import Vehicle from '../classes/Vehicle.js'
 import { createLanePathCalculator } from '../utils/lanePathCalculator.js'
 
-// 註冊 GSAP MotionPathPlugin
-gsap.registerPlugin(MotionPathPlugin)
+// 註冊 GSAP MotionPathPlugin 和 MotionPathHelper
+gsap.registerPlugin(MotionPathPlugin, MotionPathHelper)
 
 // 提升 handleScenarioChange 作用域，讓 onUnmounted 可移除
 const handleScenarioChange = (event) => {
@@ -377,15 +378,29 @@ const enablePathEditing = () => {
   // 為每個路徑啟用 MotionPathHelper
   pathIds.forEach((pathId) => {
     try {
-      const helper = MotionPathPlugin.motionPathHelper(`#${pathId}`, {
+      const pathElement = document.getElementById(pathId)
+      if (!pathElement) {
+        console.error(`❌ 找不到路徑元素: ${pathId}`)
+        return
+      }
+
+      console.log(`🔍 為路徑 ${pathId} 創建 MotionPathHelper`)
+      console.log(`路徑數據: ${pathElement.getAttribute('d')}`)
+
+      // 使用正確的 MotionPathHelper API
+      const helper = MotionPathHelper.create(pathElement, {
+        handles: true,
+        anchors: true,
         stroke: 'yellow',
-        strokeWidth: 3,
-        opacity: 0.8,
+        strokeWidth: 4,
+        opacity: 0.9,
       })
+
       pathHelpers.value.push(helper)
       console.log(`✅ ${pathId} 路徑編輯器已啟用`)
     } catch (error) {
       console.error(`❌ 無法啟用 ${pathId} 路徑編輯器:`, error)
+      console.error('Error details:', error.message)
     }
   })
 }

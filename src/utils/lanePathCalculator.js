@@ -103,9 +103,7 @@ export function createLanePathCalculator(containerElement) {
     const cp4X = midX + (endX - midX) * 0.6 // 第四個控制點
 
     return `M${startX},${eastLaneY} C${cp1X},${eastLaneY} ${cp2X},${eastLaneY} ${midX},${eastLaneY} C${cp3X},${eastLaneY} ${cp4X},${eastLaneY} ${endX},${eastLaneY}`
-  }
-
-  // ==================== 往西車道路徑 ====================
+  } // ==================== 往西車道路徑 ====================
 
   const getWestLane1Path = () => {
     if (!containerElement) {
