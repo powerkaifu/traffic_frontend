@@ -29,6 +29,7 @@
           @mouseenter="showPathTooltip($event, '東向車道1 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
+          @click="handlePathClick('東向車道1')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!-- 往東車道2 直行路徑（車輛從畫面外進入到離開畫面） -->
@@ -57,6 +58,7 @@
           @mouseenter="showPathTooltip($event, '東向車道4 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
+          @click="handlePathClick('東向車道4')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往西車道1 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
@@ -69,6 +71,7 @@
           @mouseenter="showPathTooltip($event, '西向車道1 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
+          @click="handlePathClick('西向車道1')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往西車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
@@ -97,6 +100,7 @@
           @mouseenter="showPathTooltip($event, '西向車道4 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
+          @click="handlePathClick('西向車道4')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往南車道1 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
@@ -109,6 +113,7 @@
           @mouseenter="showPathTooltip($event, '南向車道1 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
+          @click="handlePathClick('南向車道1')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往南車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
@@ -137,6 +142,7 @@
           @mouseenter="showPathTooltip($event, '南向車道4 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
+          @click="handlePathClick('南向車道4')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往北車道1 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
@@ -149,6 +155,7 @@
           @mouseenter="showPathTooltip($event, '北向車道1 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
+          @click="handlePathClick('北向車道1')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
         <!--往北車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
@@ -177,6 +184,7 @@
           @mouseenter="showPathTooltip($event, '北向車道4 (可編輯)')"
           @mouseleave="hidePathTooltip"
           @mousemove="updateTooltipPosition"
+          @click="handlePathClick('北向車道4')"
           :style="{ cursor: isPathEditMode ? 'pointer' : 'default' }"
         />
       </svg>
@@ -678,6 +686,21 @@ const updateTooltipPosition = (event) => {
   const rect = event.target.closest('svg').getBoundingClientRect()
   pathTooltip.value.x = event.clientX - rect.left
   pathTooltip.value.y = event.clientY - rect.top
+}
+
+// 點擊路徑處理函數
+const handlePathClick = (pathName) => {
+  if (!isPathEditMode.value) return
+
+  console.log(`🎯 點擊編輯路徑: ${pathName}`)
+
+  $q.notify({
+    message: `正在編輯: ${pathName}`,
+    color: 'info',
+    icon: 'edit',
+    timeout: 2000,
+    position: 'top-right',
+  })
 }
 
 // 保存暫存的編輯結果
