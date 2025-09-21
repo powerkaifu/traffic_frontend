@@ -491,141 +491,270 @@ export default class Vehicle {
     }
   }
 
-  // Template Method Pattern + Strategy Pattern: 前方碰撞檢測的模板策略方法
+  // 🚨 全新重寫：更精確的碰撞檢測系統
   checkFrontCollision(allVehicles) {
-    // Strategy Pattern: 剛創建的車輛使用跳過檢測的策略
+    // 跳過剛創建的車輛
     if (this.justCreated) {
       return null
     }
 
-    // 新增：如果車輛剛開始移動且移動時間少於2秒，放寬碰撞檢測
-    const isJustStartedMoving =
-      this.currentState === 'moving' &&
-      this.movementStartTime &&
-      Date.now() - new Date(this.movementStartTime).getTime() < 2000
-
-    // Template Method Pattern: 定義碰撞檢測的標準流程
-    const currentPos = this.getCurrentPosition()
     const currentBox = this.getBoundingBox()
+    const vehicleConfig = this.getVehicleConfig()
 
-    // 🚨 強化安全距離 - 大幅提高安全距離，防止重疊
-    const baseSafeDistance = isJustStartedMoving ? 30 : 45 // 進一步提高基礎安全距離
-    const baseStopDistance = isJustStartedMoving ? 20 : 30 // 進一步提高停止距離
+    // 🚨 基於車輛實際大小的動態安全距離
+    const vehicleLength = Math.max(vehicleConfig.width, vehicleConfig.height)
+    const minimumGap = vehicleLength * 0.8 // 最小間隙為車輛長度的80%
+    const safeFollowingDistance = vehicleLength * 1.5 // 安全跟車距離
+    const emergencyStopDistance = vehicleLength * 0.3 // 緊急停車距離
 
-    // 🚨 根據當前車輛數量動態調整安全距離
-    const vehicleCount = allVehicles.length
-    const crowdingFactor = vehicleCount > 15 ? 1.5 : vehicleCount > 10 ? 1.3 : 1.0
+    // 🚨 根據車輛狀態動態調整距離
+    let actualMinGap = minimumGap
+    let actualSafeDistance = safeFollowingDistance
+    let actualStopDistance = emergencyStopDistance
 
-    const safeDistance = baseSafeDistance * crowdingFactor
-    const stopDistance = baseStopDistance * crowdingFactor
+    // 高密度交通調整
+    const vehicleCount = allVehicles.filter((v) => v.direction === this.direction).length
+    if (vehicleCount > 8) {
+      actualMinGap *= 0.8
+      actualSafeDistance *= 0.9
+    }
 
-    // 根據車輛狀態進一步調整安全距離
-    let adjustedSafeDistance = safeDistance
-    let adjustedStopDistance = stopDistance
-
-    // 如果前方車輛在等待紅綠燈，需要更大的安全距離防止重疊
+    // 等待紅綠燈時增加距離
     if (this.currentState === 'slowing_for_light' || this.waitingForGreen) {
-      adjustedSafeDistance = safeDistance * 2.5 // 增加到2.5倍
-      adjustedStopDistance = stopDistance * 2.5 // 增加到2.5倍
+      actualMinGap *= 2.0
+      actualSafeDistance *= 2.5
+      actualStopDistance *= 1.5
     }
 
-    // 🚨 調試信息：每10個車輛記錄一次碰撞檢測信息
-    let debugCollision = false
-    if (Math.random() < 0.05 || this.id.endsWith('1')) {
-      debugCollision = true
-      console.log(
-        `🔍 [${this.id}] 碰撞檢測: 車輛數量${allVehicles.length}, 安全距離${adjustedSafeDistance.toFixed(1)}px, 停止距離${adjustedStopDistance.toFixed(1)}px`,
-      )
-    }
+    let closestVehicle = null
+    let minDistance = Infinity
 
+    // 🚨 改進的車道檢測：基於車輛中心點和車道寬度
     for (let vehicle of allVehicles) {
       if (vehicle.id === this.id || vehicle.direction !== this.direction) continue
 
-      const otherPos = vehicle.getCurrentPosition()
       const otherBox = vehicle.getBoundingBox()
 
-      // 檢查是否在同一車道（更精確的車道檢測）
-      // Strategy Pattern: 每個方向使用不同的車道檢測和距離計算策略
+      // 🚨 精確的車道檢測：使用車輛中心點
+      const currentCenter = { x: currentBox.centerX, y: currentBox.centerY }
+      const otherCenter = { x: otherBox.centerX, y: otherBox.centerY }
+
       let inSameLane = false
-      let isFront = false
-      let distanceToFrontVehicle = 0
+      let isFrontVehicle = false
+      let distance = 0
 
+      // 根據方向計算車道和距離
       if (this.direction === 'east') {
-        // 東向：檢查Y軸位置是否在同一車道，X軸是否在前方
-        inSameLane = Math.abs(currentPos.y - otherPos.y) < 15 // 🚨 縮小車道容錯範圍，更嚴格
-        isFront = otherBox.left > currentBox.right // 前車的左邊 > 本車的右邊
-        distanceToFrontVehicle = otherBox.left - currentBox.right
+        // 東向：Y軸差異小於車道寬度的一半，且其他車在前方
+        inSameLane = Math.abs(currentCenter.y - otherCenter.y) < 25 // 車道寬度約50px
+        isFrontVehicle = otherCenter.x > currentCenter.x
+        distance = isFrontVehicle ? otherBox.left - currentBox.right : currentBox.left - otherBox.right
       } else if (this.direction === 'west') {
-        // 西向：檢查Y軸位置是否在同一車道，X軸是否在前方
-        inSameLane = Math.abs(currentPos.y - otherPos.y) < 15 // 🚨 縮小車道容錯範圍
-        isFront = otherBox.right < currentBox.left // 前車的右邊 < 本車的左邊
-        distanceToFrontVehicle = currentBox.left - otherBox.right
+        inSameLane = Math.abs(currentCenter.y - otherCenter.y) < 25
+        isFrontVehicle = otherCenter.x < currentCenter.x
+        distance = isFrontVehicle ? currentBox.left - otherBox.right : otherBox.left - currentBox.right
       } else if (this.direction === 'north') {
-        // 北向：檢查X軸位置是否在同一車道，Y軸是否在前方
-        inSameLane = Math.abs(currentPos.x - otherPos.x) < 15 // 🚨 縮小車道容錯範圍
-        isFront = otherBox.bottom < currentBox.top // 前車的底部 < 本車的頂部
-        distanceToFrontVehicle = currentBox.top - otherBox.bottom
+        inSameLane = Math.abs(currentCenter.x - otherCenter.x) < 25
+        isFrontVehicle = otherCenter.y < currentCenter.y
+        distance = isFrontVehicle ? currentBox.top - otherBox.bottom : otherBox.top - currentBox.bottom
       } else if (this.direction === 'south') {
-        // 南向：檢查X軸位置是否在同一車道，Y軸是否在前方
-        inSameLane = Math.abs(currentPos.x - otherPos.x) < 15 // 🚨 縮小車道容錯範圍
-        isFront = otherBox.top > currentBox.bottom // 前車的頂部 > 本車的底部
-        distanceToFrontVehicle = otherBox.top - currentBox.bottom
+        inSameLane = Math.abs(currentCenter.x - otherCenter.x) < 25
+        isFrontVehicle = otherCenter.y > currentCenter.y
+        distance = isFrontVehicle ? otherBox.top - currentBox.bottom : currentBox.top - otherBox.bottom
       }
 
-      // 檢查是否有重疊或距離太近
-      let isOverlapping = false
-      if (this.direction === 'east' || this.direction === 'west') {
-        // 水平方向：檢查X軸重疊
-        isOverlapping = !(currentBox.right <= otherBox.left || currentBox.left >= otherBox.right) && inSameLane
-      } else {
-        // 垂直方向：檢查Y軸重疊
-        isOverlapping = !(currentBox.bottom <= otherBox.top || currentBox.top >= otherBox.bottom) && inSameLane
-      }
-
-      // 🚨 調試信息：詳細記錄碰撞檢測結果
-      if (debugCollision && (inSameLane || isOverlapping)) {
-        console.log(
-          `🔍 [${this.id}] 檢測到同方向車輛 [${vehicle.id}]: 同車道=${inSameLane}, 前方=${isFront}, 距離=${distanceToFrontVehicle.toFixed(1)}px, 重疊=${isOverlapping}`,
-        )
-      }
-
-      // 如果重疊，立即停止
-      if (isOverlapping) {
-        console.log(`🚨 [${this.id}] 檢測到重疊與車輛 [${vehicle.id}]`)
+      // 🚨 立即檢測重疊：任何負距離都是重疊
+      if (inSameLane && distance < 0) {
+        console.log(`🚨 [${this.id}] 檢測到重疊！與車輛 [${vehicle.id}] 重疊 ${Math.abs(distance).toFixed(1)}px`)
         return {
           vehicle: vehicle,
-          distance: 0,
+          distance: distance,
           shouldStop: true,
           isOverlapping: true,
+          emergencyStop: true,
         }
       }
 
-      // 如果在同一車道且在前方，且距離小於安全距離
-      if (inSameLane && isFront && distanceToFrontVehicle < adjustedSafeDistance) {
-        // 🚨 優化跟車觸發邏輯：擴大跟車範圍，更自然的跟車行為
-        const followingDistance = adjustedSafeDistance * 0.8 // 跟隨距離為安全距離的80%（原60%）
-        const shouldFollow = distanceToFrontVehicle > adjustedStopDistance // 只要不在停止區域，就可以跟車
-        const shouldStop = distanceToFrontVehicle < adjustedStopDistance
+      // 🚨 記錄同車道前方最近的車輛
+      if (inSameLane && isFrontVehicle && distance < minDistance) {
+        minDistance = distance
+        closestVehicle = vehicle
+      }
+    }
 
-        if (debugCollision) {
-          console.log(
-            `🔍 [${this.id}] 前車太近: 距離=${distanceToFrontVehicle.toFixed(1)}px, 應停止=${shouldStop}, 應跟隨=${shouldFollow}`,
-          )
-        }
+    // 如果沒有前方車輛，返回null
+    if (!closestVehicle) {
+      return null
+    }
+
+    // 🚨 基於最近車輛的距離決定行為
+    const distance = minDistance
+
+    // 調試信息
+    if (Math.random() < 0.1 || this.id.endsWith('1')) {
+      console.log(
+        `🔍 [${this.id}] 前方車輛 [${closestVehicle.id}] 距離: ${distance.toFixed(1)}px (最小:${actualMinGap.toFixed(1)}, 安全:${actualSafeDistance.toFixed(1)})`,
+      )
+    }
+
+    // 🚨 危險距離：立即緊急停車
+    if (distance < actualStopDistance) {
+      console.log(`🚨 [${this.id}] 緊急停車！距離過近: ${distance.toFixed(1)}px`)
+      return {
+        vehicle: closestVehicle,
+        distance: distance,
+        shouldStop: true,
+        isOverlapping: false,
+        emergencyStop: true,
+      }
+    }
+
+    // 🚨 最小間隙：必須停車
+    if (distance < actualMinGap) {
+      return {
+        vehicle: closestVehicle,
+        distance: distance,
+        shouldStop: true,
+        shouldFollow: false,
+        isOverlapping: false,
+      }
+    }
+
+    // 🚨 安全跟車區域：智能跟車
+    if (distance < actualSafeDistance) {
+      // 根據前車狀態決定跟車速度
+      let followingSpeed = this.calculateIntelligentFollowingSpeed(closestVehicle, distance, actualSafeDistance)
+
+      return {
+        vehicle: closestVehicle,
+        distance: distance,
+        shouldStop: false,
+        shouldFollow: true,
+        followingSpeed: followingSpeed,
+        isOverlapping: false,
+      }
+    }
+
+    // 距離足夠，正常行駛
+    return null
+  }
+
+  // 🚨 新增：智能跟車速度計算
+  calculateIntelligentFollowingSpeed(frontVehicle, distance, safeDistance) {
+    // 獲取前車速度
+    let frontSpeed = frontVehicle.currentSpeed || frontVehicle.initialSpeed
+
+    // 如果前車停止或等待，本車也停止
+    if (
+      frontVehicle.currentState === 'waiting' ||
+      frontVehicle.currentState === 'waitingForVehicle' ||
+      frontVehicle.waitingForGreen ||
+      frontSpeed === 0
+    ) {
+      return 0
+    }
+
+    // 距離比例：距離越近，速度越慢
+    const distanceRatio = Math.max(0.2, Math.min(1.0, distance / safeDistance))
+
+    // 基礎跟車速度：根據距離調整
+    let targetSpeed
+    if (distanceRatio < 0.4) {
+      // 非常接近：慢速跟車
+      targetSpeed = Math.min(frontSpeed * 0.6, this.initialSpeed * 0.4)
+    } else if (distanceRatio < 0.7) {
+      // 中等距離：正常跟車
+      targetSpeed = Math.min(frontSpeed * 0.8, this.initialSpeed * 0.7)
+    } else {
+      // 較遠距離：接近前車速度
+      targetSpeed = Math.min(frontSpeed * 0.95, this.initialSpeed * 0.9)
+    }
+
+    // 確保最低速度，保持流動性
+    return Math.max(targetSpeed, this.initialSpeed * 0.15)
+  }
+
+  // 🚨 新增：十字路口橫向碰撞檢測（防止車輛穿越）
+  checkCrossDirectionCollision(allVehicles) {
+    // 跳過剛創建的車輛
+    if (this.justCreated) {
+      return null
+    }
+
+    const currentBox = this.getBoundingBox()
+    const currentCenter = { x: currentBox.centerX, y: currentBox.centerY }
+
+    // 十字路口區域定義（基於SVG座標）
+    const intersectionBounds = {
+      left: 300, // 路口左邊界
+      right: 500, // 路口右邊界
+      top: 200, // 路口上邊界
+      bottom: 400, // 路口下邊界
+    }
+
+    // 檢查當前車輛是否在十字路口區域內
+    const isInIntersection =
+      currentCenter.x >= intersectionBounds.left &&
+      currentCenter.x <= intersectionBounds.right &&
+      currentCenter.y >= intersectionBounds.top &&
+      currentCenter.y <= intersectionBounds.bottom
+
+    // 如果當前車輛不在路口區域，不需要檢測橫向碰撞
+    if (!isInIntersection) {
+      return null
+    }
+
+    // 獲取垂直方向的車輛
+    const perpendicularDirections = this.getPerpendicularDirections()
+
+    for (let vehicle of allVehicles) {
+      if (vehicle.id === this.id) continue
+
+      // 只檢查垂直方向的車輛
+      if (!perpendicularDirections.includes(vehicle.direction)) continue
+
+      const otherBox = vehicle.getBoundingBox()
+      const otherCenter = { x: otherBox.centerX, y: otherBox.centerY }
+
+      // 檢查對方車輛是否也在十字路口區域內
+      const otherInIntersection =
+        otherCenter.x >= intersectionBounds.left &&
+        otherCenter.x <= intersectionBounds.right &&
+        otherCenter.y >= intersectionBounds.top &&
+        otherCenter.y <= intersectionBounds.bottom
+
+      if (!otherInIntersection) continue
+
+      // 計算兩車中心點的距離
+      const distance = Math.sqrt(
+        Math.pow(currentCenter.x - otherCenter.x, 2) + Math.pow(currentCenter.y - otherCenter.y, 2),
+      )
+
+      // 獲取車輛配置來計算安全距離
+      const currentConfig = this.getVehicleConfig()
+      const otherConfig = vehicle.getVehicleConfig()
+      const avgVehicleSize =
+        (Math.max(currentConfig.width, currentConfig.height) + Math.max(otherConfig.width, otherConfig.height)) / 2
+
+      // 🚨 路口安全距離：比普通跟車距離更大
+      const intersectionSafeDistance = avgVehicleSize * 2.0
+      const intersectionStopDistance = avgVehicleSize * 1.2
+
+      // 檢測碰撞威脅
+      if (distance < intersectionSafeDistance) {
+        console.log(`🚨 [${this.id}] 十字路口橫向碰撞風險！與 [${vehicle.id}] 距離: ${distance.toFixed(1)}px`)
 
         return {
           vehicle: vehicle,
-          distance: distanceToFrontVehicle,
-          shouldStop: shouldStop,
-          shouldFollow: shouldFollow && !shouldStop, // 確保不會同時停止和跟車
-          followingSpeed:
-            shouldFollow && !shouldStop
-              ? this.calculateFollowingSpeed(vehicle, distanceToFrontVehicle, followingDistance)
-              : null,
-          isOverlapping: false,
+          distance: distance,
+          shouldStop: distance < intersectionStopDistance,
+          shouldSlowDown: distance < intersectionSafeDistance,
+          isIntersectionCollision: true,
+          emergencyStop: distance < intersectionStopDistance * 0.7,
         }
       }
     }
+
     return null
   }
 
@@ -1038,71 +1167,128 @@ export default class Vehicle {
               return
             }
 
-            // 🚨 強化實時碰撞檢測 - 統一處理所有碰撞情況
+            // 🚨 持續碰撞檢測系統 - 所有檢測同時進行，根據威脅等級決定動作
             const frontCollision = this.checkFrontCollision(allVehicles)
-            let handleFrontCollision = false
+            const crossCollision = this.checkCrossDirectionCollision(allVehicles)
 
+            // 🚨 威脅等級評估系統
+            let highestThreat = null
+            let threatLevel = 0 // 0=無威脅, 1=減速, 2=停車, 3=緊急停車, 4=重疊
+
+            // 評估前方碰撞威脅
             if (frontCollision) {
-              const { vehicle: frontVehicle, shouldStop, shouldFollow, followingSpeed, isOverlapping } = frontCollision
-
-              // 🚨 重疊檢測：立即處理
-              if (isOverlapping) {
-                this.movementTimeline.timeScale(0.05) // 極慢速度，防止重疊
-                this.currentState = 'emergency_stop'
-                console.log(`🚨 [${this.id}] 檢測到重疊，緊急停止`)
-                return
+              if (frontCollision.isOverlapping) {
+                highestThreat = { type: 'front_overlap', data: frontCollision }
+                threatLevel = 4
+              } else if (frontCollision.emergencyStop) {
+                highestThreat = { type: 'front_emergency', data: frontCollision }
+                threatLevel = Math.max(threatLevel, 3)
+              } else if (frontCollision.shouldStop) {
+                highestThreat = { type: 'front_stop', data: frontCollision }
+                threatLevel = Math.max(threatLevel, 2)
+              } else if (frontCollision.shouldFollow) {
+                highestThreat = { type: 'front_follow', data: frontCollision }
+                threatLevel = Math.max(threatLevel, 1)
               }
+            }
 
-              // 🚨 停止檢測：前車太近
-              if (shouldStop) {
-                this.movementTimeline.timeScale(0)
-                this.currentState = 'waitingForVehicle'
-                console.log(`🚨 [${this.id}] 前方車輛太近，停止 - 距離: ${frontCollision.distance.toFixed(1)}px`)
-                return
+            // 評估橫向碰撞威脅
+            if (crossCollision) {
+              if (crossCollision.emergencyStop) {
+                highestThreat = { type: 'cross_emergency', data: crossCollision }
+                threatLevel = Math.max(threatLevel, 3)
+              } else if (crossCollision.shouldStop) {
+                highestThreat = { type: 'cross_stop', data: crossCollision }
+                threatLevel = Math.max(threatLevel, 2)
+              } else if (crossCollision.shouldSlowDown) {
+                if (threatLevel < 2) {
+                  // 只有在沒有更高威脅時才選擇減速
+                  highestThreat = { type: 'cross_slow', data: crossCollision }
+                  threatLevel = Math.max(threatLevel, 1)
+                }
               }
+            }
 
-              // 🚨 跟車檢測：智能跟隨
-              if (shouldFollow && followingSpeed !== null) {
-                const currentTimeScale = this.movementTimeline.timeScale()
-                const targetTimeScale = Math.max(0.15, followingSpeed / this.initialSpeed)
+            // 🚨 根據最高威脅等級執行動作
+            if (highestThreat) {
+              const { type, data } = highestThreat
 
-                // 平滑速度調整
-                const speedDifference = Math.abs(currentTimeScale - targetTimeScale)
-                if (speedDifference > 0.05) {
+              switch (type) {
+                case 'front_overlap':
+                  this.movementTimeline.timeScale(0.01) // 幾乎停止，防止重疊
+                  this.currentState = 'emergency_stop'
+                  console.log(`🚨 [${this.id}] 前方重疊！與 [${data.vehicle.id}] 緊急停止`)
+                  return
+
+                case 'front_emergency':
+                case 'cross_emergency': {
+                  this.movementTimeline.timeScale(0)
+                  this.currentState = type.includes('front') ? 'emergency_stop' : 'emergency_intersection_stop'
+                  const emergencyTarget = data.vehicle.id
+                  const emergencyDistance = data.distance.toFixed(1)
+                  console.log(`🚨 [${this.id}] 緊急停車！威脅來自 [${emergencyTarget}] 距離: ${emergencyDistance}px`)
+                  return
+                }
+
+                case 'front_stop':
+                  this.movementTimeline.timeScale(0)
+                  this.currentState = 'waitingForVehicle'
+                  console.log(`🛑 [${this.id}] 前方車輛太近，停止 - 距離: ${data.distance.toFixed(1)}px`)
+                  return
+
+                case 'cross_stop':
+                  this.movementTimeline.timeScale(0)
+                  this.currentState = 'intersection_waiting'
+                  console.log(
+                    `� [${this.id}] 十字路口停車等待！與 [${data.vehicle.id}] 距離: ${data.distance.toFixed(1)}px`,
+                  )
+                  return
+
+                case 'front_follow': {
+                  const currentTimeScale = this.movementTimeline.timeScale()
+                  const targetTimeScale = Math.max(0.15, data.followingSpeed / this.initialSpeed)
+
+                  // 平滑速度調整
+                  const speedDifference = Math.abs(currentTimeScale - targetTimeScale)
+                  if (speedDifference > 0.05) {
+                    gsap.to(this.movementTimeline, {
+                      timeScale: targetTimeScale,
+                      duration: 0.3,
+                      ease: 'power2.out',
+                    })
+                    this.currentState = 'following'
+                    console.log(
+                      `� [${this.id}] 智能跟車: ${currentTimeScale.toFixed(2)} → ${targetTimeScale.toFixed(2)}`,
+                    )
+                  }
+                  return
+                }
+
+                case 'cross_slow': {
+                  const targetSlowScale = 0.3
                   gsap.to(this.movementTimeline, {
-                    timeScale: targetTimeScale,
-                    duration: 0.3,
+                    timeScale: targetSlowScale,
+                    duration: 0.2,
                     ease: 'power2.out',
                   })
-                  this.currentState = 'following'
+                  this.currentState = 'intersection_slowing'
                   console.log(
-                    `🚗 [${this.id}] 智能跟車: ${currentTimeScale.toFixed(2)} → ${targetTimeScale.toFixed(2)}`,
+                    `⚠️ [${this.id}] 十字路口減速！與 [${data.vehicle.id}] 距離: ${data.distance.toFixed(1)}px`,
                   )
+                  return
                 }
-                handleFrontCollision = true
-                return
               }
+            }
 
-              // 處理前車等待狀態
-              if (
-                frontVehicle.currentState === 'waiting' ||
-                frontVehicle.currentState === 'waitingForVehicle' ||
-                frontVehicle.waitingForGreen
-              ) {
-                if (this.currentState === 'moving' || this.currentState === 'slowing_for_light') {
-                  this.stopMovement()
-                  this.currentState = 'waitingForVehicle'
-                }
-                return
-              }
-
-              handleFrontCollision = true
-            } else {
-              // 🚨 無碰撞風險：平滑恢復正常速度
+            // 🚨 無碰撞風險：平滑恢復正常速度
+            if (!highestThreat) {
               const currentTimeScale = this.movementTimeline.timeScale()
               if (
                 currentTimeScale < 1 &&
-                (this.currentState === 'following' || this.currentState === 'emergency_stop')
+                (this.currentState === 'following' ||
+                  this.currentState === 'emergency_stop' ||
+                  this.currentState === 'intersection_slowing' ||
+                  this.currentState === 'intersection_waiting')
               ) {
                 gsap.to(this.movementTimeline, {
                   timeScale: 1,
@@ -1114,8 +1300,8 @@ export default class Vehicle {
               }
             }
 
-            // 紅燈減速檢查（如果沒有前車碰撞的情況下）
-            if (!handleFrontCollision) {
+            // 紅燈減速檢查（如果沒有碰撞威脅的情況下）
+            if (!highestThreat) {
               const slowDownInfo = this.checkTrafficLightSlowDown(trafficController)
               if (slowDownInfo) {
                 if (slowDownInfo.action === 'slow_for_light') {
@@ -1167,7 +1353,7 @@ export default class Vehicle {
             }
 
             // 紅燈減速檢查（與原方法相同的邏輯）
-            if (!handleFrontCollision) {
+            if (!highestThreat) {
               const slowDownInfo = this.checkTrafficLightSlowDown(trafficController)
               if (slowDownInfo) {
                 if (slowDownInfo.action === 'slow_for_light') {
@@ -1491,47 +1677,102 @@ export default class Vehicle {
               return
             }
 
-            // 先處理前方車輛碰撞檢測，這是最高優先級
+            // 🚨 持續碰撞檢測系統 - 所有檢測同時進行，根據威脅等級決定動作
             const frontCollision = this.checkFrontCollision(allVehicles)
-            let handleFrontCollision = false
+            const crossCollision = this.checkCrossDirectionCollision(allVehicles)
+            
+            // 🚨 威脅等級評估系統
+            let highestThreat = null
+            let threatLevel = 0 // 0=無威脅, 1=減速, 2=停車, 3=緊急停車, 4=重疊
 
+            // 評估前方碰撞威脅
             if (frontCollision) {
-              const { vehicle: frontVehicle, shouldStop, shouldFollow, followingSpeed, isOverlapping } = frontCollision
-
-              // 如果有重疊，立即停車
-              if (isOverlapping) {
-                if (this.currentState === 'moving' || this.currentState === 'slowing_for_light') {
-                  this.stopMovement()
-                  this.currentState = 'waitingForVehicle'
-                }
-                return
+              if (frontCollision.isOverlapping) {
+                highestThreat = { type: 'front_overlap', data: frontCollision }
+                threatLevel = 4
+              } else if (frontCollision.emergencyStop) {
+                highestThreat = { type: 'front_emergency', data: frontCollision }
+                threatLevel = Math.max(threatLevel, 3)
+              } else if (frontCollision.shouldStop) {
+                highestThreat = { type: 'front_stop', data: frontCollision }
+                threatLevel = Math.max(threatLevel, 2)
+              } else if (frontCollision.shouldFollow) {
+                highestThreat = { type: 'front_follow', data: frontCollision }
+                threatLevel = Math.max(threatLevel, 1)
               }
-
-              // 如果應該跟隨，進入跟隨模式
-              if (shouldFollow && followingSpeed !== null) {
-                this.enterFollowingMode(followingSpeed)
-                handleFrontCollision = true
-                return
-              }
-
-              // 如果前方車輛停止或距離太近，則停車
-              if (
-                frontVehicle.currentState === 'waiting' ||
-                frontVehicle.currentState === 'waitingForVehicle' ||
-                shouldStop
-              ) {
-                if (this.currentState === 'moving' || this.currentState === 'slowing_for_light') {
-                  this.stopMovement()
-                  this.currentState = 'waitingForVehicle'
-                }
-                return
-              }
-
-              handleFrontCollision = true
             }
 
-            // 如果已處理前車碰撞，則無需處理紅燈減速
-            if (!handleFrontCollision) {
+            // 評估橫向碰撞威脅
+            if (crossCollision) {
+              if (crossCollision.emergencyStop) {
+                highestThreat = { type: 'cross_emergency', data: crossCollision }
+                threatLevel = Math.max(threatLevel, 3)
+              } else if (crossCollision.shouldStop) {
+                highestThreat = { type: 'cross_stop', data: crossCollision }
+                threatLevel = Math.max(threatLevel, 2)
+              } else if (crossCollision.shouldSlowDown) {
+                if (threatLevel < 2) { // 只有在沒有更高威脅時才選擇減速
+                  highestThreat = { type: 'cross_slow', data: crossCollision }
+                  threatLevel = Math.max(threatLevel, 1)
+                }
+              }
+            }
+
+            // 🚨 根據最高威脅等級執行動作
+            if (highestThreat) {
+              const { type, data } = highestThreat
+
+              switch (type) {
+                case 'front_overlap':
+                  this.stopMovement()
+                  this.currentState = 'waitingForVehicle'
+                  console.log(`🚨 [${this.id}] 前方重疊！緊急停止`)
+                  return
+
+                case 'front_emergency':
+                case 'cross_emergency': {
+                  this.stopMovement()
+                  this.currentState = type.includes('front') ? 'emergency_stop' : 'emergency_intersection_stop'
+                  const emergencyTarget = data.vehicle.id
+                  const emergencyDistance = data.distance.toFixed(1)
+                  console.log(`🚨 [${this.id}] 緊急停車！威脅來自 [${emergencyTarget}] 距離: ${emergencyDistance}px`)
+                  return
+                }
+
+                case 'front_stop':
+                  this.stopMovement()
+                  this.currentState = 'waitingForVehicle'
+                  console.log(`🛑 [${this.id}] 前方車輛太近，停止 - 距離: ${data.distance.toFixed(1)}px`)
+                  return
+
+                case 'cross_stop':
+                  this.stopMovement()
+                  this.currentState = 'intersection_waiting'
+                  console.log(`🛑 [${this.id}] 十字路口停車等待！與 [${data.vehicle.id}] 距離: ${data.distance.toFixed(1)}px`)
+                  return
+
+                case 'front_follow': {
+                  this.enterFollowingMode(data.followingSpeed)
+                  console.log(`🚗 [${this.id}] 智能跟車模式`)
+                  return
+                }
+
+                case 'cross_slow': {
+                  const targetSlowScale = 0.3
+                  gsap.to(this.movementTimeline, {
+                    timeScale: targetSlowScale,
+                    duration: 0.2,
+                    ease: 'power2.out',
+                  })
+                  this.currentState = 'intersection_slowing'
+                  console.log(`⚠️ [${this.id}] 十字路口減速！與 [${data.vehicle.id}] 距離: ${data.distance.toFixed(1)}px`)
+                  return
+                }
+              }
+            }
+
+            // 如果沒有碰撞威脅，則處理紅燈減速
+            if (!highestThreat) {
               // 處理紅燈減速
               const slowDownInfo = this.checkTrafficLightSlowDown(trafficController)
               if (slowDownInfo) {
