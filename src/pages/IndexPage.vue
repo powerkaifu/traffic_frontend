@@ -436,10 +436,10 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => 
         console.log(`🚗 [${vehicle.id}] 動畫完成，最終清理`)
       }
 
-      // 背景執行淡出和移除，不阻塞後續車輛生成
-      setTimeout(async () => {
+      // 🚨 直接移除車輛，不執行淡出動畫
+      setTimeout(() => {
         try {
-          await vehicle.fadeOut(1.5)
+          // 直接移除 DOM 元素，不執行淡出
           vehicle.remove()
           window.dispatchEvent(
             new CustomEvent('vehicleRemoved', {
@@ -452,8 +452,9 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => 
               },
             }),
           )
+          console.log(`🚗 [${vehicle.id}] DOM 元素已直接移除`)
         } catch (error) {
-          console.warn(`⚠️ 車輛淡出清理失敗:`, error)
+          console.warn(`⚠️ 車輛直接移除失敗:`, error)
         }
       }, 0)
     } catch (error) {

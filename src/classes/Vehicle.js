@@ -204,24 +204,29 @@ export default class Vehicle {
   getVehicleConfig() {
     // Factory Pattern: 基於車輛類型和方向創建配置
     // Strategy Pattern: 每種車輛類型和方向組合都有不同的策略
+
+    // 🚨 針對 MotionPath 動畫優化：使用統一朝向的圖片，讓 autoRotate 處理旋轉
     const vehicleConfigs = {
       large: {
+        // MotionPath 模式：所有方向都使用向右的圖片，由 autoRotate 處理旋轉
         east: { width: 35, height: 20, image: '/images/car/lCar_right.png' },
-        west: { width: 35, height: 20, image: '/images/car/lCar_left.png' },
-        north: { width: 20, height: 35, image: '/images/car/lCar_top.png' },
-        south: { width: 20, height: 35, image: '/images/car/lCar_down.png' },
+        west: { width: 35, height: 20, image: '/images/car/lCar_right.png' },
+        north: { width: 35, height: 20, image: '/images/car/lCar_right.png' },
+        south: { width: 35, height: 20, image: '/images/car/lCar_right.png' },
       },
       small: {
+        // MotionPath 模式：所有方向都使用向右的圖片，由 autoRotate 處理旋轉
         east: { width: 30, height: 18, image: '/images/car/sCar_right.png' },
-        west: { width: 30, height: 18, image: '/images/car/sCar_left.png' },
-        north: { width: 18, height: 30, image: '/images/car/sCar_top.png' },
-        south: { width: 18, height: 30, image: '/images/car/sCar_down.png' },
+        west: { width: 30, height: 18, image: '/images/car/sCar_right.png' },
+        north: { width: 30, height: 18, image: '/images/car/sCar_right.png' },
+        south: { width: 30, height: 18, image: '/images/car/sCar_right.png' },
       },
       motor: {
+        // MotionPath 模式：所有方向都使用向右的圖片，由 autoRotate 處理旋轉
         east: { width: 25, height: 15, image: '/images/car/mCar_right.png' },
-        west: { width: 25, height: 15, image: '/images/car/mCar_left.png' },
-        north: { width: 15, height: 25, image: '/images/car/mCar_top.png' },
-        south: { width: 15, height: 25, image: '/images/car/mCar_down.png' },
+        west: { width: 25, height: 15, image: '/images/car/mCar_right.png' },
+        north: { width: 25, height: 15, image: '/images/car/mCar_right.png' },
+        south: { width: 25, height: 15, image: '/images/car/mCar_right.png' },
       },
     }
     return vehicleConfigs[this.vehicleType]?.[this.direction] || vehicleConfigs.large[this.direction]
@@ -776,6 +781,24 @@ export default class Vehicle {
     this.checkLayoutChange()
   }
 
+  // Helper Method: 根據方向獲取結束位置的輔助方法
+  getDirectionEndPosition() {
+    const currentPos = this.getCurrentPosition()
+
+    switch (this.direction) {
+      case 'east':
+        return { x: 1400, y: currentPos.y }
+      case 'west':
+        return { x: 0, y: currentPos.y }
+      case 'north':
+        return { x: currentPos.x, y: 0 }
+      case 'south':
+        return { x: currentPos.x, y: 1000 }
+      default:
+        return { x: 1400, y: currentPos.y }
+    }
+  }
+
   // Helper Method: 獲取車輛對應的路徑ID
   getPathId() {
     // 將車輛的方向和車道號轉換為對應的路徑ID
@@ -817,24 +840,18 @@ export default class Vehicle {
   moveAlongPath(trafficController, allVehicles = [], onVehicleOutOfBounds = null) {
     // Command Pattern: 將複雜的路徑移動邏輯封裝為可執行的命令
     return new Promise((resolve) => {
-      // 只處理往東的路徑
-      if (this.direction !== 'east') {
-        console.log(`🚗 [${this.id}] 非東向車輛，使用舊的移動方式`)
-        // 暫時使用舊方法
-        const endPosition = { x: 1400, y: this.getCurrentPosition().y }
-        this.moveToWithTrafficControl(endPosition.x, endPosition.y, 10, trafficController, allVehicles).then(resolve)
-        return
-      }
+      // 🚨 新增：支援所有四個方向的 MotionPath 動畫
+      console.log(`🚗 [${this.id}] ${this.direction}向車輛開始 MotionPath 動畫 - 車道: ${this.laneNumber}`)
 
       // 獲取 SVG 路徑元素
       const pathElement = document.querySelector(`#${this.getSvgPathId()}`)
       if (!pathElement) {
         console.error(`❌ 找不到 SVG 路徑元素: #${this.getSvgPathId()}`)
-        resolve()
+        // 回退到舊的移動方式
+        const endPosition = this.getDirectionEndPosition()
+        this.moveToWithTrafficControl(endPosition.x, endPosition.y, 10, trafficController, allVehicles).then(resolve)
         return
       }
-
-      console.log(`🚗 [${this.id}] 東向車輛開始 MotionPath 動畫 - 車道: ${this.laneNumber}`)
 
       // 記錄移動開始時間和初始化數據
       this.movementStartTime = new Date().toISOString()
@@ -844,16 +861,26 @@ export default class Vehicle {
       let lastPosition = this.getCurrentPosition()
       let lastTime = Date.now()
 
-      // 計算動畫持續時間
+      // 計算動畫持續時間 - 🚨 根據實際路徑長度計算
       let animationDuration = this.calculateAnimationDuration()
       if (this.initialSpeed) {
-        const pathLength = pathElement.getTotalLength()
-        const realDistance = (pathLength / 100) * 15 // 轉換為實際距離（米）
-        const speedMs = (this.initialSpeed * 1000) / 3600 // 轉換為 m/s
-        let theoreticalTime = realDistance / speedMs
-        const timeMultiplier = 2 // 調整時間倍數
-        theoreticalTime *= timeMultiplier
-        animationDuration = Math.max(7, Math.min(60, theoreticalTime))
+        try {
+          // 🚨 使用實際路徑長度計算動畫時間
+          const pathLength = pathElement.getTotalLength()
+          const realDistance = (pathLength / 100) * 15 // 轉換為實際距離（米）
+          const speedMs = (this.initialSpeed * 1000) / 3600 // 轉換為 m/s
+          let theoreticalTime = realDistance / speedMs
+          const timeMultiplier = 2 // 調整時間倍數
+          theoreticalTime *= timeMultiplier
+          animationDuration = Math.max(7, Math.min(60, theoreticalTime))
+
+          console.log(
+            `🚗 [${this.id}] ${this.direction}向路徑長度: ${pathLength.toFixed(1)}px, 動畫時間: ${animationDuration.toFixed(1)}s`,
+          )
+        } catch (error) {
+          console.warn(`⚠️ 無法計算路徑長度，使用預設動畫時間:`, error)
+          animationDuration = this.calculateAnimationDuration()
+        }
       }
 
       // Strategy Pattern: 使用延遲策略避免剛生成就被碰撞檢測影響
