@@ -6,18 +6,18 @@
       <svg
         viewBox="0 0 1400 1000"
         preserveAspectRatio="xMidYMid meet"
-        style="
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          width: 100%;
-          height: 100%;
-          pointer-events: none;
-          z-index: 10;
-          background-color: rgba(0, 100, 200, 0.1);
-          border: 2px dashed rgba(255, 255, 0, 0.3);
-        "
+        :style="{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '100%',
+          height: '100%',
+          'pointer-events': isPathEditMode ? 'auto' : 'none',
+          'z-index': 10,
+          'background-color': 'rgba(0, 100, 200, 0.1)',
+          border: '2px dashed rgba(255, 255, 0, 0.3)',
+        }"
       >
         <!-- 往東車道1 直行路徑（車輛從畫面外進入到離開畫面） -->
         <path
@@ -200,6 +200,17 @@
           </div>
         </div>
       </div>
+
+      <!-- 路徑編輯控制按鈕 -->
+      <div class="path-edit-control">
+        <button @click="togglePathEditMode" :class="['edit-btn', { active: isPathEditMode }]" title="切換路徑編輯模式">
+          {{ isPathEditMode ? '🔒 停用編輯' : '✏️ 編輯路徑' }}
+        </button>
+        <button v-if="isPathEditMode" @click="exportPathData" class="export-btn" title="導出編輯後的路徑資料">
+          📋 導出路徑
+        </button>
+        <div v-if="isPathEditMode" class="edit-instructions">拖曳路徑上的控制點來編輯車道路徑</div>
+      </div>
     </div>
     <!-- lumo 小機器人助手 -->
     <div class="robot-assistant">
@@ -210,11 +221,16 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
+import { gsap } from 'gsap'
+import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import TrafficLightController from '../classes/TrafficLightController.js'
 import AutoTrafficGenerator from '../classes/AutoTrafficGenerator.js'
 import TrafficDataCollector from '../classes/TrafficDataCollector.js'
 import Vehicle from '../classes/Vehicle.js'
 import { createLanePathCalculator } from '../utils/lanePathCalculator.js'
+
+// 註冊 GSAP MotionPathPlugin
+gsap.registerPlugin(MotionPathPlugin)
 
 // 提升 handleScenarioChange 作用域，讓 onUnmounted 可移除
 const handleScenarioChange = (event) => {
@@ -318,6 +334,123 @@ const aiPrediction = ref({
   eastWest: 0,
   northSouth: 0,
 })
+
+// MotionPathHelper 控制
+const isPathEditMode = ref(false)
+const pathHelpers = ref([])
+
+// 啟用/停用路徑編輯模式
+const togglePathEditMode = () => {
+  isPathEditMode.value = !isPathEditMode.value
+
+  if (isPathEditMode.value) {
+    enablePathEditing()
+  } else {
+    disablePathEditing()
+  }
+}
+
+// 啟用路徑編輯功能
+const enablePathEditing = () => {
+  console.log('🎯 啟用路徑編輯模式')
+
+  // 所有車道路徑的 ID
+  const pathIds = [
+    'eastLane1Straight',
+    'eastLane2Straight',
+    'eastLane3Straight',
+    'eastLane4Straight',
+    'westLane1Straight',
+    'westLane2Straight',
+    'westLane3Straight',
+    'westLane4Straight',
+    'southLane1Straight',
+    'southLane2Straight',
+    'southLane3Straight',
+    'southLane4Straight',
+    'northLane1Straight',
+    'northLane2Straight',
+    'northLane3Straight',
+    'northLane4Straight',
+  ]
+
+  // 為每個路徑啟用 MotionPathHelper
+  pathIds.forEach((pathId) => {
+    try {
+      const helper = MotionPathPlugin.motionPathHelper(`#${pathId}`, {
+        stroke: 'yellow',
+        strokeWidth: 3,
+        opacity: 0.8,
+      })
+      pathHelpers.value.push(helper)
+      console.log(`✅ ${pathId} 路徑編輯器已啟用`)
+    } catch (error) {
+      console.error(`❌ 無法啟用 ${pathId} 路徑編輯器:`, error)
+    }
+  })
+}
+
+// 停用路徑編輯功能
+const disablePathEditing = () => {
+  console.log('🔒 停用路徑編輯模式')
+
+  // 清理所有 MotionPathHelper
+  pathHelpers.value.forEach((helper) => {
+    if (helper && helper.kill) {
+      helper.kill()
+    }
+  })
+  pathHelpers.value = []
+}
+
+// 導出所有路徑資料（編輯後）
+const exportPathData = () => {
+  console.log('📋 導出路徑資料:')
+
+  const pathIds = [
+    'eastLane1Straight',
+    'eastLane2Straight',
+    'eastLane3Straight',
+    'eastLane4Straight',
+    'westLane1Straight',
+    'westLane2Straight',
+    'westLane3Straight',
+    'westLane4Straight',
+    'southLane1Straight',
+    'southLane2Straight',
+    'southLane3Straight',
+    'southLane4Straight',
+    'northLane1Straight',
+    'northLane2Straight',
+    'northLane3Straight',
+    'northLane4Straight',
+  ]
+
+  const pathData = {}
+
+  pathIds.forEach((pathId) => {
+    const pathElement = document.getElementById(pathId)
+    if (pathElement) {
+      const pathValue = pathElement.getAttribute('d')
+      pathData[pathId] = pathValue
+      console.log(`${pathId}: ${pathValue}`)
+    }
+  })
+
+  // 將資料複製到剪貼板
+  const jsonData = JSON.stringify(pathData, null, 2)
+  navigator.clipboard
+    .writeText(jsonData)
+    .then(() => {
+      console.log('✅ 路徑資料已複製到剪貼板')
+      alert('路徑資料已複製到剪貼板！')
+    })
+    .catch((err) => {
+      console.error('❌ 複製失敗:', err)
+    })
+
+  return pathData
+}
 
 // 路徑計算函數（會在 onMounted 後被初始化）
 // 提供預設值以防在初始化前被呼叫
@@ -506,6 +639,9 @@ onMounted(() => {
 
 // 組件卸載時清理資源
 onUnmounted(() => {
+  // 清理 MotionPathHelper
+  disablePathEditing()
+
   // 停止交通數據收集器
   if (trafficDataCollector) {
     console.log('📊 停止交通數據收集器...')
@@ -825,5 +961,77 @@ onUnmounted(() => {
   z-index: 9999;
   box-shadow: 0 0 8px 2px rgba(255, 0, 0, 0.5);
   pointer-events: none;
+}
+
+/* 路徑編輯控制按鈕樣式 ---------------------------------------- */
+.path-edit-control {
+  position: absolute;
+  bottom: 5%;
+  left: 5%;
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.edit-btn,
+.export-btn {
+  padding: 12px 20px;
+  border: 2px solid rgb(63, 117, 205);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(35, 80, 150, 0.9), rgba(35, 30, 100, 0.9));
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 15px rgba(30, 30, 100, 0.6);
+}
+
+.export-btn {
+  background: linear-gradient(135deg, rgba(34, 139, 34, 0.9), rgba(0, 100, 0, 0.9));
+  border-color: rgb(34, 139, 34);
+}
+
+.edit-btn:hover,
+.export-btn:hover {
+  background: linear-gradient(135deg, rgba(45, 90, 160, 0.9), rgba(45, 40, 110, 0.9));
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(30, 30, 100, 0.8);
+}
+
+.export-btn:hover {
+  background: linear-gradient(135deg, rgba(44, 149, 44, 0.9), rgba(10, 110, 10, 0.9));
+}
+
+.edit-btn.active {
+  background: linear-gradient(135deg, rgba(255, 165, 0, 0.9), rgba(255, 140, 0, 0.9));
+  border-color: rgb(255, 165, 0);
+  color: white;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 15px rgba(255, 165, 0, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(255, 165, 0, 0.8);
+  }
+  100% {
+    box-shadow: 0 0 15px rgba(255, 165, 0, 0.6);
+  }
+}
+
+.edit-instructions {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #ffff99;
+  font-size: 12px;
+  border-radius: 6px;
+  text-align: center;
+  max-width: 200px;
 }
 </style>
