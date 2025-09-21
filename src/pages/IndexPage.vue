@@ -19,12 +19,12 @@
           border: '2px dashed rgba(255, 255, 0, 0.3)',
         }"
       >
-        <!-- 往東車道1 直行路徑（車輛從畫面外進入到離開畫面） -->
+        <!-- 往東車道1 直行路徑（車輛從畫面外進入到離開畫面） - 可編輯 -->
         <path
           id="eastLane1Straight"
           :d="getEastLane1Path()"
-          stroke="rgba(255, 100, 100, 0.6)"
-          stroke-width="2"
+          :stroke="isPathEditMode ? 'rgba(255, 200, 100, 0.9)' : 'rgba(255, 100, 100, 0.6)'"
+          :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
         />
         <!-- 往東車道2 直行路徑（車輛從畫面外進入到離開畫面） -->
@@ -43,20 +43,20 @@
           stroke-width="2"
           fill="none"
         />
-        <!-- 往東車道4 直行路徑（車輛從畫面外進入到離開畫面） -->
+        <!-- 往東車道4 直行路徑（車輛從畫面外進入到離開畫面） - 可編輯 -->
         <path
           id="eastLane4Straight"
           :d="getEastLane4Path()"
-          stroke="rgba(255, 160, 160, 0.6)"
-          stroke-width="2"
+          :stroke="isPathEditMode ? 'rgba(255, 200, 100, 0.9)' : 'rgba(255, 160, 160, 0.6)'"
+          :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
         />
-        <!--往西車道1 直行路徑（車輛從畫面外進入到離開畫面）-->
+        <!--往西車道1 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
         <path
           id="westLane1Straight"
           :d="getWestLane1Path()"
-          stroke="rgba(100, 150, 255, 0.6)"
-          stroke-width="2"
+          :stroke="isPathEditMode ? 'rgba(100, 200, 255, 0.9)' : 'rgba(100, 150, 255, 0.6)'"
+          :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
         />
         <!--往西車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
@@ -75,20 +75,20 @@
           stroke-width="2"
           fill="none"
         />
-        <!--往西車道4 直行路徑（車輛從畫面外進入到離開畫面）-->
+        <!--往西車道4 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
         <path
           id="westLane4Straight"
           :d="getWestLane4Path()"
-          stroke="rgba(160, 210, 255, 0.6)"
-          stroke-width="2"
+          :stroke="isPathEditMode ? 'rgba(100, 200, 255, 0.9)' : 'rgba(160, 210, 255, 0.6)'"
+          :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
         />
-        <!--往南車道1 直行路徑（車輛從畫面外進入到離開畫面）-->
+        <!--往南車道1 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
         <path
           id="southLane1Straight"
           :d="getSouthLane1Path()"
-          stroke="rgba(100, 255, 150, 0.6)"
-          stroke-width="2"
+          :stroke="isPathEditMode ? 'rgba(100, 255, 200, 0.9)' : 'rgba(100, 255, 150, 0.6)'"
+          :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
         />
         <!--往南車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
@@ -107,20 +107,20 @@
           stroke-width="2"
           fill="none"
         />
-        <!--往南車道4 直行路徑（車輛從畫面外進入到離開畫面）-->
+        <!--往南車道4 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
         <path
           id="southLane4Straight"
           :d="getSouthLane4Path()"
-          stroke="rgba(160, 255, 210, 0.6)"
-          stroke-width="2"
+          :stroke="isPathEditMode ? 'rgba(100, 255, 200, 0.9)' : 'rgba(160, 255, 210, 0.6)'"
+          :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
         />
-        <!--往北車道1 直行路徑（車輛從畫面外進入到離開畫面）-->
+        <!--往北車道1 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
         <path
           id="northLane1Straight"
           :d="getNorthLane1Path()"
-          stroke="rgba(200, 100, 255, 0.6)"
-          stroke-width="2"
+          :stroke="isPathEditMode ? 'rgba(255, 100, 255, 0.9)' : 'rgba(200, 100, 255, 0.6)'"
+          :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
         />
         <!--往北車道2 直行路徑（車輛從畫面外進入到離開畫面）-->
@@ -139,12 +139,12 @@
           stroke-width="2"
           fill="none"
         />
-        <!--往北車道4 直行路徑（車輛從畫面外進入到離開畫面）-->
+        <!--往北車道4 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
         <path
           id="northLane4Straight"
           :d="getNorthLane4Path()"
-          stroke="rgba(255, 160, 255, 0.6)"
-          stroke-width="2"
+          :stroke="isPathEditMode ? 'rgba(255, 100, 255, 0.9)' : 'rgba(255, 160, 255, 0.6)'"
+          :stroke-width="isPathEditMode ? '3' : '2'"
           fill="none"
         />
       </svg>
@@ -209,7 +209,7 @@
         <button v-if="isPathEditMode" @click="exportPathData" class="export-btn" title="導出編輯後的路徑資料">
           📋 導出路徑
         </button>
-        <div v-if="isPathEditMode" class="edit-instructions">拖曳路徑上的控制點來編輯車道路徑</div>
+        <div v-if="isPathEditMode" class="edit-instructions">只能編輯每個方向的車道1和車道4（高亮顯示的路徑）</div>
       </div>
     </div>
     <!-- lumo 小機器人助手 -->
@@ -355,28 +355,20 @@ const togglePathEditMode = () => {
 const enablePathEditing = () => {
   console.log('🎯 啟用路徑編輯模式')
 
-  // 所有車道路徑的 ID
-  const pathIds = [
-    'eastLane1Straight',
-    'eastLane2Straight',
-    'eastLane3Straight',
-    'eastLane4Straight',
-    'westLane1Straight',
-    'westLane2Straight',
-    'westLane3Straight',
-    'westLane4Straight',
-    'southLane1Straight',
-    'southLane2Straight',
-    'southLane3Straight',
-    'southLane4Straight',
-    'northLane1Straight',
-    'northLane2Straight',
-    'northLane3Straight',
-    'northLane4Straight',
+  // 只允許編輯每個方向的車道 1 和車道 4
+  const editablePathIds = [
+    'eastLane1Straight', // 東向車道1 - 可編輯
+    'eastLane4Straight', // 東向車道4 - 可編輯
+    'westLane1Straight', // 西向車道1 - 可編輯
+    'westLane4Straight', // 西向車道4 - 可編輯
+    'southLane1Straight', // 南向車道1 - 可編輯
+    'southLane4Straight', // 南向車道4 - 可編輯
+    'northLane1Straight', // 北向車道1 - 可編輯
+    'northLane4Straight', // 北向車道4 - 可編輯
   ]
 
-  // 為每個路徑啟用 MotionPathHelper
-  pathIds.forEach((pathId) => {
+  // 為每個可編輯路徑啟用 MotionPathHelper
+  editablePathIds.forEach((pathId) => {
     try {
       const pathElement = document.getElementById(pathId)
       if (!pathElement) {
