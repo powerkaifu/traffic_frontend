@@ -927,33 +927,43 @@ export default class Vehicle {
   resumeMovement(allVehicles = []) {
     // State Pattern: 管理車輛從等待狀態轉換為移動狀態
     if (this.movementTimeline && (this.currentState === 'waiting' || this.currentState === 'waitingForVehicle')) {
-      // 再次檢查前方是否還有車輛
+      // 🚨 改善：更嚴格的前方檢查，增加檢查範圍
       const frontCollision = this.checkFrontCollision(allVehicles)
 
       if (!frontCollision) {
         // 沒有前車，直接恢復正常移動
         this.movementTimeline.resume()
         this.currentState = 'moving'
+        console.log(`🚗 [${this.id}] 前方無車輛，恢復移動`)
         return
       }
 
-      // 如果有前車但沒有重疊
+      // 🚨 改善：更寬鬆的恢復條件，但確保安全距離
       if (!frontCollision.isOverlapping) {
-        if (frontCollision.shouldFollow && frontCollision.followingSpeed !== null) {
-          // 進入跟隨模式
-          this.movementTimeline.resume()
-          this.enterFollowingMode(frontCollision.followingSpeed)
-          return
-        } else if (!frontCollision.shouldStop) {
-          // 如果前車正在減速或等待，確保增加足夠的安全距離
-          if (frontCollision.vehicle.currentState === 'slowing_for_light' || frontCollision.vehicle.waitingForGreen) {
-            if (frontCollision.distance < 20) {
-              return
-            }
+        // 根據前車狀態動態調整安全距離
+        let requiredDistance = 20 // 基礎安全距離
+        
+        if (frontCollision.vehicle.currentState === 'slowing_for_light' || frontCollision.vehicle.waitingForGreen) {
+          requiredDistance = 25 // 前車等紅燈時需要更大距離
+        } else if (frontCollision.vehicle.currentState === 'following') {
+          requiredDistance = 15 // 前車跟隨時可以稍微近些
+        }
+
+        if (frontCollision.distance >= requiredDistance) {
+          if (frontCollision.shouldFollow && frontCollision.followingSpeed !== null) {
+            // 進入跟隨模式
+            this.movementTimeline.resume()
+            this.enterFollowingMode(frontCollision.followingSpeed)
+            console.log(`🚗 [${this.id}] 進入跟隨模式，距離: ${frontCollision.distance.toFixed(1)}px`)
+            return
+          } else {
+            // 距離足夠，可以正常移動
+            this.movementTimeline.resume()
+            this.currentState = 'moving'
+            console.log(`🚗 [${this.id}] 安全距離足夠，恢復移動，距離: ${frontCollision.distance.toFixed(1)}px`)
           }
-          // 距離足夠，可以正常移動
-          this.movementTimeline.resume()
-          this.currentState = 'moving'
+        } else {
+          console.log(`🚗 [${this.id}] 安全距離不足，繼續等待，距離: ${frontCollision.distance.toFixed(1)}px，需要: ${requiredDistance}px`)
         }
       }
     }
@@ -1168,10 +1178,11 @@ export default class Vehicle {
             }
           }
 
-          // 等待前車檢查邏輯（與原方法相同）
+          // 🚨 改善：等待前車檢查邏輯 - 更頻繁和寬鬆的檢查
           if (this.currentState === 'waitingForVehicle') {
             const frontCollision = this.checkFrontCollision(allVehicles)
-            if (!frontCollision || (!frontCollision.isOverlapping && frontCollision.distance > 15)) {
+            // 放寬恢復條件：只要不重疊且有基本安全距離就恢復
+            if (!frontCollision || (!frontCollision.isOverlapping && frontCollision.distance > 12)) {
               this.resumeMovement(allVehicles)
             }
           }
@@ -1190,7 +1201,7 @@ export default class Vehicle {
               this.exitFollowingMode()
             }
           }
-        }, 2000)
+        }, 1500) // 🚨 改善：縮短檢查間隔從2000ms到1500ms，讓車輛更快恢復
 
         // 邊界檢測標記 - 避免重複觸發 (移到正確位置)
         let hasBeenRemovedFromCollision = false

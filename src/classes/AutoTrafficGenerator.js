@@ -147,7 +147,7 @@ export default class AutoTrafficGenerator {
     if ((currentHour >= 7 && currentHour < 8) || (currentHour >= 17 && currentHour < 18)) {
       scenario = {
         name: '尖峰',
-        interval: { min: 1000, max: 3000, normal: 2000 },
+        interval: { min: 3000, max: 5000, normal: 4000 }, // 🚨 修正：增加間隔避免過快生成
         peakMultiplier: 5.0,
         vehicleTypes: [
           { type: 'motor', weight: 60 },
@@ -210,10 +210,14 @@ export default class AutoTrafficGenerator {
   _calcInterval() {
     const { min, max, normal } = this.config.interval
 
-    // 手動模式下，直接使用來自UI的`normal`值
+    // 🚨 新增：動態密度調整 - 根據當前車輛數量調整間隔
+    const currentVehicleCount = this._getCurrentVehicleCount()
+    const densityMultiplier = this._getDensityMultiplier(currentVehicleCount)
+
+    // 手動模式下，直接使用來自UI的`normal`值，但加入密度調整
     if (!this.isAutoMode) {
-      const interval = Math.round(normal * (0.9 + Math.random() * 0.2))
-      return Math.max(min, Math.min(max, interval))
+      let interval = Math.round(normal * (0.9 + Math.random() * 0.2) * densityMultiplier)
+      return Math.max(min, Math.min(max * 2, interval)) // 允許最大間隔延長2倍
     }
 
     // 自動模式下，使用 peakMultiplier 和密度共同決定
@@ -294,6 +298,29 @@ export default class AutoTrafficGenerator {
 
   _getTotalDensity() {
     return ['east', 'west', 'north', 'south'].map((d) => this._getDensity(d)).reduce((a, b) => a + b, 0)
+  }
+
+  // 🚨 新增：獲取當前車輛總數
+  _getCurrentVehicleCount() {
+    try {
+      // 嘗試從DOM獲取當前車輛數量
+      const vehicles = document.querySelectorAll('.vehicle')
+      return vehicles.length
+    } catch {
+      // 回退到使用密度數據
+      return this._getTotalDensity()
+    }
+  }
+
+  // 🚨 新增：根據車輛密度計算間隔調整係數
+  _getDensityMultiplier(vehicleCount) {
+    // 根據車輛數量動態調整生成間隔
+    if (vehicleCount < 5) return 1.0      // 車輛很少，正常間隔
+    if (vehicleCount < 10) return 1.2     // 開始增加間隔
+    if (vehicleCount < 20) return 1.5     // 中等密度，增加50%間隔
+    if (vehicleCount < 30) return 2.0     // 高密度，雙倍間隔
+    if (vehicleCount < 40) return 2.5     // 很高密度，2.5倍間隔
+    return 3.0                            // 極高密度，3倍間隔
   }
 
   // 查詢統計

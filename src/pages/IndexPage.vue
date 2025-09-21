@@ -358,15 +358,19 @@ const handleAutoGenerate = (event) => {
     `🚗 車輛將從路徑起始位置生成: ${direction}Lane${laneNumber} (${pathStartPosition.x}, ${pathStartPosition.y})`,
   )
 
-  // 🚨 強化空間檢查：檢查更大範圍內是否有其他車輛，避免重疊生成
+  // 🚨 進一步強化空間檢查：檢查更大範圍內是否有其他車輛，避免重疊生成
   const isPositionOccupied = activeCars.value.some((car) => {
     if (car.direction !== direction) return false
     const carPos = car.getCurrentPosition()
     const distance = Math.sqrt(
       Math.pow(carPos.x - pathStartPosition.x, 2) + Math.pow(carPos.y - pathStartPosition.y, 2),
     )
-    // 🚨 大幅增加檢查範圍：從100px增加到150px，高車流量時加倍
-    const checkRange = activeCars.value.length > 20 ? 200 : 150
+    // 🚨 進一步增加檢查範圍：根據車輛密度動態調整
+    let checkRange = 180 // 基礎檢查範圍
+    if (activeCars.value.length > 30) checkRange = 250 // 高密度時更大範圍
+    else if (activeCars.value.length > 20) checkRange = 220 // 中等密度
+    else if (activeCars.value.length > 10) checkRange = 200 // 輕微擁擠
+    
     return distance < checkRange
   })
 
@@ -377,9 +381,13 @@ const handleAutoGenerate = (event) => {
 
     // 根據方向檢查車道內的距離
     let isInSafePath = false
-    // 🚨 高車流量時增加安全距離
-    const safePathDistance = activeCars.value.length > 20 ? 200 : 150
-    const laneWidth = 20 // 車道寬度檢查範圍
+    // 🚨 根據車輛密度動態調整安全距離
+    let safePathDistance = 180 // 基礎安全距離
+    if (activeCars.value.length > 30) safePathDistance = 280
+    else if (activeCars.value.length > 20) safePathDistance = 240
+    else if (activeCars.value.length > 10) safePathDistance = 200
+    
+    const laneWidth = 25 // 稍微增加車道寬度檢查範圍
 
     if (direction === 'east') {
       // 東向：檢查X軸距離，確保前方至少150px空間
