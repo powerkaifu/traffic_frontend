@@ -285,7 +285,6 @@
             <div>• <strong>DELETE</strong>：刪除選中錨點</div>
             <div>• <strong>CTRL+Z</strong>：撤銷操作</div>
             <div class="highlight-note">只能編輯高亮的車道1和車道4</div>
-            <div class="save-note">📝 編輯結果在停止編輯時保存</div>
           </div>
         </div>
       </div>
@@ -491,6 +490,8 @@ const enablePathEditing = () => {
       try {
         const pathEditor = MotionPathHelper.editPath(pathElement, {
           selected: true,
+          createPoints: false, // 禁止自動創建錨點
+          handleSize: 8,
         })
 
         if (pathEditor) {
@@ -606,48 +607,6 @@ const setupPathChangeListeners = (pathIds) => {
   })
 }
 
-// 保存路徑到計算器的映射
-const pathCalculatorMap = {
-  eastLane1Straight: 'getEastLane1Path',
-  eastLane4Straight: 'getEastLane4Path',
-  westLane1Straight: 'getWestLane1Path',
-  westLane4Straight: 'getWestLane4Path',
-  southLane1Straight: 'getSouthLane1Path',
-  southLane4Straight: 'getSouthLane4Path',
-  northLane1Straight: 'getNorthLane1Path',
-  northLane4Straight: 'getNorthLane4Path',
-}
-
-// 更新全局路徑函數
-const updateGlobalPathFunction = (functionName, pathData) => {
-  switch (functionName) {
-    case 'getEastLane1Path':
-      getEastLane1Path = () => pathData
-      break
-    case 'getEastLane4Path':
-      getEastLane4Path = () => pathData
-      break
-    case 'getWestLane1Path':
-      getWestLane1Path = () => pathData
-      break
-    case 'getWestLane4Path':
-      getWestLane4Path = () => pathData
-      break
-    case 'getSouthLane1Path':
-      getSouthLane1Path = () => pathData
-      break
-    case 'getSouthLane4Path':
-      getSouthLane4Path = () => pathData
-      break
-    case 'getNorthLane1Path':
-      getNorthLane1Path = () => pathData
-      break
-    case 'getNorthLane4Path':
-      getNorthLane4Path = () => pathData
-      break
-  }
-}
-
 // 鍵盤事件處理
 const handleKeyDown = (e) => {
   if (isPathEditMode.value) {
@@ -703,58 +662,9 @@ const handlePathClick = (pathName) => {
   })
 }
 
-// 保存暫存的編輯結果
-const saveTempEditedPaths = () => {
-  if (!tempEditedPaths.value || Object.keys(tempEditedPaths.value).length === 0) {
-    console.log('📝 沒有暫存的編輯結果需要保存')
-    return
-  }
-
-  console.log('💾 保存暫存的編輯結果:', tempEditedPaths.value)
-
-  // 將暫存的編輯結果合併到正式的編輯路徑
-  Object.keys(tempEditedPaths.value).forEach((pathId) => {
-    const pathData = tempEditedPaths.value[pathId]
-    const functionName = pathCalculatorMap[pathId]
-
-    if (functionName) {
-      // 更新路徑計算器
-      if (lanePathCalculator && lanePathCalculator[functionName]) {
-        lanePathCalculator[functionName] = () => pathData
-        console.log(`🔄 已更新 ${functionName} 的路徑`)
-      }
-
-      // 更新全局路徑函數
-      updateGlobalPathFunction(functionName, pathData)
-
-      // 保存到正式的編輯路徑
-      if (!editedPaths.value) {
-        editedPaths.value = {}
-      }
-      editedPaths.value[pathId] = pathData
-    }
-  })
-
-  console.log('💾 編輯結果已保存（不含本地存儲）')
-
-  $q.notify({
-    message: `已保存 ${Object.keys(tempEditedPaths.value).length} 條路徑編輯`,
-    color: 'positive',
-    icon: 'save',
-    timeout: 2000,
-    position: 'top-right',
-  })
-
-  // 清空暫存
-  tempEditedPaths.value = {}
-}
-
 // 停用路徑編輯功能
 const disablePathEditing = () => {
   console.log('🔒 停用路徑編輯模式')
-
-  // 保存所有暫存的編輯結果
-  saveTempEditedPaths()
 
   // 清理所有編輯器
   pathHelpers.value.forEach((item) => {
@@ -1534,14 +1444,6 @@ onUnmounted(() => {
   border-top: 1px solid rgba(255, 255, 153, 0.2);
   color: #00ff88;
   font-style: italic;
-  text-align: center;
-}
-
-.save-note {
-  margin-top: 5px;
-  color: #ff6b35;
-  font-weight: bold;
-  font-size: 12px;
   text-align: center;
 }
 </style>
