@@ -351,7 +351,7 @@ const timeScenarios = [
     icon: '🚀',
     timeRange: '07:00-08:00,17:00-18:00',
     config: {
-      interval: { min: 5000, max: 10000, normal: 8000 },
+      interval: { min: 1000, max: 3000, normal: 2000 }, // 修改為1-3秒間隔
       vehicleTypes: [
         { type: 'motor', weight: 60 },
         { type: 'small', weight: 35 },
@@ -369,7 +369,7 @@ const timeScenarios = [
     icon: '🌞',
     timeRange: '09:00-16:00,19:00-22:00',
     config: {
-      interval: { min: 10000, max: 20000, normal: 15000 },
+      interval: { min: 2000, max: 5000, normal: 3000 }, // 修改為2-5秒間隔
       vehicleTypes: [
         { type: 'motor', weight: 30 },
         { type: 'small', weight: 55 },
@@ -387,7 +387,7 @@ const timeScenarios = [
     icon: '🌙',
     timeRange: '23:00-06:00',
     config: {
-      interval: { min: 20000, max: 40000, normal: 30000 },
+      interval: { min: 5000, max: 10000, normal: 7000 }, // 修改為5-10秒間隔
       vehicleTypes: [
         { type: 'motor', weight: 80 },
         { type: 'small', weight: 15 },
@@ -491,7 +491,8 @@ function updateGenerationConfig() {
 
   let finalInterval = baseInterval
   if (multiplier > 0) {
-    finalInterval = Math.round(baseInterval / multiplier)
+    // 🚨 修正：multiplier 越大，間隔應該越短（生成越頻繁）
+    finalInterval = Math.round(baseInterval / Math.max(0.1, multiplier))
   }
 
   // 讓 min/max 也跟著拉桿動態調整（以拉桿值為中心，上下浮動 50%）
@@ -508,6 +509,13 @@ function updateGenerationConfig() {
   })
 
   // 追蹤參數變化
+  console.log('🔧 間隔更新:', {
+    baseInterval,
+    multiplier,
+    finalInterval,
+    minInterval,
+    maxInterval
+  })
   console.log('interval:', window.autoTrafficGenerator?.config?.interval)
   console.log('maxLiveVehicles:', window.autoTrafficGenerator?.maxLiveVehicles)
   console.log('isAutoMode:', window.autoTrafficGenerator?.isAutoMode)
