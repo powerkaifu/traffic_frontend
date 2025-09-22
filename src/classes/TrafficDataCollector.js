@@ -563,39 +563,6 @@ export default class TrafficDataCollector {
   }
 
   /**
-   * 獲取歷史數據
-   */
-  getHistoryData(limit = 10) {
-    return this.historyData.slice(-limit)
-  }
-
-  /**
-   * 獲取即時數據 (用於UI顯示)
-   */
-  getRealTimeData() {
-    // 確保返回最新的計算結果
-    this.calculateAverageSpeeds()
-    this.calculateOccupancy()
-
-    return this.getCurrentPeriodSummary()
-  }
-
-  /**
-   * 更新配置
-   */
-  updateConfig(newConfig) {
-    this.config = { ...this.config, ...newConfig }
-    console.log('⚙️ 數據收集器配置已更新:', newConfig)
-
-    // 如果正在運行，重新啟動以應用新配置
-    if (this.isCollecting) {
-      console.log('🔄 重新啟動以應用新配置...')
-      this.stop()
-      setTimeout(() => this.start(), 1000)
-    }
-  }
-
-  /**
    * 設置VD數據兼容性配置
    */
   setVDCompatibilityConfig(config) {
@@ -617,97 +584,15 @@ export default class TrafficDataCollector {
     console.log('🔧 VD數據兼容性配置已更新:', vdConfig)
   }
 
-  /**
-   * 獲取VD數據範圍統計
-   */
-  getVDRangeAnalysis() {
-    const summary = this.getCurrentPeriodSummary()
-    const directions = ['east', 'west', 'south', 'north']
-    const vehicleTypes = ['motor', 'small', 'large']
+  updateConfig(newConfig) {
+    this.config = { ...this.config, ...newConfig }
+    console.log('⚙️ 數據收集器配置已更新:', newConfig)
 
-    const analysis = {
-      volumeAnalysis: {},
-      speedAnalysis: {},
-      exceedsLimits: false,
-      recommendations: [],
+    // 如果正在運行，重新啟動以應用新配置
+    if (this.isCollecting) {
+      console.log('� 重新啟動以應用新配置...')
+      this.stop()
+      setTimeout(() => this.start(), 1000)
     }
-
-    directions.forEach((direction) => {
-      analysis.volumeAnalysis[direction] = {}
-      analysis.speedAnalysis[direction] = {}
-
-      vehicleTypes.forEach((type) => {
-        const volume = summary.totalCount[direction][type]
-        const speed = summary.averageSpeed[direction][type]
-
-        analysis.volumeAnalysis[direction][type] = {
-          current: volume,
-          maxAllowed: this.config.volumeLimits.maxVolumePerType,
-          exceeds: volume > this.config.volumeLimits.maxVolumePerType,
-          percentage: Math.round((volume / this.config.volumeLimits.maxVolumePerType) * 100),
-        }
-
-        analysis.speedAnalysis[direction][type] = {
-          current: speed,
-          minAllowed: this.config.speedLimits.minSpeed,
-          maxAllowed: this.config.speedLimits.maxSpeed,
-          inRange: speed >= this.config.speedLimits.minSpeed && speed <= this.config.speedLimits.maxSpeed,
-        }
-
-        if (volume > this.config.volumeLimits.maxVolumePerType) {
-          analysis.exceedsLimits = true
-          analysis.recommendations.push(
-            `${direction}-${type}: Volume ${volume} 超過建議上限 ${this.config.volumeLimits.maxVolumePerType}`,
-          )
-        }
-      })
-
-      const totalVolume = summary.totalCount[direction].total
-      if (totalVolume > this.config.volumeLimits.maxTotalVolume) {
-        analysis.exceedsLimits = true
-        analysis.recommendations.push(
-          `${direction}: 總Volume ${totalVolume} 超過建議上限 ${this.config.volumeLimits.maxTotalVolume}`,
-        )
-      }
-    })
-
-    return analysis
-  }
-
-  /**
-   * 獲取統計信息
-   */
-  getStatistics() {
-    const currentSummary = this.getCurrentPeriodSummary()
-    const totalProcessed = Object.values(currentSummary.totalCount).reduce(
-      (total, direction) => total + direction.total,
-      0,
-    )
-
-    return {
-      isCollecting: this.isCollecting,
-      currentPeriod: currentSummary,
-      historyCount: this.historyData.length,
-      totalVehiclesInCurrentPeriod: totalProcessed,
-      config: this.config,
-      uptime: this.currentPeriodData.startTime ? (new Date() - new Date(this.currentPeriodData.startTime)) / 1000 : 0,
-    }
-  }
-
-  /**
-   * 手動觸發數據傳送
-   */
-  async forceSendData() {
-    console.log('🚀 手動觸發數據傳送...')
-    await this.finalizeCurrentPeriodAndSend()
-  }
-
-  /**
-   * 清除所有數據
-   */
-  clearAllData() {
-    this.historyData = []
-    this.resetCurrentPeriod()
-    console.log('🗑️ 所有數據已清除')
   }
 }

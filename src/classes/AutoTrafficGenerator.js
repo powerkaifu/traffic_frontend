@@ -407,9 +407,4 @@ export default class AutoTrafficGenerator {
 
     return densityMultiplier
   }
-
-  // 查詢統計
-  getStatistics() {
-    return { ...this.statistics, config: this.config, isAutoMode: this.isAutoMode }
-  }
 }
