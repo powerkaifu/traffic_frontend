@@ -315,12 +315,12 @@ export default class AutoTrafficGenerator {
   // 🚨 新增：根據車輛密度計算間隔調整係數
   _getDensityMultiplier(vehicleCount) {
     // 根據車輛數量動態調整生成間隔
-    if (vehicleCount < 5) return 1.0      // 車輛很少，正常間隔
-    if (vehicleCount < 10) return 1.2     // 開始增加間隔
-    if (vehicleCount < 20) return 1.5     // 中等密度，增加50%間隔
-    if (vehicleCount < 30) return 2.0     // 高密度，雙倍間隔
-    if (vehicleCount < 40) return 2.5     // 很高密度，2.5倍間隔
-    return 3.0                            // 極高密度，3倍間隔
+    if (vehicleCount < 5) return 1.0 // 車輛很少，正常間隔
+    if (vehicleCount < 10) return 1.2 // 開始增加間隔
+    if (vehicleCount < 20) return 1.5 // 中等密度，增加50%間隔
+    if (vehicleCount < 30) return 2.0 // 高密度，雙倍間隔
+    if (vehicleCount < 40) return 2.5 // 很高密度，2.5倍間隔
+    return 3.0 // 極高密度，3倍間隔
   }
 
   // 查詢統計

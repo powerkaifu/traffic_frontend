@@ -367,10 +367,12 @@ const handleAutoGenerate = (event) => {
     )
     // 🚨 進一步增加檢查範圍：根據車輛密度動態調整
     let checkRange = 180 // 基礎檢查範圍
-    if (activeCars.value.length > 30) checkRange = 250 // 高密度時更大範圍
-    else if (activeCars.value.length > 20) checkRange = 220 // 中等密度
+    if (activeCars.value.length > 30)
+      checkRange = 250 // 高密度時更大範圍
+    else if (activeCars.value.length > 20)
+      checkRange = 220 // 中等密度
     else if (activeCars.value.length > 10) checkRange = 200 // 輕微擁擠
-    
+
     return distance < checkRange
   })
 
@@ -386,7 +388,7 @@ const handleAutoGenerate = (event) => {
     if (activeCars.value.length > 30) safePathDistance = 280
     else if (activeCars.value.length > 20) safePathDistance = 240
     else if (activeCars.value.length > 10) safePathDistance = 200
-    
+
     const laneWidth = 25 // 稍微增加車道寬度檢查範圍
 
     if (direction === 'east') {

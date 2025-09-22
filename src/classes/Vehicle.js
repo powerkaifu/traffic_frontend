@@ -942,7 +942,7 @@ export default class Vehicle {
       if (!frontCollision.isOverlapping) {
         // 根據前車狀態動態調整安全距離
         let requiredDistance = 20 // 基礎安全距離
-        
+
         if (frontCollision.vehicle.currentState === 'slowing_for_light' || frontCollision.vehicle.waitingForGreen) {
           requiredDistance = 25 // 前車等紅燈時需要更大距離
         } else if (frontCollision.vehicle.currentState === 'following') {
@@ -963,7 +963,9 @@ export default class Vehicle {
             console.log(`🚗 [${this.id}] 安全距離足夠，恢復移動，距離: ${frontCollision.distance.toFixed(1)}px`)
           }
         } else {
-          console.log(`🚗 [${this.id}] 安全距離不足，繼續等待，距離: ${frontCollision.distance.toFixed(1)}px，需要: ${requiredDistance}px`)
+          console.log(
+            `🚗 [${this.id}] 安全距離不足，繼續等待，距離: ${frontCollision.distance.toFixed(1)}px，需要: ${requiredDistance}px`,
+          )
         }
       }
     }
