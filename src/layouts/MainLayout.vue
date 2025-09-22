@@ -514,7 +514,7 @@ function updateGenerationConfig() {
     multiplier,
     finalInterval,
     minInterval,
-    maxInterval
+    maxInterval,
   })
   console.log('interval:', window.autoTrafficGenerator?.config?.interval)
   console.log('maxLiveVehicles:', window.autoTrafficGenerator?.maxLiveVehicles)

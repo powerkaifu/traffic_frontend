@@ -254,7 +254,7 @@ export default class AutoTrafficGenerator {
     // 動態最小生成間隔，根據滑桿強度調整
     const currentVehicleCount = this._getCurrentVehicleCount()
     let minGenerationGap = 100 // 降低基礎最小間隔至 100ms
-    
+
     // 根據配置的間隔範圍動態調整最小間隔
     const configMinInterval = this.config.minInterval || 100
     minGenerationGap = Math.max(100, configMinInterval * 0.5)
