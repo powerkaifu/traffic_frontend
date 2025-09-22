@@ -564,7 +564,7 @@ const aiPrediction = ref({
 
 // MotionPathHelper 控制
 const isPathEditMode = ref(false)
-const isPathVisible = ref(true) // 路徑可見性控制
+const isPathVisible = ref(false) // 路徑預設隱藏，需要按按鈕才顯示
 const pathHelpers = ref([])
 const pathObservers = ref([]) // 路徑變化觀察器
 const tempEditedPaths = ref({}) // 暫存編輯中的路徑數據
