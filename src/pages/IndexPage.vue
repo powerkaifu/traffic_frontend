@@ -717,7 +717,6 @@ const enablePathEditing = () => {
   if (isPathEditMode.value) {
     // 使用較低的優先級，讓 MotionPathHelper 先處理事件
     document.addEventListener('keydown', handleKeyDown, { capture: false, passive: true })
-    document.addEventListener('keyup', handleKeyUp, { capture: false, passive: true })
   }
 
   console.log('⌨️ 鍵盤事件監聽器已啟用')
@@ -775,10 +774,6 @@ const handleKeyDown = (e) => {
     }
     // 不阻止事件，不調用 preventDefault 或 stopPropagation
   }
-}
-
-const handleKeyUp = () => {
-  // 處理鍵盤釋放事件
 }
 
 // Tooltip 處理函數
@@ -850,7 +845,6 @@ const disablePathEditing = () => {
 
   // 移除鍵盤事件監聽器（使用與添加時相同的選項）
   document.removeEventListener('keydown', handleKeyDown, { capture: false })
-  document.removeEventListener('keyup', handleKeyUp, { capture: false })
 
   console.log('🧹 路徑編輯器、觀察器和事件監聽器已清理完成')
 }
@@ -1156,7 +1150,6 @@ onUnmounted(() => {
 
   // 確保鍵盤事件監聽器被移除（使用與添加時相同的選項）
   document.removeEventListener('keydown', handleKeyDown, { capture: false })
-  document.removeEventListener('keyup', handleKeyUp, { capture: false })
 
   console.log('🧹 IndexPage 資源清理完成')
 })
