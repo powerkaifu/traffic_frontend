@@ -139,13 +139,13 @@ export default class Vehicle {
     // 計算理論時間（秒）
     const theoreticalTime = realDistance / speedMs
 
-    // 增加動畫持續時間倍數，讓車輛移動更自然
-    const timeMultiplier = 1.0 // 調整時間倍數，讓動畫速度差異更明顯
+    // 加快動畫速度：使用更小的時間倍數
+    const timeMultiplier = 1 // 降低到 0.4 倍，讓動畫速度更快
     const adjustedTheoretical = theoreticalTime * timeMultiplier
 
-    // 為了視覺效果，將時間控制在合理範圍內（調整範圍以適應新的倍數）
-    const minTime = 7 // 最短7秒
-    const maxTime = 35 // 最長35秒
+    // 調整時間範圍以適應新的速度
+    const minTime = 3 // 最短3秒
+    const maxTime = 15 // 最長15秒
     const adjustedTime = Math.max(minTime, Math.min(maxTime, adjustedTheoretical))
 
     return adjustedTime
@@ -1123,18 +1123,14 @@ export default class Vehicle {
       let animationDuration = this.calculateAnimationDuration()
       if (this.initialSpeed) {
         try {
-          // 🚨 使用實際路徑長度計算動畫時間
+          // 🚨 使用實際路徑長度計算動畫時間，並加入全局時間縮放
           const pathLength = pathElement.getTotalLength()
           const realDistance = (pathLength / 100) * 15 // 轉換為實際距離（米）
           const speedMs = (this.initialSpeed * 1000) / 3600 // 轉換為 m/s
           let theoreticalTime = realDistance / speedMs
-          const timeMultiplier = 2 // 調整時間倍數
+          const timeMultiplier = 1 // 降低時間倍數以加快動畫，越小越快
           theoreticalTime *= timeMultiplier
-          animationDuration = Math.max(7, Math.min(60, theoreticalTime))
-
-          console.log(
-            `🚗 [${this.id}] ${this.direction}向路徑長度: ${pathLength.toFixed(1)}px, 動畫時間: ${animationDuration.toFixed(1)}s`,
-          )
+          animationDuration = Math.max(3, Math.min(15, theoreticalTime)) // 調整時間範圍
         } catch (error) {
           console.warn(`⚠️ 無法計算路徑長度，使用預設動畫時間:`, error)
           animationDuration = this.calculateAnimationDuration()
@@ -1601,10 +1597,10 @@ export default class Vehicle {
         const realDistance = (this.totalDistance / 100) * 15
         const speedMs = (this.initialSpeed * 1000) / 3600
         let theoreticalTime = realDistance / speedMs
-        const timeMultiplier = 2 // 調整時間倍數，讓動畫速度差異更明顯
+        const timeMultiplier = 1 // 降低時間倍數以加快動畫
         theoreticalTime *= timeMultiplier
         // 限制合理範圍
-        animationDuration = Math.max(7, Math.min(60, theoreticalTime))
+        animationDuration = Math.max(3, Math.min(15, theoreticalTime))
       }
 
       // Strategy Pattern: 使用延遲策略避免剛生成就被碰撞檢測影響

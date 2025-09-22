@@ -147,12 +147,12 @@ export default class AutoTrafficGenerator {
     if ((currentHour >= 7 && currentHour < 8) || (currentHour >= 17 && currentHour < 18)) {
       scenario = {
         name: '尖峰',
-        interval: { min: 3000, max: 5000, normal: 4000 }, // 🚨 修正：增加間隔避免過快生成
-        peakMultiplier: 5.0,
+        interval: { min: 4000, max: 7000, normal: 5500 }, // 增加最小間隔和正常間隔
+        peakMultiplier: 3.5, // 降低乘數避免過度密集
         vehicleTypes: [
-          { type: 'motor', weight: 60 },
-          { type: 'small', weight: 35 },
-          { type: 'large', weight: 5 },
+          { type: 'motor', weight: 50 }, // 調整車型比例
+          { type: 'small', weight: 40 },
+          { type: 'large', weight: 10 },
         ],
         description: '尖峰時段',
       }
@@ -259,30 +259,54 @@ export default class AutoTrafficGenerator {
   _generateVehicle() {
     if (window.liveVehicles && window.liveVehicles.length >= this.maxLiveVehicles) return
 
-    // 新增：檢查最近生成的車輛
+    // 加強檢查最近生成的車輛
     const now = Date.now()
     const recentVehicles = window.liveVehicles
       ? window.liveVehicles.filter((v) => {
-          return now - v.timestamp < 3000 // 檢查3秒內生成的車輛
+          return now - v.timestamp < 5000 // 延長檢查時間到5秒
         })
       : []
 
-    // 如果3秒內生成的車輛超過4台，延後生成
-    if (recentVehicles.length >= 4) {
+    // 檢查極短時間內的車輛（1秒內）
+    const veryRecentVehicles = recentVehicles.filter((v) => now - v.timestamp < 1000)
+    if (veryRecentVehicles.length >= 2) {
+      console.log('🚨 極短時間內車輛生成過多，強制延後')
+      setTimeout(() => this._scheduleNext(), 2000) // 強制延遲2秒
+      return
+    }
+
+    // 如果5秒內生成的車輛過多，延後生成
+    if (recentVehicles.length >= 6) {
       console.log('🚦 短時間內車輛生成過多，延後生成')
-      this._scheduleNext()
+      setTimeout(() => this._scheduleNext(), 1000) // 延遲1秒
       return
     }
 
     const dirs = ['east', 'west', 'north', 'south']
     let selectedDir = dirs[Math.floor(Math.random() * dirs.length)]
 
-    // 檢查選定方向最近生成的車輛
-    const recentDirVehicles = recentVehicles.filter((v) => v.direction === selectedDir)
-    if (recentDirVehicles.length >= 2) {
-      console.log(`🚦 ${selectedDir}方向短時間內車輛過多，選擇其他方向`)
-      const otherDirs = dirs.filter((d) => d !== selectedDir)
-      selectedDir = otherDirs[Math.floor(Math.random() * otherDirs.length)]
+    // 檢查每個方向的車輛數量
+    const dirCounts = dirs.reduce((acc, dir) => {
+      acc[dir] = recentVehicles.filter((v) => v.direction === dir).length
+      return acc
+    }, {})
+
+    // 尋找車輛最少的方向
+    const minCount = Math.min(...Object.values(dirCounts))
+    const availableDirs = dirs.filter((dir) => dirCounts[dir] === minCount)
+
+    // 如果原選方向車輛過多，選擇其他可用方向
+    if (dirCounts[selectedDir] > minCount) {
+      console.log(`🚦 ${selectedDir}方向車輛過多(${dirCounts[selectedDir]})，選擇較少車輛的方向`)
+      selectedDir = availableDirs[Math.floor(Math.random() * availableDirs.length)]
+    }
+
+    // 如果選定方向1秒內有車，強制延遲
+    const veryRecentDirVehicles = recentVehicles.filter((v) => v.direction === selectedDir && now - v.timestamp < 1000)
+    if (veryRecentDirVehicles.length > 0) {
+      console.log(`🚨 ${selectedDir}方向極短時間內已有車輛，延後生成`)
+      setTimeout(() => this._scheduleNext(), 1000)
+      return
     }
 
     const vehicleTypes = this.config.vehicleTypes
@@ -345,20 +369,26 @@ export default class AutoTrafficGenerator {
         }).length
       : 0
 
-    // 基礎密度係數
+    // 基礎密度係數 - 更激進的調整
     let densityMultiplier = 1.0
     if (vehicleCount < 5)
-      densityMultiplier = 1.2 // 提高基礎間隔
-    else if (vehicleCount < 10) densityMultiplier = 1.5
-    else if (vehicleCount < 20) densityMultiplier = 2.0
-    else if (vehicleCount < 30) densityMultiplier = 2.5
-    else if (vehicleCount < 40) densityMultiplier = 3.0
-    else densityMultiplier = 3.5
+      densityMultiplier = 1.5 // 進一步提高基礎間隔
+    else if (vehicleCount < 10) densityMultiplier = 2.0
+    else if (vehicleCount < 20) densityMultiplier = 2.5
+    else if (vehicleCount < 30) densityMultiplier = 3.0
+    else if (vehicleCount < 40) densityMultiplier = 4.0
+    else densityMultiplier = 5.0
 
-    // 根據最近生成的車輛數增加係數
-    if (recentVehicles >= 4) densityMultiplier *= 1.5
-    else if (recentVehicles >= 3) densityMultiplier *= 1.3
-    else if (recentVehicles >= 2) densityMultiplier *= 1.2
+    // 根據最近生成的車輛數增加係數 - 更敏感的調整
+    if (recentVehicles >= 4) densityMultiplier *= 2.0
+    else if (recentVehicles >= 3) densityMultiplier *= 1.7
+    else if (recentVehicles >= 2) densityMultiplier *= 1.4
+
+    // 新增：檢查極短時間內（1秒）的車輛
+    const veryRecentVehicles = window.liveVehicles
+      ? window.liveVehicles.filter((v) => now - v.timestamp < 1000).length
+      : 0
+    if (veryRecentVehicles > 0) densityMultiplier *= 2.0 // 如果1秒內有車，大幅增加間隔
 
     return densityMultiplier
   }
