@@ -472,7 +472,7 @@ export default class Vehicle {
     return null
   }
 
-  // 檢查是否需要為紅燈減速，同時考慮前方車輛距離
+  // 檢查是否需要為紅燈減速或黃燈加速，同時考慮前方車輛距離
   checkTrafficLightSlowDown(trafficController) {
     if (this.hasPassedStopLine || this.waitingForGreen || this.isAtStopLine) {
       return null
@@ -480,8 +480,8 @@ export default class Vehicle {
 
     const lightState = trafficController.getCurrentLightState(this.direction)
     if (lightState === 'green') {
-      if (this.currentState === 'slowing_for_light') {
-        // 如果之前在減速，但燈變綠了，就恢復
+      if (this.currentState === 'slowing_for_light' || this.currentState === 'accelerating_for_yellow') {
+        // 如果之前在減速或黃燈加速，但燈變綠了，就恢復正常速度
         return { action: 'resume_from_slow' }
       }
       return null
@@ -492,10 +492,53 @@ export default class Vehicle {
       return null
     }
 
+    // 🚨 新增：黃燈加速邏輯
+    if (lightState === 'yellow') {
+      // 黃燈智能判斷：根據距離停止線的遠近決定加速通過還是減速停止
+      const yellowAccelerateDistance = 100 // 黃燈加速判斷距離（調整為更保守）
+      const yellowStopDistance = 40 // 黃燈停車判斷距離（調整為更安全）
+
+      if (distanceToStopLine > yellowAccelerateDistance) {
+        // 距離較遠：加速通過
+        console.log(`🟡 [${this.id}] 黃燈加速通過！距離停止線: ${distanceToStopLine.toFixed(1)}px`)
+        return {
+          action: 'accelerate_for_yellow',
+          targetSpeedRatio: 1.3, // 調整為130%的原始速度（更安全）
+        }
+      } else if (distanceToStopLine <= yellowStopDistance) {
+        // 距離很近：急剎車停止
+        const speedRatio = Math.max(0.05, (distanceToStopLine / yellowStopDistance) * 0.2)
+        console.log(`🟡 [${this.id}] 黃燈距離太近，緊急停車！距離: ${distanceToStopLine.toFixed(1)}px`)
+        return {
+          action: 'slow_for_light',
+          targetSpeedRatio: speedRatio,
+        }
+      } else {
+        // 中等距離：判斷當前速度，快速車輛繼續加速，慢速車輛減速停止
+        const currentSpeed = this.getCurrentSpeedRatio()
+        if (currentSpeed > 0.7) { // 調整閾值為更保守的70%
+          // 高速車輛：適度加速通過
+          console.log(`🟡 [${this.id}] 黃燈高速適度加速通過！當前速度比例: ${currentSpeed.toFixed(2)}`)
+          return {
+            action: 'accelerate_for_yellow',
+            targetSpeedRatio: 1.2, // 調整為120%的原始速度
+          }
+        } else {
+          // 低速車輛：減速停止
+          console.log(`🟡 [${this.id}] 黃燈低速減速停止！當前速度比例: ${currentSpeed.toFixed(2)}`)
+          const speedRatio = Math.max(0.1, (distanceToStopLine / yellowAccelerateDistance) * 0.5)
+          return {
+            action: 'slow_for_light',
+            targetSpeedRatio: speedRatio,
+          }
+        }
+      }
+    }
+
     // 調整減速距離，讓車輛更接近停止線才開始減速
     const slowDownDistance = 60 // 從60px開始減速，更接近停止線
 
-    if (lightState === 'red' || lightState === 'yellow') {
+    if (lightState === 'red') {
       if (distanceToStopLine <= slowDownDistance) {
         // 使用更陡峭的減速曲線
         let speedRatio
@@ -518,6 +561,22 @@ export default class Vehicle {
     }
 
     return null
+  }
+
+  // 🚨 新增：獲取當前速度比例的輔助方法
+  getCurrentSpeedRatio() {
+    if (!this.movementTimeline) {
+      return 1.0 // 預設速度比例
+    }
+    
+    // 獲取當前時間軸的速度縮放
+    const currentTimeScale = this.movementTimeline.timeScale()
+    
+    // 如果有原始時間縮放，使用它作為基準
+    const baseTimeScale = this.originalTimeScale || 1.0
+    
+    // 計算相對於基準速度的比例
+    return currentTimeScale / baseTimeScale
   }
 
   // Adapter Pattern: 獲取當前位置的適配器方法
@@ -1544,7 +1603,7 @@ export default class Vehicle {
                 }
               }
 
-              // 紅燈減速檢查（如果沒有碰撞威脅的情況下）
+              // 紅燈減速或黃燈加速檢查（如果沒有碰撞威脅的情況下）
               if (!highestThreat) {
                 const slowDownInfo = this.checkTrafficLightSlowDown(trafficController)
                 if (slowDownInfo) {
@@ -1558,39 +1617,16 @@ export default class Vehicle {
                       duration: 0.5,
                       ease: 'power2.out',
                     })
-                  } else if (slowDownInfo.action === 'resume_from_slow') {
-                    this.currentState = 'moving'
-                    if (this.originalTimeScale) {
-                      gsap.to(this.movementTimeline, {
-                        timeScale: this.originalTimeScale,
-                        duration: 0.5,
-                        ease: 'power2.inOut',
-                      })
-                      this.originalTimeScale = null
-                    }
-                  }
-                }
-              }
-
-              // 等待前車的恢復檢查
-              if (this.currentState === 'waitingForVehicle') {
-                this.resumeMovement(allVehicles)
-              }
-
-              // 🚨 移除冗餘的邊界檢測 - 統一在 onUpdate 開頭處理
-
-              // 紅燈減速檢查（與原方法相同的邏輯）
-              if (!highestThreat) {
-                const slowDownInfo = this.checkTrafficLightSlowDown(trafficController)
-                if (slowDownInfo) {
-                  if (slowDownInfo.action === 'slow_for_light') {
-                    this.currentState = 'slowing_for_light'
+                  } else if (slowDownInfo.action === 'accelerate_for_yellow') {
+                    // 🚨 新增：黃燈加速邏輯
+                    this.currentState = 'accelerating_for_yellow'
                     if (!this.originalTimeScale) {
                       this.originalTimeScale = this.movementTimeline.timeScale()
                     }
+                    console.log(`🟡⚡ [${this.id}] 黃燈加速！目標速度比例: ${slowDownInfo.targetSpeedRatio}`)
                     gsap.to(this.movementTimeline, {
                       timeScale: this.originalTimeScale * slowDownInfo.targetSpeedRatio,
-                      duration: 0.5,
+                      duration: 0.3, // 更快的加速響應
                       ease: 'power2.out',
                     })
                   } else if (slowDownInfo.action === 'resume_from_slow') {
@@ -2002,7 +2038,7 @@ export default class Vehicle {
 
             // 如果沒有碰撞威脅，則處理紅燈減速
             if (!highestThreat) {
-              // 處理紅燈減速
+              // 處理紅燈減速或黃燈加速
               const slowDownInfo = this.checkTrafficLightSlowDown(trafficController)
               if (slowDownInfo) {
                 if (slowDownInfo.action === 'slow_for_light') {
@@ -2013,6 +2049,18 @@ export default class Vehicle {
                   gsap.to(this.movementTimeline, {
                     timeScale: this.originalTimeScale * slowDownInfo.targetSpeedRatio,
                     duration: 0.5,
+                    ease: 'power2.out',
+                  })
+                } else if (slowDownInfo.action === 'accelerate_for_yellow') {
+                  // 🚨 新增：黃燈加速邏輯
+                  this.currentState = 'accelerating_for_yellow'
+                  if (!this.originalTimeScale) {
+                    this.originalTimeScale = this.movementTimeline.timeScale()
+                  }
+                  console.log(`🟡⚡ [${this.id}] 黃燈加速！目標速度比例: ${slowDownInfo.targetSpeedRatio}`)
+                  gsap.to(this.movementTimeline, {
+                    timeScale: this.originalTimeScale * slowDownInfo.targetSpeedRatio,
+                    duration: 0.3, // 更快的加速響應
                     ease: 'power2.out',
                   })
                 } else if (slowDownInfo.action === 'resume_from_slow') {
@@ -2042,7 +2090,8 @@ export default class Vehicle {
               // 檢查紅綠燈狀態
               const lightState = trafficController.getCurrentLightState(this.direction)
 
-              if (lightState === 'red' || lightState === 'yellow') {
+              if (lightState === 'red' || (lightState === 'yellow' && this.currentState !== 'accelerating_for_yellow')) {
+                // 🚨 修改：黃燈加速的車輛不應在此停下，讓它們通過
                 // 如果正在減速，讓它平滑停止
                 if (this.currentState === 'slowing_for_light') {
                   gsap.to(this.movementTimeline, {
@@ -2115,6 +2164,11 @@ export default class Vehicle {
                     }
                   }
                 }, 1000) // 1秒後檢查
+              } else if (lightState === 'yellow' && this.currentState === 'accelerating_for_yellow') {
+                // 🚨 新增：黃燈加速車輛直接通過，不停在停止線
+                console.log(`🟡⚡ [${this.id}] 黃燈加速車輛通過停止線`)
+                this.isAtStopLine = false
+                this.hasPassedStopLine = true
               } else {
                 // 綠燈時直接通過，標記已通過停止線
                 this.isAtStopLine = false
