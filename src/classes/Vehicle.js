@@ -12,6 +12,10 @@ export default class Vehicle {
   // 靜態屬性：統一控制動畫速度
   static timeMultiplier = 1 // 控制整體動畫速度，數字越小動畫越快（0.4 = 2.5倍速）
 
+  // 🚨 新增：全局抖動抑制機制
+  static antiShakeGlobalCooldown = 100 // 全局冷卻時間（毫秒）
+  static lastGlobalAdjustTime = 0 // 上次全局調整時間
+
   constructor(x, y, direction = 'east', vehicleType = 'large', laneNumber = 1) {
     // Factory Pattern: 根據不同參數創建不同類型的車輛實例
     this.direction = direction
@@ -28,6 +32,11 @@ export default class Vehicle {
     this.periodicCheckTimer = null // 定期檢查定時器
     this.containerPosition = null // 記錄容器位置，用於檢測佈局變化
     this.justCreated = true // 新增：標記車輛剛創建，避免立即檢測碰撞
+
+    // 🚨 新增：防抖動機制
+    this.lastPositionAdjustTime = 0 // 上次位置調整時間
+    this.positionAdjustCooldown = 500 // 位置調整冷卻時間（毫秒）
+    this.isAdjustingPosition = false // 是否正在調整位置
 
     // 數據收集相關屬性
     this.createdAt = new Date().toISOString()
@@ -1173,6 +1182,7 @@ export default class Vehicle {
       if (!frontCollision.isOverlapping) {
         // 根據燈號和前車狀態動態調整安全距離
         let requiredDistance = 20 // 基礎安全距離
+        let hysteresisBuffer = 3 // 🚨 新增：遲滯緩衝區，避免邊界振盪
 
         if (isGreenLight) {
           // 綠燈時降低安全距離要求，促進車流
@@ -1191,24 +1201,39 @@ export default class Vehicle {
           }
         }
 
-        if (frontCollision.distance >= requiredDistance) {
-          if (frontCollision.shouldFollow && frontCollision.followingSpeed !== null && !isGreenLight) {
-            // 非綠燈時進入跟隨模式
-            this.movementTimeline.resume()
-            this.enterFollowingMode(frontCollision.followingSpeed)
-            console.log(`🚗 [${this.id}] 進入跟隨模式，距離: ${frontCollision.distance.toFixed(1)}px`)
-            return
-          } else {
-            // 距離足夠，可以正常移動（綠燈時優先正常移動）
-            this.movementTimeline.resume()
-            this.currentState = 'moving'
-            console.log(
-              `🚗 [${this.id}] 恢復移動，距離: ${frontCollision.distance.toFixed(1)}px ${isGreenLight ? '[綠燈]' : ''}`,
-            )
+        // 🚨 使用遲滯機制：恢復時需要更大距離，停止時需要較小距離
+        const actualRequiredDistance =
+          this.currentState === 'moving'
+            ? requiredDistance - hysteresisBuffer // 已在移動時，容忍較小距離
+            : requiredDistance + hysteresisBuffer // 等待中時，需要更大距離才啟動
+
+        if (frontCollision.distance >= actualRequiredDistance) {
+          // 🚨 添加狀態穩定性檢查，避免頻繁切換
+          if (this.currentState === 'waiting' || this.currentState === 'waitingForVehicle') {
+            if (frontCollision.shouldFollow && frontCollision.followingSpeed !== null && !isGreenLight) {
+              // 非綠燈時進入跟隨模式
+              this.movementTimeline.resume()
+              this.enterFollowingMode(frontCollision.followingSpeed)
+              console.log(`🚗 [${this.id}] 進入跟隨模式，距離: ${frontCollision.distance.toFixed(1)}px`)
+              return
+            } else {
+              // 距離足夠，可以正常移動（綠燈時優先正常移動）
+              // 🚨 使用平滑的狀態轉換
+              gsap.delayedCall(0.1, () => {
+                // 短暫延遲，避免立即切換造成抖動
+                if (this.movementTimeline && this.currentState !== 'moving') {
+                  this.movementTimeline.resume()
+                  this.currentState = 'moving'
+                  console.log(
+                    `🚗 [${this.id}] 恢復移動，距離: ${frontCollision.distance.toFixed(1)}px ${isGreenLight ? '[綠燈]' : ''}`,
+                  )
+                }
+              })
+            }
           }
         } else {
           console.log(
-            `🚗 [${this.id}] 安全距離不足，繼續等待，距離: ${frontCollision.distance.toFixed(1)}px，需要: ${requiredDistance}px ${isGreenLight ? '[綠燈]' : ''}`,
+            `🚗 [${this.id}] 安全距離不足，繼續等待，距離: ${frontCollision.distance.toFixed(1)}px，需要: ${actualRequiredDistance}px ${isGreenLight ? '[綠燈]' : ''}`,
           )
         }
       }
@@ -1261,6 +1286,17 @@ export default class Vehicle {
   adjustPositionForSafety(frontVehicle, requiredDistance) {
     if (!frontVehicle || !this.element) return false
 
+    // 🚨 防抖動機制：檢查個別車輛和全局冷卻時間
+    const currentTime = Date.now()
+    const globalCooldownActive = currentTime - Vehicle.lastGlobalAdjustTime < Vehicle.antiShakeGlobalCooldown
+    const individualCooldownActive =
+      this.isAdjustingPosition || currentTime - this.lastPositionAdjustTime < this.positionAdjustCooldown
+
+    if (globalCooldownActive || individualCooldownActive) {
+      console.log(`⏰ [${this.id}] 位置調整冷卻中，跳過調整 ${globalCooldownActive ? '(全局)' : '(個別)'}`)
+      return false
+    }
+
     const currentPos = this.getCurrentPosition()
     const frontBox = frontVehicle.getBoundingBox()
 
@@ -1291,15 +1327,21 @@ export default class Vehicle {
     const deltaX = Math.abs(targetPosition.x - currentPos.x)
     const deltaY = Math.abs(targetPosition.y - currentPos.y)
 
-    if (deltaX > 2 || deltaY > 2) {
-      // 如果位置差異超過2px才調整
+    if (deltaX > 5 || deltaY > 5) {
+      // 增加調整閾值從2px到5px，減少頻繁調整
+      // 🚨 設置調整狀態和時間（個別和全局）
+      this.isAdjustingPosition = true
+      this.lastPositionAdjustTime = currentTime
+      Vehicle.lastGlobalAdjustTime = currentTime // 更新全局調整時間
+
       // 平滑調整到目標位置
       gsap.to(this.element, {
         x: targetPosition.x,
         y: targetPosition.y,
-        duration: 0.3, // 快速但平滑的調整
+        duration: 0.5, // 增加調整時間，讓動畫更平滑
         ease: 'power2.out',
         onComplete: () => {
+          this.isAdjustingPosition = false // 調整完成
           console.log(`🔧 [${this.id}] 位置已調整到安全距離: ${this.direction} 方向`)
         },
       })
