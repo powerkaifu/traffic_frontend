@@ -1065,24 +1065,27 @@ onMounted(async () => {
     // 再次等待一個小延遲，確保 autoTrafficGenerator 完全初始化
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    // 逐漸添加初始車輛，而不是一次性全部添加
-    const directions = ['north', 'south', 'east', 'west']
-    const vehicleTypes = ['motor', 'small', 'large']
+    // 🚫 註解掉第一波車輛生成，改用預設的流量強度和生成間隔自動產生
+    // // 逐漸添加初始車輛，而不是一次性全部添加
+    // const directions = ['north', 'south', 'east', 'west']
+    // const vehicleTypes = ['motor', 'small', 'large']
 
-    // 使用間隔添加車輛
-    for (let i = 0; i < 8; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 200)) // 每個車輛之間添加 200ms 延遲
-      const randomDir = directions[Math.floor(Math.random() * directions.length)]
-      const randomType = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)]
-      window.dispatchEvent(
-        new CustomEvent('generateVehicle', {
-          detail: {
-            direction: randomDir,
-            vehicleType: randomType,
-          },
-        }),
-      )
-    }
+    // // 使用間隔添加車輛
+    // for (let i = 0; i < 8; i++) {
+    //   await new Promise((resolve) => setTimeout(resolve, 200)) // 每個車輛之間添加 200ms 延遲
+    //   const randomDir = directions[Math.floor(Math.random() * directions.length)]
+    //   const randomType = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)]
+    //   window.dispatchEvent(
+    //     new CustomEvent('generateVehicle', {
+    //       detail: {
+    //         direction: randomDir,
+    //         vehicleType: randomType,
+    //       },
+    //     }),
+    //   )
+    // }
+
+    console.log('✅ 系統將使用預設流量強度和生成間隔自動產生車輛')
 
     // 定期清理超時車輛機制
     const cleanupInterval = setInterval(() => {
