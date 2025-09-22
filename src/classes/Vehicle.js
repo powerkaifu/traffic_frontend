@@ -76,7 +76,7 @@ export default class Vehicle {
     // Strategy Pattern: 使用延遲策略避免剛生成就被卡住
     setTimeout(() => {
       this.justCreated = false
-    }, 2000) // 增加到2000毫秒，給予更充足的初始化時間
+    }, 500) // 減少到500毫秒，讓車輛更快進入正常行駛狀態
   }
 
   // Observer Pattern: 實現觀察者模式，通知交通控制器和數據收集器
@@ -432,21 +432,21 @@ export default class Vehicle {
     }
 
     // 調整減速距離，讓車輛更接近停止線才開始減速
-    const slowDownDistance = 100 // 從100px開始減速
+    const slowDownDistance = 60 // 從60px開始減速，更接近停止線
 
     if (lightState === 'red' || lightState === 'yellow') {
       if (distanceToStopLine <= slowDownDistance) {
-        // 使用更平滑的減速曲線
+        // 使用更陡峭的減速曲線
         let speedRatio
-        if (distanceToStopLine <= 30) {
-          // 非常接近停止線時（30px內）：急劇減速到很慢
-          speedRatio = Math.max(0.05, (distanceToStopLine / 30) * 0.2)
-        } else if (distanceToStopLine <= 60) {
-          // 中等距離（30-60px）：較快減速
-          speedRatio = 0.2 + ((distanceToStopLine - 30) / 30) * 0.4
+        if (distanceToStopLine <= 15) {
+          // 很接近停止線（15px內）：急劇減速到完全停止
+          speedRatio = Math.max(0.05, (distanceToStopLine / 15) * 0.15)
+        } else if (distanceToStopLine <= 35) {
+          // 中等距離（15-35px）：快速減速
+          speedRatio = 0.15 + ((distanceToStopLine - 15) / 20) * 0.45
         } else {
-          // 遠距離（60-100px）：緩慢減速
-          speedRatio = 0.6 + ((distanceToStopLine - 60) / 40) * 0.4
+          // 較遠距離（35-60px）：開始溫和減速
+          speedRatio = 0.6 + ((distanceToStopLine - 35) / 25) * 0.4
         }
 
         return {
@@ -520,22 +520,30 @@ export default class Vehicle {
     const currentBox = this.getBoundingBox()
     const vehicleConfig = this.getVehicleConfig()
 
-    // 🚨 基於車輛實際大小的固定安全距離
+    // 🚨 基於車輛實際大小的動態安全距離
     const vehicleLength = Math.max(vehicleConfig.width, vehicleConfig.height)
-    const minimumGap = vehicleLength * 0.6 // 統一最小間隙為車輛長度的60%
-    const safeFollowingDistance = vehicleLength * 1.2 // 統一安全跟車距離
-    const emergencyStopDistance = vehicleLength * 0.4 // 統一緊急停車距離
+    const minimumGap = vehicleLength * 0.3 // 減少最小間隙為車輛長度的30%
+    const safeFollowingDistance = vehicleLength * 0.8 // 減少安全跟車距離
+    const emergencyStopDistance = vehicleLength * 0.2 // 減少緊急停車距離
 
-    // 🚨 統一化距離設定
-    let actualMinGap = minimumGap
-    let actualSafeDistance = safeFollowingDistance
-    let actualStopDistance = emergencyStopDistance
+    // 🚨 根據車速調整距離設定
+    const speedFactor = this.initialSpeed ? this.initialSpeed / 50 : 1 // 以50km/h為基準
+    let actualMinGap = minimumGap * Math.min(1.2, speedFactor)
+    let actualSafeDistance = safeFollowingDistance * Math.min(1.2, speedFactor)
+    let actualStopDistance = emergencyStopDistance * Math.min(1.2, speedFactor)
 
-    // 高密度交通調整
+    // 高密度交通調整（更寬鬆）
     const vehicleCount = allVehicles.filter((v) => v.direction === this.direction).length
     if (vehicleCount > 8) {
-      actualMinGap *= 0.8
-      actualSafeDistance *= 0.9
+      actualMinGap *= 0.9
+      actualSafeDistance *= 0.95
+    }
+
+    // 剛創建車輛時使用更寬鬆的檢測
+    if (Date.now() - new Date(this.createdAt).getTime() < 2000) {
+      actualMinGap *= 0.5
+      actualSafeDistance *= 0.7
+      actualStopDistance *= 0.5
     }
 
     // 紅燈減速和等待時的距離調整
@@ -598,25 +606,35 @@ export default class Vehicle {
         distance = isFrontVehicle ? otherBox.top - currentBox.bottom : currentBox.top - otherBox.bottom
       }
 
-      // 🚨 立即檢測重疊：任何負距離都是重疊
+      // 🚨 立即檢測重疊：容忍更大的重疊範圍
       if (inSameLane && distance < 0) {
-        // 🚨 特殊情況：如果兩車都在等待紅燈，使用更寬鬆的重疊標準
-        const bothWaitingForLight =
-          (this.waitingForGreen || this.currentState === 'slowing_for_light') &&
-          (vehicle.waitingForGreen || vehicle.currentState === 'slowing_for_light')
+        // 特殊情況：考慮多種情況使用更寬鬆的重疊標準
+        const isSpecialCase =
+          // 1. 兩車都在等待紅燈
+          ((this.waitingForGreen || this.currentState === 'slowing_for_light') &&
+            (vehicle.waitingForGreen || vehicle.currentState === 'slowing_for_light')) ||
+          // 2. 車輛剛創建不久
+          Date.now() - new Date(this.createdAt).getTime() < 2000 ||
+          // 3. 前車剛創建不久
+          Date.now() - new Date(vehicle.createdAt).getTime() < 2000 ||
+          // 4. 車輛在轉彎
+          this.currentState === 'turning' ||
+          vehicle.currentState === 'turning'
 
-        // 如果兩車都在等紅燈，只有重疊超過車輛長度的50%才認為是真正重疊
-        if (bothWaitingForLight) {
-          const overlapThreshold = -(vehicleLength * 0.5) // 負值表示重疊程度
+        if (isSpecialCase) {
+          const overlapThreshold = -(vehicleLength * 0.7) // 允許更大的重疊（70%車長）
           if (distance > overlapThreshold) {
-            // 輕微重疊，在紅燈等待狀態下可以容忍
-            console.log(`⚠️ [${this.id}] 紅燈排隊時輕微重疊，可容忍 距離: ${distance.toFixed(1)}px`)
+            // 輕微重疊，在特殊情況下可以容忍
+            console.log(`⚠️ [${this.id}] 輕微重疊，特殊情況可容忍 距離: ${distance.toFixed(1)}px`)
+            // 給予輕微推進力
+            const pushForce = Math.min(1, Math.abs(distance) / vehicleLength) * 0.2
             return {
               vehicle: vehicle,
               distance: distance,
-              shouldStop: false, // 不要停車，允許排隊
-              isOverlapping: false, // 不認為是重疊
+              shouldStop: false,
+              isOverlapping: false,
               emergencyStop: false,
+              followingSpeed: this.initialSpeed * pushForce, // 給予微小的前進速度
             }
           }
         }
@@ -856,101 +874,223 @@ export default class Vehicle {
     return null
   }
 
-  // 計算跟隨前車的速度 - 🚨 優化反應速度和跟車邏輯
+  // 計算跟隨前車的速度 - 🚨 完全重寫的智能跟車系統
   calculateFollowingSpeed(frontVehicle, distance, idealDistance) {
-    // 獲取前車的當前速度 - 🚨 優先使用實際運行速度
-    let frontVehicleSpeed = frontVehicle.currentSpeed || frontVehicle.initialSpeed
+    // 獲取前車資訊
+    const frontSpeed = frontVehicle.currentSpeed || frontVehicle.initialSpeed
+    const frontState = frontVehicle.currentState
+    const isFrontStopped =
+      frontState === 'waiting' || frontState === 'waitingForVehicle' || frontVehicle.waitingForGreen || frontSpeed === 0
 
-    // 如果前車停止，本車也應該停止
-    if (
-      frontVehicle.currentState === 'waiting' ||
-      frontVehicle.currentState === 'waitingForVehicle' ||
-      frontVehicle.waitingForGreen
-    ) {
-      return 0
+    // 前車已停止：根據距離決定是否完全停止
+    if (isFrontStopped) {
+      if (distance < idealDistance * 0.3) {
+        return 0 // 距離很近，完全停止
+      }
+      // 距離還有空間，保持極低速前進
+      return this.initialSpeed * 0.1
     }
 
-    // 🚨 動態距離係數：根據距離調整跟車緊密度
-    const normalizedDistance = Math.min(1, distance / idealDistance)
+    // 🚨 動態安全距離計算
+    const safetyFactor = Math.max(0.2, Math.min(1.0, distance / idealDistance))
 
-    // 🚨 使用更平滑的距離因子計算
-    let distanceFactor
-    if (normalizedDistance < 0.3) {
-      // 距離很近時：急劇減速
-      distanceFactor = normalizedDistance * 0.5
-    } else if (normalizedDistance < 0.7) {
+    // 🚨 考慮前車狀態的動態係數
+    const stateFactor =
+      frontState === 'slowing_for_light'
+        ? 0.7 // 前車減速中
+        : frontState === 'turning'
+          ? 0.8 // 前車轉彎中
+          : frontState === 'following'
+            ? 0.9 // 前車也在跟車
+            : 1.0 // 其他狀態
+
+    // 🚨 速度梯度系統
+    let speedRatio
+    if (distance < idealDistance * 0.3) {
+      // 非常接近：急速減速
+      speedRatio = Math.pow(safetyFactor, 2) * 0.3 // 二次方增加減速效果
+    } else if (distance < idealDistance * 0.6) {
       // 中等距離：線性調整
-      distanceFactor = 0.15 + (normalizedDistance - 0.3) * 1.5
+      speedRatio = 0.3 + (safetyFactor - 0.3) * 0.7
+    } else if (distance < idealDistance * 0.9) {
+      // 較遠距離：漸進加速
+      speedRatio = 0.7 + (safetyFactor - 0.6) * 0.5
     } else {
-      // 距離較遠：接近前車速度
-      distanceFactor = 0.75 + (normalizedDistance - 0.7) * 0.83
+      // 安全距離：接近但不超過前車速度
+      speedRatio = 0.95
     }
 
-    // 🚨 危險距離檢測：如果距離過近，立即大幅減速
-    const criticalDistance = idealDistance * 0.4 // 臨界距離為理想距離的40%
-    if (distance < criticalDistance) {
-      return this.initialSpeed * 0.15 // 緊急減速到15%速度
+    // 🚨 基礎跟車速度計算
+    const baseSpeed = Math.min(frontSpeed * speedRatio * stateFactor, this.initialSpeed * 0.95)
+
+    // 🚨 智能速度調整
+    let finalSpeed = baseSpeed
+
+    // 1. 特殊情況處理
+    if (frontState === 'slowing_for_light' && distance > idealDistance * 0.7) {
+      // 前車正在為紅燈減速，且距離足夠：提前減速
+      finalSpeed *= 0.8
     }
 
-    // 🚨 更智能的跟車速度：根據距離動態調整跟車係數
-    let followingRatio
-    if (distance < idealDistance * 0.5) {
-      followingRatio = 0.7 // 近距離：保守跟車
-    } else if (distance < idealDistance * 0.8) {
-      followingRatio = 0.85 // 中距離：正常跟車
-    } else {
-      followingRatio = 0.95 // 遠距離：接近前車速度
+    // 2. 平滑加速控制
+    if (this.currentSpeed && finalSpeed > this.currentSpeed) {
+      // 限制加速度，防止跟車時加速過猛
+      const maxAcceleration = 1.2 // 最大允許加速20%
+      finalSpeed = Math.min(finalSpeed, this.currentSpeed * maxAcceleration)
     }
 
-    // 基本跟隨速度：根據距離動態調整跟車係數
-    const baseFollowingSpeed = Math.min(frontVehicleSpeed * followingRatio, this.initialSpeed)
+    // 3. 危險情況處理
+    if (distance < idealDistance * 0.25) {
+      // 距離過近：強制大幅減速
+      finalSpeed = Math.min(finalSpeed, this.initialSpeed * 0.2)
+    }
 
-    // 根據距離調整速度
-    const adjustedSpeed = baseFollowingSpeed * distanceFactor
+    // 4. 保持最低速度以維持交通流動性
+    const absoluteMinSpeed = this.initialSpeed * 0.1
+    finalSpeed = Math.max(finalSpeed, absoluteMinSpeed)
 
-    // 🚨 動態最低速度：保持流動性，防止過度緩慢
-    const minSpeedRatio = distance < idealDistance * 0.3 ? 0.1 : 0.2
-    return Math.max(adjustedSpeed, this.initialSpeed * minSpeedRatio)
+    // 🚨 調試信息
+    if (Math.random() < 0.01 || this.id.endsWith('1')) {
+      console.log(`🚗 [${this.id}] 跟車計算:`, {
+        distance: distance.toFixed(1),
+        safetyFactor: safetyFactor.toFixed(2),
+        stateFactor: stateFactor.toFixed(2),
+        speedRatio: speedRatio.toFixed(2),
+        finalSpeed: finalSpeed.toFixed(1),
+      })
+    }
+
+    return finalSpeed
   }
 
-  // 進入跟隨模式
+  // 🚨 完全重寫：智能跟車模式系統
   enterFollowingMode(targetSpeed) {
     if (!this.movementTimeline) return
 
-    // 如果已經在跟隨模式且速度相近，不需要重複調整
-    if (
-      this.currentState === 'following' &&
-      Math.abs(this.movementTimeline.timeScale() * this.initialSpeed - targetSpeed) < 2
-    ) {
-      return
+    // 目標車速保護：確保至少保持最低速度
+    const minSpeed = this.initialSpeed * 0.1
+    targetSpeed = Math.max(targetSpeed, minSpeed)
+
+    // 如果已在跟車模式且速度相近，只需微調
+    if (this.currentState === 'following') {
+      const currentSpeed = this.movementTimeline.timeScale() * this.initialSpeed
+      const speedDiff = Math.abs(currentSpeed - targetSpeed)
+
+      // 速度差異小於2km/h時不調整
+      if (speedDiff < 2) {
+        return
+      }
+
+      // 速度差異較小時使用更溫和的調整
+      if (speedDiff < 5) {
+        const gentleTimeScale = (targetSpeed / this.initialSpeed) * (this.originalTimeScale || 1)
+        gsap.to(this.movementTimeline, {
+          timeScale: Math.max(0.1, gentleTimeScale),
+          duration: 0.8, // 更長的調整時間
+          ease: 'power1.inOut', // 更溫和的緩動函數
+        })
+        return
+      }
+    }
+
+    // 儲存原始時間縮放以便恢復
+    if (!this.originalTimeScale && this.currentState !== 'following') {
+      this.originalTimeScale = this.movementTimeline.timeScale()
     }
 
     this.currentState = 'following'
 
-    // 計算目標timeScale（基於目標速度與原始速度的比例）
+    // 計算目標時間縮放比例
     const baseTimeScale = this.originalTimeScale || 1
     const targetTimeScale = (targetSpeed / this.initialSpeed) * baseTimeScale
 
-    // 平滑調整到目標速度
-    gsap.to(this.movementTimeline, {
-      timeScale: Math.max(0.1, targetTimeScale), // 最小timeScale為0.1
+    // 根據速度變化選擇不同的動畫參數
+    const currentSpeed = this.movementTimeline.timeScale() * this.initialSpeed
+    const isAccelerating = targetSpeed > currentSpeed
+    const speedDiff = Math.abs(currentSpeed - targetSpeed)
+
+    // 動態調整動畫參數
+    let animationConfig = {
+      timeScale: Math.max(0.1, targetTimeScale),
       duration: 0.5,
       ease: 'power2.out',
-    })
+    }
+
+    // 特殊情況處理
+    if (speedDiff > 20) {
+      // 大幅度速度變化：使用更漸進的變化
+      animationConfig.duration = 1.0
+      animationConfig.ease = 'power3.inOut'
+    } else if (isAccelerating) {
+      // 加速：較快的響應
+      animationConfig.duration = 0.6
+      animationConfig.ease = 'power2.out'
+    } else {
+      // 減速：更平滑的過渡
+      animationConfig.duration = 0.8
+      animationConfig.ease = 'power2.inOut'
+    }
+
+    // 執行動畫
+    gsap.to(this.movementTimeline, animationConfig)
+
+    // 調試信息
+    if (Math.random() < 0.1 || this.id.endsWith('1')) {
+      console.log(`🚗 [${this.id}] 進入跟車模式:`, {
+        當前速度: currentSpeed.toFixed(1),
+        目標速度: targetSpeed.toFixed(1),
+        時間縮放: targetTimeScale.toFixed(2),
+        動畫時長: animationConfig.duration,
+        緩動函數: animationConfig.ease,
+      })
+    }
   }
 
-  // 退出跟隨模式，恢復正常速度
+  // 🚨 智能退出跟車模式
   exitFollowingMode() {
     if (!this.movementTimeline || this.currentState !== 'following') return
 
-    this.currentState = 'moving'
+    // 檢查當前速度
+    const currentSpeed = this.movementTimeline.timeScale() * this.initialSpeed
     const targetTimeScale = this.originalTimeScale || 1
+    const targetSpeed = this.initialSpeed * targetTimeScale
 
-    gsap.to(this.movementTimeline, {
+    // 根據速度差異決定退出策略
+    const speedDiff = Math.abs(targetSpeed - currentSpeed)
+    let exitConfig = {
       timeScale: targetTimeScale,
-      duration: 0.8,
-      ease: 'power2.inOut',
-    })
+      onComplete: () => {
+        this.currentState = 'moving'
+        this.originalTimeScale = null
+      },
+    }
+
+    if (speedDiff > 20) {
+      // 大幅加速：分階段加速
+      exitConfig.duration = 1.2
+      exitConfig.ease = 'power3.inOut'
+    } else if (currentSpeed < targetSpeed) {
+      // 需要加速：較快的響應
+      exitConfig.duration = 0.6
+      exitConfig.ease = 'power2.out'
+    } else {
+      // 需要減速：平滑過渡
+      exitConfig.duration = 0.8
+      exitConfig.ease = 'power2.inOut'
+    }
+
+    // 執行退出動畫
+    gsap.to(this.movementTimeline, exitConfig)
+
+    // 調試信息
+    if (Math.random() < 0.1 || this.id.endsWith('1')) {
+      console.log(`🚗 [${this.id}] 退出跟車模式:`, {
+        當前速度: currentSpeed.toFixed(1),
+        目標速度: targetSpeed.toFixed(1),
+        動畫時長: exitConfig.duration,
+        緩動函數: exitConfig.ease,
+      })
+    }
   }
 
   // State Pattern: 停止移動狀態控制方法
