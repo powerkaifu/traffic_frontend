@@ -551,6 +551,10 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => 
 const crossroadContainer = ref(null)
 const trafficController = new TrafficLightController()
 const autoTrafficGenerator = new AutoTrafficGenerator(trafficController)
+
+// 🚨 設置車道級別生成控制，防止碰撞
+autoTrafficGenerator.setMinLaneInterval(2000) // 同一車道2秒內不重複生成
+
 const trafficDataCollector = new TrafficDataCollector()
 const currentPhase = ref('南北向 綠燈')
 const countdown = ref(15)
@@ -1012,6 +1016,8 @@ onMounted(async () => {
       window.removeEventListener('resize', handleLayoutChange)
       observer.disconnect()
       autoTrafficGenerator.stop()
+      // 🚨 清除所有車道冷卻狀態
+      autoTrafficGenerator.clearLaneCooldown()
     }
 
     // 將清理函數保存到 window 對象，以便在需要時調用

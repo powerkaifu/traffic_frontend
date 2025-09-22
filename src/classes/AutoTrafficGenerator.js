@@ -7,6 +7,10 @@ export default class AutoTrafficGenerator {
     this.isRunning = false
     this.timer = null
 
+    // 🚨 新增：車道級別生成冷卻機制
+    this.laneGenerationCooldown = {} // 記錄每個車道的最後生成時間
+    this.minLaneInterval = 2000 // 同一車道最小生成間隔（2秒）
+
     // 預設完整配置
     this.defaultConfig = {
       interval: { min: 1000, max: 5000, normal: 3000 }, // 🚨 修改為更短的間隔 1-5秒
@@ -82,11 +86,33 @@ export default class AutoTrafficGenerator {
     if (typeof newConfig.maxLiveVehicles === 'number') {
       this.maxLiveVehicles = newConfig.maxLiveVehicles
     }
+    // 🚨 新增：如果配置包含車道間隔設置，更新它
+    if (typeof newConfig.minLaneInterval === 'number') {
+      this.minLaneInterval = newConfig.minLaneInterval
+      console.log(`🔧 車道最小生成間隔已更新為: ${this.minLaneInterval}ms`)
+    }
     // 如果在自動模式下進行了手動設定，則自動關閉自動模式
     if (this.isAutoMode) {
       this.toggleAutoMode(false)
     }
     console.log('🔧 已切換手動設定：', this.config, 'maxLiveVehicles:', this.maxLiveVehicles)
+  }
+
+  // 🚨 新增：設置車道最小間隔的專用方法
+  setMinLaneInterval(intervalMs) {
+    this.minLaneInterval = Math.max(500, intervalMs) // 最小不少於500ms
+    console.log(`🔧 車道最小生成間隔設置為: ${this.minLaneInterval}ms`)
+  }
+
+  // 🚨 新增：清除特定車道的冷卻狀態（緊急情況使用）
+  clearLaneCooldown(direction) {
+    if (direction) {
+      delete this.laneGenerationCooldown[direction]
+      console.log(`🔧 已清除 ${direction} 方向的車道冷卻`)
+    } else {
+      this.laneGenerationCooldown = {}
+      console.log(`🔧 已清除所有車道冷卻`)
+    }
   }
 
   // ==========================================
@@ -302,37 +328,54 @@ export default class AutoTrafficGenerator {
     }
 
     const dirs = ['east', 'west', 'north', 'south']
-    let selectedDir = dirs[Math.floor(Math.random() * dirs.length)]
+
+    // 🚨 新增：車道級別冷卻檢查 - 過濾掉冷卻中的方向
+    const availableDirs = dirs.filter((dir) => {
+      const laneKey = dir // 可以後續擴展為 `${dir}_${laneNumber}`
+      const lastGenTime = this.laneGenerationCooldown[laneKey] || 0
+      const timeSinceLastGen = now - lastGenTime
+      return timeSinceLastGen >= this.minLaneInterval
+    })
+
+    // 如果沒有可用方向，延後重試
+    if (availableDirs.length === 0) {
+      console.log(`🚨 所有車道都在冷卻中，延後 ${this.minLaneInterval / 2}ms 重試`)
+      setTimeout(() => this._scheduleNext(), this.minLaneInterval / 2)
+      return
+    }
+
+    let selectedDir = availableDirs[Math.floor(Math.random() * availableDirs.length)]
 
     // 檢查每個方向的車輛數量
-    const dirCounts = dirs.reduce((acc, dir) => {
+    const dirCounts = availableDirs.reduce((acc, dir) => {
       acc[dir] = recentVehicles.filter((v) => v.direction === dir).length
       return acc
     }, {})
 
     // 尋找車輛最少的方向
     const minCount = Math.min(...Object.values(dirCounts))
-    const availableDirs = dirs.filter((dir) => dirCounts[dir] === minCount)
+    const bestDirs = availableDirs.filter((dir) => dirCounts[dir] === minCount)
 
     // 如果原選方向車輛過多，選擇其他可用方向
     if (dirCounts[selectedDir] > minCount) {
       console.log(`🚦 ${selectedDir}方向車輛過多(${dirCounts[selectedDir]})，選擇較少車輛的方向`)
-      selectedDir = availableDirs[Math.floor(Math.random() * availableDirs.length)]
+      selectedDir = bestDirs[Math.floor(Math.random() * bestDirs.length)]
     }
 
-    // 如果選定方向500ms內有車，短暫延遲
-    const veryRecentDirVehicles = recentVehicles.filter((v) => v.direction === selectedDir && now - v.timestamp < 500)
+    // 🚨 更嚴格的同方向車輛檢查
+    const veryRecentDirVehicles = recentVehicles.filter((v) => v.direction === selectedDir && now - v.timestamp < 1000) // 延長到1秒
     if (veryRecentDirVehicles.length > 0) {
-      console.log(`🚨 ${selectedDir}方向極短時間內已有車輛，短暫延後`)
-      setTimeout(() => this._scheduleNext(), Math.max(150, this.config.minInterval * 0.5 || 150)) // 使用更短的延遲
+      console.log(`🚨 ${selectedDir}方向1秒內已有車輛(${veryRecentDirVehicles.length}台)，延後生成`)
+      setTimeout(() => this._scheduleNext(), Math.max(500, this.minLaneInterval / 3)) // 更長的延遲
       return
     }
 
     // 車道層級的密度檢查，但使用更寬鬆的限制
     const recentDirVehicles = recentVehicles.filter((v) => v.direction === selectedDir)
-    if (recentDirVehicles.length >= 4) {
-      console.log(`🚦 ${selectedDir}方向車輛密度過高(${recentDirVehicles.length})，短暫延後`)
-      setTimeout(() => this._scheduleNext(), Math.max(200, this.config.minInterval * 0.6 || 200))
+    if (recentDirVehicles.length >= 3) {
+      // 降低限制到3台
+      console.log(`🚦 ${selectedDir}方向車輛密度過高(${recentDirVehicles.length})，延後生成`)
+      setTimeout(() => this._scheduleNext(), Math.max(500, this.minLaneInterval / 2))
       return
     }
 
@@ -353,6 +396,11 @@ export default class AutoTrafficGenerator {
     if (this.trafficController && this.trafficController.getAverageSpeed) {
       speed = this.trafficController.getAverageSpeed(selectedDir, type)
     }
+
+    // 🚨 記錄車道生成時間
+    const laneKey = selectedDir // 可以後續擴展為 `${selectedDir}_${laneNumber}`
+    this.laneGenerationCooldown[laneKey] = now
+
     window.dispatchEvent(
       new CustomEvent('vehicleAdded', {
         detail: { direction: selectedDir, type: type, speed: speed, timestamp: Date.now() },
@@ -364,6 +412,10 @@ export default class AutoTrafficGenerator {
       }),
     )
     this.statistics.total++
+
+    console.log(
+      `✅ 成功生成車輛：${selectedDir}方向 ${type}型，下次該方向可生成時間：${new Date(now + this.minLaneInterval).toLocaleTimeString()}`,
+    )
   }
 
   _getDensity(dir) {
