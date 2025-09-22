@@ -71,7 +71,7 @@ export default class Vehicle {
     // Strategy Pattern: 使用延遲策略避免剛生成就被卡住
     setTimeout(() => {
       this.justCreated = false
-    }, 1000) // 增加到1000毫秒，確保車輛有足夠時間啟動移動
+    }, 2000) // 增加到2000毫秒，給予更充足的初始化時間
   }
 
   // Observer Pattern: 實現觀察者模式，通知交通控制器和數據收集器
@@ -503,13 +503,13 @@ export default class Vehicle {
     const currentBox = this.getBoundingBox()
     const vehicleConfig = this.getVehicleConfig()
 
-    // 🚨 基於車輛實際大小的動態安全距離
+    // 🚨 基於車輛實際大小的固定安全距離
     const vehicleLength = Math.max(vehicleConfig.width, vehicleConfig.height)
-    const minimumGap = vehicleLength * 0.8 // 最小間隙為車輛長度的80%
-    const safeFollowingDistance = vehicleLength * 1.5 // 安全跟車距離
-    const emergencyStopDistance = vehicleLength * 0.3 // 緊急停車距離
+    const minimumGap = vehicleLength * 0.6 // 統一最小間隙為車輛長度的60%
+    const safeFollowingDistance = vehicleLength * 1.2 // 統一安全跟車距離
+    const emergencyStopDistance = vehicleLength * 0.4 // 統一緊急停車距離
 
-    // 🚨 根據車輛狀態動態調整距離
+    // 🚨 統一化距離設定
     let actualMinGap = minimumGap
     let actualSafeDistance = safeFollowingDistance
     let actualStopDistance = emergencyStopDistance
@@ -521,11 +521,12 @@ export default class Vehicle {
       actualSafeDistance *= 0.9
     }
 
-    // 等待紅綠燈時增加距離
+    // 等待紅綠燈時的距離調整
     if (this.currentState === 'slowing_for_light' || this.waitingForGreen) {
-      actualMinGap *= 2.0
-      actualSafeDistance *= 2.5
-      actualStopDistance *= 1.5
+      // 紅燈時使用更合理的間距倍數
+      actualMinGap *= 1.5 // 原本 2.0，改為 1.5 倍
+      actualSafeDistance *= 1.8 // 原本 2.5，改為 1.8 倍
+      actualStopDistance *= 1.2 // 原本 1.5，改為 1.2 倍
     }
 
     let closestVehicle = null
@@ -618,16 +619,16 @@ export default class Vehicle {
       (this.waitingForGreen || this.currentState === 'slowing_for_light') &&
       (closestVehicle.waitingForGreen || closestVehicle.currentState === 'slowing_for_light')
 
-    // 🚨 如果兩車都在等紅燈，使用更寬鬆的距離標準
+    // 🚨 統一化停等距離設定
     let finalMinGap = actualMinGap
     let finalSafeDistance = actualSafeDistance
     let finalStopDistance = actualStopDistance
 
     if (bothWaitingForLight) {
-      // 紅燈排隊時允許更近的距離
-      finalMinGap = vehicleLength * 0.3 // 從80%減少到30%
-      finalSafeDistance = vehicleLength * 0.5 // 從150%減少到50%
-      finalStopDistance = vehicleLength * 0.1 // 從30%減少到10%
+      // 紅燈排隊時使用固定距離
+      finalMinGap = vehicleLength * 0.5 // 統一為車長的50%
+      finalSafeDistance = vehicleLength * 0.7 // 統一為車長的70%
+      finalStopDistance = vehicleLength * 0.3 // 統一為車長的30%
 
       console.log(`🚦 [${this.id}] 紅燈排隊模式，使用寬鬆距離標準`)
     }
@@ -1238,6 +1239,7 @@ export default class Vehicle {
               hasBeenRemovedFromCollision = true
               console.log(`🚗 [${this.id}] 離開邊界，從碰撞檢測中移除`)
               onVehicleOutOfBounds(this.id)
+              this.remove() // 🚨 強制移除 DOM
               return
             }
 
@@ -1533,7 +1535,7 @@ export default class Vehicle {
               console.log(`🚗 [${this.id}] 動畫完成，立即從碰撞檢測中移除`)
               onVehicleOutOfBounds(this.id)
             }
-
+            this.remove() // 🚨 動畫完成強制移除 DOM
             resolve()
           },
         })
@@ -2062,9 +2064,12 @@ export default class Vehicle {
     }
 
     // 移除DOM元素
-    if (this.element.parentNode) {
+    if (this.element && this.element.parentNode) {
       this.element.parentNode.removeChild(this.element)
     }
+    // 🚨 強制釋放 DOM 參考，防止殘留
+    this.element = null
+    this.laneLabel = null
   }
 
   // 檢測路口是否有對向車輛（用於綠燈啟動前的安全檢查）

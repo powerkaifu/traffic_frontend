@@ -9,8 +9,8 @@ export default class AutoTrafficGenerator {
 
     // 預設完整配置
     this.defaultConfig = {
-      interval: { min: 10000, max: 60000, normal: 30000 }, // 調整為較長的生成間隔
-      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 }, // 調整密度閾值，使其更難達到高密度
+      interval: { min: 15000, max: 60000, normal: 35000 }, // 增加最小間隔和正常間隔
+      densityThresholds: { light: 8, moderate: 15, heavy: 25, congested: 35 }, // 降低密度閾值，更早開始控制
       vehicleTypes: [
         { type: 'motor', weight: 35 },
         { type: 'small', weight: 50 },
@@ -258,8 +258,32 @@ export default class AutoTrafficGenerator {
   // 隨機生成一輛車
   _generateVehicle() {
     if (window.liveVehicles && window.liveVehicles.length >= this.maxLiveVehicles) return
+
+    // 新增：檢查最近生成的車輛
+    const now = Date.now()
+    const recentVehicles = window.liveVehicles
+      ? window.liveVehicles.filter((v) => {
+          return now - v.timestamp < 3000 // 檢查3秒內生成的車輛
+        })
+      : []
+
+    // 如果3秒內生成的車輛超過4台，延後生成
+    if (recentVehicles.length >= 4) {
+      console.log('🚦 短時間內車輛生成過多，延後生成')
+      this._scheduleNext()
+      return
+    }
+
     const dirs = ['east', 'west', 'north', 'south']
-    const dir = dirs[Math.floor(Math.random() * dirs.length)]
+    let selectedDir = dirs[Math.floor(Math.random() * dirs.length)]
+
+    // 檢查選定方向最近生成的車輛
+    const recentDirVehicles = recentVehicles.filter((v) => v.direction === selectedDir)
+    if (recentDirVehicles.length >= 2) {
+      console.log(`🚦 ${selectedDir}方向短時間內車輛過多，選擇其他方向`)
+      const otherDirs = dirs.filter((d) => d !== selectedDir)
+      selectedDir = otherDirs[Math.floor(Math.random() * otherDirs.length)]
+    }
 
     const vehicleTypes = this.config.vehicleTypes
     const totalWeight = vehicleTypes.reduce((sum, v) => sum + v.weight, 0)
@@ -276,16 +300,16 @@ export default class AutoTrafficGenerator {
 
     let speed = 30
     if (this.trafficController && this.trafficController.getAverageSpeed) {
-      speed = this.trafficController.getAverageSpeed(dir, type)
+      speed = this.trafficController.getAverageSpeed(selectedDir, type)
     }
     window.dispatchEvent(
       new CustomEvent('vehicleAdded', {
-        detail: { direction: dir, type: type, speed: speed, timestamp: Date.now() },
+        detail: { direction: selectedDir, type: type, speed: speed, timestamp: Date.now() },
       }),
     )
     window.dispatchEvent(
       new CustomEvent('generateVehicle', {
-        detail: { direction: dir, vehicleType: type, speed: speed, timestamp: Date.now() },
+        detail: { direction: selectedDir, vehicleType: type, speed: speed, timestamp: Date.now() },
       }),
     )
     this.statistics.total++
@@ -312,15 +336,31 @@ export default class AutoTrafficGenerator {
     }
   }
 
-  // 🚨 新增：根據車輛密度計算間隔調整係數
+  // 🚨 根據車輛密度和最近生成時間計算間隔調整係數
   _getDensityMultiplier(vehicleCount) {
-    // 根據車輛數量動態調整生成間隔
-    if (vehicleCount < 5) return 1.0 // 車輛很少，正常間隔
-    if (vehicleCount < 10) return 1.2 // 開始增加間隔
-    if (vehicleCount < 20) return 1.5 // 中等密度，增加50%間隔
-    if (vehicleCount < 30) return 2.0 // 高密度，雙倍間隔
-    if (vehicleCount < 40) return 2.5 // 很高密度，2.5倍間隔
-    return 3.0 // 極高密度，3倍間隔
+    const now = Date.now()
+    const recentVehicles = window.liveVehicles
+      ? window.liveVehicles.filter((v) => {
+          return now - v.timestamp < 3000 // 檢查3秒內生成的車輛
+        }).length
+      : 0
+
+    // 基礎密度係數
+    let densityMultiplier = 1.0
+    if (vehicleCount < 5)
+      densityMultiplier = 1.2 // 提高基礎間隔
+    else if (vehicleCount < 10) densityMultiplier = 1.5
+    else if (vehicleCount < 20) densityMultiplier = 2.0
+    else if (vehicleCount < 30) densityMultiplier = 2.5
+    else if (vehicleCount < 40) densityMultiplier = 3.0
+    else densityMultiplier = 3.5
+
+    // 根據最近生成的車輛數增加係數
+    if (recentVehicles >= 4) densityMultiplier *= 1.5
+    else if (recentVehicles >= 3) densityMultiplier *= 1.3
+    else if (recentVehicles >= 2) densityMultiplier *= 1.2
+
+    return densityMultiplier
   }
 
   // 查詢統計
