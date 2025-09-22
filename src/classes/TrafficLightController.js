@@ -286,11 +286,17 @@ export default class TrafficLightController {
           // 南北向：綠燈 -> 黃燈 -> 紅燈
           this.updateLightState('south', 'yellow')
           this.updateLightState('north', 'yellow')
-          this.updateTimer('南北向 黃燈', 2)
-          await this.countdownDelay(2000)
+          this.updateTimer('南北向 黃燈', 3)
+          await this.countdownDelay(3000)
 
           this.updateLightState('south', 'red')
           this.updateLightState('north', 'red')
+
+          // 🚥 全紅階段：確保所有方向都是紅燈，提供安全緩衝時間
+          this.updateTimer('全紅階段', 3)
+          await this.countdownDelay(3000)
+
+          // 全紅階段結束，東西向綠燈開始
           this.updateLightState('east', 'green')
           this.updateLightState('west', 'green')
           this.dynamicTiming.eastWest = this.nextTiming.eastWest
@@ -309,11 +315,17 @@ export default class TrafficLightController {
           // 東西向：綠燈 -> 黃燈 -> 紅燈
           this.updateLightState('east', 'yellow')
           this.updateLightState('west', 'yellow')
-          this.updateTimer('東西向 黃燈', 2)
-          await this.countdownDelay(2000)
+          this.updateTimer('東西向 黃燈', 3)
+          await this.countdownDelay(3000)
 
           this.updateLightState('east', 'red')
           this.updateLightState('west', 'red')
+
+          // 🚥 全紅階段：確保所有方向都是紅燈，提供安全緩衝時間
+          this.updateTimer('全紅階段', 3)
+          await this.countdownDelay(3000)
+
+          // 全紅階段結束，南北向綠燈開始
           this.updateLightState('south', 'green')
           this.updateLightState('north', 'green')
           this.dynamicTiming.northSouth = this.nextTiming.northSouth

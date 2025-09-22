@@ -38,6 +38,11 @@ export default class Vehicle {
     this.positionAdjustCooldown = 500 // 位置調整冷卻時間（毫秒）
     this.isAdjustingPosition = false // 是否正在調整位置
 
+    // 🚨 新增：停止線區域特殊防護
+    this.stopLineStabilized = false // 是否在停止線區域已穩定
+    this.stopLineStabilizeTime = 0 // 停止線穩定時間
+    this.stopLineNoAdjustZone = false // 停止線禁止調整區域標記
+
     // 數據收集相關屬性
     this.createdAt = new Date().toISOString()
     this.startPosition = { x, y }
@@ -838,8 +843,21 @@ export default class Vehicle {
     if (distance < finalMinGap) {
       // 如果是紅燈排隊，需要特別處理以保持最小間距
       if (bothWaitingForLight) {
-        // 即使在排隊，也要確保有合理的最小距離以避免重疊
-        const minimumSafeGap = Math.max(15, vehicleLength * 0.6) // 至少15px或車長的60%
+        // 🚨 新增：停止線區域特殊處理
+        const isNearStopLine = this.isNearStopLine()
+        const otherNearStopLine = closestVehicle.isNearStopLine && closestVehicle.isNearStopLine()
+
+        // 如果兩車都在停止線附近，使用更寬鬆的距離標準
+        let minimumSafeGap
+        if (isNearStopLine && otherNearStopLine) {
+          // 停止線區域：更寬鬆的距離要求，避免抖動
+          minimumSafeGap = Math.max(8, vehicleLength * 0.3) // 降低到車長的30%或8px
+          console.log(`🚦 [${this.id}] 停止線區域特殊處理，使用寬鬆距離標準: ${minimumSafeGap}px`)
+        } else {
+          // 一般紅燈排隊區域
+          minimumSafeGap = Math.max(15, vehicleLength * 0.6) // 至少15px或車長的60%
+        }
+
         if (distance < minimumSafeGap) {
           console.log(
             `🚦 [${this.id}] 紅燈排隊距離過近 (<${minimumSafeGap}px)，需要停車保持安全距離。距離: ${distance.toFixed(1)}px`,
@@ -851,6 +869,7 @@ export default class Vehicle {
             isOverlapping: false,
             emergencyStop: false, // 不是緊急情況，只是需要保持距離
             requiredDistance: minimumSafeGap, // 標示需要的安全距離
+            stopLineSpecial: isNearStopLine && otherNearStopLine, // 標記是否為停止線特殊情況
           }
         }
         // 距離在安全範圍內，允許排隊
@@ -1245,6 +1264,11 @@ export default class Vehicle {
     // Command Pattern: 將強制啟動封裝為可執行的命令
     // State Pattern: 強制狀態轉換，用於綠燈時的啟動
     if (this.movementTimeline) {
+      // 🚦 綠燈啟動時重置停止線穩定狀態，允許正常行駛
+      this.stopLineStabilized = false
+      this.stopLineStabilizeTime = 0
+      this.stopLineNoAdjustZone = false
+
       // 檢查前方車輛，確保沒有重疊
       const frontCollision = this.checkFrontCollision(allVehicles)
 
@@ -1285,6 +1309,34 @@ export default class Vehicle {
   // 新增：車輛位置調整方法，用於保持安全距離
   adjustPositionForSafety(frontVehicle, requiredDistance) {
     if (!frontVehicle || !this.element) return false
+
+    // 🚨 停止線區域特殊防護：檢查是否在停止線附近等紅燈
+    const isNearStopLine = this.isNearStopLine()
+    const bothWaitingAtStopLine =
+      (this.waitingForGreen || this.isAtStopLine) && (frontVehicle.waitingForGreen || frontVehicle.isAtStopLine)
+
+    if (isNearStopLine && bothWaitingAtStopLine) {
+      // 如果已在停止線區域穩定超過2秒，禁止位置調整
+      if (!this.stopLineStabilized) {
+        if (this.stopLineStabilizeTime === 0) {
+          this.stopLineStabilizeTime = Date.now()
+        } else if (Date.now() - this.stopLineStabilizeTime > 2000) {
+          this.stopLineStabilized = true
+          this.stopLineNoAdjustZone = true
+          console.log(`🚦 [${this.id}] 停止線區域已穩定，禁止位置調整`)
+        }
+      }
+
+      if (this.stopLineNoAdjustZone) {
+        console.log(`🚦 [${this.id}] 停止線禁止調整區域，跳過位置調整`)
+        return false
+      }
+    } else {
+      // 不在停止線區域，重置穩定狀態
+      this.stopLineStabilized = false
+      this.stopLineStabilizeTime = 0
+      this.stopLineNoAdjustZone = false
+    }
 
     // 🚨 防抖動機制：檢查個別車輛和全局冷卻時間
     const currentTime = Date.now()
@@ -1350,6 +1402,16 @@ export default class Vehicle {
     }
 
     return false // 位置已經安全，無需調整
+  }
+
+  // 🚨 新增：檢查車輛是否靠近停止線
+  isNearStopLine() {
+    const distanceToStopLine = this.getDistanceToStopLine()
+    if (distanceToStopLine === null) return false
+
+    // 定義停止線附近區域為50px範圍
+    const stopLineProximity = 50
+    return Math.abs(distanceToStopLine) <= stopLineProximity
   }
 
   // Composite Pattern: 將車輛添加到容器的組合方法
@@ -1519,8 +1581,13 @@ export default class Vehicle {
               const frontCollision = this.checkFrontCollision(allVehicles)
 
               if (frontCollision && frontCollision.requiredDistance) {
-                // 🔧 嘗試調整位置以保持安全距離
-                this.adjustPositionForSafety(frontCollision.vehicle, frontCollision.requiredDistance)
+                // � 停止線區域特殊檢查：避免在停止線等紅燈時調整位置
+                if (!frontCollision.stopLineSpecial) {
+                  // �🔧 嘗試調整位置以保持安全距離（非停止線區域）
+                  this.adjustPositionForSafety(frontCollision.vehicle, frontCollision.requiredDistance)
+                } else {
+                  console.log(`🚦 [${this.id}] 停止線區域，跳過位置調整`)
+                }
               }
 
               // 放寬恢復條件：只要不重疊且有基本安全距離就恢復
@@ -1539,9 +1606,11 @@ export default class Vehicle {
                   this.stopMovement()
                   this.currentState = 'waitingForVehicle'
 
-                  // 🔧 如果需要停車，嘗試調整位置
-                  if (frontCollision.requiredDistance) {
+                  // 🔧 如果需要停車，嘗試調整位置（避免停止線區域）
+                  if (frontCollision.requiredDistance && !frontCollision.stopLineSpecial) {
                     this.adjustPositionForSafety(frontCollision.vehicle, frontCollision.requiredDistance)
+                  } else if (frontCollision.stopLineSpecial) {
+                    console.log(`🚦 [${this.id}] 停止線區域跟隨模式，跳過位置調整`)
                   }
                 }
               } else {
