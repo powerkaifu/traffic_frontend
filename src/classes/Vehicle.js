@@ -516,7 +516,8 @@ export default class Vehicle {
       } else {
         // 中等距離：判斷當前速度，快速車輛繼續加速，慢速車輛減速停止
         const currentSpeed = this.getCurrentSpeedRatio()
-        if (currentSpeed > 0.7) { // 調整閾值為更保守的70%
+        if (currentSpeed > 0.7) {
+          // 調整閾值為更保守的70%
           // 高速車輛：適度加速通過
           console.log(`🟡 [${this.id}] 黃燈高速適度加速通過！當前速度比例: ${currentSpeed.toFixed(2)}`)
           return {
@@ -568,13 +569,13 @@ export default class Vehicle {
     if (!this.movementTimeline) {
       return 1.0 // 預設速度比例
     }
-    
+
     // 獲取當前時間軸的速度縮放
     const currentTimeScale = this.movementTimeline.timeScale()
-    
+
     // 如果有原始時間縮放，使用它作為基準
     const baseTimeScale = this.originalTimeScale || 1.0
-    
+
     // 計算相對於基準速度的比例
     return currentTimeScale / baseTimeScale
   }
@@ -2090,7 +2091,10 @@ export default class Vehicle {
               // 檢查紅綠燈狀態
               const lightState = trafficController.getCurrentLightState(this.direction)
 
-              if (lightState === 'red' || (lightState === 'yellow' && this.currentState !== 'accelerating_for_yellow')) {
+              if (
+                lightState === 'red' ||
+                (lightState === 'yellow' && this.currentState !== 'accelerating_for_yellow')
+              ) {
                 // 🚨 修改：黃燈加速的車輛不應在此停下，讓它們通過
                 // 如果正在減速，讓它平滑停止
                 if (this.currentState === 'slowing_for_light') {
