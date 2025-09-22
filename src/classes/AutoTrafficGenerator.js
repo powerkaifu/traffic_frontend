@@ -248,7 +248,22 @@ export default class AutoTrafficGenerator {
       }, 500)
       return
     }
-    const delay = this._calcInterval()
+
+    let delay = this._calcInterval()
+
+    // 🚨 新增：動態最小生成間隔，防止生成過快導致碰撞檢測失靈
+    const currentVehicleCount = this._getCurrentVehicleCount()
+    let minGenerationGap = 200 // 基礎最小間隔 200ms
+
+    if (currentVehicleCount > 30) {
+      minGenerationGap = 500 // 車輛多於30台，最小間隔增至 500ms
+    } else if (currentVehicleCount > 20) {
+      minGenerationGap = 350 // 車輛多於20台，最小間隔增至 350ms
+    }
+
+    // 確保延遲不低於計算出的最小間隔
+    delay = Math.max(delay, minGenerationGap)
+
     this.timer = setTimeout(() => {
       this._generateVehicle()
       this._scheduleNext()

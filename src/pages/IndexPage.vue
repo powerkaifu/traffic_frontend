@@ -309,7 +309,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { MotionPathHelper } from 'gsap/MotionPathHelper'
@@ -881,7 +881,10 @@ let getNorthLane2Path = () => 'M560,-600 L560,1400'
 let getNorthLane3Path = () => 'M590,-600 L590,1400'
 let getNorthLane4Path = () => 'M620,-600 L620,1400'
 
-onMounted(() => {
+onMounted(async () => {
+  // 等待 DOM 完全渲染
+  await nextTick()
+
   // 初始化路徑計算器並設定所有路徑函數
   if (crossroadContainer.value) {
     lanePathCalculator = createLanePathCalculator()
@@ -909,12 +912,26 @@ onMounted(() => {
   }
 
   if (crossroadContainer.value) {
+    // 確保DOM完全渲染後再開始初始化
+    await new Promise((resolve) => {
+      // 使用 requestAnimationFrame 確保視覺元素已渲染
+      requestAnimationFrame(() => {
+        // 再等待一幀確保完全渲染
+        requestAnimationFrame(resolve)
+      })
+    })
+
+    console.log('🎨 等待DOM完全渲染完成')
+
     // 監聽情境切換事件（由 MainLayout 發出）
     window.addEventListener('scenarioChanged', handleScenarioChange)
     window.addEventListener('generateVehicle', handleAutoGenerate)
 
     // 監聽視窗大小變化和佈局變化
-    const handleLayoutChange = () => {
+    const handleLayoutChange = async () => {
+      // 等待下一幀以確保DOM更新
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+
       // 1. 重新計算車道位置
       trafficController.updateLanePositions(crossroadContainer.value)
 
@@ -927,13 +944,24 @@ onMounted(() => {
     }
 
     // 初始呼叫以設定初始位置和繪製點
-    handleLayoutChange()
+    await handleLayoutChange()
+
+    console.log('📐 初始佈局計算完成')
 
     // 監聽視窗大小變化
     window.addEventListener('resize', handleLayoutChange)
 
     // 使用 MutationObserver 監聽DOM變化（可能由抽屜引起）
-    const observer = new MutationObserver(handleLayoutChange)
+    const observer = new MutationObserver(() => {
+      // 使用防抖動處理佈局變化
+      if (window.layoutChangeTimer) {
+        clearTimeout(window.layoutChangeTimer)
+      }
+      window.layoutChangeTimer = setTimeout(() => {
+        handleLayoutChange()
+      }, 100)
+    })
+
     observer.observe(document.body, {
       attributes: true,
       attributeFilter: ['class', 'style'],
@@ -982,13 +1010,23 @@ onMounted(() => {
     // 初始化自動交通產生器
     console.log('🚦 初始化自動交通產生器...')
 
-    // 啟動自動交通產生器（提前啟動，確保一開始就有車）
+    // 等待一個小的延遲，確保 DOM 元素和 SVG 路徑都已經完全初始化
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // 啟動自動交通產生器
     autoTrafficGenerator.start()
     console.log('--------------------- 🤖 自動交通產生器已啟動 ---------------------')
 
+    // 再次等待一個小延遲，確保 autoTrafficGenerator 完全初始化
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // 逐漸添加初始車輛，而不是一次性全部添加
     const directions = ['north', 'south', 'east', 'west']
     const vehicleTypes = ['motor', 'small', 'large']
+
+    // 使用間隔添加車輛
     for (let i = 0; i < 8; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 200)) // 每個車輛之間添加 200ms 延遲
       const randomDir = directions[Math.floor(Math.random() * directions.length)]
       const randomType = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)]
       window.dispatchEvent(
