@@ -122,8 +122,10 @@ export default class Vehicle {
       // 如果有移動時間軸且被暫停，嘗試恢復
       if (this.movementTimeline) {
         if (this.movementTimeline.timeScale() === 0) {
-          this.movementTimeline.timeScale(0.3) // 使用較慢的速度恢復
-          console.log(`🔧 [${this.id}] 恢復時間軸移動`)
+          // 恢復為原始速度，而不是慢速度
+          const targetTimeScale = this.originalTimeScale || 1
+          this.movementTimeline.timeScale(targetTimeScale)
+          console.log(`🔧 [${this.id}] 恢復時間軸移動到原始速度: ${targetTimeScale}`)
         }
 
         if (this.movementTimeline.paused()) {
@@ -796,12 +798,12 @@ export default class Vehicle {
     let finalStopDistance = actualStopDistance
 
     if (bothWaitingForLight) {
-      // 紅燈排隊時使用固定距離
-      finalMinGap = vehicleLength * 0.5 // 統一為車長的50%
-      finalSafeDistance = vehicleLength * 0.7 // 統一為車長的70%
-      finalStopDistance = vehicleLength * 0.3 // 統一為車長的30%
+      // 紅燈排隊時使用更嚴格的距離以避免重疊
+      finalMinGap = Math.max(vehicleLength * 0.8, 15) // 至少車長的80%或15px
+      finalSafeDistance = Math.max(vehicleLength * 1.0, 20) // 至少車長的100%或20px
+      finalStopDistance = Math.max(vehicleLength * 0.4, 10) // 至少車長的40%或10px
 
-      console.log(`🚦 [${this.id}] 紅燈排隊模式，使用寬鬆距離標準`)
+      console.log(`🚦 [${this.id}] 紅燈排隊模式，使用嚴格距離標準`)
     }
 
     // 調試信息
@@ -827,19 +829,23 @@ export default class Vehicle {
     if (distance < finalMinGap) {
       // 如果是紅燈排隊，需要特別處理以保持最小間距
       if (bothWaitingForLight) {
-        // 即使在排隊，也要確保有5px的最小距離
-        if (distance < 5) {
-          console.log(`🚦 [${this.id}] 紅燈排隊距離過近 (<5px)，強制停車。距離: ${distance.toFixed(1)}px`)
+        // 即使在排隊，也要確保有合理的最小距離以避免重疊
+        const minimumSafeGap = Math.max(15, vehicleLength * 0.6) // 至少15px或車長的60%
+        if (distance < minimumSafeGap) {
+          console.log(
+            `🚦 [${this.id}] 紅燈排隊距離過近 (<${minimumSafeGap}px)，需要停車保持安全距離。距離: ${distance.toFixed(1)}px`,
+          )
           return {
             vehicle: closestVehicle,
             distance: distance,
             shouldStop: true, // 強制停車
             isOverlapping: false,
-            emergencyStop: true, // 視為緊急情況
+            emergencyStop: false, // 不是緊急情況，只是需要保持距離
+            requiredDistance: minimumSafeGap, // 標示需要的安全距離
           }
         }
-        // 距離在5px和finalMinGap之間，允許排隊，不採取行動
-        console.log(`🚦 [${this.id}] 紅燈排隊中，允許貼近前車。距離: ${distance.toFixed(1)}px`)
+        // 距離在安全範圍內，允許排隊
+        console.log(`🚦 [${this.id}] 紅燈排隊中，距離安全。距離: ${distance.toFixed(1)}px`)
         return null
       }
 
@@ -1144,7 +1150,15 @@ export default class Vehicle {
   resumeMovement(allVehicles = []) {
     // State Pattern: 管理車輛從等待狀態轉換為移動狀態
     if (this.movementTimeline && (this.currentState === 'waiting' || this.currentState === 'waitingForVehicle')) {
-      // 🚨 改善：更嚴格的前方檢查，增加檢查範圍
+      // 🚨 改善：檢查當前燈號狀態
+      const trafficController = window.trafficController
+      let isGreenLight = false
+
+      if (trafficController) {
+        const currentLightState = trafficController.getCurrentLightState(this.direction)
+        isGreenLight = currentLightState === 'green'
+      }
+
       const frontCollision = this.checkFrontCollision(allVehicles)
 
       if (!frontCollision) {
@@ -1155,33 +1169,46 @@ export default class Vehicle {
         return
       }
 
-      // 🚨 改善：更寬鬆的恢復條件，但確保安全距離
+      // 🚨 改善：綠燈時使用更寬鬆的恢復條件
       if (!frontCollision.isOverlapping) {
-        // 根據前車狀態動態調整安全距離
+        // 根據燈號和前車狀態動態調整安全距離
         let requiredDistance = 20 // 基礎安全距離
 
-        if (frontCollision.vehicle.currentState === 'slowing_for_light' || frontCollision.vehicle.waitingForGreen) {
-          requiredDistance = 25 // 前車等紅燈時需要更大距離
-        } else if (frontCollision.vehicle.currentState === 'following') {
-          requiredDistance = 15 // 前車跟隨時可以稍微近些
+        if (isGreenLight) {
+          // 綠燈時降低安全距離要求，促進車流
+          requiredDistance = 12
+
+          // 如果前車正在移動，進一步降低要求
+          if (frontCollision.vehicle.currentState === 'moving' || frontCollision.vehicle.currentState === 'following') {
+            requiredDistance = 8
+          }
+        } else {
+          // 非綠燈時的原有邏輯
+          if (frontCollision.vehicle.currentState === 'slowing_for_light' || frontCollision.vehicle.waitingForGreen) {
+            requiredDistance = 25 // 前車等紅燈時需要更大距離
+          } else if (frontCollision.vehicle.currentState === 'following') {
+            requiredDistance = 15 // 前車跟隨時可以稍微近些
+          }
         }
 
         if (frontCollision.distance >= requiredDistance) {
-          if (frontCollision.shouldFollow && frontCollision.followingSpeed !== null) {
-            // 進入跟隨模式
+          if (frontCollision.shouldFollow && frontCollision.followingSpeed !== null && !isGreenLight) {
+            // 非綠燈時進入跟隨模式
             this.movementTimeline.resume()
             this.enterFollowingMode(frontCollision.followingSpeed)
             console.log(`🚗 [${this.id}] 進入跟隨模式，距離: ${frontCollision.distance.toFixed(1)}px`)
             return
           } else {
-            // 距離足夠，可以正常移動
+            // 距離足夠，可以正常移動（綠燈時優先正常移動）
             this.movementTimeline.resume()
             this.currentState = 'moving'
-            console.log(`🚗 [${this.id}] 安全距離足夠，恢復移動，距離: ${frontCollision.distance.toFixed(1)}px`)
+            console.log(
+              `🚗 [${this.id}] 恢復移動，距離: ${frontCollision.distance.toFixed(1)}px ${isGreenLight ? '[綠燈]' : ''}`,
+            )
           }
         } else {
           console.log(
-            `🚗 [${this.id}] 安全距離不足，繼續等待，距離: ${frontCollision.distance.toFixed(1)}px，需要: ${requiredDistance}px`,
+            `🚗 [${this.id}] 安全距離不足，繼續等待，距離: ${frontCollision.distance.toFixed(1)}px，需要: ${requiredDistance}px ${isGreenLight ? '[綠燈]' : ''}`,
           )
         }
       }
@@ -1196,48 +1223,91 @@ export default class Vehicle {
       // 檢查前方車輛，確保沒有重疊
       const frontCollision = this.checkFrontCollision(allVehicles)
 
-      // 只有在沒有重疊且距離足夠時才恢復移動
-      if (!frontCollision || (!frontCollision.isOverlapping && frontCollision.distance > 15)) {
-        // 如果前車正在減速或等待，確保增加足夠的安全距離
-        if (
-          frontCollision &&
-          (frontCollision.vehicle.currentState === 'slowing_for_light' || frontCollision.vehicle.waitingForGreen)
-        ) {
-          // 如果前車在等待紅燈或減速中，需要更大的安全距離
-          if (frontCollision.distance < 25) {
-            return
+      // 綠燈時使用更寬鬆的條件，只要沒有重疊就可以啟動
+      const minSafeDistance = 8 // 綠燈時最小安全距離
+
+      if (!frontCollision || (!frontCollision.isOverlapping && frontCollision.distance > minSafeDistance)) {
+        // 立即啟動，不延遲（移除隨機延遲）
+        if (this.waitingForGreen && this.movementTimeline) {
+          // 如果 timeScale 為 0，需要恢復 timeScale
+          if (this.movementTimeline.timeScale() === 0) {
+            const targetTimeScale = this.originalTimeScale || 1
+            gsap.to(this.movementTimeline, {
+              timeScale: targetTimeScale,
+              duration: 0.2, // 縮短動畫時間
+              ease: 'power2.inOut',
+              onComplete: () => {
+                this.movementTimeline.resume()
+                this.currentState = 'moving'
+                this.waitingForGreen = false
+                this.originalTimeScale = null
+                console.log(`🟢 [${this.id}] 綠燈強制啟動完成`)
+              },
+            })
+          } else {
+            this.movementTimeline.resume()
+            this.currentState = 'moving'
+            this.waitingForGreen = false
+            console.log(`🟢 [${this.id}] 綠燈立即啟動`)
           }
         }
-        // 隨機延遲 0.5-2 秒，模擬真實交通反應時間
-        const delaySeconds = 0.5 + Math.random() * 1.5
-        gsap.delayedCall(delaySeconds, () => {
-          // 再次檢查車輛狀態，確保仍然需要啟動
-          if (this.waitingForGreen && this.movementTimeline) {
-            // 如果 timeScale 為 0，需要恢復 timeScale
-            if (this.movementTimeline.timeScale() === 0) {
-              const targetTimeScale = this.originalTimeScale || 1
-              gsap.to(this.movementTimeline, {
-                timeScale: targetTimeScale,
-                duration: 0.3,
-                ease: 'power2.inOut',
-                onComplete: () => {
-                  this.movementTimeline.resume()
-                  this.currentState = 'moving'
-                  this.waitingForGreen = false
-                  this.originalTimeScale = null
-                },
-              })
-            } else {
-              this.movementTimeline.resume()
-              this.currentState = 'moving'
-              this.waitingForGreen = false
-            }
-          }
-        })
       } else {
-        // 車輛前方太近，等待空間
+        console.log(`🟡 [${this.id}] 前方車輛太近，等待空間清理`)
       }
     }
+  }
+
+  // 新增：車輛位置調整方法，用於保持安全距離
+  adjustPositionForSafety(frontVehicle, requiredDistance) {
+    if (!frontVehicle || !this.element) return false
+
+    const currentPos = this.getCurrentPosition()
+    const frontBox = frontVehicle.getBoundingBox()
+
+    let targetPosition = { ...currentPos }
+    let actualRequiredDistance = requiredDistance + 5 // 額外的緩衝距離
+
+    // 根據行駛方向計算安全位置
+    switch (this.direction) {
+      case 'east':
+        // 東向：需要在前車的西側（左側）保持距離
+        targetPosition.x = frontBox.left - actualRequiredDistance - this.getBoundingBox().width
+        break
+      case 'west':
+        // 西向：需要在前車的東側（右側）保持距離
+        targetPosition.x = frontBox.right + actualRequiredDistance
+        break
+      case 'north':
+        // 北向：需要在前車的南側（下方）保持距離
+        targetPosition.y = frontBox.bottom + actualRequiredDistance
+        break
+      case 'south':
+        // 南向：需要在前車的北側（上方）保持距離
+        targetPosition.y = frontBox.top - actualRequiredDistance - this.getBoundingBox().height
+        break
+    }
+
+    // 檢查是否需要調整位置
+    const deltaX = Math.abs(targetPosition.x - currentPos.x)
+    const deltaY = Math.abs(targetPosition.y - currentPos.y)
+
+    if (deltaX > 2 || deltaY > 2) {
+      // 如果位置差異超過2px才調整
+      // 平滑調整到目標位置
+      gsap.to(this.element, {
+        x: targetPosition.x,
+        y: targetPosition.y,
+        duration: 0.3, // 快速但平滑的調整
+        ease: 'power2.out',
+        onComplete: () => {
+          console.log(`🔧 [${this.id}] 位置已調整到安全距離: ${this.direction} 方向`)
+        },
+      })
+
+      return true // 表示已進行位置調整
+    }
+
+    return false // 位置已經安全，無需調整
   }
 
   // Composite Pattern: 將車輛添加到容器的組合方法
@@ -1405,6 +1475,12 @@ export default class Vehicle {
             // 🚨 改善：等待前車檢查邏輯 - 更頻繁和寬鬆的檢查
             if (this.currentState === 'waitingForVehicle') {
               const frontCollision = this.checkFrontCollision(allVehicles)
+
+              if (frontCollision && frontCollision.requiredDistance) {
+                // 🔧 嘗試調整位置以保持安全距離
+                this.adjustPositionForSafety(frontCollision.vehicle, frontCollision.requiredDistance)
+              }
+
               // 放寬恢復條件：只要不重疊且有基本安全距離就恢復
               if (!frontCollision || (!frontCollision.isOverlapping && frontCollision.distance > 12)) {
                 this.resumeMovement(allVehicles)
@@ -1420,6 +1496,11 @@ export default class Vehicle {
                 } else if (frontCollision.shouldStop || frontCollision.isOverlapping) {
                   this.stopMovement()
                   this.currentState = 'waitingForVehicle'
+
+                  // 🔧 如果需要停車，嘗試調整位置
+                  if (frontCollision.requiredDistance) {
+                    this.adjustPositionForSafety(frontCollision.vehicle, frontCollision.requiredDistance)
+                  }
                 }
               } else {
                 this.exitFollowingMode()
@@ -1537,7 +1618,20 @@ export default class Vehicle {
                   case 'front_stop':
                     this.movementTimeline.timeScale(0)
                     this.currentState = 'waitingForVehicle'
-                    console.log(`🛑 [${this.id}] 前方車輛太近，停止 - 距離: ${data.distance.toFixed(1)}px`)
+
+                    // 🔧 新增：位置調整邏輯，確保車輛保持安全距離
+                    if (data.requiredDistance) {
+                      const adjusted = this.adjustPositionForSafety(data.vehicle, data.requiredDistance)
+                      if (adjusted) {
+                        console.log(
+                          `🛑 [${this.id}] 前方車輛太近，停止並調整位置 - 距離: ${data.distance.toFixed(1)}px → 目標: ${data.requiredDistance}px`,
+                        )
+                      } else {
+                        console.log(`🛑 [${this.id}] 前方車輛太近，停止 - 距離: ${data.distance.toFixed(1)}px`)
+                      }
+                    } else {
+                      console.log(`🛑 [${this.id}] 前方車輛太近，停止 - 距離: ${data.distance.toFixed(1)}px`)
+                    }
                     return
 
                   case 'cross_stop':
