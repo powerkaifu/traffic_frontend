@@ -77,6 +77,67 @@ export default class Vehicle {
     setTimeout(() => {
       this.justCreated = false
     }, 500) // 減少到500毫秒，讓車輛更快進入正常行駛狀態
+
+    // 🚨 新增：防停滯機制
+    this.lastMovementTime = Date.now()
+    this.stuckCheckTimer = null
+    this.setupAntiStuckMechanism()
+  }
+
+  // 🚨 新增：防停滯機制
+  setupAntiStuckMechanism() {
+    // 每5秒檢查車輛是否停滯
+    this.stuckCheckTimer = setInterval(() => {
+      this.checkAndResolveStuckState()
+    }, 5000)
+  }
+
+  // 🚨 新增：檢查並解決停滯狀態
+  checkAndResolveStuckState() {
+    if (!this.element || !this.element.parentNode) {
+      // 車輛已被移除，清理計時器
+      if (this.stuckCheckTimer) {
+        clearInterval(this.stuckCheckTimer)
+        this.stuckCheckTimer = null
+      }
+      return
+    }
+
+    const now = Date.now()
+    const stuckDuration = now - this.lastMovementTime
+
+    // 如果車輛停滯超過10秒，強制恢復
+    if (stuckDuration > 10000) {
+      console.log(`🚨 [${this.id}] 檢測到長時間停滯(${(stuckDuration / 1000).toFixed(1)}s)，執行強制恢復`)
+      this.forceUnstuck()
+    }
+  }
+
+  // 🚨 新增：強制解除停滯
+  forceUnstuck() {
+    try {
+      // 重置移動時間
+      this.lastMovementTime = Date.now()
+
+      // 如果有移動時間軸且被暫停，嘗試恢復
+      if (this.movementTimeline) {
+        if (this.movementTimeline.timeScale() === 0) {
+          this.movementTimeline.timeScale(0.3) // 使用較慢的速度恢復
+          console.log(`🔧 [${this.id}] 恢復時間軸移動`)
+        }
+
+        if (this.movementTimeline.paused()) {
+          this.movementTimeline.resume()
+          console.log(`🔧 [${this.id}] 恢復暫停的動畫`)
+        }
+      }
+
+      // 更新狀態
+      this.waitingForGreen = false
+      this.currentState = 'moving'
+    } catch (error) {
+      console.error(`❌ [${this.id}] 強制恢復失敗:`, error)
+    }
   }
 
   // Observer Pattern: 實現觀察者模式，通知交通控制器和數據收集器
@@ -1311,7 +1372,14 @@ export default class Vehicle {
 
           // Template Method Pattern: 創建 MotionPath 移動時間線
           this.movementTimeline = gsap.timeline({
+            onStart: () => {
+              // 🚨 開始移動時更新時間
+              this.lastMovementTime = Date.now()
+            },
             onUpdate: () => {
+              // 🚨 移動中持續更新時間
+              this.lastMovementTime = Date.now()
+
               // 計算當前速度（與原方法相同的邏輯）
               const currentPos = this.getCurrentPosition()
               const currentTime = Date.now()
@@ -2149,6 +2217,12 @@ export default class Vehicle {
     if (this.periodicCheckTimer) {
       clearInterval(this.periodicCheckTimer)
       this.periodicCheckTimer = null
+    }
+
+    // 🚨 清理防停滯計時器
+    if (this.stuckCheckTimer) {
+      clearInterval(this.stuckCheckTimer)
+      this.stuckCheckTimer = null
     }
 
     // 清理時間線

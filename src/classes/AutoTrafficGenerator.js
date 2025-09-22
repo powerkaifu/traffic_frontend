@@ -253,12 +253,24 @@ export default class AutoTrafficGenerator {
 
     // 🚨 新增：動態最小生成間隔，防止生成過快導致碰撞檢測失靈
     const currentVehicleCount = this._getCurrentVehicleCount()
-    let minGenerationGap = 200 // 基礎最小間隔 200ms
+    let minGenerationGap = 300 // 增加基礎最小間隔至 300ms
 
     if (currentVehicleCount > 30) {
-      minGenerationGap = 500 // 車輛多於30台，最小間隔增至 500ms
+      minGenerationGap = 800 // 車輛多於30台，最小間隔增至 800ms
     } else if (currentVehicleCount > 20) {
-      minGenerationGap = 350 // 車輛多於20台，最小間隔增至 350ms
+      minGenerationGap = 600 // 車輛多於20台，最小間隔增至 600ms
+    } else if (currentVehicleCount > 10) {
+      minGenerationGap = 450 // 車輛多於10台，最小間隔增至 450ms
+    }
+
+    // 🚨 新增：檢查最近是否有車輛生成，進一步增加間隔
+    const now = Date.now()
+    const veryRecentVehicles = window.liveVehicles
+      ? window.liveVehicles.filter((v) => now - v.timestamp < 2000).length
+      : 0
+
+    if (veryRecentVehicles > 3) {
+      minGenerationGap *= 1.5 // 如果2秒內生成超過3輛車，間隔增加50%
     }
 
     // 確保延遲不低於計算出的最小間隔
@@ -320,7 +332,15 @@ export default class AutoTrafficGenerator {
     const veryRecentDirVehicles = recentVehicles.filter((v) => v.direction === selectedDir && now - v.timestamp < 1000)
     if (veryRecentDirVehicles.length > 0) {
       console.log(`🚨 ${selectedDir}方向極短時間內已有車輛，延後生成`)
-      setTimeout(() => this._scheduleNext(), 1000)
+      setTimeout(() => this._scheduleNext(), 1500) // 增加延遲時間
+      return
+    }
+
+    // 🚨 新增：車道層級的密度檢查
+    const recentDirVehicles = recentVehicles.filter((v) => v.direction === selectedDir)
+    if (recentDirVehicles.length >= 3) {
+      console.log(`🚦 ${selectedDir}方向車輛密度過高(${recentDirVehicles.length})，延後生成`)
+      setTimeout(() => this._scheduleNext(), 1200)
       return
     }
 

@@ -164,19 +164,12 @@ export default class TrafficLightController {
 
     const randomIndex = Math.floor(Math.random() * lanes.length)
 
-    // 針對往東方向調整車道編號順序（視覺上從上到下為1,2,3,4）
-    let laneNumber
-    if (direction === 'east') {
-      // 往東：陣列索引0=最下方(車道4)，索引3=最上方(車道1)
-      laneNumber = lanes.length - randomIndex
-    } else {
-      // 其他方向：正常編號（索引0=車道1）
-      laneNumber = randomIndex + 1
-    }
+    // 🔧 統一車道編號：所有方向都使用一致的編號規則（索引0=車道1）
+    const laneNumber = randomIndex + 1
 
     return {
       position: lanes[randomIndex],
-      laneNumber: laneNumber, // 調整後的車道編號
+      laneNumber: laneNumber, // 統一的車道編號
     }
   }
 

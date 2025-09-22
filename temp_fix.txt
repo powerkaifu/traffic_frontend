@@ -1,0 +1,8 @@
+// 自動產生車輛的事件處理函數
+const handleAutoGenerate = (event) => {
+  console.log('🔍 handleAutoGenerate 被調用:', event.detail)
+  const { direction, vehicleType } = event.detail
+
+  // 智能車道選擇，優先選擇車輛較少的車道
+  const laneNumber = selectOptimalLane(direction)
+  console.log(`🔍 智能選擇車道: ${direction}Lane${laneNumber}`)

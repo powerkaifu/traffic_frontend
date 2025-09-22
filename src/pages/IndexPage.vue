@@ -336,14 +336,59 @@ const handleScenarioChange = (event) => {
   }
 }
 
+// 智能車道選擇函數：選擇車輛密度最低的車道
+const selectOptimalLane = (direction) => {
+  const laneCounts = [1, 2, 3, 4].map((laneNum) => {
+    // 計算該車道最近生成的車輛數量
+    const recentVehiclesInLane = activeCars.value.filter((car) => {
+      if (car.direction !== direction || car.laneNumber !== laneNum) return false
+
+      // 檢查車輛是否在起始區域（剛生成不久）
+      const carPos = car.getCurrentPosition()
+      const isInStartArea = isCarInStartArea(carPos, direction)
+
+      return isInStartArea
+    }).length
+
+    return { laneNumber: laneNum, count: recentVehiclesInLane }
+  })
+
+  // 找出車輛數量最少的車道
+  const minCount = Math.min(...laneCounts.map((lane) => lane.count))
+  const availableLanes = laneCounts.filter((lane) => lane.count === minCount)
+
+  // 如果有多個車道車輛數量相同，隨機選擇一個
+  const selectedLane = availableLanes[Math.floor(Math.random() * availableLanes.length)]
+
+  console.log(`🔍 車道密度分析 ${direction}:`, laneCounts, `選擇車道${selectedLane.laneNumber}`)
+  return selectedLane.laneNumber
+}
+
+// 檢查車輛是否在起始區域的輔助函數
+const isCarInStartArea = (carPos, direction) => {
+  const startAreaThreshold = 300 // 起始區域範圍
+
+  switch (direction) {
+    case 'east':
+      return carPos.x < startAreaThreshold
+    case 'west':
+      return carPos.x > 1400 - startAreaThreshold // SVG 寬度 1400
+    case 'north':
+      return carPos.y > 1000 - startAreaThreshold // SVG 高度 1000
+    case 'south':
+      return carPos.y < startAreaThreshold
+    default:
+      return false
+  }
+}
+
 // 自動產生車輛的事件處理函數
 const handleAutoGenerate = (event) => {
   console.log('🔍 handleAutoGenerate 被調用:', event.detail)
   const { direction, vehicleType } = event.detail
 
-  // 🚗 修改：直接使用隨機車道號，然後獲取對應路徑起始位置
-  const laneNumber = Math.floor(Math.random() * 4) + 1 // 隨機選擇1-4車道
-  console.log(`🔍 隨機選擇車道: ${direction}Lane${laneNumber}`)
+  const laneNumber = selectOptimalLane(direction)
+  console.log(`🔍 智能選擇車道: ${direction}Lane${laneNumber}`)
 
   // 使用路徑起始位置生成車輛
   const pathStartPosition = Vehicle.getPathStartPosition(direction, laneNumber)
