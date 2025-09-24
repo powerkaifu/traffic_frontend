@@ -926,48 +926,7 @@ export default class Vehicle {
   }
 
   // Command Pattern + State Pattern: 強制恢復移動命令
-  forceResumeMovement(allVehicles = []) {
-    // Command Pattern: 將強制啟動封裝為可執行的命令
-    // State Pattern: 強制狀態轉換，用於綠燈時的啟動
-    if (this.movementTimeline) {
-      // 🚦 綠燈啟動時重置停止線穩定狀態，允許正常行駛
-      this.stopLineStabilized = false
-      this.stopLineStabilizeTime = 0
-      this.stopLineNoAdjustZone = false
-
-      // 檢查前方車輛
-      const collision = this.checkSimpleCollision(allVehicles)
-
-      if (!collision) {
-        // 立即啟動，不延遲（移除隨機延遲）
-        if (this.waitingForGreen && this.movementTimeline) {
-          // 如果 timeScale 為 0，需要恢復 timeScale
-          if (this.movementTimeline.timeScale() === 0) {
-            const targetTimeScale = this.originalTimeScale || 1
-            gsap.to(this.movementTimeline, {
-              timeScale: targetTimeScale,
-              duration: 0.05, // 立即恢復，消除緩速
-              ease: 'none',
-              onComplete: () => {
-                this.movementTimeline.resume()
-                this.currentState = 'moving'
-                this.waitingForGreen = false
-                this.originalTimeScale = null
-                console.log(`🟢 [${this.id}] 綠燈強制啟動完成`)
-              },
-            })
-          } else {
-            this.movementTimeline.resume()
-            this.currentState = 'moving'
-            this.waitingForGreen = false
-            console.log(`🟢 [${this.id}] 綠燈立即啟動`)
-          }
-        }
-      } else {
-        console.log(`🟡 [${this.id}] 前方車輛太近，等待空間清理`)
-      }
-    }
-  }
+  // � 移除 forceResumeMovement 方法 - 功能已被 directTrafficLightResponse 替代
 
   // 🚨 移除：adjustPositionForSafety 方法已不再需要，使用簡單的 5px 間隙檢測
 
@@ -1132,9 +1091,13 @@ export default class Vehicle {
                     },
                   })
                 } else {
-                  this.forceResumeMovement(allVehicles)
+                  // 🚨 簡化：直接恢復移動，不需要複雜的 forceResumeMovement 邏輯
+                  this.movementTimeline.resume()
+                  this.currentState = 'moving'
+                  this.waitingForGreen = false
                   this.isAtStopLine = false
                   this.hasPassedStopLine = true
+                  console.log(`🟢 [${this.id}] 綠燈立即啟動`)
                 }
               }
             }
@@ -1304,29 +1267,7 @@ export default class Vehicle {
                     this.stopMovement()
                     this.waitingForGreen = true
                   }
-
-                  // 添加燈號變化觀察者 - 簡化綠燈啟動
-                  const onLightChange = (direction, state) => {
-                    if (direction === this.direction && state === 'green') {
-                      // 🟢 綠燈立即啟動 - 更寬鬆的條件，不僅依賴waitingForGreen
-                      if (
-                        this.waitingForGreen ||
-                        (this.movementTimeline && this.movementTimeline.timeScale() === 0) ||
-                        this.currentState === 'stopped'
-                      ) {
-                        console.log(`🟢🚨 [${this.id}] 燈號觀察者觸發綠燈啟動`)
-                        this.forceResumeMovement(allVehicles)
-                        this.waitingForGreen = false
-                        this.isAtStopLine = false
-                        this.hasPassedStopLine = true
-                      }
-                      trafficController.removeObserver(onLightChange)
-                    }
-                  }
-
-                  trafficController.addObserver(onLightChange)
-
-                  // 🚨 移除超時機制：讓車輛完全依賴燈號狀態和觀察者模式
+                  // � 移除手動觀察者：讓 directTrafficLightResponse 統一處理燈號變化
                 } else {
                   // 綠燈時直接通過
                   this.isAtStopLine = false
@@ -1722,88 +1663,7 @@ export default class Vehicle {
     }
   }
 
-  checkGreenLightFollowing(trafficController, allVehicles) {
-    if (!this.direction || !trafficController) return
+  // 🚨 移除 checkGreenLightFollowing 方法 - 功能已被 directTrafficLightResponse 替代且未被使用
 
-    const currentLightState = trafficController.getCurrentLightState(this.direction)
-
-    // 🔴 嚴格檢查：只有在綠燈且不在等待紅燈狀態時才跟車
-    if (currentLightState === 'green' && !this.hasPassedStopLine && !this.waitingForGreen) {
-      const collision = this.checkSimpleCollision(allVehicles)
-
-      if (collision && collision.frontVehicleIsMoving && this.movementTimeline) {
-        // 前車正在移動，但當前車輛停止，應該開始跟車
-        const isCurrentlyStopped = this.movementTimeline.timeScale() === 0 || this.currentState === 'stopped'
-
-        if (isCurrentlyStopped) {
-          console.log(`🟢🚗 [${this.id}] 綠燈跟車檢查：前車移動，直接恢復移動`)
-          // 🚨 修改：不使用慢速跟車，直接恢復正常速度
-          this.movementTimeline.timeScale(1) // 直接恢復正常速度
-          this.currentState = 'moving'
-        }
-      }
-    }
-  }
-
-  // 🚨 新增：強制交通號誌遵守檢查
-  enforceTrafficSignalCompliance(trafficController) {
-    if (!this.direction || !trafficController) return
-
-    const currentLightState = trafficController.getCurrentLightState(this.direction)
-    const isMoving = this.movementTimeline && this.movementTimeline.timeScale() > 0 && !this.movementTimeline.paused()
-
-    // 🔴 紅燈/全紅強制檢查：任何紅燈狀態下都不能移動
-    if (currentLightState === 'red' || currentLightState === 'allRed') {
-      // 🚨 強制規則：紅燈時任何車輛都不能移動（除非已經通過停止線）
-      if (isMoving && !this.hasPassedStopLine) {
-        console.log(`🔴🛑 [${this.id}] 紅燈強制停止！燈號: ${currentLightState}`)
-        this.movementTimeline.timeScale(0)
-        this.stopMovement()
-        this.waitingForGreen = true
-        this.currentState = 'waiting'
-        return
-      }
-
-      // � 如果車輛正在等紅燈但仍在移動，絕對強制停止
-      if (this.waitingForGreen && isMoving) {
-        console.log(`🔴🛑 [${this.id}] 等紅燈車輛異常移動，強制停止！`)
-        this.movementTimeline.timeScale(0)
-        this.stopMovement()
-        this.currentState = 'waiting'
-        return
-      }
-    }
-
-    // 🟢 綠燈強制檢查：如果是綠燈但車輛在等待，強制啟動
-    if (currentLightState === 'green' && this.movementTimeline) {
-      // 檢查各種可能需要啟動的情況
-      const needsGreenStart =
-        this.waitingForGreen ||
-        this.movementTimeline.timeScale() === 0 ||
-        this.currentState === 'stopped' ||
-        this.currentState === 'waiting'
-
-      if (needsGreenStart) {
-        console.log(
-          `🟢🔥 [${this.id}] 綠燈強制啟動！狀態: waitingForGreen=${this.waitingForGreen}, timeScale=${this.movementTimeline.timeScale()}, currentState=${this.currentState}`,
-        )
-
-        // 立即啟動，但不直接設置 hasPassedStopLine，讓車輛自然移動
-        this.waitingForGreen = false
-        this.isAtStopLine = false
-
-        if (this.movementTimeline.timeScale() === 0) {
-          const targetTimeScale = this.originalTimeScale || 1
-          this.movementTimeline.timeScale(targetTimeScale)
-          this.movementTimeline.resume()
-        } else if (this.movementTimeline.paused()) {
-          this.movementTimeline.resume()
-        }
-
-        this.currentState = 'moving'
-        // 🚨 移除直接設置 hasPassedStopLine = true，讓車輛自然通過停止線
-        return
-      }
-    }
-  }
+  // 🚨 移除 enforceTrafficSignalCompliance 方法 - 功能已被 directTrafficLightResponse 替代且未被使用
 }
