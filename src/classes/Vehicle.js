@@ -464,22 +464,22 @@ export default class Vehicle {
     // 使用車頭位置進行停止線檢測
     const vehicleHead = this.getVehicleHeadPosition()
 
-    // 從配置中獲取檢測靈敏度
-    const sensitivity = stopLineConfig.detection.triggerSensitivity
+    // 🚨 修正：設為0，要求第一台車精確到達停止線
+    const sensitivity = 0
 
     // Strategy Pattern: 不同方向使用不同的停止線檢查策略
     if (this.direction === 'east') {
-      // 車頭在右側，檢查車頭X座標是否到達停止線（考慮靈敏度）
-      return vehicleHead.x >= stopLine.x - sensitivity && !this.isAtStopLine
+      // 車頭在右側，檢查車頭X座標是否到達或超過停止線
+      return vehicleHead.x >= stopLine.x + sensitivity && !this.isAtStopLine
     } else if (this.direction === 'west') {
-      // 車頭在左側，檢查車頭X座標是否到達停止線（考慮靈敏度）
-      return vehicleHead.x <= stopLine.x + sensitivity && !this.isAtStopLine
+      // 車頭在左側，檢查車頭X座標是否到達或超過停止線
+      return vehicleHead.x <= stopLine.x - sensitivity && !this.isAtStopLine
     } else if (this.direction === 'north') {
-      // 車頭在上方，檢查車頭Y座標是否到達停止線（考慮靈敏度）
-      return vehicleHead.y <= stopLine.y + sensitivity && !this.isAtStopLine
+      // 車頭在上方，檢查車頭Y座標是否到達或超過停止線
+      return vehicleHead.y <= stopLine.y - sensitivity && !this.isAtStopLine
     } else if (this.direction === 'south') {
-      // 車頭在下方，檢查車頭Y座標是否到達停止線（考慮靈敏度）
-      return vehicleHead.y >= stopLine.y - sensitivity && !this.isAtStopLine
+      // 車頭在下方，檢查車頭Y座標是否到達或超過停止線
+      return vehicleHead.y >= stopLine.y + sensitivity && !this.isAtStopLine
     }
     return false
   }
@@ -574,29 +574,11 @@ export default class Vehicle {
       }
     }
 
-    // 調整減速距離，讓車輛更接近停止線才開始減速
-    const slowDownDistance = 60 // 從60px開始減速，更接近停止線
-
+    // 移除紅燈時的緩速效果，車輛保持正常速度直到停止線
     if (lightState === 'red') {
-      if (distanceToStopLine <= slowDownDistance) {
-        // 使用更陡峭的減速曲線
-        let speedRatio
-        if (distanceToStopLine <= 15) {
-          // 很接近停止線（15px內）：急劇減速到完全停止
-          speedRatio = Math.max(0.05, (distanceToStopLine / 15) * 0.15)
-        } else if (distanceToStopLine <= 35) {
-          // 中等距離（15-35px）：快速減速
-          speedRatio = 0.15 + ((distanceToStopLine - 15) / 20) * 0.45
-        } else {
-          // 較遠距離（35-60px）：開始溫和減速
-          speedRatio = 0.6 + ((distanceToStopLine - 35) / 25) * 0.4
-        }
-
-        return {
-          action: 'slow_for_light',
-          targetSpeedRatio: speedRatio,
-        }
-      }
+      // 只有當車子檢查到應該停止時，才在 checkStopLine() 中處理停車邏輯
+      // 不在這裡提前減速，避免緩速效果
+      return null
     }
 
     return null
@@ -670,6 +652,52 @@ export default class Vehicle {
   }
 
   // 🚨 極簡化碰撞檢測：只檢測 5px 間距，停止或繼續
+  // 🚨 新增：檢查是否是同車道最接近停止線的車輛
+  isClosestToStopLine(allVehicles) {
+    const stopLine = this.getStopLinePosition()
+    if (!stopLine.x && !stopLine.y) return true
+
+    const currentPosition = this.getCurrentPosition()
+    let myDistanceToStopLine = 0
+
+    // 計算當前車輛到停止線的距離
+    if (this.direction === 'east') {
+      myDistanceToStopLine = Math.max(0, stopLine.x - currentPosition.x)
+    } else if (this.direction === 'west') {
+      myDistanceToStopLine = Math.max(0, currentPosition.x - stopLine.x)
+    } else if (this.direction === 'north') {
+      myDistanceToStopLine = Math.max(0, currentPosition.y - stopLine.y)
+    } else if (this.direction === 'south') {
+      myDistanceToStopLine = Math.max(0, stopLine.y - currentPosition.y)
+    }
+
+    // 檢查同車道是否有更接近停止線的車輛
+    for (let vehicle of allVehicles) {
+      if (vehicle.id === this.id || vehicle.direction !== this.direction || vehicle.laneNumber !== this.laneNumber)
+        continue
+
+      const otherPosition = vehicle.getCurrentPosition()
+      let otherDistanceToStopLine = 0
+
+      if (this.direction === 'east') {
+        otherDistanceToStopLine = Math.max(0, stopLine.x - otherPosition.x)
+      } else if (this.direction === 'west') {
+        otherDistanceToStopLine = Math.max(0, otherPosition.x - stopLine.x)
+      } else if (this.direction === 'north') {
+        otherDistanceToStopLine = Math.max(0, otherPosition.y - stopLine.y)
+      } else if (this.direction === 'south') {
+        otherDistanceToStopLine = Math.max(0, stopLine.y - otherPosition.y)
+      }
+
+      // 如果有其他車輛更接近停止線，則當前車輛不是最前面的
+      if (otherDistanceToStopLine < myDistanceToStopLine && otherDistanceToStopLine >= 0) {
+        return false
+      }
+    }
+
+    return true // 當前車輛是該車道最接近停止線的車
+  }
+
   checkSimpleCollision(allVehicles) {
     // 跳過剛創建的車輛
     if (this.justCreated) {
@@ -677,7 +705,7 @@ export default class Vehicle {
     }
 
     const currentBox = this.getBoundingBox()
-    const SAFE_GAP = 20 // 🚨 修正：增加到20px安全間距，避免過度敏感
+    const SAFE_GAP = 20 // 車輛間安全距離
 
     // 只檢查同方向的前方車輛
     for (let vehicle of allVehicles) {
@@ -702,12 +730,15 @@ export default class Vehicle {
         distance = isFrontVehicle ? otherBox.top - currentBox.bottom : 0
       }
 
-      // 🚨 修正：只有在距離小於20px時才停止，減少過度敏感
       if (isFrontVehicle && distance < SAFE_GAP && distance >= 0) {
+        // 🚨 新增：檢查前方車輛是否在停止線等待
+        const isAtStopLine = vehicle.isAtStopLine || vehicle.waitingForGreen
+
         return {
           shouldStop: true,
           vehicle: vehicle,
           distance: distance,
+          frontVehicleAtStopLine: isAtStopLine, // 標記前方車輛是否在停止線
         }
       }
     }
@@ -1027,15 +1058,27 @@ export default class Vehicle {
                 return
               }
 
-              // 🚨 簡化碰撞檢測系統 - 只使用統一的 5px 間隙檢測
+              // 🚨 簡化碰撞檢測系統 - 區分第一台車和後續車輛
               const shouldStop = this.checkSimpleCollision(allVehicles)
+              const isFirstVehicle = this.isClosestToStopLine(allVehicles)
 
               if (shouldStop) {
-                // 直接停止，無緩速效果
-                this.movementTimeline.timeScale(0)
-                this.currentState = 'stopped'
-                console.log(`🛑 [${this.id}] 檢測到碰撞，停止`)
-                return
+                // 🚨 新增：特殊處理 - 如果是第一台車且前方車輛在停止線等待，則繼續前進到停止線
+                if (isFirstVehicle && shouldStop.frontVehicleAtStopLine) {
+                  // 第一台車：前方車輛在停止線等待，繼續前進到停止線
+                  console.log(`🚗 [${this.id}] 第一台車，前方車輛在停止線等待，繼續前進到停止線`)
+                  const currentTimeScale = this.movementTimeline.timeScale()
+                  if (currentTimeScale < 1) {
+                    this.movementTimeline.timeScale(1)
+                    this.currentState = 'moving'
+                  }
+                } else {
+                  // 後續車輛或第一台車遇到移動中的車輛：停止跟車
+                  this.movementTimeline.timeScale(0)
+                  this.currentState = 'stopped'
+                  console.log(`🛑 [${this.id}] ${isFirstVehicle ? '第一台車遇到移動車輛' : '後續車輛跟車'}，停止`)
+                  return
+                }
               } else {
                 // 無碰撞風險，恢復正常速度
                 const currentTimeScale = this.movementTimeline.timeScale()
@@ -1158,7 +1201,7 @@ export default class Vehicle {
                         trafficController.removeObserver(onLightChange)
                       }
                     }
-                  }, 1000)
+                  }, 100) // 改為0.1秒超時，立即回應綠燈
                 } else {
                   // 綠燈時直接通過
                   this.isAtStopLine = false
@@ -1305,7 +1348,7 @@ export default class Vehicle {
           if (this.currentState === 'waitingForVehicle') {
             this.resumeMovement(allVehicles)
           }
-        }, 2000) // 每2秒檢查一次
+        }, 100) // 改為每0.1秒檢查一次，快速回應綠燈
 
         // Template Method Pattern: 創建移動時間線模板
         this.movementTimeline = gsap.timeline({
