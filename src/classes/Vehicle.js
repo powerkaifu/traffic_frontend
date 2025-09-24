@@ -157,7 +157,7 @@ export default class Vehicle {
     })
 
     // 新增車道編號標籤顯示
-    this.createLaneLabel()
+    // this.createLaneLabel()
 
     // Observer Pattern: 通知交通控制器車輛生成事件
     this.notifyTrafficController()
@@ -416,24 +416,25 @@ export default class Vehicle {
     // Factory Pattern: 基於車輛類型和方向創建配置
     // Strategy Pattern: 每種車輛類型和方向組合都有不同的策略
 
+    // 🚨 車輛圖片統一配置：所有方向都使用東向圖片，由 autoRotate 處理正確朝向
     const vehicleConfigs = {
       large: {
         east: { width: 35, height: 20, image: '/images/car/lCar_east.png' },
-        west: { width: 35, height: 20, image: '/images/car/lCar_west.png' },
-        north: { width: 20, height: 35, image: '/images/car/lCar_north.png' },
-        south: { width: 20, height: 35, image: '/images/car/lCar_south.png' },
+        west: { width: 35, height: 20, image: '/images/car/lCar_east.png' }, // 使用東向圖片，由 autoRotate 旋轉
+        north: { width: 35, height: 20, image: '/images/car/lCar_east.png' }, // 統一尺寸避免圖片縮小
+        south: { width: 35, height: 20, image: '/images/car/lCar_east.png' }, // 統一尺寸避免圖片縮小
       },
       small: {
         east: { width: 30, height: 18, image: '/images/car/sCar_east.png' },
-        west: { width: 30, height: 18, image: '/images/car/sCar_west.png' },
-        north: { width: 18, height: 30, image: '/images/car/sCar_north.png' },
-        south: { width: 18, height: 30, image: '/images/car/sCar_south.png' },
+        west: { width: 30, height: 18, image: '/images/car/sCar_east.png' }, // 使用東向圖片，由 autoRotate 旋轉
+        north: { width: 30, height: 18, image: '/images/car/sCar_east.png' }, // 統一尺寸避免圖片縮小
+        south: { width: 30, height: 18, image: '/images/car/sCar_east.png' }, // 統一尺寸避免圖片縮小
       },
       motor: {
         east: { width: 25, height: 15, image: '/images/car/mCar_east.png' },
-        west: { width: 25, height: 15, image: '/images/car/mCar_west.png' },
-        north: { width: 15, height: 25, image: '/images/car/mCar_north.png' },
-        south: { width: 15, height: 25, image: '/images/car/mCar_south.png' },
+        west: { width: 25, height: 15, image: '/images/car/mCar_east.png' }, // 使用東向圖片，由 autoRotate 旋轉
+        north: { width: 25, height: 15, image: '/images/car/mCar_east.png' }, // 統一尺寸避免圖片縮小
+        south: { width: 25, height: 15, image: '/images/car/mCar_east.png' }, // 統一尺寸避免圖片縮小
       },
     }
     return vehicleConfigs[this.vehicleType]?.[this.direction] || vehicleConfigs.large[this.direction]
@@ -1673,7 +1674,7 @@ export default class Vehicle {
               path: `#${this.getSvgPathId()}`, // 使用選擇器字串
               align: `#${this.getSvgPathId()}`, // 重要：對齊到路徑
               alignOrigin: [0.5, 0.5], // 車輛中心對齊
-              autoRotate: false, // 關閉自動旋轉，使用原始圖片方向
+              autoRotate: true, // 啟用自動旋轉，轉彎時車頭跟隨新方向
             },
             ease: 'none',
             // 🚨 移除重複的 onUpdate，統一在時間線級別處理
