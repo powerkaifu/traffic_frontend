@@ -149,3 +149,88 @@ export const roadConfig = {
     leftTurn: 50, // 左轉半徑（較大避免對向衝突）
   },
 }
+
+// ===== 停止線配置 =====
+/**
+ * 🛑 停止線位置和行為設定
+ *
+ * 🎯 設計理念：
+ * - 基於 IndexPage.vue 中央參考矩形 (.central-reference) 計算
+ * - 中央矩形代表十字路口的核心區域
+ * - 停止線位於路口邊界，車輛不可越過紅燈
+ *
+ * 📐 座標計算邏輯：
+ * - 東向車輛：停在中央矩形的左邊界 (centralX)
+ * - 西向車輛：停在中央矩形的右邊界 (centralX + centralWidth)
+ * - 南向車輛：停在中央矩形的上邊界 (centralY + offset)
+ * - 北向車輛：停在中央矩形的下邊界 (centralY + centralHeight - offset)
+ *
+ * 💡 調整建議：
+ * - 增加 offset 值：車輛停得離路口更遠，更安全但可能影響流量
+ * - 減少 offset 值：車輛停得更接近路口，提高路口使用效率
+ * - 調整後建議在不同方向都測試車輛停車行為
+ */
+export const stopLineConfig = {
+  // 🎯 中央參考矩形設定（對應 IndexPage.vue 中的 .central-reference）
+  centralReference: {
+    // 📏 矩形尺寸（與 IndexPage.vue 中的 CSS 保持一致）
+    width: 225, // 對應 CSS: width: 225px
+    height: 225, // 對應 CSS: height: 225px
+
+    // 🎨 視覺樣式設定
+    borderStyle: '1px dashed #cccccc', // 虛線淺灰色邊框
+    opacity: 1, // 透明度（1=完全可見，0=完全透明）
+  },
+
+  // 🛑 各方向停止線偏移設定（相對於中央矩形邊界的像素偏移）
+  directionOffsets: {
+    // ➡️ 東向車輛停止線（停在路口左側邊界）
+    east: {
+      offsetX: 0, // X軸偏移：0 表示直接停在中央矩形左邊界
+      offsetY: null, // 東西向車輛不需要 Y 軸偏移
+      description: '東向車輛停在中央路口左邊界，車頭不可越過此線',
+    },
+
+    // ⬅️ 西向車輛停止線（停在路口右側邊界）
+    west: {
+      offsetX: 0, // X軸偏移：0 表示直接停在中央矩形右邊界
+      offsetY: null, // 東西向車輛不需要 Y 軸偏移
+      description: '西向車輛停在中央路口右邊界，車頭不可越過此線',
+    },
+
+    // ⬇️ 南向車輛停止線（停在路口上側邊界）
+    south: {
+      offsetX: null, // 南北向車輛不需要 X 軸偏移
+      offsetY: 0, // Y軸偏移：0 表示車頭停在矩形上邊界
+      description: '南向車輛停在中央路口上邊界，車頭不可越過此線',
+    },
+
+    // ⬆️ 北向車輛停止線（停在路口下側邊界）
+    north: {
+      offsetX: null, // 南北向車輛不需要 X 軸偏移
+      offsetY: 0, // Y軸偏移：0 表示車頭停在矩形下邊界
+      description: '北向車輛停在中央路口下邊界，車頭不可越過此線',
+    },
+  },
+
+  // 🔧 停止線檢測靈敏度設定
+  detection: {
+    // 📏 車頭位置檢測精度（像素）
+    headPositionTolerance: 2, // 車頭位置計算的容錯範圍
+
+    // ⚡ 停止線觸發靈敏度
+    triggerSensitivity: 1, // 距離停止線多少像素內觸發停車邏輯
+
+    // 🛡️ 防抖動設定
+    stabilizationTime: 100, // 車輛在停止線區域需穩定多少毫秒才確認停車
+  },
+
+  // 📊 停止線狀態顯示設定（調試用）
+  debug: {
+    showStopLines: false, // 是否在畫面上顯示停止線標記
+    showVehicleHead: false, // 是否顯示車輛車頭位置標記
+    logStopLineEvents: false, // 是否在控制台記錄停止線事件
+    stopLineColor: '#ff0000', // 停止線標記顏色（調試時使用）
+    headMarkerColor: '#00ff00', // 車頭標記顏色（調試時使用）
+  },
+}

@@ -254,7 +254,15 @@
 
       <!-- 停止線 -->
       <!-- 中央參考矩形 - 用於統一計算停止線位置 -->
-      <div class="stop-line central-reference"></div>
+      <div
+        class="stop-line central-reference"
+        :style="{
+          width: stopLineConfig.centralReference.width + 'px',
+          height: stopLineConfig.centralReference.height + 'px',
+          border: stopLineConfig.centralReference.borderStyle,
+          opacity: stopLineConfig.centralReference.opacity,
+        }"
+      ></div>
       <!-- 已移除中心紅色圓點 -->
 
       <!-- AI 交通預測面板 -->
@@ -318,6 +326,7 @@ import AutoTrafficGenerator from '../classes/AutoTrafficGenerator.js'
 import TrafficDataCollector from '../classes/TrafficDataCollector.js'
 import Vehicle from '../classes/Vehicle.js'
 import { createLanePathCalculator } from '../utils/lanePathCalculator.js'
+import { stopLineConfig } from '../classes/config/trafficConfig.js'
 
 // 註冊 GSAP MotionPathPlugin 和 MotionPathHelper
 gsap.registerPlugin(MotionPathPlugin, MotionPathHelper)
@@ -1382,15 +1391,12 @@ onUnmounted(() => {
 .central-reference {
   position: absolute;
   z-index: 100;
-  opacity: 1;
   left: 50%;
   top: 50%;
-  width: 225px; /* 路口寬度 */
-  height: 225px; /* 路口高度 */
   transform: translate(-50%, -50%);
   background: none;
-  border: 1px dashed #cccccc; /* 虛線淺灰色邊框 */
   pointer-events: none;
+  /* 寬高現在由 stopLineConfig 動態設定 */
 }
 
 /* AI 預測面板樣式 ---------------------------------------- */
@@ -1463,7 +1469,7 @@ onUnmounted(() => {
 .path-edit-control {
   position: absolute;
   bottom: 0%;
-  right: -21%;
+  right: -14%;
   z-index: 1001;
   display: flex;
   flex-direction: column;
