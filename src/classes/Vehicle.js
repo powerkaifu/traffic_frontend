@@ -659,9 +659,9 @@ export default class Vehicle {
 
     // 🚨 基於車輛實際大小的動態安全距離
     const vehicleLength = Math.max(vehicleConfig.width, vehicleConfig.height)
-    const minimumGap = vehicleLength * 0.3 // 減少最小間隙為車輛長度的30%
-    const safeFollowingDistance = vehicleLength * 0.8 // 減少安全跟車距離
-    const emergencyStopDistance = vehicleLength * 0.2 // 減少緊急停車距離
+    const minimumGap = vehicleLength * 0.5 // 增加最小間隙為車輛長度的50%
+    const safeFollowingDistance = vehicleLength * 1.0 // 增加安全跟車距離
+    const emergencyStopDistance = vehicleLength * 0.3 // 增加緊急停車距離
 
     // 🚨 根據車速調整距離設定
     const speedFactor = this.initialSpeed ? this.initialSpeed / 50 : 1 // 以50km/h為基準
@@ -759,12 +759,12 @@ export default class Vehicle {
           vehicle.currentState === 'turning'
 
         if (isSpecialCase) {
-          const overlapThreshold = -(vehicleLength * 0.7) // 允許更大的重疊（70%車長）
+          const overlapThreshold = -(vehicleLength * 0.3) // 減少重疊容忍度（30%車長）
           if (distance > overlapThreshold) {
             // 輕微重疊，在特殊情況下可以容忍
             console.log(`⚠️ [${this.id}] 輕微重疊，特殊情況可容忍 距離: ${distance.toFixed(1)}px`)
             // 給予輕微推進力
-            const pushForce = Math.min(1, Math.abs(distance) / vehicleLength) * 0.2
+            const pushForce = Math.min(1, Math.abs(distance) / vehicleLength) * 0.15
             return {
               vehicle: vehicle,
               distance: distance,
@@ -812,12 +812,12 @@ export default class Vehicle {
     let finalStopDistance = actualStopDistance
 
     if (bothWaitingForLight) {
-      // 紅燈排隊時使用更嚴格的距離以避免重疊
-      finalMinGap = Math.max(vehicleLength * 0.8, 15) // 至少車長的80%或15px
-      finalSafeDistance = Math.max(vehicleLength * 1.0, 20) // 至少車長的100%或20px
-      finalStopDistance = Math.max(vehicleLength * 0.4, 10) // 至少車長的40%或10px
+      // 紅燈排隊時使用更大的距離以保持明顯間隙
+      finalMinGap = Math.max(vehicleLength * 2.0, 50) // 進一步增加到車長的200%或50px
+      finalSafeDistance = Math.max(vehicleLength * 2.5, 60) // 進一步增加到車長的250%或60px
+      finalStopDistance = Math.max(vehicleLength * 1.0, 30) // 增加到車長的100%或30px
 
-      console.log(`🚦 [${this.id}] 紅燈排隊模式，使用嚴格距離標準`)
+      console.log(`🚦 [${this.id}] 紅燈排隊模式，使用更大間距標準`)
     }
 
     // 調試信息
@@ -847,15 +847,15 @@ export default class Vehicle {
         const isNearStopLine = this.isNearStopLine()
         const otherNearStopLine = closestVehicle.isNearStopLine && closestVehicle.isNearStopLine()
 
-        // 如果兩車都在停止線附近，使用更寬鬆的距離標準
+        // 如果兩車都在停止線附近，使用合適的距離標準
         let minimumSafeGap
         if (isNearStopLine && otherNearStopLine) {
-          // 停止線區域：更寬鬆的距離要求，避免抖動
-          minimumSafeGap = Math.max(8, vehicleLength * 0.3) // 降低到車長的30%或8px
-          console.log(`🚦 [${this.id}] 停止線區域特殊處理，使用寬鬆距離標準: ${minimumSafeGap}px`)
+          // 停止線區域：保持更大間距，避免看起來擁擠
+          minimumSafeGap = Math.max(35, vehicleLength * 1.2) // 進一步增加到車長的120%或35px
+          console.log(`🚦 [${this.id}] 停止線區域特殊處理，使用更大距離標準: ${minimumSafeGap}px`)
         } else {
-          // 一般紅燈排隊區域
-          minimumSafeGap = Math.max(15, vehicleLength * 0.6) // 至少15px或車長的60%
+          // 一般紅燈排隊區域：保持更大間距
+          minimumSafeGap = Math.max(40, vehicleLength * 1.5) // 進一步增加到至少40px或車長的150%
         }
 
         if (distance < minimumSafeGap) {
@@ -1201,15 +1201,15 @@ export default class Vehicle {
       if (!frontCollision.isOverlapping) {
         // 根據燈號和前車狀態動態調整安全距離
         let requiredDistance = 20 // 基礎安全距離
-        let hysteresisBuffer = 3 // 🚨 新增：遲滯緩衝區，避免邊界振盪
+        let hysteresisBuffer = 1 // 🚨 減少遲滯緩衝區，加速啟動反應
 
         if (isGreenLight) {
-          // 綠燈時降低安全距離要求，促進車流
-          requiredDistance = 12
+          // 綠燈時大幅降低安全距離要求，促進車流快速啟動
+          requiredDistance = 5 // 進一步降低基礎安全距離
 
-          // 如果前車正在移動，進一步降低要求
+          // 如果前車正在移動，允許更近的距離
           if (frontCollision.vehicle.currentState === 'moving' || frontCollision.vehicle.currentState === 'following') {
-            requiredDistance = 8
+            requiredDistance = 3 // 前車移動時只需要最小間距
           }
         } else {
           // 非綠燈時的原有邏輯
@@ -1237,17 +1237,14 @@ export default class Vehicle {
               return
             } else {
               // 距離足夠，可以正常移動（綠燈時優先正常移動）
-              // 🚨 使用平滑的狀態轉換
-              gsap.delayedCall(0.1, () => {
-                // 短暫延遲，避免立即切換造成抖動
-                if (this.movementTimeline && this.currentState !== 'moving') {
-                  this.movementTimeline.resume()
-                  this.currentState = 'moving'
-                  console.log(
-                    `🚗 [${this.id}] 恢復移動，距離: ${frontCollision.distance.toFixed(1)}px ${isGreenLight ? '[綠燈]' : ''}`,
-                  )
-                }
-              })
+              // 🚨 立即啟動，避免延遲
+              if (this.movementTimeline && this.currentState !== 'moving') {
+                this.movementTimeline.resume()
+                this.currentState = 'moving'
+                console.log(
+                  `🚗 [${this.id}] 恢復移動，距離: ${frontCollision.distance.toFixed(1)}px ${isGreenLight ? '[綠燈]' : ''}`,
+                )
+              }
             }
           }
         } else {
@@ -1273,7 +1270,7 @@ export default class Vehicle {
       const frontCollision = this.checkFrontCollision(allVehicles)
 
       // 綠燈時使用更寬鬆的條件，只要沒有重疊就可以啟動
-      const minSafeDistance = 8 // 綠燈時最小安全距離
+      const minSafeDistance = 3 // 大幅降低綠燈時最小安全距離，促進快速啟動
 
       if (!frontCollision || (!frontCollision.isOverlapping && frontCollision.distance > minSafeDistance)) {
         // 立即啟動，不延遲（移除隨機延遲）
@@ -1550,28 +1547,36 @@ export default class Vehicle {
               const currentLightState = trafficController.getCurrentLightState(this.direction)
               if (currentLightState === 'green') {
                 if (this.movementTimeline.timeScale() === 0) {
-                  this.waitForIntersectionClearance(allVehicles, () => {
-                    const targetTimeScale = this.originalTimeScale || 1
-                    gsap.to(this.movementTimeline, {
-                      timeScale: targetTimeScale,
-                      duration: 0.3,
-                      ease: 'power2.inOut',
-                      onComplete: () => {
-                        this.movementTimeline.resume()
-                        this.currentState = 'moving'
-                        this.waitingForGreen = false
-                        this.isAtStopLine = false
-                        this.hasPassedStopLine = true
-                        this.originalTimeScale = null
-                      },
-                    })
-                  })
+                  this.waitForIntersectionClearance(
+                    allVehicles,
+                    () => {
+                      const targetTimeScale = this.originalTimeScale || 1
+                      gsap.to(this.movementTimeline, {
+                        timeScale: targetTimeScale,
+                        duration: 0.3,
+                        ease: 'power2.inOut',
+                        onComplete: () => {
+                          this.movementTimeline.resume()
+                          this.currentState = 'moving'
+                          this.waitingForGreen = false
+                          this.isAtStopLine = false
+                          this.hasPassedStopLine = true
+                          this.originalTimeScale = null
+                        },
+                      })
+                    },
+                    true,
+                  ) // 綠燈時跳過延遲
                 } else {
-                  this.waitForIntersectionClearance(allVehicles, () => {
-                    this.forceResumeMovement(allVehicles)
-                    this.isAtStopLine = false
-                    this.hasPassedStopLine = true
-                  })
+                  this.waitForIntersectionClearance(
+                    allVehicles,
+                    () => {
+                      this.forceResumeMovement(allVehicles)
+                      this.isAtStopLine = false
+                      this.hasPassedStopLine = true
+                    },
+                    true,
+                  ) // 綠燈時跳過延遲
                 }
               }
             }
@@ -1878,11 +1883,15 @@ export default class Vehicle {
                   // 添加燈號變化觀察者
                   const onLightChange = (direction, state) => {
                     if (direction === this.direction && state === 'green' && this.waitingForGreen) {
-                      this.waitForIntersectionClearance(allVehicles, () => {
-                        this.forceResumeMovement(allVehicles)
-                        this.isAtStopLine = false
-                        this.hasPassedStopLine = true
-                      })
+                      this.waitForIntersectionClearance(
+                        allVehicles,
+                        () => {
+                          this.forceResumeMovement(allVehicles)
+                          this.isAtStopLine = false
+                          this.hasPassedStopLine = true
+                        },
+                        true,
+                      ) // 綠燈時跳過延遲
                       trafficController.removeObserver(onLightChange)
                     }
                   }
@@ -1895,28 +1904,36 @@ export default class Vehicle {
                       const currentLightState = trafficController.getCurrentLightState(this.direction)
                       if (currentLightState === 'green') {
                         if (this.movementTimeline.timeScale() === 0) {
-                          this.waitForIntersectionClearance(allVehicles, () => {
-                            const targetTimeScale = this.originalTimeScale || 1
-                            gsap.to(this.movementTimeline, {
-                              timeScale: targetTimeScale,
-                              duration: 0.3,
-                              ease: 'power2.inOut',
-                              onComplete: () => {
-                                this.movementTimeline.resume()
-                                this.currentState = 'moving'
-                                this.waitingForGreen = false
-                                this.isAtStopLine = false
-                                this.hasPassedStopLine = true
-                                this.originalTimeScale = null
-                              },
-                            })
-                          })
+                          this.waitForIntersectionClearance(
+                            allVehicles,
+                            () => {
+                              const targetTimeScale = this.originalTimeScale || 1
+                              gsap.to(this.movementTimeline, {
+                                timeScale: targetTimeScale,
+                                duration: 0.3,
+                                ease: 'power2.inOut',
+                                onComplete: () => {
+                                  this.movementTimeline.resume()
+                                  this.currentState = 'moving'
+                                  this.waitingForGreen = false
+                                  this.isAtStopLine = false
+                                  this.hasPassedStopLine = true
+                                  this.originalTimeScale = null
+                                },
+                              })
+                            },
+                            true,
+                          ) // 綠燈時跳過延遲
                         } else {
-                          this.waitForIntersectionClearance(allVehicles, () => {
-                            this.forceResumeMovement(allVehicles)
-                            this.isAtStopLine = false
-                            this.hasPassedStopLine = true
-                          })
+                          this.waitForIntersectionClearance(
+                            allVehicles,
+                            () => {
+                              this.forceResumeMovement(allVehicles)
+                              this.isAtStopLine = false
+                              this.hasPassedStopLine = true
+                            },
+                            true,
+                          ) // 綠燈時跳過延遲
                         }
                         trafficController.removeObserver(onLightChange)
                       }
@@ -2037,29 +2054,37 @@ export default class Vehicle {
               // 檢查 timeScale，如果為 0 需要特殊處理
               if (this.movementTimeline.timeScale() === 0) {
                 // 使用智能等待機制
-                this.waitForIntersectionClearance(allVehicles, () => {
-                  const targetTimeScale = this.originalTimeScale || 1
-                  gsap.to(this.movementTimeline, {
-                    timeScale: targetTimeScale,
-                    duration: 0.3,
-                    ease: 'power2.inOut',
-                    onComplete: () => {
-                      this.movementTimeline.resume()
-                      this.currentState = 'moving'
-                      this.waitingForGreen = false
-                      this.isAtStopLine = false
-                      this.hasPassedStopLine = true
-                      this.originalTimeScale = null
-                    },
-                  })
-                })
+                this.waitForIntersectionClearance(
+                  allVehicles,
+                  () => {
+                    const targetTimeScale = this.originalTimeScale || 1
+                    gsap.to(this.movementTimeline, {
+                      timeScale: targetTimeScale,
+                      duration: 0.3,
+                      ease: 'power2.inOut',
+                      onComplete: () => {
+                        this.movementTimeline.resume()
+                        this.currentState = 'moving'
+                        this.waitingForGreen = false
+                        this.isAtStopLine = false
+                        this.hasPassedStopLine = true
+                        this.originalTimeScale = null
+                      },
+                    })
+                  },
+                  true,
+                ) // 綠燈時跳過延遲
               } else {
                 // 使用智能等待機制
-                this.waitForIntersectionClearance(allVehicles, () => {
-                  this.forceResumeMovement(allVehicles)
-                  this.isAtStopLine = false
-                  this.hasPassedStopLine = true
-                })
+                this.waitForIntersectionClearance(
+                  allVehicles,
+                  () => {
+                    this.forceResumeMovement(allVehicles)
+                    this.isAtStopLine = false
+                    this.hasPassedStopLine = true
+                  },
+                  true,
+                ) // 綠燈時跳過延遲
               }
             }
           }
@@ -2321,12 +2346,16 @@ export default class Vehicle {
                 const onLightChange = (direction, state) => {
                   if (direction === this.direction && state === 'green' && this.waitingForGreen) {
                     // 智能等待：檢查路口是否安全
-                    this.waitForIntersectionClearance(allVehicles, () => {
-                      // 路口清空後才啟動
-                      this.forceResumeMovement(allVehicles)
-                      this.isAtStopLine = false
-                      this.hasPassedStopLine = true
-                    })
+                    this.waitForIntersectionClearance(
+                      allVehicles,
+                      () => {
+                        // 路口清空後才啟動
+                        this.forceResumeMovement(allVehicles)
+                        this.isAtStopLine = false
+                        this.hasPassedStopLine = true
+                      },
+                      true,
+                    ) // 綠燈時跳過延遲
 
                     // 移除觀察者
                     trafficController.removeObserver(onLightChange)
@@ -2345,29 +2374,37 @@ export default class Vehicle {
                       // 檢查 timeScale，如果為 0 需要特殊處理
                       if (this.movementTimeline.timeScale() === 0) {
                         // 使用智能等待機制
-                        this.waitForIntersectionClearance(allVehicles, () => {
-                          const targetTimeScale = this.originalTimeScale || 1
-                          gsap.to(this.movementTimeline, {
-                            timeScale: targetTimeScale,
-                            duration: 0.3,
-                            ease: 'power2.inOut',
-                            onComplete: () => {
-                              this.movementTimeline.resume()
-                              this.currentState = 'moving'
-                              this.waitingForGreen = false
-                              this.isAtStopLine = false
-                              this.hasPassedStopLine = true
-                              this.originalTimeScale = null
-                            },
-                          })
-                        })
+                        this.waitForIntersectionClearance(
+                          allVehicles,
+                          () => {
+                            const targetTimeScale = this.originalTimeScale || 1
+                            gsap.to(this.movementTimeline, {
+                              timeScale: targetTimeScale,
+                              duration: 0.3,
+                              ease: 'power2.inOut',
+                              onComplete: () => {
+                                this.movementTimeline.resume()
+                                this.currentState = 'moving'
+                                this.waitingForGreen = false
+                                this.isAtStopLine = false
+                                this.hasPassedStopLine = true
+                                this.originalTimeScale = null
+                              },
+                            })
+                          },
+                          true,
+                        ) // 綠燈時跳過延遲
                       } else {
                         // 使用智能等待機制
-                        this.waitForIntersectionClearance(allVehicles, () => {
-                          this.forceResumeMovement(allVehicles)
-                          this.isAtStopLine = false
-                          this.hasPassedStopLine = true
-                        })
+                        this.waitForIntersectionClearance(
+                          allVehicles,
+                          () => {
+                            this.forceResumeMovement(allVehicles)
+                            this.isAtStopLine = false
+                            this.hasPassedStopLine = true
+                          },
+                          true,
+                        ) // 綠燈時跳過延遲
                       }
                       trafficController.removeObserver(onLightChange)
                     }
@@ -2568,14 +2605,20 @@ export default class Vehicle {
   }
 
   // 智能等待路口清空
-  waitForIntersectionClearance(allVehicles, callback) {
+  waitForIntersectionClearance(allVehicles, callback, skipDelayForGreen = false) {
     const checkClearance = () => {
       const clearanceResult = this.checkIntersectionClearance(allVehicles)
 
       if (!clearanceResult.hasConflictingVehicle) {
-        // 路口已清空，添加小隨機延遲後啟動
-        const randomDelay = 0.5 + Math.random() * 1.0 // 0.5-1.5秒隨機延遲
-        gsap.delayedCall(randomDelay, callback)
+        // 路口已清空，根據情況添加延遲
+        if (skipDelayForGreen) {
+          // 綠燈時立即執行，不延遲
+          callback()
+        } else {
+          // 其他情況添加小隨機延遲
+          const randomDelay = 0.5 + Math.random() * 1.0 // 0.5-1.5秒隨機延遲
+          gsap.delayedCall(randomDelay, callback)
+        }
         return
       }
 
