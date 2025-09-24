@@ -1125,7 +1125,7 @@ export default class Vehicle {
                 hasBeenRemovedFromCollision = true
                 console.log(`🚗 [${this.id}] 離開邊界，從碰撞檢測中移除`)
                 onVehicleOutOfBounds(this.id)
-                this.remove() // 🚨 強制移除 DOM
+                // 修復：避免車輛突然消失，讓動畫自然完成
                 return
               }
 
