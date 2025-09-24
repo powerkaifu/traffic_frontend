@@ -267,21 +267,43 @@ export default class Vehicle {
     this.laneLabel = document.createElement('div')
     this.laneLabel.className = 'lane-label'
     this.laneLabel.textContent = this.laneNumber
+
+    // 根據車輛方向設置標籤位置和旋轉角度
+    let labelTransform = ''
+    switch (this.direction) {
+      case 'east':
+        labelTransform = 'top: -8px; left: 50%; transform: translateX(-50%);'
+        break
+      case 'west':
+        labelTransform = 'top: 5px; left: 50%; transform: translateX(-50%) rotate(180deg);'
+        break
+      case 'north':
+        labelTransform = 'top: 5px; left: 50%; transform: translateX(-50%) rotate(90deg);'
+        break
+      case 'south':
+        labelTransform = 'top: -8px; left: 50%; transform: translateX(-50%) rotate(-90deg);'
+        break
+      default:
+        labelTransform = 'top: -8px; left: 50%; transform: translateX(-50%);'
+    }
+
     this.laneLabel.style.cssText = `
       position: absolute;
-      top: -8px;
-      left: 50%;
-      transform: translateX(-50%);
+      ${labelTransform}
       background: rgba(0, 0, 0, 0.8);
       color: white;
       font-size: 10px;
       font-weight: bold;
-      padding: 1px 4px;
-      border-radius: 8px;
+      padding: 2px;
+      border-radius: 50%;
       border: 1px solid #ffcc00;
       z-index: 15;
       pointer-events: none;
-      min-width: 12px;
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       text-align: center;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
     `
@@ -578,8 +600,8 @@ export default class Vehicle {
       }
     }
 
-    // 移除紅燈時的緩速效果，車輛保持正常速度直到停止線
-    if (lightState === 'red') {
+    // 移除紅燈/全紅時的緩速效果，車輛保持正常速度直到停止線
+    if (lightState === 'red' || lightState === 'allRed') {
       // 只有當車子檢查到應該停止時，才在 checkStopLine() 中處理停車邏輯
       // 不在這裡提前減速，避免緩速效果
       return null
@@ -1111,7 +1133,8 @@ export default class Vehicle {
                 // 🚨 綠燈跟車邏輯：如果是綠燈且前車正在移動，後車應該跟隨
                 const currentLightState = trafficController.getCurrentLightState(this.direction)
 
-                if (currentLightState === 'green' && shouldStop.frontVehicleIsMoving) {
+                // 🔴 嚴格檢查：只有在綠燈且不在等待紅燈狀態時才能跟車
+                if (currentLightState === 'green' && !this.waitingForGreen && shouldStop.frontVehicleIsMoving) {
                   // 綠燈時，如果前車正在移動，後車也應該移動（保持安全距離）
                   console.log(`🟢🚗 [${this.id}] 綠燈跟車：前車移動，開始跟隨`)
                   const currentTimeScale = this.movementTimeline.timeScale()
@@ -1124,7 +1147,12 @@ export default class Vehicle {
                 }
 
                 // 🚨 特殊處理：如果是第一台車且前方車輛在停止線等待，則繼續前進到停止線
-                if (isFirstVehicle && shouldStop.frontVehicleAtStopLine && !shouldStop.frontVehicleIsMoving) {
+                if (
+                  isFirstVehicle &&
+                  shouldStop.frontVehicleAtStopLine &&
+                  !shouldStop.frontVehicleIsMoving &&
+                  !this.waitingForGreen
+                ) {
                   // 第一台車：前方車輛在停止線等待且不移動，繼續前進到停止線
                   console.log(`🚗 [${this.id}] 第一台車，前方車輛在停止線等待，繼續前進到停止線`)
                   const currentTimeScale = this.movementTimeline.timeScale()
@@ -1199,7 +1227,7 @@ export default class Vehicle {
                 this.isAtStopLine = true
                 const lightState = trafficController.getCurrentLightState(this.direction)
 
-                if (lightState === 'red' || lightState === 'yellow') {
+                if (lightState === 'red' || lightState === 'yellow' || lightState === 'allRed') {
                   if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
                     gsap.to(this.movementTimeline, {
                       timeScale: 0,
@@ -1494,6 +1522,7 @@ export default class Vehicle {
 
               if (
                 lightState === 'red' ||
+                lightState === 'allRed' ||
                 (lightState === 'yellow' && this.currentState !== 'accelerating_for_yellow')
               ) {
                 // 🚨 修改：黃燈加速的車輛不應在此停下，讓它們通過
@@ -1769,15 +1798,15 @@ export default class Vehicle {
 
     const currentLightState = trafficController.getCurrentLightState(this.direction)
 
-    // 只在綠燈時檢查跟車
-    if (currentLightState === 'green' && !this.hasPassedStopLine) {
+    // 🔴 嚴格檢查：只有在綠燈且不在等待紅燈狀態時才跟車
+    if (currentLightState === 'green' && !this.hasPassedStopLine && !this.waitingForGreen) {
       const collision = this.checkSimpleCollision(allVehicles)
 
       if (collision && collision.frontVehicleIsMoving) {
         // 前車正在移動，但當前車輛停止，應該開始跟車
         const isCurrentlyStopped = this.movementTimeline.timeScale() === 0 || this.currentState === 'stopped'
 
-        if (isCurrentlyStopped && !this.waitingForGreen) {
+        if (isCurrentlyStopped) {
           console.log(`🟢🚗 [${this.id}] 綠燈跟車檢查：前車移動，開始跟隨`)
           this.movementTimeline.timeScale(0.8) // 跟車速度稍慢
           this.currentState = 'following'
@@ -1793,8 +1822,17 @@ export default class Vehicle {
     const currentLightState = trafficController.getCurrentLightState(this.direction)
     const isMoving = this.movementTimeline && this.movementTimeline.timeScale() > 0 && !this.movementTimeline.paused()
 
-    // 🔴 紅燈強制檢查：智能處理，根據距離停止線遠近決定行為
-    if (currentLightState === 'red') {
+    // 🔴 紅燈/全紅強制檢查：智能處理，根據距離停止線遠近決定行為
+    if (currentLightState === 'red' || currentLightState === 'allRed') {
+      // 🚨 如果車輛正在等紅燈，絕對不能移動
+      if (this.waitingForGreen && isMoving) {
+        console.log(`🔴🛑 [${this.id}] 等紅燈車輛強制停止！不應該移動！`)
+        this.movementTimeline.timeScale(0)
+        this.stopMovement()
+        this.currentState = 'waiting'
+        return
+      }
+
       if (isMoving && !this.hasPassedStopLine) {
         const distanceToStopLine = this.getDistanceToStopLine()
 
