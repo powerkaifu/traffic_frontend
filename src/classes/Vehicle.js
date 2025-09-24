@@ -38,6 +38,12 @@ export default class Vehicle {
     this.positionAdjustCooldown = 500 // 位置調整冷卻時間（毫秒）
     this.isAdjustingPosition = false // 是否正在調整位置
 
+    // 🚨 新增：防止時間縮放抖動
+    this.lastTimeScaleChange = 0 // 上次時間縮放變更時間
+    this.timeScaleDebounceDelay = 200 // 時間縮放變更防抖延遲（毫秒）
+    this.pendingTimeScale = null // 待應用的時間縮放值
+    this.timeScaleTimeout = null // 時間縮放更新定時器
+
     // 🚨 新增：停止線區域特殊防護
     this.stopLineStabilized = false // 是否在停止線區域已穩定
     this.stopLineStabilizeTime = 0 // 停止線穩定時間
@@ -945,6 +951,37 @@ export default class Vehicle {
     return Math.max(targetSpeed, this.initialSpeed * 0.15)
   }
 
+  // 🚨 新增：防抖的時間縮放設置方法
+  setDebouncedTimeScale(targetScale, duration = 0.3) {
+    const now = Date.now()
+
+    // 如果與當前的 timeScale 相同，則跳過
+    const currentScale = this.movementTimeline ? this.movementTimeline.timeScale() : 1
+    if (Math.abs(currentScale - targetScale) < 0.01) {
+      return
+    }
+
+    // 清除之前的定時器
+    if (this.timeScaleTimeout) {
+      clearTimeout(this.timeScaleTimeout)
+    }
+
+    this.pendingTimeScale = targetScale
+
+    // 防抖延遲：只有在一段時間內沒有新的變更請求時才執行
+    this.timeScaleTimeout = setTimeout(() => {
+      if (this.movementTimeline && this.pendingTimeScale !== null) {
+        gsap.to(this.movementTimeline, {
+          timeScale: this.pendingTimeScale,
+          duration: duration,
+          ease: 'none',
+        })
+        this.lastTimeScaleChange = now
+        this.pendingTimeScale = null
+      }
+    }, this.timeScaleDebounceDelay)
+  }
+
   // 🚨 新增：十字路口橫向碰撞檢測（防止車輛穿越）
   checkCrossDirectionCollision(allVehicles) {
     // 跳過剛創建的車輛
@@ -1053,7 +1090,7 @@ export default class Vehicle {
         gsap.to(this.movementTimeline, {
           timeScale: Math.max(0.1, gentleTimeScale),
           duration: 0.8, // 更長的調整時間
-          ease: 'power1.inOut', // 更溫和的緩動函數
+          ease: 'none', // 移除緩動效果以避免抖動
         })
         return
       }
@@ -1079,22 +1116,22 @@ export default class Vehicle {
     let animationConfig = {
       timeScale: Math.max(0.1, targetTimeScale),
       duration: 0.5,
-      ease: 'power2.out',
+      ease: 'none',
     }
 
     // 特殊情況處理
     if (speedDiff > 20) {
       // 大幅度速度變化：使用更漸進的變化
       animationConfig.duration = 1.0
-      animationConfig.ease = 'power3.inOut'
+      animationConfig.ease = 'none'
     } else if (isAccelerating) {
       // 加速：較快的響應
       animationConfig.duration = 0.6
-      animationConfig.ease = 'power2.out'
+      animationConfig.ease = 'none'
     } else {
       // 減速：更平滑的過渡
       animationConfig.duration = 0.8
-      animationConfig.ease = 'power2.inOut'
+      animationConfig.ease = 'none'
     }
 
     // 執行動畫
@@ -1134,15 +1171,15 @@ export default class Vehicle {
     if (speedDiff > 20) {
       // 大幅加速：分階段加速
       exitConfig.duration = 1.2
-      exitConfig.ease = 'power3.inOut'
+      exitConfig.ease = 'none'
     } else if (currentSpeed < targetSpeed) {
       // 需要加速：較快的響應
       exitConfig.duration = 0.6
-      exitConfig.ease = 'power2.out'
+      exitConfig.ease = 'none'
     } else {
       // 需要減速：平滑過渡
       exitConfig.duration = 0.8
-      exitConfig.ease = 'power2.inOut'
+      exitConfig.ease = 'none'
     }
 
     // 執行退出動畫
@@ -1281,7 +1318,7 @@ export default class Vehicle {
             gsap.to(this.movementTimeline, {
               timeScale: targetTimeScale,
               duration: 0.2, // 縮短動畫時間
-              ease: 'power2.inOut',
+              ease: 'none',
               onComplete: () => {
                 this.movementTimeline.resume()
                 this.currentState = 'moving'
@@ -1388,7 +1425,7 @@ export default class Vehicle {
         x: targetPosition.x,
         y: targetPosition.y,
         duration: 0.5, // 增加調整時間，讓動畫更平滑
-        ease: 'power2.out',
+        ease: 'none',
         onComplete: () => {
           this.isAdjustingPosition = false // 調整完成
           console.log(`🔧 [${this.id}] 位置已調整到安全距離: ${this.direction} 方向`)
@@ -1554,7 +1591,7 @@ export default class Vehicle {
                       gsap.to(this.movementTimeline, {
                         timeScale: targetTimeScale,
                         duration: 0.3,
-                        ease: 'power2.inOut',
+                        ease: 'none',
                         onComplete: () => {
                           this.movementTimeline.resume()
                           this.currentState = 'moving'
@@ -1716,14 +1753,14 @@ export default class Vehicle {
 
                 switch (type) {
                   case 'front_overlap':
-                    this.movementTimeline.timeScale(0.01) // 幾乎停止，防止重疊
+                    this.setDebouncedTimeScale(0.01, 0.1) // 幾乎停止，防止重疊
                     this.currentState = 'emergency_stop'
                     console.log(`🚨 [${this.id}] 前方重疊！與 [${data.vehicle.id}] 緊急停止`)
                     return
 
                   case 'front_emergency':
                   case 'cross_emergency': {
-                    this.movementTimeline.timeScale(0)
+                    this.setDebouncedTimeScale(0, 0.1)
                     this.currentState = type.includes('front') ? 'emergency_stop' : 'emergency_intersection_stop'
                     const emergencyTarget = data.vehicle.id
                     const emergencyDistance = data.distance.toFixed(1)
@@ -1732,7 +1769,7 @@ export default class Vehicle {
                   }
 
                   case 'front_stop':
-                    this.movementTimeline.timeScale(0)
+                    this.setDebouncedTimeScale(0, 0.1)
                     this.currentState = 'waitingForVehicle'
 
                     // 🔧 新增：位置調整邏輯，確保車輛保持安全距離
@@ -1751,7 +1788,7 @@ export default class Vehicle {
                     return
 
                   case 'cross_stop':
-                    this.movementTimeline.timeScale(0)
+                    this.setDebouncedTimeScale(0, 0.1)
                     this.currentState = 'intersection_waiting'
                     console.log(
                       `� [${this.id}] 十字路口停車等待！與 [${data.vehicle.id}] 距離: ${data.distance.toFixed(1)}px`,
@@ -1768,7 +1805,7 @@ export default class Vehicle {
                       gsap.to(this.movementTimeline, {
                         timeScale: targetTimeScale,
                         duration: 0.3,
-                        ease: 'power2.out',
+                        ease: 'none',
                       })
                       this.currentState = 'following'
                       console.log(
@@ -1783,7 +1820,7 @@ export default class Vehicle {
                     gsap.to(this.movementTimeline, {
                       timeScale: targetSlowScale,
                       duration: 0.2,
-                      ease: 'power2.out',
+                      ease: 'none',
                     })
                     this.currentState = 'intersection_slowing'
                     console.log(
@@ -1807,7 +1844,7 @@ export default class Vehicle {
                   gsap.to(this.movementTimeline, {
                     timeScale: 1,
                     duration: 0.5,
-                    ease: 'power2.inOut',
+                    ease: 'none',
                   })
                   this.currentState = 'moving'
                   console.log(`🚗 [${this.id}] 恢復正常速度`)
@@ -1825,8 +1862,8 @@ export default class Vehicle {
                     }
                     gsap.to(this.movementTimeline, {
                       timeScale: this.originalTimeScale * slowDownInfo.targetSpeedRatio,
-                      duration: 0.5,
-                      ease: 'power2.out',
+                      duration: 0.05, // 幾乎立即的速度變化，消除緩速
+                      ease: 'none',
                     })
                   } else if (slowDownInfo.action === 'accelerate_for_yellow') {
                     // 🚨 新增：黃燈加速邏輯
@@ -1838,15 +1875,15 @@ export default class Vehicle {
                     gsap.to(this.movementTimeline, {
                       timeScale: this.originalTimeScale * slowDownInfo.targetSpeedRatio,
                       duration: 0.3, // 更快的加速響應
-                      ease: 'power2.out',
+                      ease: 'none',
                     })
                   } else if (slowDownInfo.action === 'resume_from_slow') {
                     this.currentState = 'moving'
                     if (this.originalTimeScale) {
                       gsap.to(this.movementTimeline, {
                         timeScale: this.originalTimeScale,
-                        duration: 0.5,
-                        ease: 'power2.inOut',
+                        duration: 0.05, // 幾乎立即恢復正常速度
+                        ease: 'none',
                       })
                       this.originalTimeScale = null
                     }
@@ -1869,7 +1906,7 @@ export default class Vehicle {
                     gsap.to(this.movementTimeline, {
                       timeScale: 0,
                       duration: 0.5,
-                      ease: 'power2.out',
+                      ease: 'none',
                       onComplete: () => {
                         this.stopMovement()
                         this.waitingForGreen = true
@@ -1911,7 +1948,7 @@ export default class Vehicle {
                               gsap.to(this.movementTimeline, {
                                 timeScale: targetTimeScale,
                                 duration: 0.3,
-                                ease: 'power2.inOut',
+                                ease: 'none',
                                 onComplete: () => {
                                   this.movementTimeline.resume()
                                   this.currentState = 'moving'
@@ -2061,7 +2098,7 @@ export default class Vehicle {
                     gsap.to(this.movementTimeline, {
                       timeScale: targetTimeScale,
                       duration: 0.3,
-                      ease: 'power2.inOut',
+                      ease: 'none',
                       onComplete: () => {
                         this.movementTimeline.resume()
                         this.currentState = 'moving'
@@ -2256,7 +2293,7 @@ export default class Vehicle {
                   gsap.to(this.movementTimeline, {
                     timeScale: targetSlowScale,
                     duration: 0.2,
-                    ease: 'power2.out',
+                    ease: 'none',
                   })
                   this.currentState = 'intersection_slowing'
                   console.log(
@@ -2279,8 +2316,8 @@ export default class Vehicle {
                   }
                   gsap.to(this.movementTimeline, {
                     timeScale: this.originalTimeScale * slowDownInfo.targetSpeedRatio,
-                    duration: 0.5,
-                    ease: 'power2.out',
+                    duration: 0.05, // 幾乎立即的速度變化，消除緩速
+                    ease: 'none',
                   })
                 } else if (slowDownInfo.action === 'accelerate_for_yellow') {
                   // 🚨 新增：黃燈加速邏輯
@@ -2292,15 +2329,15 @@ export default class Vehicle {
                   gsap.to(this.movementTimeline, {
                     timeScale: this.originalTimeScale * slowDownInfo.targetSpeedRatio,
                     duration: 0.3, // 更快的加速響應
-                    ease: 'power2.out',
+                    ease: 'none',
                   })
                 } else if (slowDownInfo.action === 'resume_from_slow') {
                   this.currentState = 'moving'
                   if (this.originalTimeScale) {
                     gsap.to(this.movementTimeline, {
                       timeScale: this.originalTimeScale,
-                      duration: 0.5,
-                      ease: 'power2.inOut',
+                      duration: 0.05, // 幾乎立即恢復正常速度
+                      ease: 'none',
                     })
                     this.originalTimeScale = null
                   }
@@ -2331,7 +2368,7 @@ export default class Vehicle {
                   gsap.to(this.movementTimeline, {
                     timeScale: 0,
                     duration: 0.5,
-                    ease: 'power2.out',
+                    ease: 'none',
                     onComplete: () => {
                       this.stopMovement()
                       this.waitingForGreen = true
@@ -2381,7 +2418,7 @@ export default class Vehicle {
                             gsap.to(this.movementTimeline, {
                               timeScale: targetTimeScale,
                               duration: 0.3,
-                              ease: 'power2.inOut',
+                              ease: 'none',
                               onComplete: () => {
                                 this.movementTimeline.resume()
                                 this.currentState = 'moving'
@@ -2472,7 +2509,7 @@ export default class Vehicle {
       opacity: 0,
       scale: 0.8,
       duration: duration,
-      ease: 'power2.out',
+      ease: 'none',
     })
   }
 
