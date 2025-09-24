@@ -303,19 +303,19 @@ export default class Vehicle {
     let labelTransform = ''
     switch (this.direction) {
       case 'east':
-        labelTransform = 'top: -8px; left: 50%; transform: translateX(-50%);'
+        labelTransform = 'top: 0px; left: 50%; transform: translateX(-50%);'
         break
       case 'west':
-        labelTransform = 'top: 5px; left: 50%; transform: translateX(-50%) rotate(180deg);'
+        labelTransform = 'top: 0px; left: 50%; transform: translateX(-50%) rotate(180deg);'
         break
       case 'north':
-        labelTransform = 'top: 5px; left: 50%; transform: translateX(-50%) rotate(90deg);'
+        labelTransform = 'top: 0px; left: 50%; transform: translateX(-50%) rotate(90deg);'
         break
       case 'south':
-        labelTransform = 'top: -8px; left: 50%; transform: translateX(-50%) rotate(-90deg);'
+        labelTransform = 'top: 0px; left: 50%; transform: translateX(-50%) rotate(-90deg);'
         break
       default:
-        labelTransform = 'top: -8px; left: 50%; transform: translateX(-50%);'
+        labelTransform = 'top: 0px; left: 50%; transform: translateX(-50%);'
     }
 
     this.laneLabel.style.cssText = `
