@@ -11,11 +11,79 @@ gsap.registerPlugin(MotionPathPlugin)
 
 export default class Vehicle {
   // 靜態屬性：統一控制動畫速度
-  static timeMultiplier = 1 // 控制整體動畫速度，數字越小動畫越快（0.4 = 2.5倍速）
+  static timeMultiplier = 2 // 控制整體動畫速度，數字越小動畫越快（0.4 = 2.5倍速）
 
-  // 🚨 新增：全局抖動抑制機制
-  static antiShakeGlobalCooldown = 100 // 全局冷卻時間（毫秒）
-  static lastGlobalAdjustTime = 0 // 上次全局調整時間
+  // 🎯 新增：車輛間距控制配置
+  static distanceMultiplier = 1.0 // 控制車輛間距，1.0=預設，2.0=兩倍間距，0.5=一半間距
+  static baseStopDistance = { justStarted: 5, normal: 10 } // 基礎停止距離
+  static baseSafeDistance = { justStarted: 8, normal: 15 } // 基礎安全距離
+
+  // 🎯 新增：南北向車輛專用距離調整（解決南北向排隊問題）
+  static northSouthDistanceMultiplier = 0.8 // 南北向車輛使用較小間距
+
+  // 🎯 新增：靜態方法用於調整車輛間距配置
+  static setDistanceMultiplier(multiplier) {
+    if (multiplier > 0) {
+      Vehicle.distanceMultiplier = multiplier
+      console.log(`🎯 車輛間距倍數設置為: ${multiplier}`)
+      console.log(
+        `🎯 東西向停止距離: ${Vehicle.baseStopDistance.justStarted * multiplier}px / ${Vehicle.baseStopDistance.normal * multiplier}px`,
+      )
+      console.log(
+        `🎯 東西向安全距離: ${Vehicle.baseSafeDistance.justStarted * multiplier}px / ${Vehicle.baseSafeDistance.normal * multiplier}px`,
+      )
+      console.log(
+        `🎯 南北向停止距離: ${Vehicle.baseStopDistance.justStarted * multiplier * Vehicle.northSouthDistanceMultiplier}px / ${Vehicle.baseStopDistance.normal * multiplier * Vehicle.northSouthDistanceMultiplier}px`,
+      )
+      console.log(
+        `🎯 南北向安全距離: ${Vehicle.baseSafeDistance.justStarted * multiplier * Vehicle.northSouthDistanceMultiplier}px / ${Vehicle.baseSafeDistance.normal * multiplier * Vehicle.northSouthDistanceMultiplier}px`,
+      )
+    }
+  }
+
+  // 🎯 新增：設置南北向專用距離倍數
+  static setNorthSouthDistanceMultiplier(multiplier) {
+    if (multiplier > 0) {
+      Vehicle.northSouthDistanceMultiplier = multiplier
+      console.log(`🎯 南北向距離倍數設置為: ${multiplier}`)
+      console.log(
+        `🎯 南北向有效停止距離: ${Vehicle.baseStopDistance.justStarted * Vehicle.distanceMultiplier * multiplier}px / ${Vehicle.baseStopDistance.normal * Vehicle.distanceMultiplier * multiplier}px`,
+      )
+      console.log(
+        `🎯 南北向有效安全距離: ${Vehicle.baseSafeDistance.justStarted * Vehicle.distanceMultiplier * multiplier}px / ${Vehicle.baseSafeDistance.normal * Vehicle.distanceMultiplier * multiplier}px`,
+      )
+    }
+  }
+
+  // 🎯 新增：獲取當前距離配置的靜態方法
+  static getDistanceConfig() {
+    return {
+      distanceMultiplier: Vehicle.distanceMultiplier,
+      northSouthDistanceMultiplier: Vehicle.northSouthDistanceMultiplier,
+      eastWestActualDistance: {
+        stopDistance: {
+          justStarted: Vehicle.baseStopDistance.justStarted * Vehicle.distanceMultiplier,
+          normal: Vehicle.baseStopDistance.normal * Vehicle.distanceMultiplier,
+        },
+        safeDistance: {
+          justStarted: Vehicle.baseSafeDistance.justStarted * Vehicle.distanceMultiplier,
+          normal: Vehicle.baseSafeDistance.normal * Vehicle.distanceMultiplier,
+        },
+      },
+      northSouthActualDistance: {
+        stopDistance: {
+          justStarted:
+            Vehicle.baseStopDistance.justStarted * Vehicle.distanceMultiplier * Vehicle.northSouthDistanceMultiplier,
+          normal: Vehicle.baseStopDistance.normal * Vehicle.distanceMultiplier * Vehicle.northSouthDistanceMultiplier,
+        },
+        safeDistance: {
+          justStarted:
+            Vehicle.baseSafeDistance.justStarted * Vehicle.distanceMultiplier * Vehicle.northSouthDistanceMultiplier,
+          normal: Vehicle.baseSafeDistance.normal * Vehicle.distanceMultiplier * Vehicle.northSouthDistanceMultiplier,
+        },
+      },
+    }
+  }
 
   constructor(x, y, direction = 'east', vehicleType = 'large', laneNumber = 1) {
     // Factory Pattern: 根據不同參數創建不同類型的車輛實例
@@ -348,28 +416,24 @@ export default class Vehicle {
     // Factory Pattern: 基於車輛類型和方向創建配置
     // Strategy Pattern: 每種車輛類型和方向組合都有不同的策略
 
-    // 🚨 針對 MotionPath 動畫優化：使用統一朝向的圖片，讓 autoRotate 處理旋轉
     const vehicleConfigs = {
       large: {
-        // MotionPath 模式：所有方向都使用向右的圖片，由 autoRotate 處理旋轉
-        east: { width: 35, height: 20, image: '/images/car/lCar_right.png' },
-        west: { width: 35, height: 20, image: '/images/car/lCar_right.png' },
-        north: { width: 35, height: 20, image: '/images/car/lCar_right.png' },
-        south: { width: 35, height: 20, image: '/images/car/lCar_right.png' },
+        east: { width: 35, height: 20, image: '/images/car/lCar_east.png' },
+        west: { width: 35, height: 20, image: '/images/car/lCar_west.png' },
+        north: { width: 20, height: 35, image: '/images/car/lCar_north.png' },
+        south: { width: 20, height: 35, image: '/images/car/lCar_south.png' },
       },
       small: {
-        // MotionPath 模式：所有方向都使用向右的圖片，由 autoRotate 處理旋轉
-        east: { width: 30, height: 18, image: '/images/car/sCar_right.png' },
-        west: { width: 30, height: 18, image: '/images/car/sCar_right.png' },
-        north: { width: 30, height: 18, image: '/images/car/sCar_right.png' },
-        south: { width: 30, height: 18, image: '/images/car/sCar_right.png' },
+        east: { width: 30, height: 18, image: '/images/car/sCar_east.png' },
+        west: { width: 30, height: 18, image: '/images/car/sCar_west.png' },
+        north: { width: 18, height: 30, image: '/images/car/sCar_north.png' },
+        south: { width: 18, height: 30, image: '/images/car/sCar_south.png' },
       },
       motor: {
-        // MotionPath 模式：所有方向都使用向右的圖片，由 autoRotate 處理旋轉
-        east: { width: 25, height: 15, image: '/images/car/mCar_right.png' },
-        west: { width: 25, height: 15, image: '/images/car/mCar_right.png' },
-        north: { width: 25, height: 15, image: '/images/car/mCar_right.png' },
-        south: { width: 25, height: 15, image: '/images/car/mCar_right.png' },
+        east: { width: 25, height: 15, image: '/images/car/mCar_east.png' },
+        west: { width: 25, height: 15, image: '/images/car/mCar_west.png' },
+        north: { width: 15, height: 25, image: '/images/car/mCar_north.png' },
+        south: { width: 15, height: 25, image: '/images/car/mCar_south.png' },
       },
     }
     return vehicleConfigs[this.vehicleType]?.[this.direction] || vehicleConfigs.large[this.direction]
@@ -800,16 +864,23 @@ export default class Vehicle {
     const currentBox = this.getBoundingBox()
     const currentPos = this.getCurrentPosition()
 
-    // 🎯 參考 c24a1ff commit 的距離系統
+    // 🎯 使用靜態距離配置系統（南北向專用調整）
     const isJustStartedMoving =
       this.currentState === 'moving' &&
       this.movementStartTime &&
       Date.now() - new Date(this.movementStartTime).getTime() < 2000
 
-    const safeDistance = isJustStartedMoving ? 8 : 15 // 安全距離
-    const stopDistance = isJustStartedMoving ? 5 : 10 // 停止距離 (回復到歷史版本的 5-10px)
+    // 🎯 南北向車輛使用專門的距離倍數
+    const directionMultiplier =
+      this.direction === 'north' || this.direction === 'south' ? Vehicle.northSouthDistanceMultiplier : 1.0
+    const effectiveDistanceMultiplier = Vehicle.distanceMultiplier * directionMultiplier
 
-    // 根據車輛狀態調整距離
+    // 🎯 使用靜態配置計算距離
+    const baseStopDist = isJustStartedMoving ? Vehicle.baseStopDistance.justStarted : Vehicle.baseStopDistance.normal
+    const baseSafeDist = isJustStartedMoving ? Vehicle.baseSafeDistance.justStarted : Vehicle.baseSafeDistance.normal
+
+    const safeDistance = baseSafeDist * effectiveDistanceMultiplier // 應用方向相關距離倍數
+    const stopDistance = baseStopDist * effectiveDistanceMultiplier // 應用方向相關距離倍數    // 根據車輛狀態調整距離
     let adjustedSafeDistance = safeDistance
     let adjustedStopDistance = stopDistance
 
@@ -850,13 +921,27 @@ export default class Vehicle {
           )
         }
       } else if (this.direction === 'north') {
-        inSameLane = Math.abs(currentPos.x - otherPos.x) < 25
+        // 🎯 北向車輛：使用更精確的車道檢測
+        inSameLane = Math.abs(currentPos.x - otherPos.x) < 30 // 增加容錯範圍
         isFront = otherBox.bottom < currentBox.top
         distance = isFront ? currentBox.top - otherBox.bottom : 0
+        // 🎯 新增：北向車輛距離檢測調試
+        if (isFront && distance < 20) {
+          console.log(
+            `🚗 [${this.id}] 北向距離檢測: 前車${vehicle.id}, 距離=${distance.toFixed(1)}px, 當前車上邊=${currentBox.top.toFixed(1)}, 前車下邊=${otherBox.bottom.toFixed(1)}, X差=${Math.abs(currentPos.x - otherPos.x).toFixed(1)}, 同車道=${inSameLane}`,
+          )
+        }
       } else if (this.direction === 'south') {
-        inSameLane = Math.abs(currentPos.x - otherPos.x) < 25
+        // 🎯 南向車輛：使用更精確的車道檢測
+        inSameLane = Math.abs(currentPos.x - otherPos.x) < 30 // 增加容錯範圍
         isFront = otherBox.top > currentBox.bottom
         distance = isFront ? otherBox.top - currentBox.bottom : 0
+        // 🎯 新增：南向車輛距離檢測調試
+        if (isFront && distance < 20) {
+          console.log(
+            `🚗 [${this.id}] 南向距離檢測: 前車${vehicle.id}, 距離=${distance.toFixed(1)}px, 當前車下邊=${currentBox.bottom.toFixed(1)}, 前車上邊=${otherBox.top.toFixed(1)}, X差=${Math.abs(currentPos.x - otherPos.x).toFixed(1)}, 同車道=${inSameLane}`,
+          )
+        }
       }
 
       // 檢查重疊
@@ -1011,6 +1096,39 @@ export default class Vehicle {
   // 🎯 新增：判斷前方車輛是否在停止線等待
   isFrontVehicleAtStopLine(frontVehicle) {
     return frontVehicle.isAtStopLine || frontVehicle.waitingForGreen
+  }
+
+  // 🎯 新增：計算到指定車輛的距離（防穿越用）
+  calculateDistanceToVehicle(targetVehicle) {
+    const currentBox = this.getBoundingBox()
+    const targetBox = targetVehicle.getBoundingBox()
+    const currentPos = this.getCurrentPosition()
+    const targetPos = targetVehicle.getCurrentPosition()
+
+    // 檢查是否在同一車道且在前方
+    let inSameLane = false
+    let isFront = false
+    let distance = -1 // 預設為-1表示不在前方
+
+    if (this.direction === 'east') {
+      inSameLane = Math.abs(currentPos.y - targetPos.y) < 25
+      isFront = targetBox.left > currentBox.right
+      distance = isFront ? targetBox.left - currentBox.right : -1
+    } else if (this.direction === 'west') {
+      inSameLane = Math.abs(currentPos.y - targetPos.y) < 25
+      isFront = targetBox.right < currentBox.left
+      distance = isFront ? currentBox.left - targetBox.right : -1
+    } else if (this.direction === 'north') {
+      inSameLane = Math.abs(currentPos.x - targetPos.x) < 30 // 與碰撞檢測一致
+      isFront = targetBox.bottom < currentBox.top
+      distance = isFront ? currentBox.top - targetBox.bottom : -1
+    } else if (this.direction === 'south') {
+      inSameLane = Math.abs(currentPos.x - targetPos.x) < 30 // 與碰撞檢測一致
+      isFront = targetBox.top > currentBox.bottom
+      distance = isFront ? targetBox.top - currentBox.bottom : -1
+    }
+
+    return inSameLane && isFront ? distance : -1
   }
 
   // State Pattern: 停止移動狀態控制方法
@@ -1336,31 +1454,55 @@ export default class Vehicle {
                   shouldStop.frontVehicleIsMoving &&
                   this.movementTimeline
                 ) {
-                  // 距離感知速度控制 - 使用與碰撞檢測相同的停止距離
+                  // 🎯 參考 c24a1ff commit：防止車輛穿越的關鍵修正
+                  // 獲取前車實際速度，確保後車不會超越前車
+                  const frontVehicle = shouldStop.vehicle
+                  const frontVehicleSpeed = frontVehicle.currentSpeed || frontVehicle.initialSpeed || this.initialSpeed
+                  const frontVehicleTimeScale = frontVehicle.movementTimeline
+                    ? frontVehicle.movementTimeline.timeScale()
+                    : 1
+                  const frontVehicleActualSpeed = frontVehicleTimeScale * frontVehicleSpeed
+
+                  // 🎯 使用統一的距離配置（包含南北向調整）
                   let targetSpeed
                   const isJustStartedMoving =
                     this.currentState === 'moving' &&
                     this.movementStartTime &&
                     Date.now() - new Date(this.movementStartTime).getTime() < 2000
-                  const stopDistance = isJustStartedMoving ? 5 : 10 // 與 performDetailedCollisionCheck 一致
+
+                  // 🎯 南北向車輛使用專門的距離倍數
+                  const directionMultiplier =
+                    this.direction === 'north' || this.direction === 'south'
+                      ? Vehicle.northSouthDistanceMultiplier
+                      : 1.0
+                  const effectiveDistanceMultiplier = Vehicle.distanceMultiplier * directionMultiplier
+
+                  // 🎯 使用靜態距離配置
+                  const baseStopDist = isJustStartedMoving
+                    ? Vehicle.baseStopDistance.justStarted
+                    : Vehicle.baseStopDistance.normal
+                  const stopDistance = baseStopDist * effectiveDistanceMultiplier
 
                   if (distance <= stopDistance) {
                     // 達到停止距離：完全停止
                     targetSpeed = 0
                     console.log(`🛑 [${this.id}] 達到停止距離 ${distance.toFixed(1)}px ≤ ${stopDistance}px，完全停止`)
                   } else if (distance <= requiredGap * 0.5) {
-                    // 距離太近：大幅減速
-                    targetSpeed = 0.2
+                    // 距離太近：大幅減速，且不超過前車速度的70%
+                    targetSpeed = Math.min(0.2, (frontVehicleActualSpeed * 0.7) / this.initialSpeed)
                   } else if (distance <= requiredGap * 0.8) {
-                    // 距離適中：適度速度
-                    targetSpeed = 0.5
+                    // 距離適中：適度速度，且不超過前車速度的80%
+                    targetSpeed = Math.min(0.5, (frontVehicleActualSpeed * 0.8) / this.initialSpeed)
                   } else if (distance <= requiredGap * 1.2) {
-                    // 距離接近理想：接近正常速度
-                    targetSpeed = 0.8
+                    // 距離接近理想：接近正常速度，且不超過前車速度的90%
+                    targetSpeed = Math.min(0.8, (frontVehicleActualSpeed * 0.9) / this.initialSpeed)
                   } else {
-                    // 距離充足：正常速度
-                    targetSpeed = 1.0
+                    // 距離充足：正常速度，但仍然不超過前車速度的95%
+                    targetSpeed = Math.min(1.0, (frontVehicleActualSpeed * 0.95) / this.initialSpeed)
                   }
+
+                  // 🎯 關鍵修正：確保目標速度不為負數或過大
+                  targetSpeed = Math.max(0, Math.min(1, targetSpeed))
 
                   // 平滑調整速度，包括停止狀態
                   if (targetSpeed === 0) {
@@ -1414,15 +1556,33 @@ export default class Vehicle {
                   this.exitFollowingMode()
                 }
 
-                // 無碰撞風險時，平滑恢復到正常速度
+                // 🎯 參考 c24a1ff commit：無碰撞風險時，檢查附近是否有較慢車輛
                 const currentTimeScale = this.movementTimeline.timeScale()
                 if (currentTimeScale < 1) {
                   // 檢查當前燈號狀態，只有綠燈時才恢復移動
                   const currentLightState = trafficController.getCurrentLightState(this.direction)
                   if (currentLightState === 'green') {
-                    // 平滑恢復到正常速度，避免突然加速
+                    // 🎯 防穿越修正：檢查前方是否有較慢的車輛
+                    let maxAllowedSpeed = 1.0 // 預設最大速度
+
+                    // 檢查前方較遠距離的車輛，防止突然加速超車
+                    for (let vehicle of allVehicles) {
+                      if (vehicle.id === this.id || vehicle.direction !== this.direction) continue
+
+                      const vehicleDistance = this.calculateDistanceToVehicle(vehicle)
+                      if (vehicleDistance > 0 && vehicleDistance < 50) {
+                        // 檢查50px內的前車
+                        const frontVehicleTimeScale = vehicle.movementTimeline
+                          ? vehicle.movementTimeline.timeScale()
+                          : 1
+                        // 限制速度不超過前車的95%
+                        maxAllowedSpeed = Math.min(maxAllowedSpeed, frontVehicleTimeScale * 0.95)
+                      }
+                    }
+
+                    // 平滑恢復到允許的最大速度，避免突然加速
                     gsap.to(this.movementTimeline, {
-                      timeScale: 1,
+                      timeScale: Math.max(0.1, maxAllowedSpeed),
                       duration: 0.5,
                       ease: 'power2.out',
                     })
@@ -1513,7 +1673,7 @@ export default class Vehicle {
               path: `#${this.getSvgPathId()}`, // 使用選擇器字串
               align: `#${this.getSvgPathId()}`, // 重要：對齊到路徑
               alignOrigin: [0.5, 0.5], // 車輛中心對齊
-              autoRotate: true, // 啟用自動旋轉，車輛會跟隨路徑方向
+              autoRotate: false, // 關閉自動旋轉，使用原始圖片方向
             },
             ease: 'none',
             // 🚨 移除重複的 onUpdate，統一在時間線級別處理

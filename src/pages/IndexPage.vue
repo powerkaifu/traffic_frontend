@@ -987,6 +987,37 @@ onMounted(async () => {
     // 設置全域交通控制器供其他組件使用
     window.trafficController = trafficController
 
+    // 🎯 設置全域車輛距離配置方法
+    window.setVehicleDistance = (multiplier) => {
+      Vehicle.setDistanceMultiplier(multiplier)
+    }
+
+    // 🎯 新增：南北向專用距離配置
+    window.setNorthSouthDistance = (multiplier) => {
+      Vehicle.setNorthSouthDistanceMultiplier(multiplier)
+    }
+
+    // 🎯 獲取當前車輛距離配置
+    window.getVehicleDistanceConfig = () => {
+      return Vehicle.getDistanceConfig()
+    }
+
+    // 🎯 顯示使用說明
+    console.log(`
+🎯 車輛間距控制已啟用！
+使用方法：
+- setVehicleDistance(2.0)     // 設置整體間距為兩倍
+- setVehicleDistance(0.5)     // 設置整體間距為一半
+- setNorthSouthDistance(0.6)  // 專門調整南北向間距
+- setNorthSouthDistance(1.2)  // 增加南北向間距
+- getVehicleDistanceConfig()  // 查看當前配置
+
+🎯 南北向排隊問題修正：
+南北向車輛現在使用專門的距離配置和邊界框計算，應該能更好地一台接著一台排隊！
+
+當前配置: ${JSON.stringify(Vehicle.getDistanceConfig(), null, 2)}
+    `)
+
     // 輸出車道統計信息（調試用）
     console.log('🛣️ 車道統計信息：', trafficController.getLaneStatistics())
 
