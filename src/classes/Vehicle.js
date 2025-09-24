@@ -804,7 +804,7 @@ export default class Vehicle {
     }
 
     const currentBox = this.getBoundingBox()
-    const SAFE_GAP = 5 // 車輛間安全距離
+    const UNIFORM_GAP = 12 // 統一安全距離（適用於所有車輛狀態）
 
     for (let vehicle of vehicles) {
       const otherBox = vehicle.getBoundingBox()
@@ -826,7 +826,7 @@ export default class Vehicle {
         distance = isFrontVehicle ? otherBox.top - currentBox.bottom : 0
       }
 
-      if (isFrontVehicle && distance < SAFE_GAP && distance >= 0) {
+      if (isFrontVehicle && distance < UNIFORM_GAP && distance >= 0) {
         // 檢查前方車輛狀態
         const isAtStopLine = vehicle.isAtStopLine || vehicle.waitingForGreen
         const isMoving =
@@ -836,6 +836,7 @@ export default class Vehicle {
           shouldStop: true,
           vehicle: vehicle,
           distance: distance,
+          requiredGap: UNIFORM_GAP,
           frontVehicleAtStopLine: isAtStopLine,
           frontVehicleIsMoving: isMoving,
         }
