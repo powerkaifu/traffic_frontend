@@ -1069,46 +1069,21 @@ export default class Vehicle {
           this.isAtStopLine = false
           this.hasPassedStopLine = false
 
-          // Observer Pattern: 定期檢查機制，防止車輛卡住
-          this.periodicCheckTimer = setInterval(() => {
-            // 🟢 簡化綠燈檢查 - 立即啟動
-            if (this.waitingForGreen && this.movementTimeline) {
-              const currentLightState = trafficController.getCurrentLightState(this.direction)
-              if (currentLightState === 'green') {
-                if (this.movementTimeline.timeScale() === 0) {
-                  const targetTimeScale = this.originalTimeScale || 1
-                  gsap.to(this.movementTimeline, {
-                    timeScale: targetTimeScale,
-                    duration: 0.05,
-                    ease: 'none',
-                    onComplete: () => {
-                      this.movementTimeline.resume()
-                      this.currentState = 'moving'
-                      this.waitingForGreen = false
-                      this.isAtStopLine = false
-                      this.hasPassedStopLine = true
-                      this.originalTimeScale = null
-                    },
-                  })
-                } else {
-                  // 🚨 簡化：直接恢復移動，不需要複雜的 forceResumeMovement 邏輯
-                  this.movementTimeline.resume()
-                  this.currentState = 'moving'
-                  this.waitingForGreen = false
-                  this.isAtStopLine = false
-                  this.hasPassedStopLine = true
-                  console.log(`🟢 [${this.id}] 綠燈立即啟動`)
-                }
-              }
-            }
+          // Observer Pattern: 確保只有一個定期檢查定時器運行
+          if (this.periodicCheckTimer) {
+            clearInterval(this.periodicCheckTimer)
+            this.periodicCheckTimer = null
+          }
 
-            // 🚨 簡化：只檢查是否可以恢復移動
+          this.periodicCheckTimer = setInterval(() => {
+            // � 統一交通燈響應：使用 directTrafficLightResponse 處理所有燈號變化
+            this.directTrafficLightResponse(trafficController)
+
+            // 🚨 簡化：檢查是否可以恢復移動（僅限碰撞相關）
             if (this.currentState === 'waitingForVehicle') {
               this.resumeMovement(allVehicles)
             }
-
-            // 🚨 移除：複雜的跟隨模式檢查邏輯已被移除
-          }, 1500) // 🚨 改善：縮短檢查間隔從2000ms到1500ms，讓車輛更快恢復
+          }, 50) // 統一使用50ms間隔，與後面的邏輯一致
 
           // 邊界檢測標記 - 避免重複觸發 (移到正確位置)
           let hasBeenRemovedFromCollision = false
@@ -1381,9 +1356,14 @@ export default class Vehicle {
           this.hasPassedStopLine = false
         }
 
-        // Observer Pattern: 定期檢查機制，防止車輛卡住
+        // Observer Pattern: 確保只有一個定期檢查定時器運行
+        if (this.periodicCheckTimer) {
+          clearInterval(this.periodicCheckTimer)
+          this.periodicCheckTimer = null
+        }
+
         this.periodicCheckTimer = setInterval(() => {
-          // 🚨 簡化交通燈響應：直接響應燈號變化
+          // 🚨 統一交通燈響應：使用 directTrafficLightResponse 處理所有燈號變化
           this.directTrafficLightResponse(trafficController)
         }, 50) // 改為每0.05秒檢查一次，更快速回應        // Template Method Pattern: 創建移動時間線模板
         this.movementTimeline = gsap.timeline({
@@ -1649,16 +1629,24 @@ export default class Vehicle {
 
     // 🟢 綠燈：立即啟動所有等待車輛
     else if (currentLightState === 'green') {
-      // 只要是綠燈，所有車輛都應該能行駛
-      if (this.waitingForGreen || this.movementTimeline.timeScale() === 0) {
-        // 立即恢復移動
+      // 🚨 修復：檢查所有可能需要啟動的狀態
+      const needsToStart =
+        this.waitingForGreen || // 等待綠燈狀態
+        this.movementTimeline.timeScale() === 0 || // 時間軸停止
+        this.currentState === 'waiting' || // 等待狀態
+        this.currentState === 'stopped' || // 停止狀態
+        this.currentState === 'waitingForVehicle' || // 等待前車狀態
+        this.movementTimeline.paused() // 時間軸暫停
+
+      if (needsToStart) {
+        // 🚨 綠燈時強制啟動，不受碰撞檢查影響
         this.movementTimeline.timeScale(1)
         this.movementTimeline.resume()
         this.waitingForGreen = false
         this.isAtStopLine = false
         this.currentState = 'moving'
 
-        console.log(`🟢🚦 [${this.id}] 綠燈立即啟動`)
+        console.log(`🟢🚦 [${this.id}] 綠燈強制立即啟動 (清除所有等待狀態)`)
       }
     }
   }

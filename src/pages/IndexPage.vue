@@ -753,16 +753,6 @@ const enablePathEditing = () => {
     // 使用較低的優先級，讓 MotionPathHelper 先處理事件
     document.addEventListener('keydown', handleKeyDown, { capture: false, passive: true })
   }
-
-  console.log('⌨️ 鍵盤事件監聽器已啟用')
-  console.log('💡 使用提示:')
-  console.log('   • ALT+Click: 在路徑上新增控制點')
-  console.log('   • ALT+Click 錨點: 切換平滑/尖角')
-  console.log('   • ALT+拖拽錨點: 從尖角獲得手柄')
-  console.log('   • SHIFT+Click: 選擇多個錨點')
-  console.log('   • DELETE: 刪除選中的錨點')
-  console.log('   • CTRL+Z: 撤銷')
-  console.log('   • 按下停止編輯時會保存所有編輯結果！')
 }
 
 // 設置路徑變化監聽器
@@ -1095,28 +1085,6 @@ onMounted(async () => {
 
     // 再次等待一個小延遲，確保 autoTrafficGenerator 完全初始化
     await new Promise((resolve) => setTimeout(resolve, 500))
-
-    // 🚫 註解掉第一波車輛生成，改用預設的流量強度和生成間隔自動產生
-    // // 逐漸添加初始車輛，而不是一次性全部添加
-    // const directions = ['north', 'south', 'east', 'west']
-    // const vehicleTypes = ['motor', 'small', 'large']
-
-    // // 使用間隔添加車輛
-    // for (let i = 0; i < 8; i++) {
-    //   await new Promise((resolve) => setTimeout(resolve, 200)) // 每個車輛之間添加 200ms 延遲
-    //   const randomDir = directions[Math.floor(Math.random() * directions.length)]
-    //   const randomType = vehicleTypes[Math.floor(Math.random() * vehicleTypes.length)]
-    //   window.dispatchEvent(
-    //     new CustomEvent('generateVehicle', {
-    //       detail: {
-    //         direction: randomDir,
-    //         vehicleType: randomType,
-    //       },
-    //     }),
-    //   )
-    // }
-
-    console.log('✅ 系統將使用預設流量強度和生成間隔自動產生車輛')
 
     // 定期清理超時車輛機制
     const cleanupInterval = setInterval(() => {
