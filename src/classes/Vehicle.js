@@ -1822,53 +1822,25 @@ export default class Vehicle {
     const currentLightState = trafficController.getCurrentLightState(this.direction)
     const isMoving = this.movementTimeline && this.movementTimeline.timeScale() > 0 && !this.movementTimeline.paused()
 
-    // 🔴 紅燈/全紅強制檢查：智能處理，根據距離停止線遠近決定行為
+    // 🔴 紅燈/全紅強制檢查：任何紅燈狀態下都不能移動
     if (currentLightState === 'red' || currentLightState === 'allRed') {
-      // 🚨 如果車輛正在等紅燈，絕對不能移動
-      if (this.waitingForGreen && isMoving) {
-        console.log(`🔴🛑 [${this.id}] 等紅燈車輛強制停止！不應該移動！`)
+      // 🚨 強制規則：紅燈時任何車輛都不能移動（除非已經通過停止線）
+      if (isMoving && !this.hasPassedStopLine) {
+        console.log(`🔴🛑 [${this.id}] 紅燈強制停止！燈號: ${currentLightState}`)
         this.movementTimeline.timeScale(0)
         this.stopMovement()
+        this.waitingForGreen = true
         this.currentState = 'waiting'
         return
       }
 
-      if (isMoving && !this.hasPassedStopLine) {
-        const distanceToStopLine = this.getDistanceToStopLine()
-
-        if (distanceToStopLine !== null) {
-          if (distanceToStopLine <= 10) {
-            // 很接近停止線，立即停止
-            console.log(`🔴 [${this.id}] 紅燈接近停止線，立即停止！距離: ${distanceToStopLine.toFixed(1)}px`)
-            this.movementTimeline.timeScale(0)
-            this.stopMovement()
-            this.waitingForGreen = true
-            this.currentState = 'waiting'
-            return
-          } else if (distanceToStopLine <= 100) {
-            // 中等距離，減速到停止線前
-            const speedRatio = Math.max(0.1, (distanceToStopLine / 100) * 0.5)
-            console.log(
-              `🔴 [${this.id}] 紅燈減速到停止線！距離: ${distanceToStopLine.toFixed(1)}px，速度: ${speedRatio.toFixed(2)}`,
-            )
-            this.movementTimeline.timeScale(speedRatio)
-            this.currentState = 'slowing_for_red'
-            return
-          } else {
-            // 距離較遠，繼續正常行駛直到接近停止線
-            console.log(`🔴 [${this.id}] 紅燈距離較遠，繼續行駛！距離: ${distanceToStopLine.toFixed(1)}px`)
-            // 保持正常速度，讓車子繼續開到停止線附近
-            return
-          }
-        } else {
-          // 無法計算距離，立即停止
-          console.log(`🔴 [${this.id}] 紅燈無法計算距離，立即停止！`)
-          this.movementTimeline.timeScale(0)
-          this.stopMovement()
-          this.waitingForGreen = true
-          this.currentState = 'waiting'
-          return
-        }
+      // � 如果車輛正在等紅燈但仍在移動，絕對強制停止
+      if (this.waitingForGreen && isMoving) {
+        console.log(`🔴🛑 [${this.id}] 等紅燈車輛異常移動，強制停止！`)
+        this.movementTimeline.timeScale(0)
+        this.stopMovement()
+        this.currentState = 'waiting'
+        return
       }
     }
 
