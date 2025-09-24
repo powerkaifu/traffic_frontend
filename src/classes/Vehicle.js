@@ -19,7 +19,7 @@ export default class Vehicle {
   static baseSafeDistance = { justStarted: 8, normal: 15 } // 基礎安全距離
 
   // 🎯 新增：南北向車輛專用距離調整（參考東西向邏輯，實現一台接著一台排隊）
-  static northSouthDistanceMultiplier = 1.5 // 🚨 修改為與東西向相同，實現一致的排隊效果
+  static northSouthDistanceMultiplier = 1.0 // 🚨 修正：與東西向相同，確保車輛正確前進到停止線
 
   // 🎯 新增：靜態方法用於調整車輛間距配置
   static setDistanceMultiplier(multiplier) {
@@ -966,6 +966,26 @@ export default class Vehicle {
 
       // 檢查是否在前方且距離需要處理
       if (inSameLane && isFront && distance < adjustedSafeDistance) {
+        // 🎯【關鍵修正】南北向車輛：優先檢查是否應該前進到停止線
+        // 如果車輛還未到達停止線，且燈號是紅燈，應該讓車輛繼續前進到停止線才停止
+        if (this.direction === 'north' || this.direction === 'south') {
+          const distanceToStopLine = this.getDistanceToStopLine()
+          const trafficController = this.trafficLightController
+          const currentLightState = trafficController?.getCurrentLightState(this.direction)
+
+          // 如果距離停止線還有一段距離，且是紅燈，應該繼續前進到停止線
+          if (
+            distanceToStopLine &&
+            distanceToStopLine > 15 &&
+            (currentLightState === 'red' || currentLightState === 'allRed' || currentLightState === 'yellow')
+          ) {
+            console.log(
+              `🚦 [${this.id}] 南北向車輛繼續前進到停止線: 距停止線${distanceToStopLine.toFixed(1)}px, 前車距離${distance.toFixed(1)}px`,
+            )
+            return null // 不停車，繼續前進到停止線
+          }
+        }
+
         // 🎯 嚴格的停車條件：距離小於等於停車距離時必須停止
         if (distance <= adjustedStopDistance) {
           return {
@@ -2120,35 +2140,70 @@ export default class Vehicle {
         // 檢查所有車輛以決定起步時機
         const allVehicles = window.liveVehicles || []
 
-        // 🚨 新增：檢查同方向前車是否已開始移動
+        // 🚨 新增：檢查同方向前車是否已開始移動和安全距離
         const frontVehicleCheck = this.checkFrontVehicleMoving(allVehicles)
 
-        if (frontVehicleCheck.hasFrontVehicle && !frontVehicleCheck.frontVehicleMoving) {
-          // 前方有車輛但尚未移動，等待前車先起步
-          console.log(`🚗⏳ [${this.id}] 等待同方向前車 ${frontVehicleCheck.frontVehicleId} 先移動`)
+        if (frontVehicleCheck.hasFrontVehicle) {
+          // 🎯【新增】距離檢查：如果距離太近，等待前車拉開距離
+          if (!frontVehicleCheck.safeToStart) {
+            console.log(`🚦⚠️ [${this.id}] 前車距離太近(${frontVehicleCheck.distance.toFixed(1)}px)，等待安全距離`)
 
-          // 定期檢查前車移動狀態
-          const checkFrontVehicleStatus = () => {
-            const updatedCheck = this.checkFrontVehicleMoving(window.liveVehicles || [])
+            // 定期檢查前車距離
+            const checkSafeDistance = () => {
+              const updatedCheck = this.checkFrontVehicleMoving(window.liveVehicles || [])
 
-            // 檢查燈號狀態是否仍為綠燈
-            if (trafficController.getCurrentLightState(this.direction) !== 'green') {
-              return // 燈號已變，停止檢查
+              // 檢查燈號狀態是否仍為綠燈
+              if (trafficController.getCurrentLightState(this.direction) !== 'green') {
+                return // 燈號已變，停止檢查
+              }
+
+              if (!updatedCheck.hasFrontVehicle || updatedCheck.safeToStart) {
+                // 前車已離開或距離足夠安全，開始移動
+                console.log(`🟢✅ [${this.id}] 前車距離安全(${updatedCheck.distance.toFixed(1)}px)，開始起步`)
+                this.waitForIntersectionClearance(window.liveVehicles || [], () => {
+                  this.performControlledGreenLightStart(trafficController)
+                })
+              } else {
+                // 繼續等待安全距離
+                gsap.delayedCall(0.3, checkSafeDistance)
+              }
             }
 
-            if (!updatedCheck.hasFrontVehicle || updatedCheck.frontVehicleMoving) {
-              // 前車已開始移動或已離開，現在檢查路口清空
-              this.waitForIntersectionClearance(window.liveVehicles || [], () => {
-                this.performControlledGreenLightStart(trafficController)
-              })
-            } else {
-              // 繼續等待前車移動
-              gsap.delayedCall(0.3, checkFrontVehicleStatus)
-            }
+            // 開始檢查安全距離
+            gsap.delayedCall(0.2, checkSafeDistance)
+            return
           }
 
-          // 開始檢查前車狀態
-          gsap.delayedCall(0.2, checkFrontVehicleStatus)
+          // 距離安全，但檢查前車是否已開始移動
+          if (!frontVehicleCheck.frontVehicleMoving) {
+            console.log(
+              `🚗⏳ [${this.id}] 距離安全(${frontVehicleCheck.distance.toFixed(1)}px)，但等待前車 ${frontVehicleCheck.frontVehicleId} 先移動`,
+            )
+
+            // 定期檢查前車移動狀態
+            const checkFrontVehicleStatus = () => {
+              const updatedCheck = this.checkFrontVehicleMoving(window.liveVehicles || [])
+
+              // 檢查燈號狀態是否仍為綠燈
+              if (trafficController.getCurrentLightState(this.direction) !== 'green') {
+                return // 燈號已變，停止檢查
+              }
+
+              if (!updatedCheck.hasFrontVehicle || (updatedCheck.frontVehicleMoving && updatedCheck.safeToStart)) {
+                // 前車已開始移動且距離安全，開始移動
+                this.waitForIntersectionClearance(window.liveVehicles || [], () => {
+                  this.performControlledGreenLightStart(trafficController)
+                })
+              } else {
+                // 繼續等待前車移動或安全距離
+                gsap.delayedCall(0.3, checkFrontVehicleStatus)
+              }
+            }
+
+            // 開始檢查前車狀態
+            gsap.delayedCall(0.2, checkFrontVehicleStatus)
+            return
+          }
         } else {
           // 沒有前車或前車已在移動，直接進行路口清空檢查
           console.log(
@@ -2290,7 +2345,13 @@ export default class Vehicle {
     const frontVehicles = this.findVehicleInDirection(allVehicles)
 
     if (frontVehicles.length === 0) {
-      return { hasFrontVehicle: false, frontVehicleMoving: false, frontVehicleId: null }
+      return {
+        hasFrontVehicle: false,
+        frontVehicleMoving: false,
+        frontVehicleId: null,
+        distance: Infinity,
+        safeToStart: true,
+      }
     }
 
     // 找到最近的前方車輛
@@ -2304,8 +2365,27 @@ export default class Vehicle {
     })
 
     if (!nearestFront) {
-      return { hasFrontVehicle: false, frontVehicleMoving: false, frontVehicleId: null }
+      return {
+        hasFrontVehicle: false,
+        frontVehicleMoving: false,
+        frontVehicleId: null,
+        distance: Infinity,
+        safeToStart: true,
+      }
     }
+
+    // 計算與前車的距離
+    const distanceToFront = this.calculateDistanceToVehicle(nearestFront)
+
+    // 🎯【新增】安全起步距離檢查，避免車輛重疊
+    // 根據方向使用適當的最小安全距離
+    const minSafeDistance =
+      this.direction === 'north' || this.direction === 'south'
+        ? 25 // 南北向需要較大安全距離
+        : 20 // 東西向安全距離
+
+    // 檢查是否有足夠的安全距離可以起步
+    const safeToStart = distanceToFront > minSafeDistance
 
     // 檢查前方車輛是否正在移動（多重條件檢查）
     const frontVehicleMoving =
@@ -2319,6 +2399,8 @@ export default class Vehicle {
       hasFrontVehicle: true,
       frontVehicleMoving: frontVehicleMoving,
       frontVehicleId: nearestFront.id,
+      distance: distanceToFront,
+      safeToStart: safeToStart,
     }
   }
 
