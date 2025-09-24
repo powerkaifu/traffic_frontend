@@ -1344,17 +1344,11 @@ export default class Vehicle {
         this.targetX = finalTargetX
         this.targetY = finalTargetY
 
-        // 重要：檢查初始燈號狀態，而不是強制清除等待狀態
-        const initialLightState = trafficController.getCurrentLightState(this.direction)
-        if (initialLightState === 'green') {
-          this.waitingForGreen = false
-          this.isAtStopLine = false
-          this.hasPassedStopLine = false
-        } else if (initialLightState === 'red' || initialLightState === 'allRed') {
-          this.waitingForGreen = true
-          this.isAtStopLine = false
-          this.hasPassedStopLine = false
-        }
+        // 🚨 修復：車輛開始移動時不應該因紅燈立即停止
+        // 應該讓車輛前進到停止線，再由停止線檢查邏輯決定是否停車
+        this.waitingForGreen = false
+        this.isAtStopLine = false
+        this.hasPassedStopLine = false
 
         // Observer Pattern: 確保只有一個定期檢查定時器運行
         if (this.periodicCheckTimer) {
@@ -1614,21 +1608,11 @@ export default class Vehicle {
 
     const currentLightState = trafficController.getCurrentLightState(this.direction)
 
-    // 🔴 紅燈：立即停止（除非已經通過停止線）
-    if (currentLightState === 'red' || currentLightState === 'allRed') {
-      if (!this.hasPassedStopLine) {
-        // 立即停止車輛
-        if (this.movementTimeline.timeScale() > 0) {
-          this.movementTimeline.timeScale(0)
-          this.waitingForGreen = true
-          this.currentState = 'waiting'
-          console.log(`🔴🛑 [${this.id}] 紅燈立即停止`)
-        }
-      }
-    }
+    // 🔴 紅燈：不在此處直接停車，讓移動邏輯中的停止線檢查來處理紅燈停車
+    // 這樣可確保車輛會前進到停止線才停，而不是立即原地停車
 
     // 🟢 綠燈：立即啟動所有等待車輛
-    else if (currentLightState === 'green') {
+    if (currentLightState === 'green') {
       // 🚨 修復：檢查所有可能需要啟動的狀態
       const needsToStart =
         this.waitingForGreen || // 等待綠燈狀態
