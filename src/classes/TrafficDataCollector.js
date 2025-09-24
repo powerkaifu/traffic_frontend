@@ -562,6 +562,11 @@ export default class TrafficDataCollector {
     }
   }
 
+  // 為了相容性，提供 getRealTimeData 別名
+  getRealTimeData() {
+    return this.getCurrentPeriodSummary()
+  }
+
   /**
    * 設置VD數據兼容性配置
    */

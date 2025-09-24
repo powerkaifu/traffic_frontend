@@ -15,6 +15,8 @@ export default class TrafficLight {
 
   // State Pattern + Strategy Pattern: 狀態設置方法
   setState(state) {
+    console.log(`💡 [TrafficLight] setState 被調用，從 ${this.currentState} 變更為 ${state}`)
+
     // State Pattern: 更新當前狀態
     this.currentState = state
 
@@ -34,6 +36,8 @@ export default class TrafficLight {
         this.imgElement.src = '/images/light/redLight.png'
         break
     }
+
+    console.log(`💡 [TrafficLight] 狀態已更新為 ${this.currentState}，圖片路徑：${this.imgElement.src}`)
   }
 
   // State Pattern: 獲取當前狀態的查詢方法

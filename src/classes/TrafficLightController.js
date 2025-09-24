@@ -211,11 +211,15 @@ export default class TrafficLightController {
 
   // Factory Pattern: 初始化所有紅綠燈
   init(eastElement, westElement, southElement, northElement) {
+    console.log('🚦 [TrafficController] 開始初始化交通燈...')
+
     // Factory Pattern: 創建 TrafficLight 實例
     this.lights.east = new TrafficLight(eastElement)
     this.lights.west = new TrafficLight(westElement)
     this.lights.south = new TrafficLight(southElement)
     this.lights.north = new TrafficLight(northElement)
+
+    console.log('🚦 [TrafficController] 所有燈號實例已創建')
 
     // State Pattern: 設置初始狀態：南北向綠燈，東西向紅燈（一開始以南北向為主）
     this.updateLightState('south', 'green')
@@ -223,6 +227,11 @@ export default class TrafficLightController {
     this.updateLightState('east', 'red')
     this.updateLightState('west', 'red')
     this.currentPhase = 'northSouth' // 一開始以南北向為主'
+
+    console.log('🚦 [TrafficController] 初始狀態設置完成：南北-綠燈，東西-紅燈')
+
+    // 除錯：檢查初始狀態
+    this.debugLightStates()
 
     // 監聽車輛事件以更新 vehicleData
     this.vehicleAddedHandler = (event) => {
@@ -247,11 +256,41 @@ export default class TrafficLightController {
     return this.currentLightStates[direction]
   }
 
+  // 除錯方法：檢查所有燈號狀態
+  debugLightStates() {
+    console.log('🚦 [DEBUG] 當前所有燈號狀態：')
+    console.log(`  北燈：${this.currentLightStates.north} (DOM: ${this.lights.north?.currentState})`)
+    console.log(`  南燈：${this.currentLightStates.south} (DOM: ${this.lights.south?.currentState})`)
+    console.log(`  東燈：${this.currentLightStates.east} (DOM: ${this.lights.east?.currentState})`)
+    console.log(`  西燈：${this.currentLightStates.west} (DOM: ${this.lights.west?.currentState})`)
+    console.log(`  當前相位：${this.currentPhase}`)
+
+    // 檢查是否有不一致的狀態
+    const inconsistencies = []
+    for (const direction of ['north', 'south', 'east', 'west']) {
+      const controllerState = this.currentLightStates[direction]
+      const domState = this.lights[direction]?.currentState
+      if (controllerState !== domState) {
+        inconsistencies.push(`${direction}: Controller(${controllerState}) != DOM(${domState})`)
+      }
+    }
+
+    if (inconsistencies.length > 0) {
+      console.error('🚨 [DEBUG] 發現狀態不一致：', inconsistencies)
+    } else {
+      console.log('✅ [DEBUG] 所有燈號狀態一致')
+    }
+  }
+
   // State Pattern: 更新燈號狀態並通知觀察者
   updateLightState(direction, state) {
+    console.log(`🚦 [TrafficController] 設置 ${direction} 燈號為 ${state}`)
     this.currentLightStates[direction] = state
     if (this.lights[direction]) {
       this.lights[direction].setState(state)
+      console.log(`🚦 [TrafficController] ${direction} 燈號 DOM 已更新為 ${state}`)
+    } else {
+      console.warn(`🚦 [TrafficController] 警告：${direction} 燈號元素不存在`)
     }
     this.notifyObservers(direction, state) // Observer Pattern
   }
@@ -268,6 +307,7 @@ export default class TrafficLightController {
   // Template Method Pattern: 運行一個完整的燈號循環
   async runCycle() {
     console.log('🔄 開始交通燈循環...')
+    this.debugLightStates()
 
     while (this.isRunning) {
       try {
@@ -301,6 +341,8 @@ export default class TrafficLightController {
           this.updateLightState('west', 'green')
           this.dynamicTiming.eastWest = this.nextTiming.eastWest
           this.currentPhase = 'eastWest'
+          console.log('🔄 [TrafficController] 相位切換至 eastWest')
+          this.debugLightStates()
         } else {
           // 東西向綠燈開始
           window.dispatchEvent(new CustomEvent('greenLightStarted'))
@@ -330,6 +372,8 @@ export default class TrafficLightController {
           this.updateLightState('north', 'green')
           this.dynamicTiming.northSouth = this.nextTiming.northSouth
           this.currentPhase = 'northSouth'
+          console.log('🔄 [TrafficController] 相位切換至 northSouth')
+          this.debugLightStates()
         }
 
         // 重置車輛數據以準備下一輪收集
