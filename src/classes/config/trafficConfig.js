@@ -149,23 +149,3 @@ export const roadConfig = {
     leftTurn: 50, // 左轉半徑（較大避免對向衝突）
   },
 }
-
-/**
- * 🔧 設定檔使用說明：
- *
- * 1. 匯入方式：
- *    import { speedConfig, lightConfig } from './config/trafficConfig.js'
- *
- * 2. 搭配使用：
- *    - 本檔案負責：車輛類型、速度、時間週期
- *    - vehicleConfig.js 負責：行為邏輯、動畫、碰撞檢測
- *
- * 3. 調整建議：
- *    - 先調整本檔案的基礎參數
- *    - 再微調 vehicleConfig.js 的行為細節
- *
- * 4. 測試驗證：
- *    - 修改參數後重新載入頁面
- *    - 觀察車輛行為是否符合預期
- *    - 適度調整直到達到理想效果
- */
