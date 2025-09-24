@@ -912,10 +912,7 @@ export default class Vehicle {
   // 🚨 極簡化恢復移動方法
   // 🚨 基於距離的平滑恢復移動
   resumeMovement(allVehicles = []) {
-    if (
-      this.movementTimeline &&
-      (this.currentState === 'waiting' || this.currentState === 'waitingForVehicle' || this.currentState === 'slowing')
-    ) {
+    if (this.movementTimeline && (this.currentState === 'waiting' || this.currentState === 'waitingForVehicle' || this.currentState === 'slowing')) {
       const collision = this.checkSimpleCollision(allVehicles)
 
       if (!collision) {
@@ -923,7 +920,7 @@ export default class Vehicle {
         gsap.to(this.movementTimeline, {
           timeScale: 1,
           duration: 0.5,
-          ease: 'power2.out',
+          ease: 'power2.out'
         })
         this.currentState = 'moving'
         console.log(`🚗 [${this.id}] 前方無車輛，平滑恢復移動`)
@@ -931,24 +928,24 @@ export default class Vehicle {
         // 有前車，根據距離調整速度
         const distance = collision.distance
         const requiredGap = collision.requiredGap || 12
-
+        
         let targetSpeed
         if (distance <= requiredGap * 0.3) {
-          targetSpeed = 0 // 完全停止
+          targetSpeed = 0  // 完全停止
         } else if (distance <= requiredGap * 0.6) {
-          targetSpeed = 0.2 // 大幅減速
+          targetSpeed = 0.2  // 大幅減速
         } else if (distance <= requiredGap * 0.8) {
-          targetSpeed = 0.5 // 適度減速
+          targetSpeed = 0.5  // 適度減速
         } else {
-          targetSpeed = 0.8 // 可以較快移動
+          targetSpeed = 0.8  // 可以較快移動
         }
-
+        
         gsap.to(this.movementTimeline, {
           timeScale: targetSpeed,
           duration: 0.3,
-          ease: 'power2.out',
+          ease: 'power2.out'
         })
-
+        
         console.log(`🚗 [${this.id}] 前車距離: ${distance.toFixed(1)}px，調整速度至${targetSpeed}`)
       }
     }
@@ -1165,7 +1162,7 @@ export default class Vehicle {
               if (shouldStop) {
                 const distance = shouldStop.distance
                 const requiredGap = shouldStop.requiredGap || 12
-
+                
                 // 🚨 基於距離的漸進式速度控制，確保統一12px間隙
                 console.log(`🚗 [${this.id}] 碰撞檢測: 距離${distance.toFixed(1)}px, 需求${requiredGap}px`)
 
@@ -1180,7 +1177,7 @@ export default class Vehicle {
                 ) {
                   // 🚨 距離感知速度控制：根據實際距離調整速度，確保保持12px間隙
                   let targetSpeed
-
+                  
                   if (distance <= requiredGap * 0.5) {
                     // 距離太近：大幅減速但不完全停止
                     targetSpeed = 0.2
@@ -1194,14 +1191,14 @@ export default class Vehicle {
                     // 距離充足：正常速度
                     targetSpeed = 1.0
                   }
-
+                  
                   // 平滑調整速度
                   gsap.to(this.movementTimeline, {
                     timeScale: targetSpeed,
                     duration: 0.3,
-                    ease: 'power2.out',
+                    ease: 'power2.out'
                   })
-
+                  
                   console.log(`🟢🚗 [${this.id}] 綠燈距離感知跟車：距離${distance.toFixed(1)}px → 速度${targetSpeed}`)
                   this.currentState = 'following'
                   return
@@ -1244,7 +1241,7 @@ export default class Vehicle {
                     gsap.to(this.movementTimeline, {
                       timeScale: 1,
                       duration: 0.5,
-                      ease: 'power2.out',
+                      ease: 'power2.out'
                     })
                     this.currentState = 'moving'
                     console.log(`🚗 [${this.id}] 綠燈且無碰撞風險，平滑恢復正常速度`)
@@ -1469,25 +1466,25 @@ export default class Vehicle {
             if (collision && collision.shouldStop) {
               const distance = collision.distance
               const requiredGap = collision.requiredGap || 12
-
+              
               // 🚨 基於距離的漸進式停車，而非直接停止
               let targetSpeed
               if (distance <= requiredGap * 0.3) {
-                targetSpeed = 0 // 完全停止
+                targetSpeed = 0  // 完全停止
               } else if (distance <= requiredGap * 0.6) {
-                targetSpeed = 0.2 // 大幅減速
+                targetSpeed = 0.2  // 大幅減速
               } else if (distance <= requiredGap * 0.8) {
-                targetSpeed = 0.5 // 適度減速
+                targetSpeed = 0.5  // 適度減速
               } else {
-                targetSpeed = 0.8 // 輕微減速
+                targetSpeed = 0.8  // 輕微減速
               }
-
+              
               gsap.to(this.movementTimeline, {
                 timeScale: targetSpeed,
                 duration: 0.3,
-                ease: 'power2.out',
+                ease: 'power2.out'
               })
-
+              
               this.currentState = targetSpeed === 0 ? 'waitingForVehicle' : 'slowing'
               console.log(`🛑 [${this.id}] 前車距離: ${distance.toFixed(1)}px，調整速度至${targetSpeed}`)
               return
