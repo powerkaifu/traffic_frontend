@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Vehicle.js - 車輛實體類別
  */
 /* eslint-disable */
@@ -18,8 +18,8 @@ export default class Vehicle {
   static baseStopDistance = { justStarted: 5, normal: 10 } // 基礎停止距離
   static baseSafeDistance = { justStarted: 8, normal: 15 } // 基礎安全距離
 
-  // 🎯 新增：南北向車輛專用距離調整（解決南北向排隊問題）
-  static northSouthDistanceMultiplier = 0.8 // 南北向車輛使用較小間距
+  // 🎯 新增：南北向車輛專用距離調整（參考東西向邏輯，實現一台接著一台排隊）
+  static northSouthDistanceMultiplier = 1.5 // 🚨 修改為與東西向相同，實現一致的排隊效果
 
   // 🎯 新增：靜態方法用於調整車輛間距配置
   static setDistanceMultiplier(multiplier) {
@@ -922,8 +922,8 @@ export default class Vehicle {
           )
         }
       } else if (this.direction === 'north') {
-        // 🎯 北向車輛：使用更精確的車道檢測
-        inSameLane = Math.abs(currentPos.x - otherPos.x) < 30 // 增加容錯範圍
+        // 🎯 北向車輛：參考東西向邏輯，使用一致的車道檢測標準
+        inSameLane = Math.abs(currentPos.x - otherPos.x) < 25 // 與東西向保持一致的容錯範圍
         isFront = otherBox.bottom < currentBox.top
         distance = isFront ? currentBox.top - otherBox.bottom : 0
         // 🎯 新增：北向車輛距離檢測調試
@@ -933,8 +933,8 @@ export default class Vehicle {
           )
         }
       } else if (this.direction === 'south') {
-        // 🎯 南向車輛：使用更精確的車道檢測
-        inSameLane = Math.abs(currentPos.x - otherPos.x) < 30 // 增加容錯範圍
+        // 🎯 南向車輛：參考東西向邏輯，使用一致的車道檢測標準
+        inSameLane = Math.abs(currentPos.x - otherPos.x) < 25 // 與東西向保持一致的容錯範圍
         isFront = otherBox.top > currentBox.bottom
         distance = isFront ? otherBox.top - currentBox.bottom : 0
         // 🎯 新增：南向車輛距離檢測調試
@@ -1120,11 +1120,11 @@ export default class Vehicle {
       isFront = targetBox.right < currentBox.left
       distance = isFront ? currentBox.left - targetBox.right : -1
     } else if (this.direction === 'north') {
-      inSameLane = Math.abs(currentPos.x - targetPos.x) < 30 // 與碰撞檢測一致
+      inSameLane = Math.abs(currentPos.x - targetPos.x) < 25 // 與主要碰撞檢測邏輯一致
       isFront = targetBox.bottom < currentBox.top
       distance = isFront ? currentBox.top - targetBox.bottom : -1
     } else if (this.direction === 'south') {
-      inSameLane = Math.abs(currentPos.x - targetPos.x) < 30 // 與碰撞檢測一致
+      inSameLane = Math.abs(currentPos.x - targetPos.x) < 25 // 與主要碰撞檢測邏輯一致
       isFront = targetBox.top > currentBox.bottom
       distance = isFront ? targetBox.top - currentBox.bottom : -1
     }
@@ -2144,4 +2144,44 @@ export default class Vehicle {
   // 🚨 移除 checkGreenLightFollowing 方法 - 功能已被 directTrafficLightResponse 替代且未被使用
 
   // 🚨 移除 enforceTrafficSignalCompliance 方法 - 功能已被 directTrafficLightResponse 替代且未被使用
+}
+
+// 🎯 全局測試方法：調整車輛間距配置
+if (typeof window !== 'undefined') {
+  // 統一調整所有方向車輛間距
+  window.setVehicleDistance = function (multiplier) {
+    Vehicle.setDistanceMultiplier(multiplier)
+    console.log(`🎯 全方向車輛間距調整完成: ${multiplier}`)
+  }
+
+  // 專門調整南北向車輛間距（現在與東西向統一）
+  window.setNorthSouthDistance = function (multiplier) {
+    Vehicle.setNorthSouthDistanceMultiplier(multiplier)
+    console.log(`🎯 南北向距離倍數調整完成: ${multiplier}`)
+    console.log(`🎯 當前南北向與東西向間距比例: ${multiplier} : 1.0`)
+  }
+
+  // 查看當前距離配置
+  window.testVehicleDistances = function () {
+    const config = Vehicle.getDistanceConfig()
+    console.log('🎯 當前車輛距離配置:')
+    console.log(`📊 基礎間距倍數: ${config.distanceMultiplier}`)
+    console.log(`📊 南北向專用倍數: ${config.northSouthDistanceMultiplier}`)
+    console.log(`📊 東西向實際停止距離: ${config.eastWestActualDistance.stopDistance.normal}px`)
+    console.log(`📊 南北向實際停止距離: ${config.northSouthActualDistance.stopDistance.normal}px`)
+    console.log(`📊 南北向是否與東西向一致: ${config.northSouthDistanceMultiplier === 1.0 ? '✅ 是' : '❌ 否'}`)
+  }
+
+  // 讓南北向完全參考東西向的排隊邏輯
+  window.unifyAllDirections = function () {
+    Vehicle.setNorthSouthDistanceMultiplier(1.0)
+    console.log('🎯 已統一所有方向的車輛間距邏輯 - 南北向現在與東西向完全一致')
+    console.log('🚗 南北向車輛現在會像東西向一樣一個接著一個排隊')
+  }
+
+  // 恢復南北向緊密排隊（如果需要更密集）
+  window.tightNorthSouthQueue = function () {
+    Vehicle.setNorthSouthDistanceMultiplier(0.7)
+    console.log('🚗 已應用南北向緊密排隊模式 (0.7x)')
+  }
 }
