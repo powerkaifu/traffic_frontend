@@ -1895,6 +1895,9 @@ export default class Vehicle {
               this.periodicCheckTimer = null
             }
 
+            // 🎯【新增】停止速度監控
+            this.stopContinuousSpeedMonitoring()
+
             // 強制完成 - 避免精度問題導致Promise不resolve
             this.currentState = 'completed'
             resolve()
@@ -2111,34 +2114,273 @@ export default class Vehicle {
         this.movementTimeline.paused() // 時間軸暫停
 
       if (needsToStart) {
-        // 🎯 新增：使用路口清空等待機制，模擬真實綠燈起步延遲
-        console.log(`�🚦 [${this.id}] 綠燈檢測，等待路口清空並準備起步...`)
+        // 🎯 修改：結合路口清空和前車移動檢測，防止後車重疊
+        console.log(`��🚦 [${this.id}] 綠燈檢測，檢查前車移動狀態和路口清空...`)
 
         // 檢查所有車輛以決定起步時機
         const allVehicles = window.liveVehicles || []
 
-        this.waitForIntersectionClearance(allVehicles, () => {
-          // 安全檢查：確保時間軸仍然存在且燈號仍為綠燈
-          if (this.movementTimeline && trafficController.getCurrentLightState(this.direction) === 'green') {
-            // 平滑恢復移動
-            gsap.to(this.movementTimeline, {
-              timeScale: this.originalTimeScale || 1,
-              duration: 0.3,
-              ease: 'power2.inOut',
-              onComplete: () => {
-                this.movementTimeline.resume()
-                this.waitingForGreen = false
-                this.isAtStopLine = false
-                this.hasPassedStopLine = true
-                this.currentState = 'moving'
-                this.originalTimeScale = null
-              },
-            })
-            console.log(`🟢🚦 [${this.id}] 綠燈安全起步 (路口清空確認)`)
+        // 🚨 新增：檢查同方向前車是否已開始移動
+        const frontVehicleCheck = this.checkFrontVehicleMoving(allVehicles)
+
+        if (frontVehicleCheck.hasFrontVehicle && !frontVehicleCheck.frontVehicleMoving) {
+          // 前方有車輛但尚未移動，等待前車先起步
+          console.log(`🚗⏳ [${this.id}] 等待同方向前車 ${frontVehicleCheck.frontVehicleId} 先移動`)
+
+          // 定期檢查前車移動狀態
+          const checkFrontVehicleStatus = () => {
+            const updatedCheck = this.checkFrontVehicleMoving(window.liveVehicles || [])
+
+            // 檢查燈號狀態是否仍為綠燈
+            if (trafficController.getCurrentLightState(this.direction) !== 'green') {
+              return // 燈號已變，停止檢查
+            }
+
+            if (!updatedCheck.hasFrontVehicle || updatedCheck.frontVehicleMoving) {
+              // 前車已開始移動或已離開，現在檢查路口清空
+              this.waitForIntersectionClearance(window.liveVehicles || [], () => {
+                this.performControlledGreenLightStart(trafficController)
+              })
+            } else {
+              // 繼續等待前車移動
+              gsap.delayedCall(0.3, checkFrontVehicleStatus)
+            }
           }
-        })
+
+          // 開始檢查前車狀態
+          gsap.delayedCall(0.2, checkFrontVehicleStatus)
+        } else {
+          // 沒有前車或前車已在移動，直接進行路口清空檢查
+          console.log(
+            `🟢� [${this.id}] ${frontVehicleCheck.hasFrontVehicle ? '前車已移動' : '無前車阻擋'}，檢查路口清空`,
+          )
+
+          this.waitForIntersectionClearance(allVehicles, () => {
+            this.performControlledGreenLightStart(trafficController)
+          })
+        }
       }
     }
+  }
+
+  // 🎯【新增】持續速度監控，防止綠燈後車輛過快追上前車
+  startContinuousSpeedMonitoring(allVehicles) {
+    // 避免重複設置監控
+    if (this.speedMonitoringInterval) {
+      clearInterval(this.speedMonitoringInterval)
+    }
+
+    this.speedMonitoringInterval = setInterval(() => {
+      // 檢查是否仍需要監控
+      if (!this.movementTimeline || this.currentState === 'finished' || this.currentState === 'destroyed') {
+        clearInterval(this.speedMonitoringInterval)
+        this.speedMonitoringInterval = null
+        return
+      }
+
+      // 獲取當前車輛列表
+      const currentVehicles = window.liveVehicles || allVehicles || []
+
+      // 執行碰撞檢查
+      const shouldStop = this.checkSimpleCollision(currentVehicles)
+
+      if (shouldStop) {
+        const currentLightState = this.trafficLightController?.getCurrentLightState(this.direction)
+
+        // 如果是綠燈且前車正在移動，應用跟車邏輯
+        if (
+          currentLightState === 'green' &&
+          !this.waitingForGreen &&
+          shouldStop.frontVehicleIsMoving &&
+          this.movementTimeline
+        ) {
+          const distance = shouldStop.distance
+          const frontVehicle = shouldStop.vehicle
+
+          if (frontVehicle && frontVehicle.movementTimeline) {
+            // 獲取前車實際速度
+            const frontVehicleTimeScale = frontVehicle.movementTimeline.timeScale()
+            const frontVehicleSpeed = frontVehicleTimeScale * (frontVehicle.initialSpeed || this.initialSpeed)
+
+            // 🎯 關鍵：根據距離調整速度，確保不會撞上前車
+            let targetSpeed = this.initialSpeed
+
+            if (distance < 15) {
+              // 距離很近：速度降為前車速度的50%
+              targetSpeed = Math.min(frontVehicleSpeed * 0.5, this.initialSpeed * 0.3)
+            } else if (distance < 25) {
+              // 距離近：速度降為前車速度的70%
+              targetSpeed = Math.min(frontVehicleSpeed * 0.7, this.initialSpeed * 0.6)
+            } else if (distance < 40) {
+              // 距離適中：速度降為前車速度的85%
+              targetSpeed = Math.min(frontVehicleSpeed * 0.85, this.initialSpeed * 0.8)
+            } else {
+              // 距離充足：保持正常速度，但不超過前車速度的95%
+              targetSpeed = Math.min(frontVehicleSpeed * 0.95, this.initialSpeed)
+            }
+
+            // 確保目標速度為正數
+            targetSpeed = Math.max(0, targetSpeed)
+
+            // 計算目標timeScale
+            const targetTimeScale = targetSpeed / this.initialSpeed
+            const currentTimeScale = this.movementTimeline.timeScale()
+
+            // 如果速度差異顯著，則調整
+            if (Math.abs(currentTimeScale - targetTimeScale) > 0.1) {
+              console.log(
+                `🚗� [${this.id}] 速度監控調整: ${distance.toFixed(1)}px -> ${(targetTimeScale * 100).toFixed(0)}%`,
+              )
+
+              gsap.to(this.movementTimeline, {
+                timeScale: targetTimeScale,
+                duration: 0.2,
+                ease: 'power2.out',
+              })
+
+              this.currentState = distance < 15 ? 'following' : 'moving'
+            }
+          }
+        }
+      }
+    }, 200) // 每200ms檢查一次
+  }
+
+  // 🎯【新增】停止速度監控
+  stopContinuousSpeedMonitoring() {
+    if (this.speedMonitoringInterval) {
+      clearInterval(this.speedMonitoringInterval)
+      this.speedMonitoringInterval = null
+    }
+  }
+
+  // 🎯【新增】找到同方向的車輛
+  findVehicleInDirection(allVehicles) {
+    const currentPos = this.getCurrentPosition()
+    const frontVehicles = []
+
+    for (let vehicle of allVehicles) {
+      if (vehicle.id === this.id || vehicle.direction !== this.direction) continue
+      if (!vehicle.element || !vehicle.element.parentNode) continue
+
+      const vehiclePos = vehicle.getCurrentPosition()
+      let isFront = false
+
+      // 根據方向判斷是否在前方
+      if (this.direction === 'east') {
+        isFront = vehiclePos.x > currentPos.x && Math.abs(vehiclePos.y - currentPos.y) < 25
+      } else if (this.direction === 'west') {
+        isFront = vehiclePos.x < currentPos.x && Math.abs(vehiclePos.y - currentPos.y) < 25
+      } else if (this.direction === 'north') {
+        isFront = vehiclePos.y < currentPos.y && Math.abs(vehiclePos.x - currentPos.x) < 25
+      } else if (this.direction === 'south') {
+        isFront = vehiclePos.y > currentPos.y && Math.abs(vehiclePos.x - currentPos.x) < 25
+      }
+
+      if (isFront) {
+        frontVehicles.push(vehicle)
+      }
+    }
+
+    return frontVehicles
+  }
+
+  // 🚨 新增：檢查同方向前車移動狀態
+  checkFrontVehicleMoving(allVehicles) {
+    const frontVehicles = this.findVehicleInDirection(allVehicles)
+
+    if (frontVehicles.length === 0) {
+      return { hasFrontVehicle: false, frontVehicleMoving: false, frontVehicleId: null }
+    }
+
+    // 找到最近的前方車輛
+    const nearestFront = frontVehicles.reduce((nearest, vehicle) => {
+      if (!nearest) return vehicle
+
+      const currentDistance = this.calculateDistanceToVehicle(vehicle)
+      const nearestDistance = this.calculateDistanceToVehicle(nearest)
+
+      return currentDistance < nearestDistance && currentDistance > 0 ? vehicle : nearest
+    })
+
+    if (!nearestFront) {
+      return { hasFrontVehicle: false, frontVehicleMoving: false, frontVehicleId: null }
+    }
+
+    // 檢查前方車輛是否正在移動（多重條件檢查）
+    const frontVehicleMoving =
+      nearestFront.currentState === 'moving' &&
+      nearestFront.movementTimeline &&
+      nearestFront.movementTimeline.timeScale() > 0 &&
+      !nearestFront.waitingForGreen &&
+      !nearestFront.isAtStopLine
+
+    return {
+      hasFrontVehicle: true,
+      frontVehicleMoving: frontVehicleMoving,
+      frontVehicleId: nearestFront.id,
+    }
+  }
+
+  // 🚨 新增：執行控制速度的綠燈起步
+  performControlledGreenLightStart(trafficController) {
+    // 安全檢查：確保時間軸仍然存在且燈號仍為綠燈
+    if (!this.movementTimeline || trafficController.getCurrentLightState(this.direction) !== 'green') {
+      return
+    }
+
+    // 🎯 檢查前車距離，決定起步速度
+    const allVehicles = window.liveVehicles || []
+    const frontVehicleCheck = this.checkFrontVehicleMoving(allVehicles)
+
+    let startSpeed = this.originalTimeScale || 1
+    let acceleration = 0.3 // 默認加速時間
+
+    if (frontVehicleCheck.hasFrontVehicle) {
+      const frontDistance = this.calculateDistanceToVehicle(
+        allVehicles.find((v) => v.id === frontVehicleCheck.frontVehicleId),
+      )
+
+      // 🚨 根據前車距離調整起步速度，防止重疊
+      if (frontDistance > 0 && frontDistance < 30) {
+        startSpeed = startSpeed * 0.5 // 前車很近，慢速起步
+        acceleration = 0.8 // 更長的加速時間
+        console.log(`🐌 [${this.id}] 前車較近(${frontDistance.toFixed(1)}px)，慢速起步`)
+      } else if (frontDistance > 0 && frontDistance < 50) {
+        startSpeed = startSpeed * 0.7 // 前車中等距離，中速起步
+        acceleration = 0.5
+        console.log(`🚗 [${this.id}] 前車中距(${frontDistance.toFixed(1)}px)，中速起步`)
+      }
+    }
+
+    // 漸進式速度恢復，防止急促加速
+    gsap.to(this.movementTimeline, {
+      timeScale: startSpeed,
+      duration: acceleration,
+      ease: 'power2.inOut',
+      onComplete: () => {
+        // 恢復正常速度（如果需要）
+        if (startSpeed < (this.originalTimeScale || 1)) {
+          gsap.to(this.movementTimeline, {
+            timeScale: this.originalTimeScale || 1,
+            duration: 1.0, // 緩慢恢復到正常速度
+            ease: 'power2.inOut',
+          })
+        }
+
+        this.movementTimeline.resume()
+        this.waitingForGreen = false
+        this.isAtStopLine = false
+        this.hasPassedStopLine = true
+        this.currentState = 'moving'
+        this.originalTimeScale = null
+
+        // 🎯【新增】啟動持續速度監控，防止後續撞車
+        this.startContinuousSpeedMonitoring(allVehicles)
+      },
+    })
+
+    console.log(`🟢🚀 [${this.id}] 控制速度綠燈起步 (速度=${startSpeed.toFixed(2)}, 加速時間=${acceleration}s)`)
   }
 
   // 🚨 移除 checkGreenLightFollowing 方法 - 功能已被 directTrafficLightResponse 替代且未被使用
