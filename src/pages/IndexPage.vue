@@ -502,6 +502,28 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => 
   )
   const startVehicleAnimation = async () => {
     try {
+      // 確保 SVG 路徑元素已準備好
+      const waitForSvgPaths = async () => {
+        const maxWait = 3000 // 最多等待3秒
+        const startTime = Date.now()
+        const pathId = vehicle.getSvgPathId()
+        
+        while (Date.now() - startTime < maxWait) {
+          const pathElement = document.querySelector(`#${pathId}`)
+          if (pathElement && pathElement.getTotalLength && pathElement.getTotalLength() > 0) {
+            console.log(`✅ [${vehicle.id}] SVG 路徑元素已準備好: ${pathId}`)
+            return true
+          }
+          await new Promise(resolve => setTimeout(resolve, 50))
+        }
+        
+        console.warn(`⚠️ [${vehicle.id}] SVG 路徑元素未準備好，將使用回退方式: ${pathId}`)
+        return false
+      }
+
+      // 等待 SVG 路徑準備好
+      await waitForSvgPaths()
+
       // 🚗 修改：車輛直接顯示，不使用淡入動畫
       console.log(`🚗 [${vehicle.id}] 直接開始移動，無淡入動畫`)
 

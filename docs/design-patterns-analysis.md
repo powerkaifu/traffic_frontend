@@ -50,6 +50,73 @@ src/
 
 ## 🎨 設計模式詳細分析
 
+## 🚨 重要問題修復記錄 (2025年9月25日)
+
+### 問題描述: 紅燈時車輛仍會移動
+
+**問題根源**: 觀察者模式實作正確，但 `enforceTrafficSignalCompliance` 方法的邏輯有致命漏洞。
+
+#### 🔍 問題分析
+
+1. **觀察者模式運作正常**:
+   - `TrafficLightController.notifyObservers()` 正確通知所有觀察者
+   - 車輛正確註冊為觀察者 (`trafficController.addObserver(onLightChange)`)
+   - 燈號狀態變更會觸發通知
+
+2. **真正的問題在於交通信號遵守檢查**:
+
+   ```javascript
+   // 原始有問題的邏輯
+   if (isMoving && !this.hasPassedStopLine) {
+     // 只依賴 hasPassedStopLine 標記，但這個標記可能不準確
+   }
+   ```
+
+3. **`hasPassedStopLine` 標記不可靠**:
+   - 車輛在複雜情況下會錯誤設置此標記為 `true`
+   - 導致紅燈時車輛誤以為已通過停止線，繼續移動
+
+#### 🛠️ 解決方案
+
+**修復重點**: 使用實際距離計算取代不可靠的標記
+
+```javascript
+// 修復後的邏輯
+const distanceToStopLine = this.getDistanceToStopLine()
+const actuallyPassedStopLine = distanceToStopLine !== null && distanceToStopLine < -20
+
+// 紅燈檢查現在基於實際位置計算
+if (isMoving && !actuallyPassedStopLine) {
+  console.log(`🔴🛑 紅燈強制停止！距停止線: ${distanceToStopLine}px`)
+  // 強制停止邏輯...
+}
+
+// 額外安全檢查：修正錯誤的標記
+if (this.hasPassedStopLine && !actuallyPassedStopLine && isMoving) {
+  console.log(`🔴🛑 錯誤標記修正：未通過停止線，強制停止！`)
+  this.hasPassedStopLine = false
+  // 強制停止邏輯...
+}
+```
+
+#### 🎯 設計模式相關
+
+這個修復展現了以下設計模式的重要性：
+
+1. **Strategy Pattern**: 使用不同策略計算車輛位置狀態
+2. **Observer Pattern**: 雖然運作正常，但需要正確的業務邏輯支持
+3. **State Pattern**: 車輛狀態管理需要可靠的狀態判斷機制
+4. **Template Method Pattern**: `enforceTrafficSignalCompliance` 定義了標準的檢查流程
+
+#### 📊 修復效果
+
+- ✅ **消除紅燈闖行**: 車輛在紅燈時絕對停止
+- ✅ **提高安全性**: 多重檢查機制確保交通規則遵守
+- ✅ **增強可靠性**: 基於實際計算而非可變標記
+- ✅ **保持性能**: 計算開銷很小，每50ms執行一次
+
+---
+
 ### 2. 核心類別設計模式
 
 #### 🚗 **Vehicle.js (1,914 行) - 設計模式集大成者**
