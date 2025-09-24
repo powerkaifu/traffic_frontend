@@ -800,14 +800,14 @@ export default class Vehicle {
     const currentBox = this.getBoundingBox()
     const currentPos = this.getCurrentPosition()
 
-    // 🎯 動態距離系統（參考歷史版本）
+    // 🎯 參考 c24a1ff commit 的距離系統
     const isJustStartedMoving =
       this.currentState === 'moving' &&
       this.movementStartTime &&
       Date.now() - new Date(this.movementStartTime).getTime() < 2000
 
     const safeDistance = isJustStartedMoving ? 8 : 15 // 安全距離
-    const stopDistance = isJustStartedMoving ? 1 : 2 // 停止距離 (進一步縮小至1-2px)
+    const stopDistance = isJustStartedMoving ? 5 : 10 // 停止距離 (回復到歷史版本的 5-10px)
 
     // 根據車輛狀態調整距離
     let adjustedSafeDistance = safeDistance
@@ -892,8 +892,8 @@ export default class Vehicle {
           }
         }
 
-        // 計算跟車理想距離
-        const followingDistance = adjustedSafeDistance * 0.6
+        // 🎯 參考 c24a1ff commit：計算跟車理想距離
+        const followingDistance = adjustedSafeDistance * 0.6 // 歷史版本的跟車距離
         const shouldFollow = distance > adjustedStopDistance && distance <= followingDistance
 
         return {
@@ -902,6 +902,8 @@ export default class Vehicle {
           shouldStop: false, // 在跟車範圍內不需要完全停止
           shouldFollow: shouldFollow,
           followingSpeed: shouldFollow ? this.calculateFollowingSpeed(vehicle, distance, followingDistance) : null,
+          frontVehicleIsMoving: this.isFrontVehicleMoving(vehicle),
+          frontVehicleAtStopLine: this.isFrontVehicleAtStopLine(vehicle),
           isOverlapping: false,
         }
       }
@@ -973,26 +975,42 @@ export default class Vehicle {
   calculateFollowingSpeed(frontVehicle, distance, idealDistance) {
     let frontVehicleSpeed = frontVehicle.currentSpeed || frontVehicle.initialSpeed || this.initialSpeed
 
-    // 如果前方車輛停止，跟車速度為0
+    // 🎯 參考 c24a1ff commit：前車狀態更精確判斷
     if (
       frontVehicle.currentState === 'waiting' ||
       frontVehicle.currentState === 'waitingForVehicle' ||
-      frontVehicle.waitingForGreen
+      frontVehicle.currentState === 'stopped' ||
+      frontVehicle.waitingForGreen ||
+      (frontVehicle.movementTimeline && frontVehicle.movementTimeline.timeScale() < 0.1)
     ) {
       return 0
     }
 
-    // 基於距離調整速度因子
+    // 🎯 歷史版本邏輯：更緊密的跟車距離控制
     const distanceFactor = Math.min(1, distance / idealDistance)
 
     // 跟車速度略低於前方車輛，避免追尾
     const baseFollowingSpeed = Math.min(frontVehicleSpeed * 0.9, this.initialSpeed)
 
-    // 距離越近，速度越慢
-    const adjustedSpeed = baseFollowingSpeed * distanceFactor
+    // 距離越近，速度越慢，但保持更緊密的跟車
+    const adjustedSpeed = baseFollowingSpeed * Math.max(0.3, distanceFactor)
 
-    // 保證最低速度為初始速度的20%
-    return Math.max(adjustedSpeed, this.initialSpeed * 0.2)
+    // 🎯 改進：允許更低的最低速度以實現緊密排隊
+    return Math.max(adjustedSpeed, this.initialSpeed * 0.1)
+  }
+
+  // 🎯 新增：判斷前方車輛是否在移動
+  isFrontVehicleMoving(frontVehicle) {
+    return (
+      frontVehicle.currentState === 'moving' ||
+      frontVehicle.currentState === 'following' ||
+      (frontVehicle.movementTimeline && frontVehicle.movementTimeline.timeScale() > 0.1)
+    )
+  }
+
+  // 🎯 新增：判斷前方車輛是否在停止線等待
+  isFrontVehicleAtStopLine(frontVehicle) {
+    return frontVehicle.isAtStopLine || frontVehicle.waitingForGreen
   }
 
   // State Pattern: 停止移動狀態控制方法
@@ -1318,9 +1336,13 @@ export default class Vehicle {
                   shouldStop.frontVehicleIsMoving &&
                   this.movementTimeline
                 ) {
-                  // 距離感知速度控制 - 加入停止距離檢查
+                  // 距離感知速度控制 - 使用與碰撞檢測相同的停止距離
                   let targetSpeed
-                  const stopDistance = this.justStarted ? 1 : 2
+                  const isJustStartedMoving =
+                    this.currentState === 'moving' &&
+                    this.movementStartTime &&
+                    Date.now() - new Date(this.movementStartTime).getTime() < 2000
+                  const stopDistance = isJustStartedMoving ? 5 : 10 // 與 performDetailedCollisionCheck 一致
 
                   if (distance <= stopDistance) {
                     // 達到停止距離：完全停止
