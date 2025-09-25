@@ -401,14 +401,29 @@ export default class AutoTrafficGenerator {
     const laneKey = selectedDir // 可以後續擴展為 `${selectedDir}_${laneNumber}`
     this.laneGenerationCooldown[laneKey] = now
 
+    // 🎯 新增：左轉車輛生成機率（20%機率生成左轉車輛）
+    const isLeftTurn = Math.random() < 0.2
+
+    if (isLeftTurn) {
+      // 生成左轉車輛（車道1）
+      window.dispatchEvent(
+        new CustomEvent('generateLeftTurnVehicle', {
+          detail: { direction: selectedDir, type: type, speed: speed, timestamp: Date.now() },
+        }),
+      )
+      console.log(`✅ 生成左轉車輛：${selectedDir}方向車道1 ${type}型`)
+    } else {
+      // 生成直行車輛（車道2-4）
+      window.dispatchEvent(
+        new CustomEvent('generateVehicle', {
+          detail: { direction: selectedDir, vehicleType: type, speed: speed, timestamp: Date.now() },
+        }),
+      )
+    }
+
     window.dispatchEvent(
       new CustomEvent('vehicleAdded', {
         detail: { direction: selectedDir, type: type, speed: speed, timestamp: Date.now() },
-      }),
-    )
-    window.dispatchEvent(
-      new CustomEvent('generateVehicle', {
-        detail: { direction: selectedDir, vehicleType: type, speed: speed, timestamp: Date.now() },
       }),
     )
     this.statistics.total++

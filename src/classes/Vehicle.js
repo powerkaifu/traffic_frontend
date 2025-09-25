@@ -157,7 +157,7 @@ export default class Vehicle {
     })
 
     // 新增車道編號標籤顯示
-    // this.createLaneLabel()
+    this.createLaneLabel()
 
     // Observer Pattern: 通知交通控制器車輛生成事件
     this.notifyTrafficController()

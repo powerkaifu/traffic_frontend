@@ -348,7 +348,9 @@ const handleScenarioChange = (event) => {
 
 // 智能車道選擇函數：選擇車輛密度最低的車道
 const selectOptimalLane = (direction) => {
-  const laneCounts = [1, 2, 3, 4].map((laneNum) => {
+  // 🎯 修正：自動生成器避免使用車道1（左轉專用車道）
+  // 只從車道2,3,4中選擇，車道1保留給專門的左轉車輛生成
+  const laneCounts = [2, 3, 4].map((laneNum) => {
     // 計算該車道最近生成的車輛數量
     const recentVehiclesInLane = activeCars.value.filter((car) => {
       if (car.direction !== direction || car.laneNumber !== laneNum) return false
@@ -415,6 +417,28 @@ const handleAutoGenerate = (event) => {
 
   // 創建車輛
   createVehicleWithPosition(pathStartPosition.x, pathStartPosition.y, direction, vehicleType, laneNumber)
+}
+
+// 🎯 處理自動左轉車輛生成事件
+const handleAutoGenerateLeftTurn = (event) => {
+  console.log('🔍 handleAutoGenerateLeftTurn 被調用:', event.detail)
+  const { direction, type } = event.detail
+
+  // 強制使用車道1（左轉專用車道）
+  const laneNumber = 1
+  const pathStartPosition = Vehicle.getPathStartPosition(direction, laneNumber)
+
+  if (!pathStartPosition) {
+    console.error(`❌ 無法獲取左轉車道路徑起始位置: ${direction}Lane${laneNumber}`)
+    return
+  }
+
+  console.log(
+    `🚗 左轉車輛將從車道1生成: ${direction}Lane${laneNumber} (${pathStartPosition.x}, ${pathStartPosition.y})`,
+  )
+
+  // 創建左轉車輛
+  createVehicleWithPosition(pathStartPosition.x, pathStartPosition.y, direction, type, laneNumber)
 }
 
 // 通用車輛創建函數
@@ -924,6 +948,7 @@ onMounted(async () => {
     // 監聽情境切換事件（由 MainLayout 發出）
     window.addEventListener('scenarioChanged', handleScenarioChange)
     window.addEventListener('generateVehicle', handleAutoGenerate)
+    window.addEventListener('generateLeftTurnVehicle', handleAutoGenerateLeftTurn)
 
     // 監聽視窗大小變化和佈局變化
     const handleLayoutChange = async () => {
@@ -1059,26 +1084,30 @@ onMounted(async () => {
 - setNorthSouthDistance(1.2)  // 增加南北向間距
 - getVehicleDistanceConfig()  // 查看當前配置
 
-🎯 新的左轉燈號流程已啟用！
+🎯 直行優先的左轉燈號流程已啟用！
 燈號順序：
-1. 直行紅燈 + 左轉綠燈(redLeftLight.png) → 只有車道1左轉車可通過
-2. 左轉黃燈(yellowLight.png) → 左轉車準備停止
-3. 左轉紅燈(redLight.png) → 左轉車停止
-4. 全紅階段(redLight.png) → 安全緩衝
-5. 直行綠燈(greenLight.png) → 車道2,3直行車通過
-6. 直行黃燈(yellowLight.png) → 直行車準備停止
+1. 直行綠燈(greenLight.png) → 車道2,3,4直行車通過
+2. 直行黃燈(yellowLight.png) → 直行車準備停止
+3. 全紅階段(redLight.png) → 安全緩衝
+4. 左轉綠燈(redLeftLight.png) → 只有車道1左轉車可通過
+5. 左轉黃燈(yellowLight.png) → 左轉車準備停止
+6. 左轉紅燈(redLight.png) → 左轉車停止
 7. 全紅(redLight.png) → 切換準備
 
-🎯 左轉車道邏輯：
+🎯 左轉車道邏輯修正：
 - 車道1：左轉專用車道，只有在左轉綠燈時才能通行
-- 車道2,3：直行車道，只有在直行綠燈時才能通行
+- 車道2,3,4：直行車道，只有在直行綠燈時才能通行
+- 自動生成器：20%機率生成左轉車輛(車道1)，80%機率生成直行車輛(車道2-4)
 
 測試功能：
 - testNewTrafficFlow()        // 查看當前燈號狀態
 - testLeftTurnLanes()         // 查看左轉車道車輛狀態
 - generateLeftTurnVehicle('east') // 強制生成東向左轉車輛
-- generateLeftTurnVehicle('north') // 強制生成北向左轉車輛🎯 南北向排隊問題修正：
-南北向車輛現在使用專門的距離配置和邊界框計算，應該能更好地一台接著一台排隊！
+- generateLeftTurnVehicle('west') // 強制生成西向左轉車輛
+
+🔧 東西向左轉問題已修正：
+東西向車道1的車輛現在應該能正確響應左轉綠燈信號！
+自動生成的車輛已區分為直行車(車道2-4)和左轉車(車道1)。
 
 當前配置: ${JSON.stringify(Vehicle.getDistanceConfig(), null, 2)}
     `)
@@ -1172,6 +1201,7 @@ onUnmounted(() => {
   // 移除情境切換事件監聽
   window.removeEventListener('scenarioChanged', handleScenarioChange)
   window.removeEventListener('generateVehicle', handleAutoGenerate)
+  window.removeEventListener('generateLeftTurnVehicle', handleAutoGenerateLeftTurn)
 
   // 清理車輛清理定時器
   if (window.cleanupVehicleInterval) {
