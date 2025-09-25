@@ -373,7 +373,7 @@ export default class TrafficLightController {
           // 🎯【階段3】全紅階段 - 安全緩衝
           this.updateLightState('south', 'red')
           this.updateLightState('north', 'red')
-          this.updateTimer('全紅階段', this.phaseTimings.allRed.duration)
+          this.updateTimer('全紅階段\n安全緩衝', this.phaseTimings.allRed.duration)
           await this.countdownDelay(this.phaseTimings.allRed.duration * 1000)
 
           // 🎯【階段4】南北向左轉綠燈（後左轉）
@@ -395,7 +395,7 @@ export default class TrafficLightController {
           this.updateLightState('north', 'red') // 北向左轉紅燈(redLight.png)
 
           // 🎯【階段7】全紅階段 - 切換前緩衝
-          this.updateTimer('全紅階段', this.phaseTimings.allRed.duration)
+          this.updateTimer('全紅階段\n安全緩衝', this.phaseTimings.allRed.duration)
           await this.countdownDelay(this.phaseTimings.allRed.duration * 1000)
 
           // 切換至東西向

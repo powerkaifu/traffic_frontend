@@ -247,9 +247,7 @@
       <div class="timer-display">
         <div class="timer-content">
           <div class="timer-phase">{{ currentPhase }}</div>
-          <div class="timer-countdown">
-            {{ countdown }}
-          </div>
+          <div class="timer-countdown">{{ countdown }}</div>
         </div>
       </div>
 
