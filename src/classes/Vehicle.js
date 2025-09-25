@@ -2122,8 +2122,38 @@ export default class Vehicle {
     // 🔴 紅燈：不在此處直接停車，讓移動邏輯中的停止線檢查來處理紅燈停車
     // 這樣可確保車輛會前進到停止線才停，而不是立即原地停車
 
-    // 🟢 綠燈：使用路口清空機制實現自然起步延遲
-    if (currentLightState === 'green') {
+    // 🟢 綠燈處理：區分直行綠燈和左轉綠燈
+    if (currentLightState === 'green' || currentLightState === 'leftGreen') {
+      // 🎯【新增】車道1（左轉車道）的特殊邏輯
+      if (this.laneNumber === 1) {
+        // 左轉車道：只有在左轉綠燈時才能通行
+        if (currentLightState !== 'leftGreen') {
+          console.log(`🚦🔴 [${this.id}] 車道1左轉車等待左轉綠燈 (當前：${currentLightState})`)
+          // 確保車輛停在停止線等待左轉綠燈
+          this.waitingForGreen = true
+          if (this.movementTimeline && this.movementTimeline.timeScale() > 0) {
+            this.movementTimeline.timeScale(0) // 停止移動
+            this.currentState = 'waiting'
+          }
+          return
+        }
+        // 左轉綠燈：允許通行
+        console.log(`🚦🟢 [${this.id}] 車道1左轉車檢測到左轉綠燈，可以通行`)
+      } else {
+        // 直行車道：只有在直行綠燈時才能通行
+        if (currentLightState !== 'green') {
+          console.log(`🚦🔴 [${this.id}] 車道${this.laneNumber}直行車等待直行綠燈 (當前：${currentLightState})`)
+          // 確保車輛停在停止線等待直行綠燈
+          this.waitingForGreen = true
+          if (this.movementTimeline && this.movementTimeline.timeScale() > 0) {
+            this.movementTimeline.timeScale(0) // 停止移動
+            this.currentState = 'waiting'
+          }
+          return
+        }
+        // 直行綠燈：允許通行
+        console.log(`🚦🟢 [${this.id}] 車道${this.laneNumber}直行車檢測到直行綠燈，可以通行`)
+      }
       // 檢查所有可能需要啟動的狀態
       const needsToStart =
         this.waitingForGreen || // 等待綠燈狀態
@@ -2152,8 +2182,13 @@ export default class Vehicle {
             const checkSafeDistance = () => {
               const updatedCheck = this.checkFrontVehicleMoving(window.liveVehicles || [])
 
-              // 檢查燈號狀態是否仍為綠燈
-              if (trafficController.getCurrentLightState(this.direction) !== 'green') {
+              // 檢查燈號狀態是否仍然允許通行
+              const currentState = trafficController.getCurrentLightState(this.direction)
+              const canProceed =
+                (this.laneNumber === 1 && currentState === 'leftGreen') ||
+                (this.laneNumber !== 1 && currentState === 'green')
+
+              if (!canProceed) {
                 return // 燈號已變，停止檢查
               }
 
@@ -2184,8 +2219,13 @@ export default class Vehicle {
             const checkFrontVehicleStatus = () => {
               const updatedCheck = this.checkFrontVehicleMoving(window.liveVehicles || [])
 
-              // 檢查燈號狀態是否仍為綠燈
-              if (trafficController.getCurrentLightState(this.direction) !== 'green') {
+              // 檢查燈號狀態是否仍然允許通行
+              const currentState = trafficController.getCurrentLightState(this.direction)
+              const canProceed =
+                (this.laneNumber === 1 && currentState === 'leftGreen') ||
+                (this.laneNumber !== 1 && currentState === 'green')
+
+              if (!canProceed) {
                 return // 燈號已變，停止檢查
               }
 

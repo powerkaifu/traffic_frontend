@@ -35,6 +35,16 @@ export default class TrafficLight {
         // Strategy Pattern: 紅燈視覺策略
         this.imgElement.src = '/images/light/redLight.png'
         break
+      case 'leftGreen':
+        // Strategy Pattern: 左轉綠燈視覺策略 - 使用 redLeftLight.png
+        this.imgElement.src = '/images/light/redLeftLight.png'
+        console.log(`💡 [TrafficLight] 左轉綠燈狀態，使用 redLeftLight.png`)
+        break
+      case 'leftYellow':
+        // Strategy Pattern: 左轉黃燈視覺策略 - 使用 yellowLight.png
+        this.imgElement.src = '/images/light/yellowLight.png'
+        console.log(`💡 [TrafficLight] 左轉黃燈狀態，使用 yellowLight.png`)
+        break
     }
 
     console.log(`💡 [TrafficLight] 狀態已更新為 ${this.currentState}，圖片路徑：${this.imgElement.src}`)

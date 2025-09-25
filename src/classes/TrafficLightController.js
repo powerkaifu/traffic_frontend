@@ -13,6 +13,7 @@ export default class TrafficLightController {
       south: null, // 往南 (RoadC)
       north: null, // 往北 (RoadD)
     }
+
     this.isRunning = false
     // State Pattern: 當前時相狀態管理
     this.currentPhase = 'northSouth' // eastWest 或 northSouth - 一開始以南北向為主
@@ -24,8 +25,14 @@ export default class TrafficLightController {
     this.currentLightStates = {
       east: 'red',
       west: 'red',
-      north: 'green',
-      south: 'green',
+      north: 'red',
+      south: 'red',
+    }
+
+    // 🎯【新增】左轉綠燈時間配置
+    this.leftTurnTiming = {
+      duration: 8, // 左轉綠燈持續時間（秒）
+      enabled: true, // 是否啟用左轉燈號
     }
 
     // API 相關設定
@@ -209,7 +216,7 @@ export default class TrafficLightController {
   //  Factory Pattern (工廠模式) 方法群組
   // ==========================================
 
-  // Factory Pattern: 初始化所有紅綠燈
+  // Factory Pattern: 初始化所有紅綠燈（包含左轉燈號）
   init(eastElement, westElement, southElement, northElement) {
     console.log('🚦 [TrafficController] 開始初始化交通燈...')
 
@@ -221,14 +228,15 @@ export default class TrafficLightController {
 
     console.log('🚦 [TrafficController] 所有燈號實例已創建')
 
-    // State Pattern: 設置初始狀態：南北向綠燈，東西向紅燈（一開始以南北向為主）
-    this.updateLightState('south', 'green')
-    this.updateLightState('north', 'green')
+    // State Pattern: 設置初始狀態：全部紅燈，等待開始
+    this.updateLightState('south', 'red')
+    this.updateLightState('north', 'red')
     this.updateLightState('east', 'red')
     this.updateLightState('west', 'red')
-    this.currentPhase = 'northSouth' // 一開始以南北向為主'
 
-    console.log('🚦 [TrafficController] 初始狀態設置完成：南北-綠燈，東西-紅燈')
+    this.currentPhase = 'northSouth' // 一開始以南北向為主
+
+    console.log('🚦 [TrafficController] 初始狀態設置完成：全部紅燈，等待開始')
 
     // 除錯：檢查初始狀態
     this.debugLightStates()
@@ -256,6 +264,7 @@ export default class TrafficLightController {
     return this.currentLightStates[direction]
   }
 
+  // 🎯【新增】獲取左轉燈狀態
   // 除錯方法：檢查所有燈號狀態
   debugLightStates() {
     console.log('🚦 [DEBUG] 當前所有燈號狀態：')
@@ -295,6 +304,7 @@ export default class TrafficLightController {
     this.notifyObservers(direction, state) // Observer Pattern
   }
 
+  // 🎯【新增】左轉燈號狀態更新方法
   // State Pattern: 獲取當前時相
   getCurrentPhase() {
     return this.currentPhase
@@ -304,18 +314,23 @@ export default class TrafficLightController {
   // 📋 Template Method Pattern (模板方法模式) 方法群組
   // ==========================================
 
-  // Template Method Pattern: 運行一個完整的燈號循環
+  // Template Method Pattern: 運行一個完整的燈號循環（包含左轉階段）
   async runCycle() {
-    console.log('🔄 開始交通燈循環...')
+    console.log('🔄 開始交通燈循環（直行優先的左轉燈號流程）...')
     this.debugLightStates()
 
     while (this.isRunning) {
       try {
         // State Pattern: 根據當前時相選擇處理策略
         if (this.currentPhase === 'northSouth') {
-          // 南北向綠燈開始
+          // 🎯【階段1】南北向直行綠燈（先直行）
+          this.updateLightState('east', 'red') // 東西向保持紅燈
+          this.updateLightState('west', 'red')
           window.dispatchEvent(new CustomEvent('greenLightStarted'))
-          this.updateTimer('南北向 綠燈', this.dynamicTiming.northSouth)
+          this.updateLightState('south', 'green') // 南向直行綠燈(greenLight.png)
+          this.updateLightState('north', 'green') // 北向直行綠燈(greenLight.png)
+
+          this.updateTimer('南北向 直行綠燈', this.dynamicTiming.northSouth)
 
           // 完整倒數南北向綠燈，在剩餘10秒時發送API
           await this.countdownDelayWithAPI(this.dynamicTiming.northSouth * 1000, 10)
@@ -323,30 +338,54 @@ export default class TrafficLightController {
           // 南北向綠燈結束
           window.dispatchEvent(new CustomEvent('greenLightEnded'))
 
-          // 南北向：綠燈 -> 黃燈 -> 紅燈
+          // 🎯【階段2】南北向直行黃燈
           this.updateLightState('south', 'yellow')
           this.updateLightState('north', 'yellow')
-          this.updateTimer('南北向 黃燈', 3)
+          this.updateTimer('南北向 直行黃燈', 3)
           await this.countdownDelay(3000)
 
+          // 🎯【階段3】全紅階段 - 安全緩衝
           this.updateLightState('south', 'red')
           this.updateLightState('north', 'red')
-
-          // 🚥 全紅階段：確保所有方向都是紅燈，提供安全緩衝時間
           this.updateTimer('全紅階段', 3)
           await this.countdownDelay(3000)
 
-          // 全紅階段結束，東西向綠燈開始
-          this.updateLightState('east', 'green')
-          this.updateLightState('west', 'green')
-          this.dynamicTiming.eastWest = this.nextTiming.eastWest
+          // 🎯【階段4】南北向左轉綠燈（後左轉）
+          this.updateLightState('south', 'leftGreen') // 南向左轉綠燈(redLeftLight.png)
+          this.updateLightState('north', 'leftGreen') // 北向左轉綠燈(redLeftLight.png)
+
+          this.updateTimer('南北向 左轉綠燈', this.leftTurnTiming.duration)
+          await this.countdownDelay(this.leftTurnTiming.duration * 1000)
+
+          // 🎯【階段5】左轉黃燈
+          this.updateLightState('south', 'leftYellow') // 南向左轉黃燈(yellowLight.png)
+          this.updateLightState('north', 'leftYellow') // 北向左轉黃燈(yellowLight.png)
+
+          this.updateTimer('南北向 左轉黃燈', 3)
+          await this.countdownDelay(3000)
+
+          // 🎯【階段6】左轉紅燈
+          this.updateLightState('south', 'red') // 南向左轉紅燈(redLight.png)
+          this.updateLightState('north', 'red') // 北向左轉紅燈(redLight.png)
+
+          // 🎯【階段7】全紅階段 - 切換前緩衝
+          this.updateTimer('全紅階段', 3)
+          await this.countdownDelay(3000)
+
+          // 切換至東西向
           this.currentPhase = 'eastWest'
+          this.dynamicTiming.eastWest = this.nextTiming.eastWest
           console.log('🔄 [TrafficController] 相位切換至 eastWest')
           this.debugLightStates()
         } else {
-          // 東西向綠燈開始
+          // 🎯【階段1】東西向直行綠燈（先直行）
+          this.updateLightState('south', 'red') // 南北向保持紅燈
+          this.updateLightState('north', 'red')
           window.dispatchEvent(new CustomEvent('greenLightStarted'))
-          this.updateTimer('東西向 綠燈', this.dynamicTiming.eastWest)
+          this.updateLightState('east', 'green') // 東向直行綠燈(greenLight.png)
+          this.updateLightState('west', 'green') // 西向直行綠燈(greenLight.png)
+
+          this.updateTimer('東西向 直行綠燈', this.dynamicTiming.eastWest)
 
           // 東西向綠燈倒數
           await this.countdownDelay(this.dynamicTiming.eastWest * 1000)
@@ -354,24 +393,43 @@ export default class TrafficLightController {
           // 東西向綠燈結束
           window.dispatchEvent(new CustomEvent('greenLightEnded'))
 
-          // 東西向：綠燈 -> 黃燈 -> 紅燈
+          // 🎯【階段2】東西向直行黃燈
           this.updateLightState('east', 'yellow')
           this.updateLightState('west', 'yellow')
-          this.updateTimer('東西向 黃燈', 3)
+          this.updateTimer('東西向 直行黃燈', 3)
           await this.countdownDelay(3000)
 
+          // 🎯【階段3】全紅階段 - 安全緩衝
           this.updateLightState('east', 'red')
           this.updateLightState('west', 'red')
-
-          // 🚥 全紅階段：確保所有方向都是紅燈，提供安全緩衝時間
           this.updateTimer('全紅階段', 3)
           await this.countdownDelay(3000)
 
-          // 全紅階段結束，南北向綠燈開始
-          this.updateLightState('south', 'green')
-          this.updateLightState('north', 'green')
-          this.dynamicTiming.northSouth = this.nextTiming.northSouth
+          // 🎯【階段4】東西向左轉綠燈（後左轉）
+          this.updateLightState('east', 'leftGreen') // 東向左轉綠燈(redLeftLight.png)
+          this.updateLightState('west', 'leftGreen') // 西向左轉綠燈(redLeftLight.png)
+
+          this.updateTimer('東西向 左轉綠燈', this.leftTurnTiming.duration)
+          await this.countdownDelay(this.leftTurnTiming.duration * 1000)
+
+          // 🎯【階段5】左轉黃燈
+          this.updateLightState('east', 'leftYellow') // 東向左轉黃燈(yellowLight.png)
+          this.updateLightState('west', 'leftYellow') // 西向左轉黃燈(yellowLight.png)
+
+          this.updateTimer('東西向 左轉黃燈', 3)
+          await this.countdownDelay(3000)
+
+          // 🎯【階段6】左轉紅燈
+          this.updateLightState('east', 'red') // 東向左轉紅燈(redLight.png)
+          this.updateLightState('west', 'red') // 西向左轉紅燈(redLight.png)
+
+          // 🎯【階段7】全紅階段 - 切換前緩衝
+          this.updateTimer('全紅階段', 3)
+          await this.countdownDelay(3000)
+
+          // 切換至南北向
           this.currentPhase = 'northSouth'
+          this.dynamicTiming.northSouth = this.nextTiming.northSouth
           console.log('🔄 [TrafficController] 相位切換至 northSouth')
           this.debugLightStates()
         }

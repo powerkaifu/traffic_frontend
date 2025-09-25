@@ -247,8 +247,9 @@
       <div class="timer-display">
         <div class="timer-content">
           <div class="timer-phase">{{ currentPhase }}</div>
-          <div class="timer-countdown">{{ countdown }}</div>
-          <div class="timer-unit">秒</div>
+          <div class="timer-countdown">
+            {{ countdown }}
+          </div>
         </div>
       </div>
 
@@ -1002,6 +1003,52 @@ onMounted(async () => {
       return Vehicle.getDistanceConfig()
     }
 
+    // 🎯 測試直行優先的左轉燈號流程
+    window.testNewTrafficFlow = () => {
+      console.log('🔄 測試直行優先的左轉燈號流程...')
+      console.log('當前燈號狀態：')
+      console.log(`  東燈：${trafficController.lights.east.currentState}`)
+      console.log(`  西燈：${trafficController.lights.west.currentState}`)
+      console.log(`  南燈：${trafficController.lights.south.currentState}`)
+      console.log(`  北燈：${trafficController.lights.north.currentState}`)
+      console.log(`  當前相位：${trafficController.currentPhase}`)
+    }
+
+    // 🎯 測試左轉車道邏輯
+    window.testLeftTurnLanes = () => {
+      console.log('🔄 測試左轉車道邏輯...')
+      const liveVehicles = window.liveVehicles || []
+      const lane1Vehicles = liveVehicles.filter((v) => v.laneNumber === 1)
+      const otherLaneVehicles = liveVehicles.filter((v) => v.laneNumber !== 1)
+
+      console.log(`車道1（左轉）車輛數量：${lane1Vehicles.length}`)
+      console.log(`其他車道（直行）車輛數量：${otherLaneVehicles.length}`)
+
+      lane1Vehicles.forEach((vehicle) => {
+        console.log(
+          `  左轉車 ${vehicle.id}: 方向=${vehicle.direction}, 狀態=${vehicle.currentState}, 等待綠燈=${vehicle.waitingForGreen}`,
+        )
+      })
+
+      otherLaneVehicles.forEach((vehicle) => {
+        console.log(
+          `  直行車 ${vehicle.id}: 方向=${vehicle.direction}, 車道=${vehicle.laneNumber}, 狀態=${vehicle.currentState}`,
+        )
+      })
+    }
+
+    // 🎯 強制生成左轉車輛測試
+    window.generateLeftTurnVehicle = (direction = 'east') => {
+      console.log(`🚗 生成 ${direction} 方向左轉車輛 (車道1)`)
+      const pathStartPosition = Vehicle.getPathStartPosition(direction, 1)
+      if (pathStartPosition) {
+        createVehicleWithPosition(pathStartPosition.x, pathStartPosition.y, direction, 'large', 1)
+        console.log(`✅ ${direction} 方向左轉車輛已生成`)
+      } else {
+        console.error(`❌ 無法獲取 ${direction} 方向車道1的路徑起始位置`)
+      }
+    }
+
     // 🎯 顯示使用說明
     console.log(`
 🎯 車輛間距控制已啟用！
@@ -1012,7 +1059,25 @@ onMounted(async () => {
 - setNorthSouthDistance(1.2)  // 增加南北向間距
 - getVehicleDistanceConfig()  // 查看當前配置
 
-🎯 南北向排隊問題修正：
+🎯 新的左轉燈號流程已啟用！
+燈號順序：
+1. 直行紅燈 + 左轉綠燈(redLeftLight.png) → 只有車道1左轉車可通過
+2. 左轉黃燈(yellowLight.png) → 左轉車準備停止
+3. 左轉紅燈(redLight.png) → 左轉車停止
+4. 全紅階段(redLight.png) → 安全緩衝
+5. 直行綠燈(greenLight.png) → 車道2,3直行車通過
+6. 直行黃燈(yellowLight.png) → 直行車準備停止
+7. 全紅(redLight.png) → 切換準備
+
+🎯 左轉車道邏輯：
+- 車道1：左轉專用車道，只有在左轉綠燈時才能通行
+- 車道2,3：直行車道，只有在直行綠燈時才能通行
+
+測試功能：
+- testNewTrafficFlow()        // 查看當前燈號狀態
+- testLeftTurnLanes()         // 查看左轉車道車輛狀態
+- generateLeftTurnVehicle('east') // 強制生成東向左轉車輛
+- generateLeftTurnVehicle('north') // 強制生成北向左轉車輛🎯 南北向排隊問題修正：
 南北向車輛現在使用專門的距離配置和邊界框計算，應該能更好地一台接著一台排隊！
 
 當前配置: ${JSON.stringify(Vehicle.getDistanceConfig(), null, 2)}
