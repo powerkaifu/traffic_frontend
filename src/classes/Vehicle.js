@@ -2318,14 +2318,16 @@ export default class Vehicle {
         this.currentState = 'moving'
         this.waitingForGreen = false
       }
-      
+
       // 🎯 新增：即使已通過停止線，仍需進行基本的跟車碰撞檢測
       const allVehicles = window.liveVehicles || []
       const collisionResult = this.checkSimpleCollision(allVehicles)
-      
+
       if (collisionResult && collisionResult.action === 'stop') {
-        console.log(`🚗⚠️ [${this.id}] 已通過停止線但需避讓前車 ${collisionResult.vehicle.id}，距離${collisionResult.distance.toFixed(1)}px`)
-        
+        console.log(
+          `🚗⚠️ [${this.id}] 已通過停止線但需避讓前車 ${collisionResult.vehicle.id}，距離${collisionResult.distance.toFixed(1)}px`,
+        )
+
         // 根據距離調整速度而不是完全停止
         let targetSpeed = 0.3 // 基本慢速
         if (collisionResult.distance > 15) {
@@ -2333,7 +2335,7 @@ export default class Vehicle {
         } else if (collisionResult.distance > 25) {
           targetSpeed = 0.7
         }
-        
+
         gsap.to(this.movementTimeline, {
           timeScale: targetSpeed,
           duration: 0.2,
@@ -2350,7 +2352,7 @@ export default class Vehicle {
         })
         this.currentState = 'moving'
       }
-      
+
       return // 已通過停止線的車輛不再處理燈號邏輯，但保持碰撞檢測
     }
 
