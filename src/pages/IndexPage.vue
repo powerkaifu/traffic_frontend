@@ -1109,7 +1109,7 @@ onMounted(async () => {
 東西向車道1的車輛現在應該能正確響應左轉綠燈信號！
 自動生成的車輛已區分為直行車(車道2-4)和左轉車(車道1)。
 
-當前配置: ${JSON.stringify(Vehicle.getDistanceConfig(), null, 2)}
+當前車輛配置: ${JSON.stringify(Vehicle.getDistanceConfig(), null, 2)}
     `)
 
     // 輸出車道統計信息（調試用）
@@ -1414,13 +1414,17 @@ onUnmounted(() => {
 .timer-content {
   text-align: center;
   color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .timer-phase {
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   font-weight: bold;
-  margin-bottom: 5px;
   color: rgb(200, 220, 255);
+  white-space: pre-line; /* 支援換行顯示 */
+  line-height: 1.4; /* 調整行高 */
 }
 
 .timer-countdown {
@@ -1428,11 +1432,10 @@ onUnmounted(() => {
   font-weight: bold;
   color: #00ff88;
   text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
-  margin: 5px 0;
 }
 
 .timer-unit {
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: rgb(180, 200, 255);
 }
 
