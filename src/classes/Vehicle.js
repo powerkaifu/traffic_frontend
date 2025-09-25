@@ -914,9 +914,15 @@ export default class Vehicle {
       adjustedStopDistance = stopDistance * 1.3
     }
 
+    // 🔧 強化修正：如果是等待狀態，使用更大的安全距離避免重疊
     if (this.currentState === 'slowing_for_light' || this.waitingForGreen) {
-      adjustedSafeDistance = adjustedSafeDistance * 1.5
-      adjustedStopDistance = adjustedStopDistance * 1.5
+      if (this.laneNumber === 1) {
+        adjustedSafeDistance = adjustedSafeDistance * 2.0 // 🔧 左轉等待狀態用2倍距離
+        adjustedStopDistance = adjustedStopDistance * 2.0
+      } else {
+        adjustedSafeDistance = adjustedSafeDistance * 1.5
+        adjustedStopDistance = adjustedStopDistance * 1.5
+      }
     }
 
     for (let vehicle of vehicles) {
@@ -1009,25 +1015,43 @@ export default class Vehicle {
 
         if (this.laneNumber === 1) {
           // 左轉車道：如果不是左轉綠燈，應該前進到停止線等待
-          // 🔧 修正：但必須考慮前車的存在，不能無視碰撞檢測
-          const hasRoomToContinue = distance > adjustedStopDistance * 1.5 // 足夠的空間繼續前進
+          // 🔧 強化修正：檢查前車是否已在等待，避免重疊
+          const hasRoomToContinue = distance > adjustedStopDistance * 2.0 // 🔧 增加到2倍距離
+          const frontVehicleNotWaiting = !vehicle.waitingForGreen && vehicle.currentState !== 'waiting' // 前車不在等待
+
           shouldContinueToStopLine =
-            currentLightState !== 'leftGreen' && distanceToStopLine && distanceToStopLine > 15 && hasRoomToContinue // 🔧 新增：只有在有足夠空間時才繼續前進
+            currentLightState !== 'leftGreen' &&
+            distanceToStopLine &&
+            distanceToStopLine > 20 && // 🔧 增加到20px
+            hasRoomToContinue &&
+            frontVehicleNotWaiting // 🔧 新增：前車必須不在等待狀態
         } else {
           // 直行車道：如果不是直行綠燈，應該前進到停止線等待
-          const hasRoomToContinue = distance > adjustedStopDistance * 1.5 // 足夠的空間繼續前進
+          const hasRoomToContinue = distance > adjustedStopDistance * 2.0 // 🔧 增加到2倍距離
+          const frontVehicleNotWaiting = !vehicle.waitingForGreen && vehicle.currentState !== 'waiting' // 前車不在等待
+
           shouldContinueToStopLine =
             (currentLightState === 'red' ||
               currentLightState === 'allRed' ||
               currentLightState === 'yellow' ||
               currentLightState === 'leftGreen') &&
             distanceToStopLine &&
-            distanceToStopLine > 15 &&
-            hasRoomToContinue // 🔧 新增：只有在有足夠空間時才繼續前進
+            distanceToStopLine > 20 && // 🔧 增加到20px
+            hasRoomToContinue &&
+            frontVehicleNotWaiting // 🔧 新增：前車必須不在等待狀態
         }
 
-        // 如果距離停止線還有一段距離，且需要等待對應的綠燈，應該繼續前進到停止線
-        if (shouldContinueToStopLine) {
+        // 🔧 強化修正：優先檢查前車等待狀態，防止重疊
+        const frontVehicleWaiting = vehicle.waitingForGreen || vehicle.currentState === 'waiting'
+
+        // 如果前車正在等待，強制執行碰撞檢測，即使可以繼續到停止線
+        if (frontVehicleWaiting && this.laneNumber === 1 && distance <= adjustedSafeDistance * 2) {
+          console.log(
+            `🚨 [${this.id}] 左轉車道強制停止: 前車${vehicle.id}正在等待(狀態:${vehicle.currentState}, 等待:${vehicle.waitingForGreen}), 距離=${distance.toFixed(1)}px`,
+          )
+          // 不返回null，繼續執行碰撞檢測
+        } else if (shouldContinueToStopLine) {
+          // 只有在前車不在等待狀態時才允許繼續前進到停止線
           const laneType = this.laneNumber === 1 ? '左轉' : '直行'
           const waitingFor = this.laneNumber === 1 ? '左轉綠燈' : '直行綠燈'
           console.log(
@@ -1437,7 +1461,11 @@ export default class Vehicle {
           this.currentState = 'moving'
           this.waitingForGreen = false
           this.isAtStopLine = false
-          this.hasPassedStopLine = false
+          // 🔧 修正：只在真正重新開始動畫時才重置hasPassedStopLine
+          // 避免已通過停止線的車輛被錯誤重置
+          if (this.movementTimeline && this.movementTimeline.progress() < 0.1) {
+            this.hasPassedStopLine = false // 只有在動畫初期才重置
+          }
 
           // Observer Pattern: 確保只有一個定期檢查定時器運行
           if (this.periodicCheckTimer) {
@@ -1711,7 +1739,11 @@ export default class Vehicle {
 
                 // 🚦 特殊處理：左轉車在直行綠燈時需要停在停止線
                 const isLeftTurnWaiting = this.laneNumber === 1 && lightState === 'green'
-                const isRedOrYellowLight = lightState === 'red' || lightState === 'yellow' || lightState === 'allRed'
+
+                // 🔧 修正全紅邏輯：只有還沒通過停止線的車輛才在全紅時停車
+                // 已經在路口內通行的車輛應該繼續完成通行
+                const shouldStopForAllRed = lightState === 'allRed' && !this.hasPassedStopLine
+                const isRedOrYellowLight = lightState === 'red' || lightState === 'yellow' || shouldStopForAllRed
 
                 if (isRedOrYellowLight || isLeftTurnWaiting || this.waitingForGreen) {
                   if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
@@ -1734,9 +1766,13 @@ export default class Vehicle {
                   }
                   // 🚨 移除手動觀察者：讓 directTrafficLightResponse 統一處理燈號變化
                 } else {
-                  // 綠燈且非左轉車等待時直接通過
+                  // 綠燈或全紅時已通過停止線的車輛直接通過
+                  if (lightState === 'allRed') {
+                    console.log(`🚦🟡 [${this.id}] 車道${this.laneNumber}遇到全紅但繼續通行 (未到停止線或已通過)`)
+                  }
                   this.isAtStopLine = false
                   this.hasPassedStopLine = true
+                  console.log(`🚦✅ [${this.id}] 車道${this.laneNumber}綠燈通過停止線，已標記不再受燈號影響`)
                 }
               }
             },
@@ -1838,7 +1874,11 @@ export default class Vehicle {
         // 應該讓車輛前進到停止線，再由停止線檢查邏輯決定是否停車
         this.waitingForGreen = false
         this.isAtStopLine = false
-        this.hasPassedStopLine = false
+        // 🔧 修正：只在真正重新開始動畫時才重置hasPassedStopLine
+        // 避免已通過停止線的車輛被錯誤重置
+        if (this.movementTimeline && this.movementTimeline.progress() < 0.1) {
+          this.hasPassedStopLine = false // 只有在動畫初期才重置
+        }
 
         // Observer Pattern: 確保只有一個定期檢查定時器運行
         if (this.periodicCheckTimer) {
@@ -2163,6 +2203,45 @@ export default class Vehicle {
     if (!this.direction || !trafficController || !this.movementTimeline) return
 
     const currentLightState = trafficController.getCurrentLightState(this.direction)
+
+    // � 強化修正：已通過停止線的車輛不應該受到任何燈號影響
+    if (this.hasPassedStopLine) {
+      // 確保車輛能繼續通行，不被任何燈號邏輯停止
+      if (this.movementTimeline.timeScale() === 0 || this.currentState === 'waiting') {
+        console.log(`🚦✅ [${this.id}] 車道${this.laneNumber}已通過停止線，強制恢復通行不受燈號影響`)
+        gsap.to(this.movementTimeline, {
+          timeScale: 1.0,
+          duration: 0.3,
+          ease: 'power2.out',
+        })
+        this.currentState = 'moving'
+        this.waitingForGreen = false
+      }
+      return // 已通過停止線的車輛直接返回，不執行任何燈號邏輯
+    }
+
+    // �🔴🟡 全紅狀態特殊處理：已通過停止線的車輛應該繼續通行直到離開路口
+    if (currentLightState === 'allRed') {
+      if (this.hasPassedStopLine) {
+        // 已通過停止線的車輛在全紅時應該繼續通行
+        console.log(`🚦🟡 [${this.id}] 車道${this.laneNumber}已通過停止線，全紅狀態下繼續通行離開路口`)
+
+        // 確保車輛不會在全紅時被停止
+        if (this.movementTimeline.timeScale() === 0 && this.currentState === 'waiting') {
+          // 如果車輛被錯誤地停在路口內，恢復其移動
+          gsap.to(this.movementTimeline, {
+            timeScale: 1.0,
+            duration: 0.3,
+            ease: 'power2.out',
+          })
+          this.currentState = 'moving'
+          this.waitingForGreen = false
+          console.log(`🚦🟡 [${this.id}] 全紅狀態下恢復通行，避免阻塞路口`)
+        }
+        return // 已通過停止線的車輛不需要進一步處理
+      }
+      // 未通過停止線的車輛會由停止線檢查邏輯處理
+    }
 
     // 🔴 紅燈：不在此處直接停車，讓移動邏輯中的停止線檢查來處理紅燈停車
     // 這樣可確保車輛會前進到停止線才停，而不是立即原地停車
@@ -2585,6 +2664,8 @@ export default class Vehicle {
         this.hasPassedStopLine = true
         this.currentState = 'moving'
         this.originalTimeScale = null
+
+        console.log(`🚦✅ [${this.id}] 車道${this.laneNumber}綠燈起步，已標記通過停止線，不再受燈號影響`)
 
         // 🎯【新增】啟動持續速度監控，防止後續撞車
         this.startContinuousSpeedMonitoring(allVehicles)
