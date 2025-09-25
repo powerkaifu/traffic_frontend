@@ -15,8 +15,8 @@ export default class Vehicle {
 
   // 🎯 新增：車輛間距控制配置
   static distanceMultiplier = 1.0 // 控制車輛間距，1.0=預設，2.0=兩倍間距，0.5=一半間距
-  static baseStopDistance = { justStarted: 5, normal: 10 } // 基礎停止距離
-  static baseSafeDistance = { justStarted: 8, normal: 15 } // 基礎安全距離
+  static baseStopDistance = { justStarted: 12, normal: 18 } // 🔧 增加基礎停止距離避免重疊
+  static baseSafeDistance = { justStarted: 15, normal: 25 } // 🔧 增加基礎安全距離
 
   // 🎯 新增：南北向車輛專用距離調整（參考東西向邏輯，實現一台接著一台排隊）
   static northSouthDistanceMultiplier = 1.0 // 🚨 修正：與東西向相同，確保車輛正確前進到停止線
@@ -853,11 +853,13 @@ export default class Vehicle {
     const currentTime = Date.now()
     const timeSinceLastCheck = currentTime - this.lastCollisionCheck
 
-    // 智能檢查策略
+    // 🚦 修正：等待綠燈的車輛也需要碰撞檢測以避免重疊
     const shouldCheck =
       timeSinceLastCheck > this.collisionCheckInterval || // 定期檢查
       this.isInCriticalZone() || // 危險區域
-      this.currentState === 'moving' // 移動狀態
+      this.currentState === 'moving' || // 移動狀態
+      this.currentState === 'waiting' || // 🔧 新增：等待狀態也需檢查
+      this.waitingForGreen // 🔧 新增：等待綠燈狀態也需檢查
 
     if (!shouldCheck) {
       return null // 跳過檢查，節省性能
@@ -1256,7 +1258,7 @@ export default class Vehicle {
       } else {
         // 有前車，根據距離調整速度
         const distance = collision.distance
-        const requiredGap = collision.requiredGap || 5
+        const requiredGap = collision.requiredGap || 15 // 🔧 增加預設間隔避免重疊
 
         let targetSpeed
         if (distance <= requiredGap * 0.3) {
@@ -1890,7 +1892,7 @@ export default class Vehicle {
 
             if (collision && collision.shouldStop) {
               const distance = collision.distance
-              const requiredGap = collision.requiredGap || 5
+              const requiredGap = collision.requiredGap || 15 // 🔧 增加預設間隔避免重疊
 
               // 🚨 基於距離的漸進式停車，而非直接停止
               let targetSpeed
@@ -1935,40 +1937,6 @@ export default class Vehicle {
             if (this.currentState === 'waitingForVehicle') {
               // 如果前方車輛已離開安全距離，恢復移動
               this.resumeMovement(allVehicles)
-            }
-
-            // Template Method Pattern: 停止線檢查和紅綠燈控制流程
-            if (!this.hasPassedStopLine && this.checkStopLine() && !this.waitingForGreen && !this.isAtStopLine) {
-              this.isAtStopLine = true
-
-              // 檢查紅綠燈狀態
-              const lightState = trafficController.getCurrentLightState(this.direction)
-
-              if (lightState === 'red' || lightState === 'allRed' || lightState === 'yellow') {
-                // 如果正在減速，讓它平滑停止
-                if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
-                  gsap.to(this.movementTimeline, {
-                    timeScale: 0,
-                    duration: 0.05, // 幾乎立即停車，消除停止線緩速
-                    ease: 'none',
-                    onComplete: () => {
-                      this.stopMovement()
-                      this.waitingForGreen = true
-                    },
-                  })
-                } else {
-                  this.stopMovement()
-                  this.waitingForGreen = true
-                }
-
-                // 🚨 移除重複的觀察者邏輯，讓 directTrafficLightResponse 處理狀態變化
-
-                //  移除超時機制：讓車輛完全依賴 directTrafficLightResponse 和燈號狀態
-              } else {
-                // 綠燈時直接通過，標記已通過停止線
-                this.isAtStopLine = false
-                this.hasPassedStopLine = true
-              }
             }
           },
           onComplete: () => {
