@@ -86,11 +86,27 @@ export default class AutoTrafficGenerator {
     if (typeof newConfig.maxLiveVehicles === 'number') {
       this.maxLiveVehicles = newConfig.maxLiveVehicles
     }
-    // 🚨 新增：如果配置包含車道間隔設置，更新它
-    if (typeof newConfig.minLaneInterval === 'number') {
-      this.minLaneInterval = newConfig.minLaneInterval
-      console.log(`🔧 車道最小生成間隔已更新為: ${this.minLaneInterval}ms`)
+
+    // 🚨 新增：動態調整車道冷卻機制以配合拉桿設定
+    if (typeof newConfig.interval === 'object') {
+      // 當生成間隔很短時，相應縮短車道冷卻時間
+      const avgInterval = (newConfig.interval.min + newConfig.interval.max) / 2
+      // 車道冷卻時間 = 平均生成間隔 * 1.2，但不少於500ms，不多於2000ms
+      this.minLaneInterval = Math.max(
+        500, // 最小500ms保證碰撞檢測有效
+        Math.min(2000, Math.round(avgInterval * 1.2)), // 最大2000ms避免太長冷卻
+      )
+      console.log(
+        `� 車道最小生成間隔動態調整為: ${this.minLaneInterval}ms (基於平均生成間隔 ${Math.round(avgInterval)}ms)`,
+      )
     }
+
+    // �🚨 新增：如果配置包含車道間隔設置，更新它（手動設定可覆蓋動態調整）
+    if (typeof newConfig.minLaneInterval === 'number') {
+      this.minLaneInterval = Math.max(500, newConfig.minLaneInterval) // 安全下限500ms
+      console.log(`🔧 車道最小生成間隔手動設置為: ${this.minLaneInterval}ms`)
+    }
+
     // 如果在自動模式下進行了手動設定，則自動關閉自動模式
     if (this.isAutoMode) {
       this.toggleAutoMode(false)
@@ -370,6 +386,102 @@ export default class AutoTrafficGenerator {
       return
     }
 
+    // 🚨 新增：高速生成時的位置碰撞檢測
+    // 檢查同方向車輛的實際位置距離，防止重疊生成
+    if (this.minLaneInterval < 1000) {
+      // 當車道冷卻時間短於1秒時啟用
+      const sameDirectionVehicles = window.liveVehicles
+        ? window.liveVehicles.filter((v) => v.direction === selectedDir && v.element && v.element.style)
+        : []
+
+      let isTooClose = false
+      const minVehicleDistance = 150 // 🚨 增加最小車輛距離到150px（約2個車身長度）
+
+      for (const vehicle of sameDirectionVehicles) {
+        // 獲取車輛當前位置
+        if (!vehicle.currentPosition || typeof vehicle.currentPosition.x !== 'number') {
+          // 嘗試從DOM元素獲取位置
+          if (vehicle.element && vehicle.element.style) {
+            const transform = vehicle.element.style.transform
+            if (transform && transform.includes('translate')) {
+              const match = transform.match(/translate\(([^,]+),\s*([^)]+)\)/)
+              if (match) {
+                vehicle.currentPosition = {
+                  x: parseFloat(match[1]),
+                  y: parseFloat(match[2]),
+                }
+              }
+            }
+          }
+          if (!vehicle.currentPosition) continue
+        }
+
+        // 根據方向檢查起始點距離
+        let distanceFromStart = 0
+        switch (selectedDir) {
+          case 'east':
+            distanceFromStart = Math.abs(vehicle.currentPosition.x - 0) // 東向起始點 x=0
+            break
+          case 'west':
+            distanceFromStart = Math.abs(vehicle.currentPosition.x - 800) // 西向起始點 x=800
+            break
+          case 'north':
+            distanceFromStart = Math.abs(vehicle.currentPosition.y - 600) // 北向起始點 y=600
+            break
+          case 'south':
+            distanceFromStart = Math.abs(vehicle.currentPosition.y - 0) // 南向起始點 y=0
+            break
+        }
+
+        // 如果有車輛距離起始點太近，延後生成
+        if (distanceFromStart < minVehicleDistance) {
+          console.log(
+            `🚨 ${selectedDir}方向有車輛距離起始點太近(${Math.round(distanceFromStart)}px < ${minVehicleDistance}px)，延後生成`,
+          )
+          isTooClose = true
+          break
+        }
+      }
+
+      if (isTooClose) {
+        setTimeout(() => this._scheduleNext(), Math.max(300, this.minLaneInterval / 3)) // 🚨 增加延遲時間
+        return
+      }
+
+      // 🚨 新增：檢查是否有車輛在同一車道的前200px範圍內
+      for (const vehicle of sameDirectionVehicles) {
+        if (!vehicle.currentPosition || !vehicle.laneNumber) continue
+
+        // 檢查是否會分配到同一車道
+        const wouldBeInSameLane = this._wouldGenerateInSameLane(selectedDir, vehicle)
+        if (!wouldBeInSameLane) continue
+
+        let isInFrontRange = false
+        const frontCheckDistance = 200 // 檢查前方200px範圍
+
+        switch (selectedDir) {
+          case 'east':
+            isInFrontRange = vehicle.currentPosition.x >= 0 && vehicle.currentPosition.x <= frontCheckDistance
+            break
+          case 'west':
+            isInFrontRange = vehicle.currentPosition.x <= 800 && vehicle.currentPosition.x >= 800 - frontCheckDistance
+            break
+          case 'north':
+            isInFrontRange = vehicle.currentPosition.y <= 600 && vehicle.currentPosition.y >= 600 - frontCheckDistance
+            break
+          case 'south':
+            isInFrontRange = vehicle.currentPosition.y >= 0 && vehicle.currentPosition.y <= frontCheckDistance
+            break
+        }
+
+        if (isInFrontRange) {
+          console.log(`🚨 ${selectedDir}方向前方200px內有同車道車輛，延後生成`)
+          setTimeout(() => this._scheduleNext(), Math.max(400, this.minLaneInterval / 2))
+          return
+        }
+      }
+    }
+
     // 車道層級的密度檢查，但使用更寬鬆的限制
     const recentDirVehicles = recentVehicles.filter((v) => v.direction === selectedDir)
     if (recentDirVehicles.length >= 3) {
@@ -485,5 +597,20 @@ export default class AutoTrafficGenerator {
     if (veryRecentVehicles > 0) densityMultiplier *= 2.0 // 如果1秒內有車，大幅增加間隔
 
     return densityMultiplier
+  }
+
+  // 🚨 新增：判斷新車輛是否會生成在與現有車輛同一車道
+  _wouldGenerateInSameLane(direction, existingVehicle) {
+    if (!existingVehicle.laneNumber) return false
+
+    // 根據車輛生成邏輯判斷可能的車道分配
+    // 假設：直行車輛會優先選擇車道2-4，左轉車輛會選擇車道1
+    const isLeftTurn = Math.random() < 0.2 // 與生成邏輯中的機率保持一致
+
+    if (isLeftTurn) {
+      return existingVehicle.laneNumber === 1 // 左轉車輛只會在車道1
+    } else {
+      return existingVehicle.laneNumber >= 2 && existingVehicle.laneNumber <= 4 // 直行車輛在車道2-4
+    }
   }
 }
