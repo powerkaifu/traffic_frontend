@@ -908,9 +908,15 @@ export default class Vehicle {
     let adjustedSafeDistance = safeDistance
     let adjustedStopDistance = stopDistance
 
+    // 🔧 左轉車道特殊處理：增加額外的安全距離
+    if (this.laneNumber === 1) {
+      adjustedSafeDistance = safeDistance * 1.3 // 左轉車使用更大的安全距離
+      adjustedStopDistance = stopDistance * 1.3
+    }
+
     if (this.currentState === 'slowing_for_light' || this.waitingForGreen) {
-      adjustedSafeDistance = safeDistance * 1.5
-      adjustedStopDistance = stopDistance * 1.5
+      adjustedSafeDistance = adjustedSafeDistance * 1.5
+      adjustedStopDistance = adjustedStopDistance * 1.5
     }
 
     for (let vehicle of vehicles) {
@@ -925,45 +931,47 @@ export default class Vehicle {
 
       // 精確的方向和距離計算
       if (this.direction === 'east') {
-        inSameLane = Math.abs(currentPos.y - otherPos.y) < 25
+        // 🔧 同時檢查位置和車道號碼確保是同車道
+        inSameLane = Math.abs(currentPos.y - otherPos.y) < 25 && this.laneNumber === vehicle.laneNumber
         isFront = otherBox.left > currentBox.right
         distance = isFront ? otherBox.left - currentBox.right : 0
-        // 調試信息：東向車輛距離計算
-        if (isFront && distance < 10) {
+        // 調試信息：東向車輛距離計算（加入車道檢查）
+        if (isFront && distance < 20) {
           console.log(
-            `🚗 [${this.id}] 東向距離檢測: 前車${vehicle.id}, 距離=${distance.toFixed(1)}px, 當前車右邊=${currentBox.right.toFixed(1)}, 前車左邊=${otherBox.left.toFixed(1)}`,
+            `🚗 [${this.id}] 東向車道${this.laneNumber}距離檢測: 前車${vehicle.id}(車道${vehicle.laneNumber}), 距離=${distance.toFixed(1)}px, 同車道=${inSameLane}`,
           )
         }
       } else if (this.direction === 'west') {
-        inSameLane = Math.abs(currentPos.y - otherPos.y) < 25
+        // 🔧 同時檢查位置和車道號碼確保是同車道
+        inSameLane = Math.abs(currentPos.y - otherPos.y) < 25 && this.laneNumber === vehicle.laneNumber
         isFront = otherBox.right < currentBox.left
         distance = isFront ? currentBox.left - otherBox.right : 0
-        // 調試信息：西向車輛距離計算
-        if (isFront && distance < 10) {
+        // 調試信息：西向車輛距離計算（加入車道檢查）
+        if (isFront && distance < 20) {
           console.log(
-            `🚗 [${this.id}] 西向距離檢測: 前車${vehicle.id}, 距離=${distance.toFixed(1)}px, 當前車左邊=${currentBox.left.toFixed(1)}, 前車右邊=${otherBox.right.toFixed(1)}`,
+            `🚗 [${this.id}] 西向車道${this.laneNumber}距離檢測: 前車${vehicle.id}(車道${vehicle.laneNumber}), 距離=${distance.toFixed(1)}px, 同車道=${inSameLane}`,
           )
         }
       } else if (this.direction === 'north') {
-        // 🎯 北向車輛：參考東西向邏輯，使用一致的車道檢測標準
-        inSameLane = Math.abs(currentPos.x - otherPos.x) < 25 // 與東西向保持一致的容錯範圍
+        // 🔧 北向車輛：同時檢查位置和車道號碼
+        inSameLane = Math.abs(currentPos.x - otherPos.x) < 25 && this.laneNumber === vehicle.laneNumber
         isFront = otherBox.bottom < currentBox.top
         distance = isFront ? currentBox.top - otherBox.bottom : 0
-        // 🎯 新增：北向車輛距離檢測調試
+        // 🎯 北向車輛距離檢測調試（加入車道檢查）
         if (isFront && distance < 20) {
           console.log(
-            `🚗 [${this.id}] 北向距離檢測: 前車${vehicle.id}, 距離=${distance.toFixed(1)}px, 當前車上邊=${currentBox.top.toFixed(1)}, 前車下邊=${otherBox.bottom.toFixed(1)}, X差=${Math.abs(currentPos.x - otherPos.x).toFixed(1)}, 同車道=${inSameLane}`,
+            `🚗 [${this.id}] 北向車道${this.laneNumber}距離檢測: 前車${vehicle.id}(車道${vehicle.laneNumber}), 距離=${distance.toFixed(1)}px, 同車道=${inSameLane}`,
           )
         }
       } else if (this.direction === 'south') {
-        // 🎯 南向車輛：參考東西向邏輯，使用一致的車道檢測標準
-        inSameLane = Math.abs(currentPos.x - otherPos.x) < 25 // 與東西向保持一致的容錯範圍
+        // 🔧 南向車輛：同時檢查位置和車道號碼
+        inSameLane = Math.abs(currentPos.x - otherPos.x) < 25 && this.laneNumber === vehicle.laneNumber
         isFront = otherBox.top > currentBox.bottom
         distance = isFront ? otherBox.top - currentBox.bottom : 0
-        // 🎯 新增：南向車輛距離檢測調試
+        // 🎯 南向車輛距離檢測調試（加入車道檢查）
         if (isFront && distance < 20) {
           console.log(
-            `🚗 [${this.id}] 南向距離檢測: 前車${vehicle.id}, 距離=${distance.toFixed(1)}px, 當前車下邊=${currentBox.bottom.toFixed(1)}, 前車上邊=${otherBox.top.toFixed(1)}, X差=${Math.abs(currentPos.x - otherPos.x).toFixed(1)}, 同車道=${inSameLane}`,
+            `🚗 [${this.id}] 南向車道${this.laneNumber}距離檢測: 前車${vehicle.id}(車道${vehicle.laneNumber}), 距離=${distance.toFixed(1)}px, 同車道=${inSameLane}`,
           )
         }
       }
@@ -1001,16 +1009,21 @@ export default class Vehicle {
 
         if (this.laneNumber === 1) {
           // 左轉車道：如果不是左轉綠燈，應該前進到停止線等待
-          shouldContinueToStopLine = currentLightState !== 'leftGreen' && distanceToStopLine && distanceToStopLine > 15
+          // 🔧 修正：但必須考慮前車的存在，不能無視碰撞檢測
+          const hasRoomToContinue = distance > adjustedStopDistance * 1.5 // 足夠的空間繼續前進
+          shouldContinueToStopLine =
+            currentLightState !== 'leftGreen' && distanceToStopLine && distanceToStopLine > 15 && hasRoomToContinue // 🔧 新增：只有在有足夠空間時才繼續前進
         } else {
           // 直行車道：如果不是直行綠燈，應該前進到停止線等待
+          const hasRoomToContinue = distance > adjustedStopDistance * 1.5 // 足夠的空間繼續前進
           shouldContinueToStopLine =
             (currentLightState === 'red' ||
               currentLightState === 'allRed' ||
               currentLightState === 'yellow' ||
               currentLightState === 'leftGreen') &&
             distanceToStopLine &&
-            distanceToStopLine > 15
+            distanceToStopLine > 15 &&
+            hasRoomToContinue // 🔧 新增：只有在有足夠空間時才繼續前進
         }
 
         // 如果距離停止線還有一段距離，且需要等待對應的綠燈，應該繼續前進到停止線
