@@ -207,7 +207,14 @@ export default class Vehicle {
       const trafficController = window.trafficController
       if (trafficController && this.direction) {
         const currentLightState = trafficController.getCurrentLightState(this.direction)
-        if (currentLightState === 'green' && !this.hasPassedStopLine) {
+
+        // 🔧 修正：檢查車道對應的綠燈狀態
+        const isGreenForLane =
+          this.laneNumber === 1
+            ? currentLightState === 'leftGreen' // 左轉車道檢查leftGreen
+            : currentLightState === 'green' // 直行車道檢查green
+
+        if (isGreenForLane && !this.hasPassedStopLine) {
           console.log(`🚨 [${this.id}] 綠燈但停滯(${(stuckDuration / 1000).toFixed(1)}s)，執行強制恢復`)
           this.forceUnstuck()
         } else if (currentLightState === 'red' || currentLightState === 'allRed') {
@@ -229,9 +236,17 @@ export default class Vehicle {
         return
       }
 
+      // 🚨 修改：檢查車道對應的綠燈狀態
       const currentLightState = trafficController.getCurrentLightState(this.direction)
-      if (currentLightState !== 'green') {
-        console.log(`🛑 [${this.id}] ${currentLightState}燈狀態，不執行強制恢復`)
+
+      // 根據車道檢查對應的綠燈狀態
+      const shouldProceed =
+        this.laneNumber === 1
+          ? currentLightState === 'leftGreen' // 左轉車道檢查leftGreen
+          : currentLightState === 'green' // 直行車道檢查green
+
+      if (!shouldProceed) {
+        console.log(`🛑 [${this.id}] 車道${this.laneNumber} ${currentLightState}燈狀態，不執行強制恢復`)
         return
       }
 
@@ -636,8 +651,14 @@ export default class Vehicle {
 
     const lightState = trafficController.getCurrentLightState(this.direction)
 
+    // 🔧 修正：檢查車道對應的綠燈狀態
+    const isGreenForLane =
+      this.laneNumber === 1
+        ? lightState === 'leftGreen' // 左轉車道檢查leftGreen
+        : lightState === 'green' // 直行車道檢查green
+
     // 綠燈：恢復正常速度（如果之前在減速）
-    if (lightState === 'green') {
+    if (isGreenForLane) {
       if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
         return { action: 'resume_from_slow' }
       }
@@ -968,22 +989,36 @@ export default class Vehicle {
       if (inSameLane && isFront && distance < adjustedSafeDistance) {
         // 🎯【關鍵修正】南北向車輛：優先檢查是否應該前進到停止線
         // 如果車輛還未到達停止線，且燈號是紅燈，應該讓車輛繼續前進到停止線才停止
-        if (this.direction === 'north' || this.direction === 'south') {
-          const distanceToStopLine = this.getDistanceToStopLine()
-          const trafficController = this.trafficLightController
-          const currentLightState = trafficController?.getCurrentLightState(this.direction)
+        // 🔧 修正：擴展到所有方向，不只是南北向
+        const distanceToStopLine = this.getDistanceToStopLine()
+        const trafficController = this.trafficLightController
+        const currentLightState = trafficController?.getCurrentLightState(this.direction)
 
-          // 如果距離停止線還有一段距離，且是紅燈，應該繼續前進到停止線
-          if (
+        // 🎯 重要修正：對於車道1（左轉車道），需要檢查leftGreen而不是red
+        let shouldContinueToStopLine = false
+
+        if (this.laneNumber === 1) {
+          // 左轉車道：如果不是左轉綠燈，應該前進到停止線等待
+          shouldContinueToStopLine = currentLightState !== 'leftGreen' && distanceToStopLine && distanceToStopLine > 15
+        } else {
+          // 直行車道：如果不是直行綠燈，應該前進到停止線等待
+          shouldContinueToStopLine =
+            (currentLightState === 'red' ||
+              currentLightState === 'allRed' ||
+              currentLightState === 'yellow' ||
+              currentLightState === 'leftGreen') &&
             distanceToStopLine &&
-            distanceToStopLine > 15 &&
-            (currentLightState === 'red' || currentLightState === 'allRed' || currentLightState === 'yellow')
-          ) {
-            console.log(
-              `🚦 [${this.id}] 南北向車輛繼續前進到停止線: 距停止線${distanceToStopLine.toFixed(1)}px, 前車距離${distance.toFixed(1)}px`,
-            )
-            return null // 不停車，繼續前進到停止線
-          }
+            distanceToStopLine > 15
+        }
+
+        // 如果距離停止線還有一段距離，且需要等待對應的綠燈，應該繼續前進到停止線
+        if (shouldContinueToStopLine) {
+          const laneType = this.laneNumber === 1 ? '左轉' : '直行'
+          const waitingFor = this.laneNumber === 1 ? '左轉綠燈' : '直行綠燈'
+          console.log(
+            `🚦 [${this.id}] ${this.direction}向${laneType}車輛繼續前進到停止線等待${waitingFor}: 距停止線${distanceToStopLine.toFixed(1)}px, 前車距離${distance.toFixed(1)}px`,
+          )
+          return null // 不停車，繼續前進到停止線
         }
 
         // 🎯 嚴格的停車條件：距離小於等於停車距離時必須停止
@@ -1469,8 +1504,14 @@ export default class Vehicle {
                 // 綠燈跟車邏輯：如果是綠燈且前車正在移動，根據距離調整速度
                 const currentLightState = trafficController.getCurrentLightState(this.direction)
 
+                // 🔧 修正：檢查車道對應的綠燈狀態
+                const isGreenForLane =
+                  this.laneNumber === 1
+                    ? currentLightState === 'leftGreen' // 左轉車道檢查leftGreen
+                    : currentLightState === 'green' // 直行車道檢查green
+
                 if (
-                  currentLightState === 'green' &&
+                  isGreenForLane &&
                   !this.waitingForGreen &&
                   shouldStop.frontVehicleIsMoving &&
                   this.movementTimeline
@@ -1555,7 +1596,14 @@ export default class Vehicle {
                 ) {
                   // 🚨 再次確認當前燈號狀態，防止在紅燈時啟動
                   const recheckLightState = trafficController.getCurrentLightState(this.direction)
-                  if (recheckLightState === 'green' && !this.waitingForGreen) {
+
+                  // 🔧 修正：檢查車道對應的綠燈狀態
+                  const isRecheckGreenForLane =
+                    this.laneNumber === 1
+                      ? recheckLightState === 'leftGreen' // 左轉車道檢查leftGreen
+                      : recheckLightState === 'green' // 直行車道檢查green
+
+                  if (isRecheckGreenForLane && !this.waitingForGreen) {
                     // 第一台車：前方車輛在停止線等待且不移動，繼續前進到停止線
                     console.log(`🚗 [${this.id}] 綠燈時第一台車，前方車輛在停止線等待，繼續前進到停止線`)
                     const currentTimeScale = this.movementTimeline.timeScale()
@@ -1582,7 +1630,14 @@ export default class Vehicle {
                 if (currentTimeScale < 1) {
                   // 檢查當前燈號狀態，只有綠燈時才恢復移動
                   const currentLightState = trafficController.getCurrentLightState(this.direction)
-                  if (currentLightState === 'green') {
+
+                  // 🔧 修正：檢查車道對應的綠燈狀態
+                  const isCurrentGreenForLane =
+                    this.laneNumber === 1
+                      ? currentLightState === 'leftGreen' // 左轉車道檢查leftGreen
+                      : currentLightState === 'green' // 直行車道檢查green
+
+                  if (isCurrentGreenForLane) {
                     // 🎯 防穿越修正：檢查前方是否有較慢的車輛
                     let maxAllowedSpeed = 1.0 // 預設最大速度
 
@@ -2129,10 +2184,25 @@ export default class Vehicle {
         // 左轉車道：只有在左轉綠燈時才能通行
         if (currentLightState !== 'leftGreen') {
           console.log(`🚦🔴 [${this.id}] 車道1左轉車等待左轉綠燈 (當前：${currentLightState})`)
-          // 確保車輛停在停止線等待左轉綠燈
+          // 🔧 修正：左轉車道也以正常速度前進到停止線排隊
+          // 設置等待綠燈狀態，但保持正常行駛速度
           this.waitingForGreen = true
-          if (this.movementTimeline && this.movementTimeline.timeScale() > 0) {
-            this.movementTimeline.timeScale(0) // 停止移動
+          this.currentState = 'approaching_stop_line'
+
+          // 如果車輛還沒到停止線，保持正常速度前進
+          if (!this.hasPassedStopLine && !this.isAtStopLine) {
+            // 保持正常行駛速度，不減速
+            if (this.movementTimeline && this.movementTimeline.timeScale() < 1.0) {
+              // 如果之前被減速了，恢復到正常速度
+              gsap.to(this.movementTimeline, {
+                timeScale: 1.0, // 恢復正常速度
+                duration: 0.5, // 0.5秒內恢復
+                ease: 'power2.out',
+              })
+            }
+          } else if (this.movementTimeline && this.movementTimeline.timeScale() > 0) {
+            // 如果已經在停止線或已通過停止線，才立即停止
+            this.movementTimeline.timeScale(0)
             this.currentState = 'waiting'
           }
           return
@@ -2143,10 +2213,25 @@ export default class Vehicle {
         // 直行車道：只有在直行綠燈時才能通行
         if (currentLightState !== 'green') {
           console.log(`🚦🔴 [${this.id}] 車道${this.laneNumber}直行車等待直行綠燈 (當前：${currentLightState})`)
-          // 確保車輛停在停止線等待直行綠燈
+          // 🔧 修正：直行車道以正常速度前進到停止線排隊
+          // 設置等待綠燈狀態，但保持正常行駛速度
           this.waitingForGreen = true
-          if (this.movementTimeline && this.movementTimeline.timeScale() > 0) {
-            this.movementTimeline.timeScale(0) // 停止移動
+          this.currentState = 'approaching_stop_line'
+
+          // 如果車輛還沒到停止線，保持正常速度前進
+          if (!this.hasPassedStopLine && !this.isAtStopLine) {
+            // 保持正常行駛速度，不減速
+            if (this.movementTimeline && this.movementTimeline.timeScale() < 1.0) {
+              // 如果之前被減速了，恢復到正常速度
+              gsap.to(this.movementTimeline, {
+                timeScale: 1.0, // 恢復正常速度
+                duration: 0.5, // 0.5秒內恢復
+                ease: 'power2.out',
+              })
+            }
+          } else if (this.movementTimeline && this.movementTimeline.timeScale() > 0) {
+            // 如果已經在停止線或已通過停止線，才立即停止
+            this.movementTimeline.timeScale(0)
             this.currentState = 'waiting'
           }
           return
@@ -2446,10 +2531,24 @@ export default class Vehicle {
 
   // 🚨 新增：執行控制速度的綠燈起步
   performControlledGreenLightStart(trafficController) {
-    // 安全檢查：確保時間軸仍然存在且燈號仍為綠燈
-    if (!this.movementTimeline || trafficController.getCurrentLightState(this.direction) !== 'green') {
+    // 🔧 修正：檢查車道對應的綠燈狀態
+    const currentLightState = trafficController.getCurrentLightState(this.direction)
+
+    // 根據車道檢查對應的綠燈狀態
+    const shouldProceed =
+      this.laneNumber === 1
+        ? currentLightState === 'leftGreen' // 左轉車道檢查leftGreen
+        : currentLightState === 'green' // 直行車道檢查green
+
+    // 安全檢查：確保時間軸仍然存在且燈號仍為對應的綠燈
+    if (!this.movementTimeline || !shouldProceed) {
+      console.log(
+        `🚦❌ [${this.id}] 車道${this.laneNumber} 無法啟動：時間軸=${!!this.movementTimeline}, 燈號=${currentLightState}, 應該通行=${shouldProceed}`,
+      )
       return
     }
+
+    console.log(`🚦✅ [${this.id}] 車道${this.laneNumber} 開始移動：燈號=${currentLightState}`)
 
     // 🎯 檢查前車距離，決定起步速度
     const allVehicles = window.liveVehicles || []
