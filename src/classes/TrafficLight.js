@@ -7,7 +7,7 @@ export default class TrafficLight {
     this.element = element
 
     // State Pattern: 定義交通燈的初始狀態，管理三種燈號狀態
-    this.currentState = 'green' // 初始狀態：green, yellow, red
+    this.currentState = 'red' // 🚦 修正：初始狀態設為紅燈，確保車輛先排隊
 
     // Facade Pattern: 封裝DOM查詢操作，隱藏複雜的DOM結構
     this.imgElement = element.querySelector('img')

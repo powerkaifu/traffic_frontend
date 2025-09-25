@@ -1688,12 +1688,17 @@ export default class Vehicle {
                 this.resumeMovement(allVehicles)
               }
 
-              // 停止線檢查和紅綠燈控制流程（與原方法相同的邏輯）
-              if (!this.hasPassedStopLine && this.checkStopLine() && !this.waitingForGreen && !this.isAtStopLine) {
+              // 停止線檢查和紅綠燈控制流程
+              // 🚦 修正：等待綠燈的車輛（如直行綠燈時的左轉車）也需要在停止線停下
+              if (!this.hasPassedStopLine && this.checkStopLine() && !this.isAtStopLine) {
                 this.isAtStopLine = true
                 const lightState = trafficController.getCurrentLightState(this.direction)
 
-                if (lightState === 'red' || lightState === 'yellow' || lightState === 'allRed') {
+                // 🚦 特殊處理：左轉車在直行綠燈時需要停在停止線
+                const isLeftTurnWaiting = this.laneNumber === 1 && lightState === 'green'
+                const isRedOrYellowLight = lightState === 'red' || lightState === 'yellow' || lightState === 'allRed'
+
+                if (isRedOrYellowLight || isLeftTurnWaiting || this.waitingForGreen) {
                   if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
                     gsap.to(this.movementTimeline, {
                       timeScale: 0,
@@ -1702,15 +1707,19 @@ export default class Vehicle {
                       onComplete: () => {
                         this.stopMovement()
                         this.waitingForGreen = true
+                        this.currentState = 'waiting'
+                        console.log(`🚦🛑 [${this.id}] 車道${this.laneNumber}在停止線停下等待 (燈號：${lightState})`)
                       },
                     })
                   } else {
                     this.stopMovement()
                     this.waitingForGreen = true
+                    this.currentState = 'waiting'
+                    console.log(`🚦🛑 [${this.id}] 車道${this.laneNumber}在停止線停下等待 (燈號：${lightState})`)
                   }
-                  // � 移除手動觀察者：讓 directTrafficLightResponse 統一處理燈號變化
+                  // 🚨 移除手動觀察者：讓 directTrafficLightResponse 統一處理燈號變化
                 } else {
-                  // 綠燈時直接通過
+                  // 綠燈且非左轉車等待時直接通過
                   this.isAtStopLine = false
                   this.hasPassedStopLine = true
                 }
