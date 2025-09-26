@@ -11,7 +11,7 @@ gsap.registerPlugin(MotionPathPlugin)
 
 export default class Vehicle {
   // 靜態屬性：統一控制動畫速度
-  static timeMultiplier = 2 // 🔧 控制整體動畫速度，數字越大動畫越慢，數字越小動畫越快（1.0 = 正常速度）
+  static timeMultiplier = 1 // 🔧 控制整體動畫速度，數字越大動畫越慢，數字越小動畫越快（1.0 = 正常速度）
 
   // 🎯 新增：車輛間距控制配置
   static distanceMultiplier = 1.0 // 控制車輛間距，1.0=預設，2.0=兩倍間距，0.5=一半間距
