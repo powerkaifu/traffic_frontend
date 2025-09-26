@@ -280,6 +280,15 @@ export default class Vehicle {
     // Factory Pattern: 根據車輛配置創建對應的DOM元素
     const vehicleConfig = this.getVehicleConfig()
 
+    // 構建 transform 樣式
+    let transform = ''
+    if (vehicleConfig.rotation !== undefined) {
+      transform += `rotate(${vehicleConfig.rotation}deg) `
+    }
+    if (vehicleConfig.scaleX !== undefined) {
+      transform += `scaleX(${vehicleConfig.scaleX}) `
+    }
+
     const div = document.createElement('div')
     div.className = 'vehicle' // 改為 vehicle 類名
     div.vehicleInstance = this // 保存車輛實例的引用
@@ -293,6 +302,8 @@ export default class Vehicle {
       z-index: 10;
       top: 0;
       left: 0;
+      ${transform ? `transform: ${transform.trim()};` : ''}
+      transform-origin: center center;
     `
     return div
   }
@@ -355,22 +366,22 @@ export default class Vehicle {
 
     const vehicleConfigs = {
       large: {
-        east: { width: 35, height: 20, image: '/images/car/lCar_east.png' },
-        west: { width: 35, height: 20, image: '/images/car/lCar_west.png' },
-        north: { width: 35, height: 20, image: '/images/car/lCar_north.png' },
-        south: { width: 35, height: 20, image: '/images/car/lCar_south.png' },
+        east: { width: 35, height: 20, image: '/images/car/lCar_east.png', rotation: 0 },
+        west: { width: 35, height: 20, image: '/images/car/lCar_east.png', rotation: 0, scaleX: -1 },
+        north: { width: 35, height: 20, image: '/images/car/lCar_east.png', rotation: -90 },
+        south: { width: 35, height: 20, image: '/images/car/lCar_east.png', rotation: 90 },
       },
       small: {
-        east: { width: 30, height: 18, image: '/images/car/sCar_east.png' },
-        west: { width: 30, height: 18, image: '/images/car/sCar_west.png' },
-        north: { width: 30, height: 18, image: '/images/car/sCar_north.png' },
-        south: { width: 30, height: 18, image: '/images/car/sCar_south.png' },
+        east: { width: 30, height: 18, image: '/images/car/sCar_east.png', rotation: 0 },
+        west: { width: 30, height: 18, image: '/images/car/sCar_east.png', rotation: 0, scaleX: -1 },
+        north: { width: 30, height: 18, image: '/images/car/sCar_east.png', rotation: -90 },
+        south: { width: 30, height: 18, image: '/images/car/sCar_east.png', rotation: 90 },
       },
       motor: {
-        east: { width: 25, height: 15, image: '/images/car/mCar_east.png' },
-        west: { width: 25, height: 15, image: '/images/car/mCar_west.png' },
-        north: { width: 25, height: 15, image: '/images/car/mCar_north.png' },
-        south: { width: 25, height: 15, image: '/images/car/mCar_south.png' },
+        east: { width: 25, height: 15, image: '/images/car/mCar_east.png', rotation: 0 },
+        west: { width: 25, height: 15, image: '/images/car/mCar_east.png', rotation: 0, scaleX: -1 },
+        north: { width: 25, height: 15, image: '/images/car/mCar_east.png', rotation: -90 },
+        south: { width: 25, height: 15, image: '/images/car/mCar_east.png', rotation: 90 },
       },
     }
     return vehicleConfigs[this.vehicleType]?.[this.direction] || vehicleConfigs.large.east
