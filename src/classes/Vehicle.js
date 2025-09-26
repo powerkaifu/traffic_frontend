@@ -5,85 +5,18 @@
 import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { speedConfig, stopLineConfig } from './config/trafficConfig.js' // 引入統一的速度設定和停止線配置
+import { SimpleCollisionDetector, CollisionDetectorFactory } from './vehicle_utils/SimpleCollisionDetector.js' // 🚀 新增：簡化碰撞檢測器
 
 // 註冊 GSAP 插件
 gsap.registerPlugin(MotionPathPlugin)
 
 export default class Vehicle {
   // 靜態屬性：統一控制動畫速度
-  static timeMultiplier = 1 // 🔧 控制整體動畫速度，數字越大動畫越慢，數字越小動畫越快（1.0 = 正常速度）
+  static timeMultiplier = 1 // 控制整體動畫速度，數字越小動畫越快（0.4 = 2.5倍速）
 
-  // 🎯 新增：車輛間距控制配置
-  static distanceMultiplier = 1.0 // 控制車輛間距，1.0=預設，2.0=兩倍間距，0.5=一半間距
-  static baseStopDistance = { justStarted: 12, normal: 18 } // 🔧 增加基礎停止距離避免重疊
-  static baseSafeDistance = { justStarted: 15, normal: 25 } // 🔧 增加基礎安全距離
-
-  // 🎯 新增：南北向車輛專用距離調整（參考東西向邏輯，實現一台接著一台排隊）
-  static northSouthDistanceMultiplier = 1.0 // 🚨 修正：與東西向相同，確保車輛正確前進到停止線
-
-  // 🎯 新增：靜態方法用於調整車輛間距配置
-  static setDistanceMultiplier(multiplier) {
-    if (multiplier > 0) {
-      Vehicle.distanceMultiplier = multiplier
-      console.log(`🎯 車輛間距倍數設置為: ${multiplier}`)
-      console.log(
-        `🎯 東西向停止距離: ${Vehicle.baseStopDistance.justStarted * multiplier}px / ${Vehicle.baseStopDistance.normal * multiplier}px`,
-      )
-      console.log(
-        `🎯 東西向安全距離: ${Vehicle.baseSafeDistance.justStarted * multiplier}px / ${Vehicle.baseSafeDistance.normal * multiplier}px`,
-      )
-      console.log(
-        `🎯 南北向停止距離: ${Vehicle.baseStopDistance.justStarted * multiplier * Vehicle.northSouthDistanceMultiplier}px / ${Vehicle.baseStopDistance.normal * multiplier * Vehicle.northSouthDistanceMultiplier}px`,
-      )
-      console.log(
-        `🎯 南北向安全距離: ${Vehicle.baseSafeDistance.justStarted * multiplier * Vehicle.northSouthDistanceMultiplier}px / ${Vehicle.baseSafeDistance.normal * multiplier * Vehicle.northSouthDistanceMultiplier}px`,
-      )
-    }
-  }
-
-  // 🎯 新增：設置南北向專用距離倍數
-  static setNorthSouthDistanceMultiplier(multiplier) {
-    if (multiplier > 0) {
-      Vehicle.northSouthDistanceMultiplier = multiplier
-      console.log(`🎯 南北向距離倍數設置為: ${multiplier}`)
-      console.log(
-        `🎯 南北向有效停止距離: ${Vehicle.baseStopDistance.justStarted * Vehicle.distanceMultiplier * multiplier}px / ${Vehicle.baseStopDistance.normal * Vehicle.distanceMultiplier * multiplier}px`,
-      )
-      console.log(
-        `🎯 南北向有效安全距離: ${Vehicle.baseSafeDistance.justStarted * Vehicle.distanceMultiplier * multiplier}px / ${Vehicle.baseSafeDistance.normal * Vehicle.distanceMultiplier * multiplier}px`,
-      )
-    }
-  }
-
-  // 🎯 新增：獲取當前距離配置的靜態方法
-  static getDistanceConfig() {
-    return {
-      distanceMultiplier: Vehicle.distanceMultiplier,
-      northSouthDistanceMultiplier: Vehicle.northSouthDistanceMultiplier,
-      eastWestActualDistance: {
-        stopDistance: {
-          justStarted: Vehicle.baseStopDistance.justStarted * Vehicle.distanceMultiplier,
-          normal: Vehicle.baseStopDistance.normal * Vehicle.distanceMultiplier,
-        },
-        safeDistance: {
-          justStarted: Vehicle.baseSafeDistance.justStarted * Vehicle.distanceMultiplier,
-          normal: Vehicle.baseSafeDistance.normal * Vehicle.distanceMultiplier,
-        },
-      },
-      northSouthActualDistance: {
-        stopDistance: {
-          justStarted:
-            Vehicle.baseStopDistance.justStarted * Vehicle.distanceMultiplier * Vehicle.northSouthDistanceMultiplier,
-          normal: Vehicle.baseStopDistance.normal * Vehicle.distanceMultiplier * Vehicle.northSouthDistanceMultiplier,
-        },
-        safeDistance: {
-          justStarted:
-            Vehicle.baseSafeDistance.justStarted * Vehicle.distanceMultiplier * Vehicle.northSouthDistanceMultiplier,
-          normal: Vehicle.baseSafeDistance.normal * Vehicle.distanceMultiplier * Vehicle.northSouthDistanceMultiplier,
-        },
-      },
-    }
-  }
+  // 🚨 新增：全局抖動抑制機制
+  static antiShakeGlobalCooldown = 100 // 全局冷卻時間（毫秒）
+  static lastGlobalAdjustTime = 0 // 上次全局調整時間
 
   constructor(x, y, direction = 'east', vehicleType = 'large', laneNumber = 1) {
     // Factory Pattern: 根據不同參數創建不同類型的車輛實例
@@ -101,14 +34,6 @@ export default class Vehicle {
     this.periodicCheckTimer = null // 定期檢查定時器
     this.containerPosition = null // 記錄容器位置，用於檢測佈局變化
     this.justCreated = true // 新增：標記車輛剛創建，避免立即檢測碰撞
-    this.createdTimestamp = Date.now() // 🚨 新增：記錄創建時間
-    this.protectionPeriod = 1000 // 🚨 新增：保護期1秒，避免剛生成就被碰撞檢測影響
-
-    // 🚨 新增：自動清除保護狀態
-    setTimeout(() => {
-      this.justCreated = false
-      console.log(`🚗 [${this.id}] 保護期結束，開始正常碰撞檢測`)
-    }, this.protectionPeriod)
 
     // 🚨 新增：防抖動機制
     this.lastPositionAdjustTime = 0 // 上次位置調整時間
@@ -185,6 +110,10 @@ export default class Vehicle {
     this.collisionCheckInterval = 100 // 碰撞檢查間隔（毫秒）
     this.criticalZoneThreshold = 50 // 危險區域閾值（像素）
     this.nearbyVehicleRange = 100 // 附近車輛檢查範圍（像素）
+
+    // 🚀 新增：簡化碰撞檢測器
+    this.collisionDetector = CollisionDetectorFactory.createForLane(this, laneNumber)
+    console.log(`🔧 [${this.id}] 簡化碰撞檢測器已初始化，車道: ${laneNumber}`)
   }
 
   // 🚨 新增：防停滯機制
@@ -215,14 +144,7 @@ export default class Vehicle {
       const trafficController = window.trafficController
       if (trafficController && this.direction) {
         const currentLightState = trafficController.getCurrentLightState(this.direction)
-
-        // 🔧 修正：檢查車道對應的綠燈狀態
-        const isGreenForLane =
-          this.laneNumber === 1
-            ? currentLightState === 'leftGreen' // 左轉車道檢查leftGreen
-            : currentLightState === 'green' // 直行車道檢查green
-
-        if (isGreenForLane && !this.hasPassedStopLine) {
+        if (currentLightState === 'green' && !this.hasPassedStopLine) {
           console.log(`🚨 [${this.id}] 綠燈但停滯(${(stuckDuration / 1000).toFixed(1)}s)，執行強制恢復`)
           this.forceUnstuck()
         } else if (currentLightState === 'red' || currentLightState === 'allRed') {
@@ -244,17 +166,9 @@ export default class Vehicle {
         return
       }
 
-      // 🚨 修改：檢查車道對應的綠燈狀態
       const currentLightState = trafficController.getCurrentLightState(this.direction)
-
-      // 根據車道檢查對應的綠燈狀態
-      const shouldProceed =
-        this.laneNumber === 1
-          ? currentLightState === 'leftGreen' // 左轉車道檢查leftGreen
-          : currentLightState === 'green' // 直行車道檢查green
-
-      if (!shouldProceed) {
-        console.log(`🛑 [${this.id}] 車道${this.laneNumber} ${currentLightState}燈狀態，不執行強制恢復`)
+      if (currentLightState !== 'green') {
+        console.log(`🛑 [${this.id}] ${currentLightState}燈狀態，不執行強制恢復`)
         return
       }
 
@@ -353,11 +267,10 @@ export default class Vehicle {
     // 使用統一的動畫速度控制
     const adjustedTheoretical = theoreticalTime * Vehicle.timeMultiplier
 
-    // 調整時間範圍以適應新的速度 - 🔧 根據 timeMultiplier 動態調整上限
-    const baseMaxTime = 15
-    const dynamicMaxTime = baseMaxTime * Math.max(1, Vehicle.timeMultiplier) // 允許更長的動畫時間
+    // 調整時間範圍以適應新的速度
     const minTime = 3 // 最短3秒
-    const adjustedTime = Math.max(minTime, Math.min(dynamicMaxTime, adjustedTheoretical))
+    const maxTime = 15 // 最長15秒
+    const adjustedTime = Math.max(minTime, Math.min(maxTime, adjustedTheoretical))
 
     return adjustedTime
   }
@@ -395,19 +308,19 @@ export default class Vehicle {
     let labelTransform = ''
     switch (this.direction) {
       case 'east':
-        labelTransform = 'top: 0px; left: 50%; transform: translateX(-50%);'
+        labelTransform = 'top: -8px; left: 50%; transform: translateX(-50%);'
         break
       case 'west':
-        labelTransform = 'top: 0px; left: 50%; transform: translateX(-50%) rotate(180deg);'
+        labelTransform = 'top: 5px; left: 50%; transform: translateX(-50%) rotate(180deg);'
         break
       case 'north':
-        labelTransform = 'top: 0px; left: 50%; transform: translateX(-50%) rotate(90deg);'
+        labelTransform = 'top: 5px; left: 50%; transform: translateX(-50%) rotate(90deg);'
         break
       case 'south':
-        labelTransform = 'top: 0px; left: 50%; transform: translateX(-50%) rotate(-90deg);'
+        labelTransform = 'top: -8px; left: 50%; transform: translateX(-50%) rotate(-90deg);'
         break
       default:
-        labelTransform = 'top: 0px; left: 50%; transform: translateX(-50%);'
+        labelTransform = 'top: -8px; left: 50%; transform: translateX(-50%);'
     }
 
     this.laneLabel.style.cssText = `
@@ -440,28 +353,27 @@ export default class Vehicle {
     // Factory Pattern: 基於車輛類型和方向創建配置
     // Strategy Pattern: 每種車輛類型和方向組合都有不同的策略
 
-    // 🚨 車輛圖片統一配置：所有方向都使用東向圖片，由 autoRotate 處理正確朝向
     const vehicleConfigs = {
       large: {
         east: { width: 35, height: 20, image: '/images/car/lCar_east.png' },
-        west: { width: 35, height: 20, image: '/images/car/lCar_east.png' }, // 使用東向圖片，由 autoRotate 旋轉
-        north: { width: 35, height: 20, image: '/images/car/lCar_east.png' }, // 統一尺寸避免圖片縮小
-        south: { width: 35, height: 20, image: '/images/car/lCar_east.png' }, // 統一尺寸避免圖片縮小
+        west: { width: 35, height: 20, image: '/images/car/lCar_west.png' },
+        north: { width: 35, height: 20, image: '/images/car/lCar_north.png' },
+        south: { width: 35, height: 20, image: '/images/car/lCar_south.png' },
       },
       small: {
         east: { width: 30, height: 18, image: '/images/car/sCar_east.png' },
-        west: { width: 30, height: 18, image: '/images/car/sCar_east.png' }, // 使用東向圖片，由 autoRotate 旋轉
-        north: { width: 30, height: 18, image: '/images/car/sCar_east.png' }, // 統一尺寸避免圖片縮小
-        south: { width: 30, height: 18, image: '/images/car/sCar_east.png' }, // 統一尺寸避免圖片縮小
+        west: { width: 30, height: 18, image: '/images/car/sCar_west.png' },
+        north: { width: 30, height: 18, image: '/images/car/sCar_north.png' },
+        south: { width: 30, height: 18, image: '/images/car/sCar_south.png' },
       },
       motor: {
         east: { width: 25, height: 15, image: '/images/car/mCar_east.png' },
-        west: { width: 25, height: 15, image: '/images/car/mCar_east.png' }, // 使用東向圖片，由 autoRotate 旋轉
-        north: { width: 25, height: 15, image: '/images/car/mCar_east.png' }, // 統一尺寸避免圖片縮小
-        south: { width: 25, height: 15, image: '/images/car/mCar_east.png' }, // 統一尺寸避免圖片縮小
+        west: { width: 25, height: 15, image: '/images/car/mCar_west.png' },
+        north: { width: 25, height: 15, image: '/images/car/mCar_north.png' },
+        south: { width: 25, height: 15, image: '/images/car/mCar_south.png' },
       },
     }
-    return vehicleConfigs[this.vehicleType]?.[this.direction] || vehicleConfigs.large[this.direction]
+    return vehicleConfigs[this.vehicleType]?.[this.direction] || vehicleConfigs.large.east
   }
 
   // Strategy Pattern: 根據方向計算停止線位置的策略方法
@@ -660,14 +572,8 @@ export default class Vehicle {
 
     const lightState = trafficController.getCurrentLightState(this.direction)
 
-    // 🔧 修正：檢查車道對應的綠燈狀態
-    const isGreenForLane =
-      this.laneNumber === 1
-        ? lightState === 'leftGreen' // 左轉車道檢查leftGreen
-        : lightState === 'green' // 直行車道檢查green
-
     // 綠燈：恢復正常速度（如果之前在減速）
-    if (isGreenForLane) {
+    if (lightState === 'green') {
       if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
         return { action: 'resume_from_slow' }
       }
@@ -701,30 +607,6 @@ export default class Vehicle {
     return {
       x: gsap.getProperty(this.element, 'x'),
       y: gsap.getProperty(this.element, 'y'),
-    }
-  }
-
-  // 🚨 新增：即時更新車輛位置資訊到全域列表
-  updateCurrentPosition() {
-    if (!this.element) return
-
-    const newPos = this.getCurrentPosition()
-
-    // 只在位置真正變化時更新
-    if (
-      !this.currentPosition ||
-      Math.abs(this.currentPosition.x - newPos.x) > 1 ||
-      Math.abs(this.currentPosition.y - newPos.y) > 1
-    ) {
-      this.currentPosition = newPos
-
-      // 更新到全域車輛列表中對應的物件
-      if (window.liveVehicles) {
-        const vehicleInList = window.liveVehicles.find((v) => v.id === this.id)
-        if (vehicleInList) {
-          vehicleInList.currentPosition = { ...newPos }
-        }
-      }
     }
   }
 
@@ -881,27 +763,16 @@ export default class Vehicle {
     return nearStopLine || isMoving || this.currentState === 'moving'
   }
 
-  // 🎯 修正：智能碰撞檢查 - 確保等待紅燈狀態下也能正常檢測
+  // 🎯 新增：智能碰撞檢查
   smartCollisionCheck(allVehicles) {
     const currentTime = Date.now()
     const timeSinceLastCheck = currentTime - this.lastCollisionCheck
 
-    // 🚦 強化修正：左轉車輛必須更頻繁地進行碰撞檢測以避免重疊
-    const isLeftTurnVehicle = this.laneNumber === 1
+    // 智能檢查策略
     const shouldCheck =
-      timeSinceLastCheck > (isLeftTurnVehicle ? this.collisionCheckInterval * 0.5 : this.collisionCheckInterval) || // 左轉車檢查頻率加倍
+      timeSinceLastCheck > this.collisionCheckInterval || // 定期檢查
       this.isInCriticalZone() || // 危險區域
-      this.currentState === 'moving' || // 移動狀態
-      this.currentState === 'waiting' || // 🔧 等待狀態需檢查（關鍵！）
-      this.currentState === 'following' || // 跟車狀態需檢查
-      this.currentState === 'approaching_stop_line' || // 接近停止線狀態需檢查
-      this.currentState === 'slowing_for_light' || // 🔧 新增：為燈號減速狀態
-      this.currentState === 'slowing_for_red' || // 🔧 新增：為紅燈減速狀態
-      this.currentState === 'waitingForVehicle' || // 🔧 新增：等待前車狀態
-      this.waitingForGreen || // 等待綠燈狀態需檢查（關鍵！）
-      this.isAtStopLine || // 🔧 新增：在停止線的車輛必須檢查
-      (this.movementTimeline && this.movementTimeline.timeScale() >= 0) || // 🔧 修正：包含停止狀態(timeScale=0)
-      isLeftTurnVehicle // 🚨 左轉車強制檢查
+      this.currentState === 'moving' // 移動狀態
 
     if (!shouldCheck) {
       return null // 跳過檢查，節省性能
@@ -916,376 +787,60 @@ export default class Vehicle {
       return null // 附近沒有車輛，節省性能
     }
 
+    // 🎯 性能優化：記錄檢查數量對比
+    if (Math.random() < 0.01) {
+      // 1%概率記錄（避免日誌過多）
+      console.log(`🎯 [${this.id}] 智能檢查: 從${allVehicles.length}台車縮減到${nearbyVehicles.length}台車`)
+    }
+
     // 使用原有的碰撞檢查邏輯，但只檢查附近車輛
     return this.performDetailedCollisionCheck(nearbyVehicles)
   }
 
   // 🎯 新增：詳細碰撞檢查（從原 checkSimpleCollision 分離出來）
   performDetailedCollisionCheck(vehicles) {
-    // 🚨 修改保護邏輯：保護期內的車輛可以檢測但不會完全停止
-    const isInProtectionPeriod = this.justCreated && Date.now() - this.createdTimestamp < this.protectionPeriod
-
-    if (isInProtectionPeriod) {
-      // 保護期內只做簡單檢測，不完全停止
-      const currentBox = this.getBoundingBox()
-      const currentPos = this.getCurrentPosition()
-
-      for (let vehicle of vehicles) {
-        if (!vehicle.element || !vehicle.element.parentNode || vehicle.id === this.id) continue
-
-        const otherBox = vehicle.getBoundingBox()
-        const otherPos = vehicle.getCurrentPosition()
-
-        // 快速距離檢測
-        let distance = 0
-        let isSameLaneAndFront = false
-
-        if (this.direction === 'east') {
-          isSameLaneAndFront =
-            Math.abs(currentPos.y - otherPos.y) < 25 &&
-            this.laneNumber === vehicle.laneNumber &&
-            otherBox.left > currentBox.right
-          distance = isSameLaneAndFront ? otherBox.left - currentBox.right : Infinity
-        } else if (this.direction === 'west') {
-          isSameLaneAndFront =
-            Math.abs(currentPos.y - otherPos.y) < 25 &&
-            this.laneNumber === vehicle.laneNumber &&
-            otherBox.right < currentBox.left
-          distance = isSameLaneAndFront ? currentBox.left - otherBox.right : Infinity
-        } else if (this.direction === 'north') {
-          isSameLaneAndFront =
-            Math.abs(currentPos.x - otherPos.x) < 25 &&
-            this.laneNumber === vehicle.laneNumber &&
-            otherBox.bottom < currentBox.top
-          distance = isSameLaneAndFront ? currentBox.top - otherBox.bottom : Infinity
-        } else if (this.direction === 'south') {
-          isSameLaneAndFront =
-            Math.abs(currentPos.x - otherPos.x) < 25 &&
-            this.laneNumber === vehicle.laneNumber &&
-            otherBox.top > currentBox.bottom
-          distance = isSameLaneAndFront ? otherBox.top - currentBox.bottom : Infinity
-        }
-
-        // 保護期內如果距離很近，只減速到70%而不完全停止
-        if (isSameLaneAndFront && distance < 50) {
-          console.log(`🛡️ [${this.id}] 保護期內檢測到前車距離${Math.round(distance)}px，減速至70%`)
-          if (this.movementTimeline) {
-            this.movementTimeline.timeScale(0.7)
-          }
-          return { action: 'slow', reason: '保護期減速避讓', distance: distance }
-        }
-      }
-
-      return null // 保護期內沒有緊急狀況
+    // 跳過剛創建的車輛
+    if (this.justCreated) {
+      return null
     }
 
     const currentBox = this.getBoundingBox()
-    const currentPos = this.getCurrentPosition()
-
-    // 🎯 使用靜態距離配置系統（南北向專用調整）
-    const isJustStartedMoving =
-      this.currentState === 'moving' &&
-      this.movementStartTime &&
-      Date.now() - new Date(this.movementStartTime).getTime() < 2000
-
-    // 🎯 南北向車輛使用專門的距離倍數
-    const directionMultiplier =
-      this.direction === 'north' || this.direction === 'south' ? Vehicle.northSouthDistanceMultiplier : 1.0
-    const effectiveDistanceMultiplier = Vehicle.distanceMultiplier * directionMultiplier
-
-    // 🎯 使用靜態配置計算距離
-    const baseStopDist = isJustStartedMoving ? Vehicle.baseStopDistance.justStarted : Vehicle.baseStopDistance.normal
-    const baseSafeDist = isJustStartedMoving ? Vehicle.baseSafeDistance.justStarted : Vehicle.baseSafeDistance.normal
-
-    const safeDistance = baseSafeDist * effectiveDistanceMultiplier // 應用方向相關距離倍數
-    const stopDistance = baseStopDist * effectiveDistanceMultiplier // 應用方向相關距離倍數    // 根據車輛狀態調整距離
-    let adjustedSafeDistance = safeDistance
-    let adjustedStopDistance = stopDistance
-
-    // 🔧 統一的距離調整邏輯，避免重複計算
-    let baseMultiplier = 1.0
-
-    // 根據車輛狀態決定基本倍數
-    if (
-      this.currentState === 'waiting' ||
-      this.currentState === 'slowing_for_light' ||
-      this.currentState === 'slowing_for_red' ||
-      this.currentState === 'waitingForVehicle' ||
-      this.waitingForGreen ||
-      this.isAtStopLine
-    ) {
-      // 🚨 修復：統一的等待狀態距離倍數，避免重複計算
-      baseMultiplier = this.laneNumber === 1 ? 2.0 : 1.8 // 左轉車稍微大一點但不過度
-    } else if (this.currentState === 'moving') {
-      // 移動狀態的基本倍數
-      baseMultiplier = this.laneNumber === 1 ? 1.2 : 1.0
-    }
-
-    // 🔧 一次性計算最終距離，不重複調整
-    adjustedSafeDistance = safeDistance * baseMultiplier
-    adjustedStopDistance = stopDistance * baseMultiplier
-
-    console.log(
-      `� [${this.id}] 距離計算: 車道${this.laneNumber}, 狀態${this.currentState}, 倍數${baseMultiplier}, 停止=${adjustedStopDistance.toFixed(1)}px, 安全=${adjustedSafeDistance.toFixed(1)}px`,
-    )
+    const UNIFORM_GAP = 12 // 統一安全距離（適用於所有車輛狀態）
 
     for (let vehicle of vehicles) {
-      if (!vehicle.element || !vehicle.element.parentNode) continue
-
       const otherBox = vehicle.getBoundingBox()
-      const otherPos = vehicle.getCurrentPosition()
-
-      let inSameLane = false
-      let isFront = false
       let distance = 0
+      let isFrontVehicle = false
 
-      // 精確的方向和距離計算
+      // 簡單方向檢測
       if (this.direction === 'east') {
-        // 🔧 同時檢查位置和車道號碼確保是同車道
-        inSameLane = Math.abs(currentPos.y - otherPos.y) < 25 && this.laneNumber === vehicle.laneNumber
-        isFront = otherBox.left > currentBox.right
-        distance = isFront ? otherBox.left - currentBox.right : 0
-        // 調試信息：東向車輛距離計算（加入車道檢查）
-        if (isFront && distance < 20) {
-          console.log(
-            `🚗 [${this.id}] 東向車道${this.laneNumber}距離檢測: 前車${vehicle.id}(車道${vehicle.laneNumber}), 距離=${distance.toFixed(1)}px, 同車道=${inSameLane}`,
-          )
-        }
+        isFrontVehicle = otherBox.centerX > currentBox.centerX && Math.abs(otherBox.centerY - currentBox.centerY) < 30
+        distance = isFrontVehicle ? otherBox.left - currentBox.right : 0
       } else if (this.direction === 'west') {
-        // 🔧 同時檢查位置和車道號碼確保是同車道
-        inSameLane = Math.abs(currentPos.y - otherPos.y) < 25 && this.laneNumber === vehicle.laneNumber
-        isFront = otherBox.right < currentBox.left
-        distance = isFront ? currentBox.left - otherBox.right : 0
-        // 調試信息：西向車輛距離計算（加入車道檢查）
-        if (isFront && distance < 20) {
-          console.log(
-            `🚗 [${this.id}] 西向車道${this.laneNumber}距離檢測: 前車${vehicle.id}(車道${vehicle.laneNumber}), 距離=${distance.toFixed(1)}px, 同車道=${inSameLane}`,
-          )
-        }
+        isFrontVehicle = otherBox.centerX < currentBox.centerX && Math.abs(otherBox.centerY - currentBox.centerY) < 30
+        distance = isFrontVehicle ? currentBox.left - otherBox.right : 0
       } else if (this.direction === 'north') {
-        // 🔧 北向車輛：同時檢查位置和車道號碼
-        inSameLane = Math.abs(currentPos.x - otherPos.x) < 25 && this.laneNumber === vehicle.laneNumber
-        isFront = otherBox.bottom < currentBox.top
-        distance = isFront ? currentBox.top - otherBox.bottom : 0
-        // 🎯 北向車輛距離檢測調試（加入車道檢查）
-        if (isFront && distance < 20) {
-          console.log(
-            `🚗 [${this.id}] 北向車道${this.laneNumber}距離檢測: 前車${vehicle.id}(車道${vehicle.laneNumber}), 距離=${distance.toFixed(1)}px, 同車道=${inSameLane}`,
-          )
-        }
+        isFrontVehicle = otherBox.centerY < currentBox.centerY && Math.abs(otherBox.centerX - currentBox.centerX) < 30
+        distance = isFrontVehicle ? currentBox.top - otherBox.bottom : 0
       } else if (this.direction === 'south') {
-        // 🔧 南向車輛：同時檢查位置和車道號碼
-        inSameLane = Math.abs(currentPos.x - otherPos.x) < 25 && this.laneNumber === vehicle.laneNumber
-        isFront = otherBox.top > currentBox.bottom
-        distance = isFront ? otherBox.top - currentBox.bottom : 0
-        // 🎯 南向車輛距離檢測調試（加入車道檢查）
-        if (isFront && distance < 20) {
-          console.log(
-            `🚗 [${this.id}] 南向車道${this.laneNumber}距離檢測: 前車${vehicle.id}(車道${vehicle.laneNumber}), 距離=${distance.toFixed(1)}px, 同車道=${inSameLane}`,
-          )
-        }
+        isFrontVehicle = otherBox.centerY > currentBox.centerY && Math.abs(otherBox.centerX - currentBox.centerX) < 30
+        distance = isFrontVehicle ? otherBox.top - currentBox.bottom : 0
       }
 
-      // 🚨 強化重疊檢測：更嚴格的重疊判定，特別針對左轉車
-      let isOverlapping = false
-      if (this.direction === 'east' || this.direction === 'west') {
-        // 水平方向重疊檢測：考慮車輛實際大小
-        const horizontalOverlap = !(currentBox.right <= otherBox.left || currentBox.left >= otherBox.right)
-        const verticalAlignment = Math.abs(currentPos.y - otherPos.y) < (this.laneNumber === 1 ? 20 : 25) // 🔧 左轉車更嚴格
-        isOverlapping = horizontalOverlap && verticalAlignment && inSameLane
-      } else {
-        // 垂直方向重疊檢測：考慮車輛實際大小
-        const verticalOverlap = !(currentBox.bottom <= otherBox.top || currentBox.top >= otherBox.bottom)
-        const horizontalAlignment = Math.abs(currentPos.x - otherPos.x) < (this.laneNumber === 1 ? 20 : 25) // 🔧 左轉車更嚴格
-        isOverlapping = verticalOverlap && horizontalAlignment && inSameLane
-      }
+      if (isFrontVehicle && distance < UNIFORM_GAP && distance >= 0) {
+        // 檢查前方車輛狀態
+        const isAtStopLine = vehicle.isAtStopLine || vehicle.waitingForGreen
+        const isMoving =
+          vehicle.movementTimeline && vehicle.movementTimeline.timeScale() > 0 && !vehicle.movementTimeline.paused()
 
-      // 🔧 額外的左轉車重疊檢測：如果距離過近也視為重疊
-      if (!isOverlapping && this.laneNumber === 1 && inSameLane && isFront && distance < 8) {
-        console.log(`🚨 [${this.id}] 左轉車距離過近視為重疊: ${distance.toFixed(1)}px`)
-        isOverlapping = true
-      }
-
-      if (isOverlapping) {
-        console.log(
-          `🚨 [${this.id}] 檢測到車輛重疊！前車: ${vehicle.id}, 當前狀態: ${this.currentState}, 車道: ${this.laneNumber}`,
-        )
         return {
-          action: 'stop',
-          vehicle: vehicle,
-          distance: Math.max(0, distance),
           shouldStop: true,
-          shouldFollow: false,
-          followingSpeed: null,
-          targetTimeScale: 0,
-          isOverlapping: true,
-          reason: `車輛重疊，強制停止 (車道${this.laneNumber})`,
+          vehicle: vehicle,
+          distance: distance,
+          requiredGap: UNIFORM_GAP,
+          frontVehicleAtStopLine: isAtStopLine,
+          frontVehicleIsMoving: isMoving,
         }
-      }
-
-      // 檢查是否在前方且距離需要處理
-      if (inSameLane && isFront && distance < adjustedSafeDistance) {
-        // 🚨 關鍵修正：等待紅燈時的特殊處理邏輯
-        if (
-          this.currentState === 'waiting' ||
-          this.currentState === 'waitingForVehicle' ||
-          this.waitingForGreen ||
-          this.isAtStopLine
-        ) {
-          console.log(
-            `🚦🛑 [${this.id}] 等待紅燈時檢測前車距離: ${distance.toFixed(1)}px (需求停止: ${adjustedStopDistance.toFixed(1)}px)`,
-          )
-
-          if (distance <= adjustedStopDistance) {
-            return {
-              action: 'stop',
-              vehicle: vehicle,
-              distance: distance,
-              shouldStop: true,
-              shouldFollow: false,
-              followingSpeed: 0,
-              targetTimeScale: 0,
-              isOverlapping: distance < 5,
-              reason: '等待紅燈時距離太近需完全停止',
-            }
-          } else {
-            // 距離適中，使用非常慢的速度慢慢調整到合適位置
-            const targetTimeScale = Math.min(0.1, distance / adjustedSafeDistance) // 非常保守的速度
-            return {
-              action: 'follow',
-              vehicle: vehicle,
-              distance: distance,
-              shouldStop: false,
-              shouldFollow: true,
-              followingSpeed: this.initialSpeed * targetTimeScale,
-              targetTimeScale: targetTimeScale,
-              frontVehicleIsMoving: this.isFrontVehicleMoving(vehicle),
-              frontVehicleAtStopLine: this.isFrontVehicleAtStopLine(vehicle),
-              isOverlapping: false,
-              reason: `等待紅燈慢速調整，距離${distance.toFixed(1)}px`,
-            }
-          }
-        }
-
-        // 🎯 修復：檢查是否應該前進到停止線，但必須確保不重疊
-        const distanceToStopLine = this.getDistanceToStopLine()
-        const trafficController = this.trafficLightController
-        const currentLightState = trafficController?.getCurrentLightState(this.direction)
-
-        // 🚨 關鍵修復：左轉車的前進條件更嚴格，避免重疊
-        let shouldContinueToStopLine = false
-
-        if (this.laneNumber === 1) {
-          // 🔧 左轉車道：更嚴格的條件檢查
-          const hasRoomToContinue = distance > adjustedStopDistance * 1.5 // 🔧 降低到1.5倍，更保守
-          const frontVehicleIsMoving =
-            vehicle.currentState === 'moving' && vehicle.movementTimeline && vehicle.movementTimeline.timeScale() > 0.1
-          const canSafelyFollow =
-            !vehicle.waitingForGreen && !vehicle.isAtStopLine && vehicle.currentState !== 'waiting'
-
-          shouldContinueToStopLine =
-            currentLightState !== 'leftGreen' &&
-            distanceToStopLine &&
-            distanceToStopLine > 30 && // 🔧 增加到30px更安全
-            hasRoomToContinue &&
-            (frontVehicleIsMoving || canSafelyFollow) // 🔧 前車必須在移動或可安全跟隨
-
-          console.log(
-            `🚗 [${this.id}] 左轉車前進條件檢查: 距離前車=${distance.toFixed(1)}px, 距停止線=${distanceToStopLine}px, 前車移動=${frontVehicleIsMoving}, 可跟隨=${canSafelyFollow}, 決定=${shouldContinueToStopLine}`,
-          )
-        } else {
-          // 🔧 直行車道：同樣更嚴格的條件
-          const hasRoomToContinue = distance > adjustedStopDistance * 1.5
-          const frontVehicleIsMoving =
-            vehicle.currentState === 'moving' && vehicle.movementTimeline && vehicle.movementTimeline.timeScale() > 0.1
-          const canSafelyFollow =
-            !vehicle.waitingForGreen && !vehicle.isAtStopLine && vehicle.currentState !== 'waiting'
-
-          shouldContinueToStopLine =
-            (currentLightState === 'red' ||
-              currentLightState === 'allRed' ||
-              currentLightState === 'yellow' ||
-              currentLightState === 'leftGreen') &&
-            distanceToStopLine &&
-            distanceToStopLine > 30 && // 🔧 增加到30px
-            hasRoomToContinue &&
-            (frontVehicleIsMoving || canSafelyFollow) // 🔧 前車必須在移動或可安全跟隨
-        }
-
-        // 🔧 強化修正：優先檢查前車等待狀態，防止重疊
-        const frontVehicleWaiting = vehicle.waitingForGreen || vehicle.currentState === 'waiting'
-
-        // 如果前車正在等待，強制執行碰撞檢測，即使可以繼續到停止線
-        if (frontVehicleWaiting && this.laneNumber === 1 && distance <= adjustedSafeDistance * 2) {
-          console.log(
-            `🚨 [${this.id}] 左轉車道強制停止: 前車${vehicle.id}正在等待(狀態:${vehicle.currentState}, 等待:${vehicle.waitingForGreen}), 距離=${distance.toFixed(1)}px`,
-          )
-          // 不返回null，繼續執行碰撞檢測
-        } else if (shouldContinueToStopLine) {
-          // 只有在前車不在等待狀態時才允許繼續前進到停止線
-          const laneType = this.laneNumber === 1 ? '左轉' : '直行'
-          const waitingFor = this.laneNumber === 1 ? '左轉綠燈' : '直行綠燈'
-          console.log(
-            `🚦 [${this.id}] ${this.direction}向${laneType}車輛繼續前進到停止線等待${waitingFor}: 距停止線${distanceToStopLine.toFixed(1)}px, 前車距離${distance.toFixed(1)}px`,
-          )
-          return null // 不停車，繼續前進到停止線
-        }
-
-        // 🎯 優化距離控制：提供更細緻的速度控制以防止重疊
-        if (distance <= adjustedStopDistance) {
-          // 完全停止的情況
-          return {
-            action: 'stop',
-            vehicle: vehicle,
-            distance: distance,
-            shouldStop: true,
-            shouldFollow: false,
-            followingSpeed: 0,
-            targetTimeScale: 0,
-            isOverlapping: distance < 5,
-            reason: '距離太近需完全停止',
-          }
-        }
-
-        // 🎯 參考 c24a1ff commit：計算跟車理想距離並提供漸進式速度控制
-        const followingDistance = adjustedSafeDistance * 1.2 // 增加跟車距離
-        const shouldFollow = distance > adjustedStopDistance && distance <= followingDistance
-
-        if (shouldFollow) {
-          // 計算基於距離的漸進式速度
-          let targetTimeScale = 0.3 // 基本跟車速度
-
-          if (distance > adjustedStopDistance * 3) {
-            targetTimeScale = 0.8 // 距離充足時較快速度
-          } else if (distance > adjustedStopDistance * 2) {
-            targetTimeScale = 0.6 // 適中距離時中等速度
-          } else if (distance > adjustedStopDistance * 1.5) {
-            targetTimeScale = 0.4 // 較近時低速
-          }
-
-          // 🔧 等待綠燈狀態下的特殊處理：使用更保守的速度
-          if (this.waitingForGreen) {
-            targetTimeScale = Math.min(targetTimeScale, 0.3)
-            console.log(`🚦 [${this.id}] 等待綠燈狀態跟車速度限制: ${(targetTimeScale * 100).toFixed(0)}%`)
-          }
-
-          return {
-            action: 'follow',
-            vehicle: vehicle,
-            distance: distance,
-            shouldStop: false,
-            shouldFollow: true,
-            followingSpeed: this.calculateFollowingSpeed(vehicle, distance, followingDistance),
-            targetTimeScale: targetTimeScale,
-            frontVehicleIsMoving: this.isFrontVehicleMoving(vehicle),
-            frontVehicleAtStopLine: this.isFrontVehicleAtStopLine(vehicle),
-            isOverlapping: false,
-            reason: `跟車模式，距離${distance.toFixed(1)}px`,
-          }
-        }
-
-        // 距離安全，不需要特殊處理
-        return null
       }
     }
 
@@ -1293,8 +848,8 @@ export default class Vehicle {
   }
 
   checkSimpleCollision(allVehicles) {
-    // 🎯 使用智能碰撞檢查，優化性能
-    return this.smartCollisionCheck(allVehicles)
+    // 🚀 使用新的簡化碰撞檢測器
+    return this.collisionDetector.detectCollision(allVehicles)
   }
 
   // 🚨 移除：setDebouncedTimeScale 方法已不再需要，使用直接的 timeScale 設置
@@ -1306,125 +861,6 @@ export default class Vehicle {
 
   // 🚨 移除：不再使用複雜的跟車模式，使用統一的停止/繼續邏輯
   // enterFollowingMode 和 exitFollowingMode 已被移除
-
-  // 🎯【新增】跟車模式系統（基於歷史版本優化）
-  enterFollowingMode(targetSpeed) {
-    if (!this.movementTimeline) return
-
-    // 避免重複設置相同的跟車速度
-    if (
-      this.currentState === 'following' &&
-      Math.abs(this.movementTimeline.timeScale() * this.initialSpeed - targetSpeed) < 2
-    ) {
-      return
-    }
-
-    this.currentState = 'following'
-
-    // 計算目標timeScale，基於初始速度和目標速度的比例
-    const baseTimeScale = this.originalTimeScale || 1
-    const targetTimeScale = (targetSpeed / this.initialSpeed) * baseTimeScale
-
-    // 平滑調整到目標速度
-    gsap.to(this.movementTimeline, {
-      timeScale: Math.max(0.1, targetTimeScale), // 最低timeScale為0.1
-      duration: 0.5,
-      ease: 'power2.out',
-    })
-
-    console.log(`🚗 [${this.id}] 進入跟車模式，目標速度: ${targetSpeed}km/h`)
-  }
-
-  // 退出跟車模式恢復正常速度
-  exitFollowingMode() {
-    if (!this.movementTimeline || this.currentState !== 'following') return
-
-    this.currentState = 'moving'
-    const targetTimeScale = this.originalTimeScale || 1
-
-    gsap.to(this.movementTimeline, {
-      timeScale: targetTimeScale,
-      duration: 0.3,
-      ease: 'power2.inOut',
-    })
-
-    console.log(`🚗 [${this.id}] 退出跟車模式，恢復正常速度`)
-  }
-
-  // 🎯 智能跟車速度計算（歷史版本邏輯）
-  calculateFollowingSpeed(frontVehicle, distance, idealDistance) {
-    let frontVehicleSpeed = frontVehicle.currentSpeed || frontVehicle.initialSpeed || this.initialSpeed
-
-    // 🎯 參考 c24a1ff commit：前車狀態更精確判斷
-    if (
-      frontVehicle.currentState === 'waiting' ||
-      frontVehicle.currentState === 'waitingForVehicle' ||
-      frontVehicle.currentState === 'stopped' ||
-      frontVehicle.waitingForGreen ||
-      (frontVehicle.movementTimeline && frontVehicle.movementTimeline.timeScale() < 0.1)
-    ) {
-      return 0
-    }
-
-    // 🎯 歷史版本邏輯：更緊密的跟車距離控制
-    const distanceFactor = Math.min(1, distance / idealDistance)
-
-    // 跟車速度略低於前方車輛，避免追尾
-    const baseFollowingSpeed = Math.min(frontVehicleSpeed * 0.9, this.initialSpeed)
-
-    // 距離越近，速度越慢，但保持更緊密的跟車
-    const adjustedSpeed = baseFollowingSpeed * Math.max(0.3, distanceFactor)
-
-    // 🎯 改進：允許更低的最低速度以實現緊密排隊
-    return Math.max(adjustedSpeed, this.initialSpeed * 0.1)
-  }
-
-  // 🎯 新增：判斷前方車輛是否在移動
-  isFrontVehicleMoving(frontVehicle) {
-    return (
-      frontVehicle.currentState === 'moving' ||
-      frontVehicle.currentState === 'following' ||
-      (frontVehicle.movementTimeline && frontVehicle.movementTimeline.timeScale() > 0.1)
-    )
-  }
-
-  // 🎯 新增：判斷前方車輛是否在停止線等待
-  isFrontVehicleAtStopLine(frontVehicle) {
-    return frontVehicle.isAtStopLine || frontVehicle.waitingForGreen
-  }
-
-  // 🎯 新增：計算到指定車輛的距離（防穿越用）
-  calculateDistanceToVehicle(targetVehicle) {
-    const currentBox = this.getBoundingBox()
-    const targetBox = targetVehicle.getBoundingBox()
-    const currentPos = this.getCurrentPosition()
-    const targetPos = targetVehicle.getCurrentPosition()
-
-    // 檢查是否在同一車道且在前方
-    let inSameLane = false
-    let isFront = false
-    let distance = -1 // 預設為-1表示不在前方
-
-    if (this.direction === 'east') {
-      inSameLane = Math.abs(currentPos.y - targetPos.y) < 25
-      isFront = targetBox.left > currentBox.right
-      distance = isFront ? targetBox.left - currentBox.right : -1
-    } else if (this.direction === 'west') {
-      inSameLane = Math.abs(currentPos.y - targetPos.y) < 25
-      isFront = targetBox.right < currentBox.left
-      distance = isFront ? currentBox.left - targetBox.right : -1
-    } else if (this.direction === 'north') {
-      inSameLane = Math.abs(currentPos.x - targetPos.x) < 25 // 與主要碰撞檢測邏輯一致
-      isFront = targetBox.bottom < currentBox.top
-      distance = isFront ? currentBox.top - targetBox.bottom : -1
-    } else if (this.direction === 'south') {
-      inSameLane = Math.abs(currentPos.x - targetPos.x) < 25 // 與主要碰撞檢測邏輯一致
-      isFront = targetBox.top > currentBox.bottom
-      distance = isFront ? targetBox.top - currentBox.bottom : -1
-    }
-
-    return inSameLane && isFront ? distance : -1
-  }
 
   // State Pattern: 停止移動狀態控制方法
   stopMovement() {
@@ -1495,7 +931,7 @@ export default class Vehicle {
       } else {
         // 有前車，根據距離調整速度
         const distance = collision.distance
-        const requiredGap = collision.requiredGap || 15 // 🔧 增加預設間隔避免重疊
+        const requiredGap = collision.requiredGap || 12
 
         let targetSpeed
         if (distance <= requiredGap * 0.3) {
@@ -1640,10 +1076,7 @@ export default class Vehicle {
           let theoreticalTime = realDistance / speedMs
           // 使用統一的動畫速度控制
           theoreticalTime *= Vehicle.timeMultiplier
-          // 🔧 根據 timeMultiplier 動態調整時間範圍上限
-          const baseMaxTime = 15
-          const dynamicMaxTime = baseMaxTime * Math.max(1, Vehicle.timeMultiplier)
-          animationDuration = Math.max(3, Math.min(dynamicMaxTime, theoreticalTime))
+          animationDuration = Math.max(3, Math.min(15, theoreticalTime)) // 調整時間範圍
         } catch (error) {
           console.warn(`⚠️ 無法計算路徑長度，使用預設動畫時間:`, error)
           animationDuration = this.calculateAnimationDuration()
@@ -1664,11 +1097,7 @@ export default class Vehicle {
           this.currentState = 'moving'
           this.waitingForGreen = false
           this.isAtStopLine = false
-          // 🔧 修正：只在真正重新開始動畫時才重置hasPassedStopLine
-          // 避免已通過停止線的車輛被錯誤重置
-          if (this.movementTimeline && this.movementTimeline.progress() < 0.1) {
-            this.hasPassedStopLine = false // 只有在動畫初期才重置
-          }
+          this.hasPassedStopLine = false
 
           // Observer Pattern: 確保只有一個定期檢查定時器運行
           if (this.periodicCheckTimer) {
@@ -1677,69 +1106,20 @@ export default class Vehicle {
           }
 
           this.periodicCheckTimer = setInterval(() => {
-            // 🚨 統一交通燈響應：使用 directTrafficLightResponse 處理所有燈號變化
+            // � 統一交通燈響應：使用 directTrafficLightResponse 處理所有燈號變化
             this.directTrafficLightResponse(trafficController)
-
-            // 🚨 強化：等待狀態也需要定期碰撞檢查，防止重疊
-            if (
-              this.currentState === 'waitingForVehicle' ||
-              this.currentState === 'waiting' ||
-              this.waitingForGreen ||
-              this.isAtStopLine
-            ) {
-              const collisionCheck = this.checkSimpleCollision(allVehicles)
-
-              if (collisionCheck && (collisionCheck.action === 'stop' || collisionCheck.isOverlapping)) {
-                // 發現距離太近或重疊的情況，強制調整
-                console.log(
-                  `🚨 [${this.id}] 定期檢查發現距離太近: ${collisionCheck.distance?.toFixed(1) || '0'}px，強制停止`,
-                )
-                if (this.movementTimeline) {
-                  this.movementTimeline.timeScale(0)
-                }
-                this.currentState = 'waiting'
-              } else if (collisionCheck && collisionCheck.action === 'follow') {
-                // 距離適中，允許慢速移動調整位置
-                const targetSpeed = Math.min(0.05, collisionCheck.targetTimeScale || 0.03) // 非常慢的速度
-                if (this.movementTimeline && this.movementTimeline.timeScale() !== targetSpeed) {
-                  gsap.to(this.movementTimeline, {
-                    timeScale: targetSpeed,
-                    duration: 0.5,
-                    ease: 'power2.out',
-                  })
-                  console.log(`🐌 [${this.id}] 定期檢查調整到慢速: ${(targetSpeed * 100).toFixed(1)}%`)
-                }
-              }
-            }
 
             // 🚨 簡化：檢查是否可以恢復移動（僅限碰撞相關）
             if (this.currentState === 'waitingForVehicle') {
               this.resumeMovement(allVehicles)
             }
-          }, 30) // 🔧 使用更頻繁的檢查間隔，特別是對等待狀態
+          }, 50) // 統一使用50ms間隔，與後面的邏輯一致
 
           // 邊界檢測標記 - 避免重複觸發 (移到正確位置)
           let hasBeenRemovedFromCollision = false
 
           // Template Method Pattern: 創建 MotionPath 移動時間線
           this.movementTimeline = gsap.timeline({
-            onUpdate: () => {
-              // 🚨 新增：即時更新車輛位置資訊
-              this.updateCurrentPosition()
-
-              // Template Method Pattern: 處理邊界檢測
-              if (this._isOutOfBounds()) {
-                // 防止重複移除
-                if (!hasBeenRemovedFromCollision && window.liveVehicles) {
-                  const index = window.liveVehicles.indexOf(this)
-                  if (index > -1) {
-                    window.liveVehicles.splice(index, 1)
-                    hasBeenRemovedFromCollision = true
-                    console.log(`🚗 [${this.id}] 離開邊界，從碰撞檢測中移除`)
-                  }
-                }
-              }
-            },
             onStart: () => {
               // 🚨 開始移動時更新時間
               this.lastMovementTime = Date.now()
@@ -1779,102 +1159,49 @@ export default class Vehicle {
                 return
               }
 
-              // 🎯【升級】智能碰撞處理 + 跟車模式
+              // 🚨 簡化碰撞檢測系統 - 區分第一台車和後續車輛
               const shouldStop = this.checkSimpleCollision(allVehicles)
               const isFirstVehicle = this.isClosestToStopLine(allVehicles)
 
               if (shouldStop) {
-                // 🎯 檢查是否應該啟用跟車模式
-                if (shouldStop.shouldFollow && shouldStop.followingSpeed !== null) {
-                  this.enterFollowingMode(shouldStop.followingSpeed)
-                  return
-                }
-
                 const distance = shouldStop.distance
-                const requiredGap = shouldStop.requiredGap || 5
+                const requiredGap = shouldStop.requiredGap || 12
 
-                // 基於距離的漸進式速度控制
+                // 🚨 基於距離的漸進式速度控制，確保統一12px間隙
                 console.log(`🚗 [${this.id}] 碰撞檢測: 距離${distance.toFixed(1)}px, 需求${requiredGap}px`)
 
-                // 綠燈跟車邏輯：如果是綠燈且前車正在移動，根據距離調整速度
+                // 🚨 綠燈跟車邏輯：如果是綠燈且前車正在移動，根據距離調整速度
                 const currentLightState = trafficController.getCurrentLightState(this.direction)
 
-                // 🔧 修正：檢查車道對應的綠燈狀態
-                const isGreenForLane =
-                  this.laneNumber === 1
-                    ? currentLightState === 'leftGreen' // 左轉車道檢查leftGreen
-                    : currentLightState === 'green' // 直行車道檢查green
-
                 if (
-                  isGreenForLane &&
+                  currentLightState === 'green' &&
                   !this.waitingForGreen &&
                   shouldStop.frontVehicleIsMoving &&
                   this.movementTimeline
                 ) {
-                  // 🎯 參考 c24a1ff commit：防止車輛穿越的關鍵修正
-                  // 獲取前車實際速度，確保後車不會超越前車
-                  const frontVehicle = shouldStop.vehicle
-                  const frontVehicleSpeed = frontVehicle.currentSpeed || frontVehicle.initialSpeed || this.initialSpeed
-                  const frontVehicleTimeScale = frontVehicle.movementTimeline
-                    ? frontVehicle.movementTimeline.timeScale()
-                    : 1
-                  const frontVehicleActualSpeed = frontVehicleTimeScale * frontVehicleSpeed
-
-                  // 🎯 使用統一的距離配置（包含南北向調整）
+                  // 🚨 距離感知速度控制：根據實際距離調整速度，確保保持12px間隙
                   let targetSpeed
-                  const isJustStartedMoving =
-                    this.currentState === 'moving' &&
-                    this.movementStartTime &&
-                    Date.now() - new Date(this.movementStartTime).getTime() < 2000
 
-                  // 🎯 南北向車輛使用專門的距離倍數
-                  const directionMultiplier =
-                    this.direction === 'north' || this.direction === 'south'
-                      ? Vehicle.northSouthDistanceMultiplier
-                      : 1.0
-                  const effectiveDistanceMultiplier = Vehicle.distanceMultiplier * directionMultiplier
-
-                  // 🎯 使用靜態距離配置
-                  const baseStopDist = isJustStartedMoving
-                    ? Vehicle.baseStopDistance.justStarted
-                    : Vehicle.baseStopDistance.normal
-                  const stopDistance = baseStopDist * effectiveDistanceMultiplier
-
-                  if (distance <= stopDistance) {
-                    // 達到停止距離：完全停止
-                    targetSpeed = 0
-                    console.log(`🛑 [${this.id}] 達到停止距離 ${distance.toFixed(1)}px ≤ ${stopDistance}px，完全停止`)
-                  } else if (distance <= requiredGap * 0.5) {
-                    // 距離太近：大幅減速，且不超過前車速度的70%
-                    targetSpeed = Math.min(0.2, (frontVehicleActualSpeed * 0.7) / this.initialSpeed)
+                  if (distance <= requiredGap * 0.5) {
+                    // 距離太近：大幅減速但不完全停止
+                    targetSpeed = 0.2
                   } else if (distance <= requiredGap * 0.8) {
-                    // 距離適中：適度速度，且不超過前車速度的80%
-                    targetSpeed = Math.min(0.5, (frontVehicleActualSpeed * 0.8) / this.initialSpeed)
+                    // 距離適中：適度速度
+                    targetSpeed = 0.5
                   } else if (distance <= requiredGap * 1.2) {
-                    // 距離接近理想：接近正常速度，且不超過前車速度的90%
-                    targetSpeed = Math.min(0.8, (frontVehicleActualSpeed * 0.9) / this.initialSpeed)
+                    // 距離接近理想：接近正常速度
+                    targetSpeed = 0.8
                   } else {
-                    // 距離充足：正常速度，但仍然不超過前車速度的95%
-                    targetSpeed = Math.min(1.0, (frontVehicleActualSpeed * 0.95) / this.initialSpeed)
+                    // 距離充足：正常速度
+                    targetSpeed = 1.0
                   }
 
-                  // 🎯 關鍵修正：確保目標速度不為負數或過大
-                  targetSpeed = Math.max(0, Math.min(1, targetSpeed))
-
-                  // 平滑調整速度，包括停止狀態
-                  if (targetSpeed === 0) {
-                    // 完全停止
-                    this.movementTimeline.timeScale(0)
-                    this.currentState = 'stopped'
-                  } else {
-                    // 調整速度
-                    gsap.to(this.movementTimeline, {
-                      timeScale: targetSpeed,
-                      duration: 0.3,
-                      ease: 'power2.out',
-                    })
-                    this.currentState = 'following'
-                  }
+                  // 平滑調整速度
+                  gsap.to(this.movementTimeline, {
+                    timeScale: targetSpeed,
+                    duration: 0.3,
+                    ease: 'power2.out',
+                  })
 
                   console.log(`🟢🚗 [${this.id}] 綠燈距離感知跟車：距離${distance.toFixed(1)}px → 速度${targetSpeed}`)
                   this.currentState = 'following'
@@ -1891,14 +1218,7 @@ export default class Vehicle {
                 ) {
                   // 🚨 再次確認當前燈號狀態，防止在紅燈時啟動
                   const recheckLightState = trafficController.getCurrentLightState(this.direction)
-
-                  // 🔧 修正：檢查車道對應的綠燈狀態
-                  const isRecheckGreenForLane =
-                    this.laneNumber === 1
-                      ? recheckLightState === 'leftGreen' // 左轉車道檢查leftGreen
-                      : recheckLightState === 'green' // 直行車道檢查green
-
-                  if (isRecheckGreenForLane && !this.waitingForGreen) {
+                  if (recheckLightState === 'green' && !this.waitingForGreen) {
                     // 第一台車：前方車輛在停止線等待且不移動，繼續前進到停止線
                     console.log(`🚗 [${this.id}] 綠燈時第一台車，前方車輛在停止線等待，繼續前進到停止線`)
                     const currentTimeScale = this.movementTimeline.timeScale()
@@ -1915,49 +1235,22 @@ export default class Vehicle {
                   return
                 }
               } else if (this.movementTimeline) {
-                // 🎯 新增：退出跟車模式
-                if (this.currentState === 'following') {
-                  this.exitFollowingMode()
-                }
-
-                // 🎯 參考 c24a1ff commit：無碰撞風險時，檢查附近是否有較慢車輛
+                // 🚨 無碰撞風險時，平滑恢復到正常速度（而非立即設定為1）
                 const currentTimeScale = this.movementTimeline.timeScale()
                 if (currentTimeScale < 1) {
-                  // 檢查當前燈號狀態，只有綠燈時才恢復移動
+                  // 🚨 檢查當前燈號狀態，只有綠燈時才恢復移動
                   const currentLightState = trafficController.getCurrentLightState(this.direction)
-
-                  // 🔧 修正：檢查車道對應的綠燈狀態
-                  const isCurrentGreenForLane =
-                    this.laneNumber === 1
-                      ? currentLightState === 'leftGreen' // 左轉車道檢查leftGreen
-                      : currentLightState === 'green' // 直行車道檢查green
-
-                  if (isCurrentGreenForLane) {
-                    // 🎯 防穿越修正：檢查前方是否有較慢的車輛
-                    let maxAllowedSpeed = 1.0 // 預設最大速度
-
-                    // 檢查前方較遠距離的車輛，防止突然加速超車
-                    for (let vehicle of allVehicles) {
-                      if (vehicle.id === this.id || vehicle.direction !== this.direction) continue
-
-                      const vehicleDistance = this.calculateDistanceToVehicle(vehicle)
-                      if (vehicleDistance > 0 && vehicleDistance < 50) {
-                        // 檢查50px內的前車
-                        const frontVehicleTimeScale = vehicle.movementTimeline
-                          ? vehicle.movementTimeline.timeScale()
-                          : 1
-                        // 限制速度不超過前車的95%
-                        maxAllowedSpeed = Math.min(maxAllowedSpeed, frontVehicleTimeScale * 0.95)
-                      }
-                    }
-
-                    // 平滑恢復到允許的最大速度，避免突然加速
+                  if (currentLightState === 'green') {
+                    // 平滑恢復到正常速度，避免突然加速
                     gsap.to(this.movementTimeline, {
-                      timeScale: Math.max(0.1, maxAllowedSpeed),
+                      timeScale: 1,
                       duration: 0.5,
                       ease: 'power2.out',
                     })
                     this.currentState = 'moving'
+                    console.log(`🚗 [${this.id}] 綠燈且無碰撞風險，平滑恢復正常速度`)
+                  } else {
+                    console.log(`🛑 [${this.id}] 無碰撞風險但${currentLightState}燈，保持當前速度`)
                   }
                 }
               }
@@ -1983,21 +1276,12 @@ export default class Vehicle {
                 this.resumeMovement(allVehicles)
               }
 
-              // 停止線檢查和紅綠燈控制流程
-              // 🚦 修正：等待綠燈的車輛（如直行綠燈時的左轉車）也需要在停止線停下
-              if (!this.hasPassedStopLine && this.checkStopLine() && !this.isAtStopLine) {
+              // 停止線檢查和紅綠燈控制流程（與原方法相同的邏輯）
+              if (!this.hasPassedStopLine && this.checkStopLine() && !this.waitingForGreen && !this.isAtStopLine) {
                 this.isAtStopLine = true
                 const lightState = trafficController.getCurrentLightState(this.direction)
 
-                // 🚦 特殊處理：左轉車在直行綠燈時需要停在停止線
-                const isLeftTurnWaiting = this.laneNumber === 1 && lightState === 'green'
-
-                // 🔧 修正全紅邏輯：只有還沒通過停止線的車輛才在全紅時停車
-                // 已經在路口內通行的車輛應該繼續完成通行
-                const shouldStopForAllRed = lightState === 'allRed' && !this.hasPassedStopLine
-                const isRedOrYellowLight = lightState === 'red' || lightState === 'yellow' || shouldStopForAllRed
-
-                if (isRedOrYellowLight || isLeftTurnWaiting || this.waitingForGreen) {
+                if (lightState === 'red' || lightState === 'yellow' || lightState === 'allRed') {
                   if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
                     gsap.to(this.movementTimeline, {
                       timeScale: 0,
@@ -2006,25 +1290,17 @@ export default class Vehicle {
                       onComplete: () => {
                         this.stopMovement()
                         this.waitingForGreen = true
-                        this.currentState = 'waiting'
-                        console.log(`🚦🛑 [${this.id}] 車道${this.laneNumber}在停止線停下等待 (燈號：${lightState})`)
                       },
                     })
                   } else {
                     this.stopMovement()
                     this.waitingForGreen = true
-                    this.currentState = 'waiting'
-                    console.log(`🚦🛑 [${this.id}] 車道${this.laneNumber}在停止線停下等待 (燈號：${lightState})`)
                   }
-                  // 🚨 移除手動觀察者：讓 directTrafficLightResponse 統一處理燈號變化
+                  // � 移除手動觀察者：讓 directTrafficLightResponse 統一處理燈號變化
                 } else {
-                  // 綠燈或全紅時已通過停止線的車輛直接通過
-                  if (lightState === 'allRed') {
-                    console.log(`🚦🟡 [${this.id}] 車道${this.laneNumber}遇到全紅但繼續通行 (未到停止線或已通過)`)
-                  }
+                  // 綠燈時直接通過
                   this.isAtStopLine = false
                   this.hasPassedStopLine = true
-                  console.log(`🚦✅ [${this.id}] 車道${this.laneNumber}綠燈通過停止線，已標記不再受燈號影響`)
                 }
               }
             },
@@ -2061,7 +1337,7 @@ export default class Vehicle {
               path: `#${this.getSvgPathId()}`, // 使用選擇器字串
               align: `#${this.getSvgPathId()}`, // 重要：對齊到路徑
               alignOrigin: [0.5, 0.5], // 車輛中心對齊
-              autoRotate: true, // 啟用自動旋轉，轉彎時車頭跟隨新方向
+              autoRotate: true, // 啟用自動旋轉，車輛會跟隨路徑方向
             },
             ease: 'none',
             // 🚨 移除重複的 onUpdate，統一在時間線級別處理
@@ -2112,10 +1388,8 @@ export default class Vehicle {
         let theoreticalTime = realDistance / speedMs
         // 使用統一的動畫速度控制
         theoreticalTime *= Vehicle.timeMultiplier
-        // 🔧 根據 timeMultiplier 動態調整時間範圍上限
-        const baseMaxTime = 15
-        const dynamicMaxTime = baseMaxTime * Math.max(1, Vehicle.timeMultiplier)
-        animationDuration = Math.max(3, Math.min(dynamicMaxTime, theoreticalTime))
+        // 限制合理範圍
+        animationDuration = Math.max(3, Math.min(15, theoreticalTime))
       }
 
       // Strategy Pattern: 使用延遲策略避免剛生成就被碰撞檢測影響
@@ -2128,11 +1402,7 @@ export default class Vehicle {
         // 應該讓車輛前進到停止線，再由停止線檢查邏輯決定是否停車
         this.waitingForGreen = false
         this.isAtStopLine = false
-        // 🔧 修正：只在真正重新開始動畫時才重置hasPassedStopLine
-        // 避免已通過停止線的車輛被錯誤重置
-        if (this.movementTimeline && this.movementTimeline.progress() < 0.1) {
-          this.hasPassedStopLine = false // 只有在動畫初期才重置
-        }
+        this.hasPassedStopLine = false
 
         // Observer Pattern: 確保只有一個定期檢查定時器運行
         if (this.periodicCheckTimer) {
@@ -2143,39 +1413,7 @@ export default class Vehicle {
         this.periodicCheckTimer = setInterval(() => {
           // 🚨 統一交通燈響應：使用 directTrafficLightResponse 處理所有燈號變化
           this.directTrafficLightResponse(trafficController)
-
-          // 🚨 強化：等待狀態也需要定期碰撞檢查，防止重疊
-          if (
-            this.currentState === 'waitingForVehicle' ||
-            this.currentState === 'waiting' ||
-            this.waitingForGreen ||
-            this.isAtStopLine
-          ) {
-            const collisionCheck = this.checkSimpleCollision(allVehicles)
-
-            if (collisionCheck && (collisionCheck.action === 'stop' || collisionCheck.isOverlapping)) {
-              // 發現距離太近或重疊的情況，強制調整
-              console.log(
-                `🚨 [${this.id}] 定期檢查發現距離太近: ${collisionCheck.distance?.toFixed(1) || '0'}px，強制停止`,
-              )
-              if (this.movementTimeline) {
-                this.movementTimeline.timeScale(0)
-              }
-              this.currentState = 'waiting'
-            } else if (collisionCheck && collisionCheck.action === 'follow') {
-              // 距離適中，允許慢速移動調整位置
-              const targetSpeed = Math.min(0.05, collisionCheck.targetTimeScale || 0.03)
-              if (this.movementTimeline && this.movementTimeline.timeScale() !== targetSpeed) {
-                gsap.to(this.movementTimeline, {
-                  timeScale: targetSpeed,
-                  duration: 0.5,
-                  ease: 'power2.out',
-                })
-                console.log(`🐌 [${this.id}] 定期檢查調整到慢速: ${(targetSpeed * 100).toFixed(1)}%`)
-              }
-            }
-          }
-        }, 30) // 🔧 改為每30ms檢查一次，更快速回應        // Template Method Pattern: 創建移動時間線模板
+        }, 50) // 改為每0.05秒檢查一次，更快速回應        // Template Method Pattern: 創建移動時間線模板
         this.movementTimeline = gsap.timeline({
           onUpdate: () => {
             // 計算當前速度
@@ -2226,12 +1464,12 @@ export default class Vehicle {
               return
             }
 
-            // 🚨 統一間距碰撞檢測：檢查10px統一間距
+            // 🚨 統一間距碰撞檢測：檢查12px統一間距
             const collision = this.checkSimpleCollision(allVehicles)
 
             if (collision && collision.shouldStop) {
               const distance = collision.distance
-              const requiredGap = collision.requiredGap || 15 // 🔧 增加預設間隔避免重疊
+              const requiredGap = collision.requiredGap || 12
 
               // 🚨 基於距離的漸進式停車，而非直接停止
               let targetSpeed
@@ -2277,6 +1515,40 @@ export default class Vehicle {
               // 如果前方車輛已離開安全距離，恢復移動
               this.resumeMovement(allVehicles)
             }
+
+            // Template Method Pattern: 停止線檢查和紅綠燈控制流程
+            if (!this.hasPassedStopLine && this.checkStopLine() && !this.waitingForGreen && !this.isAtStopLine) {
+              this.isAtStopLine = true
+
+              // 檢查紅綠燈狀態
+              const lightState = trafficController.getCurrentLightState(this.direction)
+
+              if (lightState === 'red' || lightState === 'allRed' || lightState === 'yellow') {
+                // 如果正在減速，讓它平滑停止
+                if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
+                  gsap.to(this.movementTimeline, {
+                    timeScale: 0,
+                    duration: 0.05, // 幾乎立即停車，消除停止線緩速
+                    ease: 'none',
+                    onComplete: () => {
+                      this.stopMovement()
+                      this.waitingForGreen = true
+                    },
+                  })
+                } else {
+                  this.stopMovement()
+                  this.waitingForGreen = true
+                }
+
+                // 🚨 移除重複的觀察者邏輯，讓 directTrafficLightResponse 處理狀態變化
+
+                //  移除超時機制：讓車輛完全依賴 directTrafficLightResponse 和燈號狀態
+              } else {
+                // 綠燈時直接通過，標記已通過停止線
+                this.isAtStopLine = false
+                this.hasPassedStopLine = true
+              }
+            }
           },
           onComplete: () => {
             // Template Method Pattern: 完成時的清理模板
@@ -2285,9 +1557,6 @@ export default class Vehicle {
               clearInterval(this.periodicCheckTimer)
               this.periodicCheckTimer = null
             }
-
-            // 🎯【新增】停止速度監控
-            this.stopContinuousSpeedMonitoring()
 
             // 強制完成 - 避免精度問題導致Promise不resolve
             this.currentState = 'completed'
@@ -2396,6 +1665,12 @@ export default class Vehicle {
       this.laneLabel = null
     }
 
+    // 🚀 清理碰撞檢測器
+    if (this.collisionDetector) {
+      this.collisionDetector.dispose()
+      this.collisionDetector = null
+    }
+
     // 移除DOM元素
     if (this.element && this.element.parentNode) {
       this.element.parentNode.removeChild(this.element)
@@ -2407,275 +1682,17 @@ export default class Vehicle {
 
   // 🚨 新增：綠燈跟車檢查
   // 🚨 新增：簡化直接燈號響應邏輯
-  // 🎯【恢復歷史版本】等待路口清空機制 - 實現自然的綠燈起步延遲
-  waitForIntersectionClearance(allVehicles, callback) {
-    const checkClearance = () => {
-      const clearanceResult = this.checkIntersectionClearance(allVehicles)
-
-      if (!clearanceResult.hasConflictingVehicle) {
-        // 路口清空，但增加隨機延遲模擬真實起步反應
-        const randomDelay = 0.5 + Math.random() * 1.0 // 0.5-1.5秒隨機延遲
-        console.log(`🚦 [${this.id}] 路口清空，${randomDelay.toFixed(1)}秒後起步`)
-        gsap.delayedCall(randomDelay, callback)
-        return
-      }
-
-      // 仍有衝突車輛，繼續等待
-      gsap.delayedCall(0.5, checkClearance) // 每0.5秒重新檢查
-    }
-
-    // 開始檢查
-    checkClearance()
-  }
-
-  // 🎯【恢復歷史版本】檢查路口是否有衝突車輛（橫向車道）
-  checkIntersectionClearance(allVehicles) {
-    const intersectionCenter = this.getIntersectionCenter()
-    const intersectionRadius = 80 // 路口檢查半徑
-
-    // 取得垂直方向
-    const perpendicularDirections = this.getPerpendicularDirections()
-
-    for (let vehicle of allVehicles) {
-      if (vehicle.id === this.id) continue
-
-      // 只檢查垂直方向的車輛
-      if (!perpendicularDirections.includes(vehicle.direction)) continue
-
-      const vehiclePos = vehicle.getCurrentPosition()
-      const distanceToCenter = Math.sqrt(
-        Math.pow(vehiclePos.x - intersectionCenter.x, 2) + Math.pow(vehiclePos.y - intersectionCenter.y, 2),
-      )
-
-      // 如果有車輛在路口內
-      if (distanceToCenter < intersectionRadius) {
-        return {
-          hasConflictingVehicle: true,
-          conflictingVehicle: vehicle,
-          distance: distanceToCenter,
-        }
-      }
-    }
-
-    return { hasConflictingVehicle: false }
-  }
-
-  // 🎯【恢復歷史版本】取得垂直方向
-  getPerpendicularDirections() {
-    if (this.direction === 'east' || this.direction === 'west') {
-      return ['north', 'south']
-    } else {
-      return ['east', 'west']
-    }
-  }
-
-  // 🎯【恢復歷史版本】取得路口中央座標（基於UI中央參考點）
-  getIntersectionCenter() {
-    const centralRef = document.querySelector('.central-reference')
-    if (!centralRef) return { x: 400, y: 300 } // 預設中央座標
-    const container = document.querySelector('.crossroad-area')
-    if (!container) return { x: 400, y: 300 }
-
-    const centralRect = centralRef.getBoundingClientRect()
-    const containerRect = container.getBoundingClientRect()
-
-    return {
-      x: centralRect.left - containerRect.left + centralRect.width / 2,
-      y: centralRect.top - containerRect.top + centralRect.height / 2,
-    }
-  }
-
   directTrafficLightResponse(trafficController) {
     if (!this.direction || !trafficController || !this.movementTimeline) return
 
     const currentLightState = trafficController.getCurrentLightState(this.direction)
 
-    // 🚨 修正：已通過停止線的車輛仍然需要基本的碰撞檢測，只是不受燈號變化影響
-    if (this.hasPassedStopLine) {
-      // 確保車輛能繼續通行，不被任何燈號邏輯停止
-      if (this.movementTimeline.timeScale() === 0 || this.currentState === 'waiting') {
-        console.log(`🚦✅ [${this.id}] 車道${this.laneNumber}已通過停止線，強制恢復通行不受燈號影響`)
-        gsap.to(this.movementTimeline, {
-          timeScale: 1.0,
-          duration: 0.3,
-          ease: 'power2.out',
-        })
-        this.currentState = 'moving'
-        this.waitingForGreen = false
-      }
-
-      // 🎯 新增：即使已通過停止線，仍需進行基本的跟車碰撞檢測
-      const allVehicles = window.liveVehicles || []
-      const collisionResult = this.checkSimpleCollision(allVehicles)
-
-      if (collisionResult && collisionResult.action === 'stop') {
-        console.log(
-          `🚗⚠️ [${this.id}] 已通過停止線但需避讓前車 ${collisionResult.vehicle.id}，距離${collisionResult.distance.toFixed(1)}px`,
-        )
-
-        // 根據距離調整速度而不是完全停止
-        let targetSpeed = 0.3 // 基本慢速
-        if (collisionResult.distance > 15) {
-          targetSpeed = 0.5
-        } else if (collisionResult.distance > 25) {
-          targetSpeed = 0.7
-        }
-
-        gsap.to(this.movementTimeline, {
-          timeScale: targetSpeed,
-          duration: 0.2,
-          ease: 'power2.out',
-        })
-        this.currentState = 'following'
-      } else if (this.currentState === 'following' && (!collisionResult || collisionResult.distance > 40)) {
-        // 如果之前是跟車狀態，現在前車已安全，恢復正常速度
-        console.log(`🚗✅ [${this.id}] 前車距離安全，恢復正常速度`)
-        gsap.to(this.movementTimeline, {
-          timeScale: 1.0,
-          duration: 0.3,
-          ease: 'power2.out',
-        })
-        this.currentState = 'moving'
-      }
-
-      return // 已通過停止線的車輛不再處理燈號邏輯，但保持碰撞檢測
-    }
-
-    // �🔴🟡 全紅狀態特殊處理：已通過停止線的車輛應該繼續通行直到離開路口
-    if (currentLightState === 'allRed') {
-      if (this.hasPassedStopLine) {
-        // 已通過停止線的車輛在全紅時應該繼續通行
-        console.log(`🚦🟡 [${this.id}] 車道${this.laneNumber}已通過停止線，全紅狀態下繼續通行離開路口`)
-
-        // 確保車輛不會在全紅時被停止
-        if (this.movementTimeline.timeScale() === 0 && this.currentState === 'waiting') {
-          // 如果車輛被錯誤地停在路口內，恢復其移動
-          gsap.to(this.movementTimeline, {
-            timeScale: 1.0,
-            duration: 0.3,
-            ease: 'power2.out',
-          })
-          this.currentState = 'moving'
-          this.waitingForGreen = false
-          console.log(`🚦🟡 [${this.id}] 全紅狀態下恢復通行，避免阻塞路口`)
-        }
-        return // 已通過停止線的車輛不需要進一步處理
-      }
-      // 未通過停止線的車輛會由停止線檢查邏輯處理
-    }
-
     // 🔴 紅燈：不在此處直接停車，讓移動邏輯中的停止線檢查來處理紅燈停車
     // 這樣可確保車輛會前進到停止線才停，而不是立即原地停車
 
-    // 🟢 綠燈處理：區分直行綠燈和左轉綠燈
-    if (currentLightState === 'green' || currentLightState === 'leftGreen') {
-      // 🎯【修正】車道1（左轉車道）的特殊邏輯 - 修復重疊問題
-      if (this.laneNumber === 1) {
-        // 左轉車道：只有在左轉綠燈時才能通行
-        if (currentLightState !== 'leftGreen') {
-          console.log(`🚦🔴 [${this.id}] 車道1左轉車等待左轉綠燈 (當前：${currentLightState})`)
-
-          // 🔧 關鍵修正：無論什麼燈號狀態，左轉車都必須保持碰撞檢測
-          this.waitingForGreen = true
-
-          // 🚨 新增：強制執行碰撞檢測，防止重疊
-          const allVehicles = window.liveVehicles || []
-          const collisionResult = this.checkSimpleCollision(allVehicles)
-
-          if (collisionResult) {
-            // 根據碰撞結果的類型決定動作
-            if (collisionResult.action === 'stop' || (collisionResult.shouldStop && collisionResult.distance <= 15)) {
-              // 距離太近，完全停止
-              this.movementTimeline.timeScale(0)
-              this.currentState = 'waiting'
-              console.log(`🛑 [${this.id}] 左轉車完全停止，距離${collisionResult.distance.toFixed(1)}px`)
-            } else if (collisionResult.action === 'follow' || collisionResult.shouldFollow) {
-              // 跟車模式，使用目標速度
-              const targetSpeed = collisionResult.targetTimeScale || Math.min(0.3, collisionResult.distance / 50)
-              gsap.to(this.movementTimeline, {
-                timeScale: targetSpeed,
-                duration: 0.3,
-                ease: 'power2.out',
-              })
-              this.currentState = 'following'
-              console.log(
-                `🐌 [${this.id}] 左轉車跟車模式，距離${collisionResult.distance.toFixed(1)}px，速度${(targetSpeed * 100).toFixed(0)}%`,
-              )
-            }
-          } else {
-            // 沒有前車，可以以正常速度前進到停止線
-            if (!this.hasPassedStopLine && !this.isAtStopLine) {
-              // 保持正常行駛速度前進到停止線
-              if (this.movementTimeline && this.movementTimeline.timeScale() < 1.0) {
-                gsap.to(this.movementTimeline, {
-                  timeScale: 1.0,
-                  duration: 0.5,
-                  ease: 'power2.out',
-                })
-              }
-              this.currentState = 'approaching_stop_line'
-            } else if (this.movementTimeline && this.movementTimeline.timeScale() > 0) {
-              // 已經在停止線，停止等待
-              this.movementTimeline.timeScale(0)
-              this.currentState = 'waiting'
-            }
-          }
-          return
-        }
-        // 左轉綠燈：允許通行
-        console.log(`🚦🟢 [${this.id}] 車道1左轉車檢測到左轉綠燈，可以通行`)
-      } else {
-        // 直行車道：只有在直行綠燈時才能通行
-        if (currentLightState !== 'green') {
-          console.log(`🚦🔴 [${this.id}] 車道${this.laneNumber}直行車等待直行綠燈 (當前：${currentLightState})`)
-
-          // 🔧 修正：直行車道也需要保持碰撞檢測
-          this.waitingForGreen = true
-
-          // 🚨 新增：強制執行碰撞檢測，防止重疊
-          const allVehicles = window.liveVehicles || []
-          const collisionResult = this.checkSimpleCollision(allVehicles)
-
-          if (collisionResult) {
-            // 根據碰撞結果的類型決定動作
-            if (collisionResult.action === 'stop' || (collisionResult.shouldStop && collisionResult.distance <= 15)) {
-              this.movementTimeline.timeScale(0)
-              this.currentState = 'waiting'
-              console.log(`🛑 [${this.id}] 直行車完全停止，距離${collisionResult.distance.toFixed(1)}px`)
-            } else if (collisionResult.action === 'follow' || collisionResult.shouldFollow) {
-              const targetSpeed = collisionResult.targetTimeScale || Math.min(0.3, collisionResult.distance / 50)
-              gsap.to(this.movementTimeline, {
-                timeScale: targetSpeed,
-                duration: 0.3,
-                ease: 'power2.out',
-              })
-              this.currentState = 'following'
-              console.log(
-                `🐌 [${this.id}] 直行車跟車模式，距離${collisionResult.distance.toFixed(1)}px，速度${(targetSpeed * 100).toFixed(0)}%`,
-              )
-            }
-          } else {
-            // 沒有前車，正常前進到停止線
-            if (!this.hasPassedStopLine && !this.isAtStopLine) {
-              if (this.movementTimeline && this.movementTimeline.timeScale() < 1.0) {
-                gsap.to(this.movementTimeline, {
-                  timeScale: 1.0,
-                  duration: 0.5,
-                  ease: 'power2.out',
-                })
-              }
-              this.currentState = 'approaching_stop_line'
-            } else if (this.movementTimeline && this.movementTimeline.timeScale() > 0) {
-              this.movementTimeline.timeScale(0)
-              this.currentState = 'waiting'
-            }
-          }
-          return
-        }
-        // 直行綠燈：允許通行
-        console.log(`🚦🟢 [${this.id}] 車道${this.laneNumber}直行車檢測到直行綠燈，可以通行`)
-      }
-      // 檢查所有可能需要啟動的狀態
+    // 🟢 綠燈：立即啟動所有等待車輛
+    if (currentLightState === 'green') {
+      // 🚨 修復：檢查所有可能需要啟動的狀態
       const needsToStart =
         this.waitingForGreen || // 等待綠燈狀態
         this.movementTimeline.timeScale() === 0 || // 時間軸停止
@@ -2685,405 +1702,19 @@ export default class Vehicle {
         this.movementTimeline.paused() // 時間軸暫停
 
       if (needsToStart) {
-        // 🎯 修改：結合路口清空和前車移動檢測，防止後車重疊
-        console.log(`��🚦 [${this.id}] 綠燈檢測，檢查前車移動狀態和路口清空...`)
-
-        // 檢查所有車輛以決定起步時機
-        const allVehicles = window.liveVehicles || []
-
-        // 🚨 新增：檢查同方向前車是否已開始移動和安全距離
-        const frontVehicleCheck = this.checkFrontVehicleMoving(allVehicles)
-
-        if (frontVehicleCheck.hasFrontVehicle) {
-          // 🎯【新增】距離檢查：如果距離太近，等待前車拉開距離
-          if (!frontVehicleCheck.safeToStart) {
-            console.log(`🚦⚠️ [${this.id}] 前車距離太近(${frontVehicleCheck.distance.toFixed(1)}px)，等待安全距離`)
-
-            // 定期檢查前車距離
-            const checkSafeDistance = () => {
-              const updatedCheck = this.checkFrontVehicleMoving(window.liveVehicles || [])
-
-              // 檢查燈號狀態是否仍然允許通行
-              const currentState = trafficController.getCurrentLightState(this.direction)
-              const canProceed =
-                (this.laneNumber === 1 && currentState === 'leftGreen') ||
-                (this.laneNumber !== 1 && currentState === 'green')
-
-              if (!canProceed) {
-                return // 燈號已變，停止檢查
-              }
-
-              if (!updatedCheck.hasFrontVehicle || updatedCheck.safeToStart) {
-                // 前車已離開或距離足夠安全，開始移動
-                console.log(`🟢✅ [${this.id}] 前車距離安全(${updatedCheck.distance.toFixed(1)}px)，開始起步`)
-                this.waitForIntersectionClearance(window.liveVehicles || [], () => {
-                  this.performControlledGreenLightStart(trafficController)
-                })
-              } else {
-                // 繼續等待安全距離
-                gsap.delayedCall(0.3, checkSafeDistance)
-              }
-            }
-
-            // 開始檢查安全距離
-            gsap.delayedCall(0.2, checkSafeDistance)
-            return
-          }
-
-          // 距離安全，但檢查前車是否已開始移動
-          if (!frontVehicleCheck.frontVehicleMoving) {
-            console.log(
-              `🚗⏳ [${this.id}] 距離安全(${frontVehicleCheck.distance.toFixed(1)}px)，但等待前車 ${frontVehicleCheck.frontVehicleId} 先移動`,
-            )
-
-            // 定期檢查前車移動狀態
-            const checkFrontVehicleStatus = () => {
-              const updatedCheck = this.checkFrontVehicleMoving(window.liveVehicles || [])
-
-              // 檢查燈號狀態是否仍然允許通行
-              const currentState = trafficController.getCurrentLightState(this.direction)
-              const canProceed =
-                (this.laneNumber === 1 && currentState === 'leftGreen') ||
-                (this.laneNumber !== 1 && currentState === 'green')
-
-              if (!canProceed) {
-                return // 燈號已變，停止檢查
-              }
-
-              if (!updatedCheck.hasFrontVehicle || (updatedCheck.frontVehicleMoving && updatedCheck.safeToStart)) {
-                // 前車已開始移動且距離安全，開始移動
-                this.waitForIntersectionClearance(window.liveVehicles || [], () => {
-                  this.performControlledGreenLightStart(trafficController)
-                })
-              } else {
-                // 繼續等待前車移動或安全距離
-                gsap.delayedCall(0.3, checkFrontVehicleStatus)
-              }
-            }
-
-            // 開始檢查前車狀態
-            gsap.delayedCall(0.2, checkFrontVehicleStatus)
-            return
-          }
-        } else {
-          // 沒有前車或前車已在移動，直接進行路口清空檢查
-          console.log(
-            `🟢� [${this.id}] ${frontVehicleCheck.hasFrontVehicle ? '前車已移動' : '無前車阻擋'}，檢查路口清空`,
-          )
-
-          this.waitForIntersectionClearance(allVehicles, () => {
-            this.performControlledGreenLightStart(trafficController)
-          })
-        }
-      }
-    }
-  }
-
-  // 🎯【新增】持續速度監控，防止綠燈後車輛過快追上前車
-  startContinuousSpeedMonitoring(allVehicles) {
-    // 避免重複設置監控
-    if (this.speedMonitoringInterval) {
-      clearInterval(this.speedMonitoringInterval)
-    }
-
-    this.speedMonitoringInterval = setInterval(() => {
-      // 檢查是否仍需要監控
-      if (!this.movementTimeline || this.currentState === 'finished' || this.currentState === 'destroyed') {
-        clearInterval(this.speedMonitoringInterval)
-        this.speedMonitoringInterval = null
-        return
-      }
-
-      // 獲取當前車輛列表
-      const currentVehicles = window.liveVehicles || allVehicles || []
-
-      // 執行碰撞檢查
-      const shouldStop = this.checkSimpleCollision(currentVehicles)
-
-      if (shouldStop) {
-        const currentLightState = this.trafficLightController?.getCurrentLightState(this.direction)
-
-        // 如果是綠燈且前車正在移動，應用跟車邏輯
-        if (
-          currentLightState === 'green' &&
-          !this.waitingForGreen &&
-          shouldStop.frontVehicleIsMoving &&
-          this.movementTimeline
-        ) {
-          const distance = shouldStop.distance
-          const frontVehicle = shouldStop.vehicle
-
-          if (frontVehicle && frontVehicle.movementTimeline) {
-            // 獲取前車實際速度
-            const frontVehicleTimeScale = frontVehicle.movementTimeline.timeScale()
-            const frontVehicleSpeed = frontVehicleTimeScale * (frontVehicle.initialSpeed || this.initialSpeed)
-
-            // 🎯 關鍵：根據距離調整速度，確保不會撞上前車
-            let targetSpeed = this.initialSpeed
-
-            if (distance < 15) {
-              // 距離很近：速度降為前車速度的50%
-              targetSpeed = Math.min(frontVehicleSpeed * 0.5, this.initialSpeed * 0.3)
-            } else if (distance < 25) {
-              // 距離近：速度降為前車速度的70%
-              targetSpeed = Math.min(frontVehicleSpeed * 0.7, this.initialSpeed * 0.6)
-            } else if (distance < 40) {
-              // 距離適中：速度降為前車速度的85%
-              targetSpeed = Math.min(frontVehicleSpeed * 0.85, this.initialSpeed * 0.8)
-            } else {
-              // 距離充足：保持正常速度，但不超過前車速度的95%
-              targetSpeed = Math.min(frontVehicleSpeed * 0.95, this.initialSpeed)
-            }
-
-            // 確保目標速度為正數
-            targetSpeed = Math.max(0, targetSpeed)
-
-            // 計算目標timeScale
-            const targetTimeScale = targetSpeed / this.initialSpeed
-            const currentTimeScale = this.movementTimeline.timeScale()
-
-            // 如果速度差異顯著，則調整
-            if (Math.abs(currentTimeScale - targetTimeScale) > 0.1) {
-              console.log(
-                `🚗� [${this.id}] 速度監控調整: ${distance.toFixed(1)}px -> ${(targetTimeScale * 100).toFixed(0)}%`,
-              )
-
-              gsap.to(this.movementTimeline, {
-                timeScale: targetTimeScale,
-                duration: 0.2,
-                ease: 'power2.out',
-              })
-
-              this.currentState = distance < 15 ? 'following' : 'moving'
-            }
-          }
-        }
-      }
-    }, 200) // 每200ms檢查一次
-  }
-
-  // 🎯【新增】停止速度監控
-  stopContinuousSpeedMonitoring() {
-    if (this.speedMonitoringInterval) {
-      clearInterval(this.speedMonitoringInterval)
-      this.speedMonitoringInterval = null
-    }
-  }
-
-  // 🎯【新增】找到同方向的車輛
-  findVehicleInDirection(allVehicles) {
-    const currentPos = this.getCurrentPosition()
-    const frontVehicles = []
-
-    for (let vehicle of allVehicles) {
-      if (vehicle.id === this.id || vehicle.direction !== this.direction) continue
-      if (!vehicle.element || !vehicle.element.parentNode) continue
-
-      const vehiclePos = vehicle.getCurrentPosition()
-      let isFront = false
-
-      // 根據方向判斷是否在前方
-      if (this.direction === 'east') {
-        isFront = vehiclePos.x > currentPos.x && Math.abs(vehiclePos.y - currentPos.y) < 25
-      } else if (this.direction === 'west') {
-        isFront = vehiclePos.x < currentPos.x && Math.abs(vehiclePos.y - currentPos.y) < 25
-      } else if (this.direction === 'north') {
-        isFront = vehiclePos.y < currentPos.y && Math.abs(vehiclePos.x - currentPos.x) < 25
-      } else if (this.direction === 'south') {
-        isFront = vehiclePos.y > currentPos.y && Math.abs(vehiclePos.x - currentPos.x) < 25
-      }
-
-      if (isFront) {
-        frontVehicles.push(vehicle)
-      }
-    }
-
-    return frontVehicles
-  }
-
-  // 🚨 新增：檢查同方向前車移動狀態
-  checkFrontVehicleMoving(allVehicles) {
-    const frontVehicles = this.findVehicleInDirection(allVehicles)
-
-    if (frontVehicles.length === 0) {
-      return {
-        hasFrontVehicle: false,
-        frontVehicleMoving: false,
-        frontVehicleId: null,
-        distance: Infinity,
-        safeToStart: true,
-      }
-    }
-
-    // 找到最近的前方車輛
-    const nearestFront = frontVehicles.reduce((nearest, vehicle) => {
-      if (!nearest) return vehicle
-
-      const currentDistance = this.calculateDistanceToVehicle(vehicle)
-      const nearestDistance = this.calculateDistanceToVehicle(nearest)
-
-      return currentDistance < nearestDistance && currentDistance > 0 ? vehicle : nearest
-    })
-
-    if (!nearestFront) {
-      return {
-        hasFrontVehicle: false,
-        frontVehicleMoving: false,
-        frontVehicleId: null,
-        distance: Infinity,
-        safeToStart: true,
-      }
-    }
-
-    // 計算與前車的距離
-    const distanceToFront = this.calculateDistanceToVehicle(nearestFront)
-
-    // 🎯【新增】安全起步距離檢查，避免車輛重疊
-    // 根據方向使用適當的最小安全距離
-    const minSafeDistance =
-      this.direction === 'north' || this.direction === 'south'
-        ? 25 // 南北向需要較大安全距離
-        : 20 // 東西向安全距離
-
-    // 檢查是否有足夠的安全距離可以起步
-    const safeToStart = distanceToFront > minSafeDistance
-
-    // 檢查前方車輛是否正在移動（多重條件檢查）
-    const frontVehicleMoving =
-      nearestFront.currentState === 'moving' &&
-      nearestFront.movementTimeline &&
-      nearestFront.movementTimeline.timeScale() > 0 &&
-      !nearestFront.waitingForGreen &&
-      !nearestFront.isAtStopLine
-
-    return {
-      hasFrontVehicle: true,
-      frontVehicleMoving: frontVehicleMoving,
-      frontVehicleId: nearestFront.id,
-      distance: distanceToFront,
-      safeToStart: safeToStart,
-    }
-  }
-
-  // 🚨 新增：執行控制速度的綠燈起步
-  performControlledGreenLightStart(trafficController) {
-    // 🔧 修正：檢查車道對應的綠燈狀態
-    const currentLightState = trafficController.getCurrentLightState(this.direction)
-
-    // 根據車道檢查對應的綠燈狀態
-    const shouldProceed =
-      this.laneNumber === 1
-        ? currentLightState === 'leftGreen' // 左轉車道檢查leftGreen
-        : currentLightState === 'green' // 直行車道檢查green
-
-    // 安全檢查：確保時間軸仍然存在且燈號仍為對應的綠燈
-    if (!this.movementTimeline || !shouldProceed) {
-      console.log(
-        `🚦❌ [${this.id}] 車道${this.laneNumber} 無法啟動：時間軸=${!!this.movementTimeline}, 燈號=${currentLightState}, 應該通行=${shouldProceed}`,
-      )
-      return
-    }
-
-    console.log(`🚦✅ [${this.id}] 車道${this.laneNumber} 開始移動：燈號=${currentLightState}`)
-
-    // 🎯 檢查前車距離，決定起步速度
-    const allVehicles = window.liveVehicles || []
-    const frontVehicleCheck = this.checkFrontVehicleMoving(allVehicles)
-
-    let startSpeed = this.originalTimeScale || 1
-    let acceleration = 0.3 // 默認加速時間
-
-    if (frontVehicleCheck.hasFrontVehicle) {
-      const frontDistance = this.calculateDistanceToVehicle(
-        allVehicles.find((v) => v.id === frontVehicleCheck.frontVehicleId),
-      )
-
-      // 🚨 根據前車距離調整起步速度，防止重疊
-      if (frontDistance > 0 && frontDistance < 30) {
-        startSpeed = startSpeed * 0.5 // 前車很近，慢速起步
-        acceleration = 0.8 // 更長的加速時間
-        console.log(`🐌 [${this.id}] 前車較近(${frontDistance.toFixed(1)}px)，慢速起步`)
-      } else if (frontDistance > 0 && frontDistance < 50) {
-        startSpeed = startSpeed * 0.7 // 前車中等距離，中速起步
-        acceleration = 0.5
-        console.log(`🚗 [${this.id}] 前車中距(${frontDistance.toFixed(1)}px)，中速起步`)
-      }
-    }
-
-    // 漸進式速度恢復，防止急促加速
-    gsap.to(this.movementTimeline, {
-      timeScale: startSpeed,
-      duration: acceleration,
-      ease: 'power2.inOut',
-      onComplete: () => {
-        // 恢復正常速度（如果需要）
-        if (startSpeed < (this.originalTimeScale || 1)) {
-          gsap.to(this.movementTimeline, {
-            timeScale: this.originalTimeScale || 1,
-            duration: 1.0, // 緩慢恢復到正常速度
-            ease: 'power2.inOut',
-          })
-        }
-
+        // 🚨 綠燈時強制啟動，不受碰撞檢查影響
+        this.movementTimeline.timeScale(1)
         this.movementTimeline.resume()
         this.waitingForGreen = false
         this.isAtStopLine = false
-        // 🚨 修正：不要立即設置hasPassedStopLine，讓車輛自然移動到停止線才標記
-        // this.hasPassedStopLine = true  // 移除這行，改為在車輛真正通過停止線時才設置
         this.currentState = 'moving'
-        this.originalTimeScale = null
 
-        console.log(`🚦✅ [${this.id}] 車道${this.laneNumber}綠燈起步，開始移動但尚未標記通過停止線`)
-
-        // 🎯【新增】啟動持續速度監控，防止後續撞車
-        this.startContinuousSpeedMonitoring(allVehicles)
-      },
-    })
-
-    console.log(`🟢🚀 [${this.id}] 控制速度綠燈起步 (速度=${startSpeed.toFixed(2)}, 加速時間=${acceleration}s)`)
+        console.log(`🟢🚦 [${this.id}] 綠燈強制立即啟動 (清除所有等待狀態)`)
+      }
+    }
   }
 
   // 🚨 移除 checkGreenLightFollowing 方法 - 功能已被 directTrafficLightResponse 替代且未被使用
 
   // 🚨 移除 enforceTrafficSignalCompliance 方法 - 功能已被 directTrafficLightResponse 替代且未被使用
-}
-
-// 🎯 全局測試方法：調整車輛間距配置
-if (typeof window !== 'undefined') {
-  // 統一調整所有方向車輛間距
-  window.setVehicleDistance = function (multiplier) {
-    Vehicle.setDistanceMultiplier(multiplier)
-    console.log(`🎯 全方向車輛間距調整完成: ${multiplier}`)
-  }
-
-  // 專門調整南北向車輛間距（現在與東西向統一）
-  window.setNorthSouthDistance = function (multiplier) {
-    Vehicle.setNorthSouthDistanceMultiplier(multiplier)
-    console.log(`🎯 南北向距離倍數調整完成: ${multiplier}`)
-    console.log(`🎯 當前南北向與東西向間距比例: ${multiplier} : 1.0`)
-  }
-
-  // 查看當前距離配置
-  window.testVehicleDistances = function () {
-    const config = Vehicle.getDistanceConfig()
-    console.log('🎯 當前車輛距離配置:')
-    console.log(`📊 基礎間距倍數: ${config.distanceMultiplier}`)
-    console.log(`📊 南北向專用倍數: ${config.northSouthDistanceMultiplier}`)
-    console.log(`📊 東西向實際停止距離: ${config.eastWestActualDistance.stopDistance.normal}px`)
-    console.log(`📊 南北向實際停止距離: ${config.northSouthActualDistance.stopDistance.normal}px`)
-    console.log(`📊 南北向是否與東西向一致: ${config.northSouthDistanceMultiplier === 1.0 ? '✅ 是' : '❌ 否'}`)
-  }
-
-  // 讓南北向完全參考東西向的排隊邏輯
-  window.unifyAllDirections = function () {
-    Vehicle.setNorthSouthDistanceMultiplier(1.0)
-    console.log('🎯 已統一所有方向的車輛間距邏輯 - 南北向現在與東西向完全一致')
-    console.log('🚗 南北向車輛現在會像東西向一樣一個接著一個排隊')
-  }
-
-  // 恢復南北向緊密排隊（如果需要更密集）
-  window.tightNorthSouthQueue = function () {
-    Vehicle.setNorthSouthDistanceMultiplier(0.7)
-    console.log('🚗 已應用南北向緊密排隊模式 (0.7x)')
-  }
 }
