@@ -11,7 +11,7 @@ gsap.registerPlugin(MotionPathPlugin)
 
 export default class Vehicle {
   // 靜態屬性：統一控制動畫速度
-  static timeMultiplier = 2 // 控制整體動畫速度，數字越小動畫越快（0.4 = 2.5倍速）
+  static timeMultiplier = 2 // 🔧 控制整體動畫速度，數字越大動畫越慢，數字越小動畫越快（1.0 = 正常速度）
 
   // 🎯 新增：車輛間距控制配置
   static distanceMultiplier = 1.0 // 控制車輛間距，1.0=預設，2.0=兩倍間距，0.5=一半間距
@@ -353,10 +353,11 @@ export default class Vehicle {
     // 使用統一的動畫速度控制
     const adjustedTheoretical = theoreticalTime * Vehicle.timeMultiplier
 
-    // 調整時間範圍以適應新的速度
+    // 調整時間範圍以適應新的速度 - 🔧 根據 timeMultiplier 動態調整上限
+    const baseMaxTime = 15
+    const dynamicMaxTime = baseMaxTime * Math.max(1, Vehicle.timeMultiplier) // 允許更長的動畫時間
     const minTime = 3 // 最短3秒
-    const maxTime = 15 // 最長15秒
-    const adjustedTime = Math.max(minTime, Math.min(maxTime, adjustedTheoretical))
+    const adjustedTime = Math.max(minTime, Math.min(dynamicMaxTime, adjustedTheoretical))
 
     return adjustedTime
   }
@@ -1629,7 +1630,10 @@ export default class Vehicle {
           let theoreticalTime = realDistance / speedMs
           // 使用統一的動畫速度控制
           theoreticalTime *= Vehicle.timeMultiplier
-          animationDuration = Math.max(3, Math.min(15, theoreticalTime)) // 調整時間範圍
+          // 🔧 根據 timeMultiplier 動態調整時間範圍上限
+          const baseMaxTime = 15
+          const dynamicMaxTime = baseMaxTime * Math.max(1, Vehicle.timeMultiplier)
+          animationDuration = Math.max(3, Math.min(dynamicMaxTime, theoreticalTime))
         } catch (error) {
           console.warn(`⚠️ 無法計算路徑長度，使用預設動畫時間:`, error)
           animationDuration = this.calculateAnimationDuration()
@@ -2098,8 +2102,10 @@ export default class Vehicle {
         let theoreticalTime = realDistance / speedMs
         // 使用統一的動畫速度控制
         theoreticalTime *= Vehicle.timeMultiplier
-        // 限制合理範圍
-        animationDuration = Math.max(3, Math.min(15, theoreticalTime))
+        // 🔧 根據 timeMultiplier 動態調整時間範圍上限
+        const baseMaxTime = 15
+        const dynamicMaxTime = baseMaxTime * Math.max(1, Vehicle.timeMultiplier)
+        animationDuration = Math.max(3, Math.min(dynamicMaxTime, theoreticalTime))
       }
 
       // Strategy Pattern: 使用延遲策略避免剛生成就被碰撞檢測影響
