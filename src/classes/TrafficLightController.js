@@ -811,6 +811,11 @@ export default class TrafficLightController {
     }
   }
 
+  // 獲取方向車輛數據
+  getDirectionVehicleData(direction) {
+    return this.vehicleData[direction] || { motor: 0, small: 0, large: 0 }
+  }
+
   // 重置車輛數據
   resetVehicleData() {
     Object.keys(this.vehicleData).forEach((direction) => {

@@ -1024,6 +1024,25 @@ export default class Vehicle {
     return `${this.direction}Lane${this.laneNumber}Straight`
   }
 
+  // Static Method: 獲取距離配置
+  static getDistanceConfig() {
+    return {
+      followingDistance: {
+        motor: 30,
+        small: 25,
+        large: 40,
+      },
+      safeDistance: {
+        motor: 20,
+        small: 15,
+        large: 30,
+      },
+      stopLineBuffer: 10,
+      speedConfig: speedConfig,
+      timeMultiplier: this.timeMultiplier,
+    }
+  }
+
   // Static Method: 獲取指定方向和車道的路徑起始位置
   static getPathStartPosition(direction, laneNumber) {
     const pathId = `${direction}Lane${laneNumber}Straight`

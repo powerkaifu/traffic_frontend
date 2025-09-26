@@ -441,7 +441,7 @@ function getTrafficData(dir) {
       largeCarSpeed: sp.large || 0,
     }
   }
-  if (window.trafficController) {
+  if (window.trafficController && typeof window.trafficController.getDirectionVehicleData === 'function') {
     const vd = window.trafficController.getDirectionVehicleData(dir) || {}
     const avg = window.trafficController.getAverageSpeed?.(dir, 'small') || 0
     const occ = parseFloat(window.trafficController.calculateOccupancy?.(dir) || '0')

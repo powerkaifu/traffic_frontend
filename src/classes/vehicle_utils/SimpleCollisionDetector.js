@@ -206,7 +206,6 @@ export class SimpleCollisionDetector {
    */
   setCheckInterval(interval) {
     this.checkInterval = Math.max(10, interval) // 最小10ms
-    console.log(`🔧 [${this.vehicle.id}] 碰撞檢查間隔設為: ${this.checkInterval}ms`)
   }
 
   /**
@@ -215,7 +214,6 @@ export class SimpleCollisionDetector {
   setDistances(stopDistance, slowDistance) {
     this.STOP_DISTANCE = Math.max(1, stopDistance)
     this.SLOW_DISTANCE = Math.max(this.STOP_DISTANCE + 5, slowDistance)
-    console.log(`🔧 [${this.vehicle.id}] 距離參數設為: 停止=${this.STOP_DISTANCE}px, 減速=${this.SLOW_DISTANCE}px`)
   }
 
   /**
