@@ -351,14 +351,14 @@ const timeScenarios = [
     icon: '🚀',
     timeRange: '07:00-08:00,17:00-18:00',
     config: {
-      interval: { min: 1000, max: 3000, normal: 2000 }, // 修改為1-3秒間隔
+      interval: { min: 4000, max: 7000, normal: 5500 }, // 與 AutoTrafficGenerator.js 保持一致
       vehicleTypes: [
         { type: 'motor', weight: 60 },
-        { type: 'small', weight: 35 },
-        { type: 'large', weight: 5 },
+        { type: 'small', weight: 40 }, // 與 AutoTrafficGenerator.js 保持一致
+        { type: 'large', weight: 10 }, // 與 AutoTrafficGenerator.js 保持一致
       ],
-      peakMultiplier: 0.8,
-      maxLiveVehicles: 100, // 改為 100
+      peakMultiplier: 3.5, // 與 AutoTrafficGenerator.js 保持一致
+      maxLiveVehicles: 100,
       densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
     },
   },
@@ -369,14 +369,14 @@ const timeScenarios = [
     icon: '🌞',
     timeRange: '09:00-16:00,19:00-22:00',
     config: {
-      interval: { min: 2000, max: 5000, normal: 3000 }, // 修改為2-5秒間隔
+      interval: { min: 4000, max: 6000, normal: 5000 }, // 與 AutoTrafficGenerator.js 保持一致
       vehicleTypes: [
         { type: 'motor', weight: 30 },
         { type: 'small', weight: 55 },
         { type: 'large', weight: 15 },
       ],
-      peakMultiplier: 0.4,
-      maxLiveVehicles: 100, // 改為 100
+      peakMultiplier: 2.5, // 與 AutoTrafficGenerator.js 保持一致
+      maxLiveVehicles: 100,
       densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
     },
   },
@@ -387,14 +387,14 @@ const timeScenarios = [
     icon: '🌙',
     timeRange: '23:00-06:00',
     config: {
-      interval: { min: 5000, max: 10000, normal: 7000 }, // 修改為5-10秒間隔
+      interval: { min: 20000, max: 40000, normal: 30000 }, // 與 AutoTrafficGenerator.js 保持一致
       vehicleTypes: [
         { type: 'motor', weight: 80 },
         { type: 'small', weight: 15 },
-        { type: 'large', weight: 5 },
+        { type: 'large', weight: 5 }, // 與 AutoTrafficGenerator.js 保持一致
       ],
-      peakMultiplier: 0.1,
-      maxLiveVehicles: 100, // 改為 100
+      peakMultiplier: 1, // 與 AutoTrafficGenerator.js 保持一致
+      maxLiveVehicles: 100,
       densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
     },
   },

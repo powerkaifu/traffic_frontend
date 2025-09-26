@@ -192,7 +192,7 @@ export default class AutoTrafficGenerator {
         interval: { min: 4000, max: 7000, normal: 5500 }, // 增加最小間隔和正常間隔
         peakMultiplier: 3.5, // 降低乘數避免過度密集
         vehicleTypes: [
-          { type: 'motor', weight: 50 }, // 調整車型比例
+          { type: 'motor', weight: 60 }, // 調整車型比例
           { type: 'small', weight: 40 },
           { type: 'large', weight: 10 },
         ],
