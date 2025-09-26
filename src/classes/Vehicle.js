@@ -1784,25 +1784,34 @@ export default class Vehicle {
     // 這樣可確保車輛會前進到停止線才停，而不是立即原地停車
 
     // 🟢 綠燈：立即啟動所有等待車輛
-    if (currentLightState === 'green') {
-      // 🚨 修復：檢查所有可能需要啟動的狀態
-      const needsToStart =
-        this.waitingForGreen || // 等待綠燈狀態
-        this.movementTimeline.timeScale() === 0 || // 時間軸停止
-        this.currentState === 'waiting' || // 等待狀態
-        this.currentState === 'stopped' || // 停止狀態
-        this.currentState === 'waitingForVehicle' || // 等待前車狀態
-        this.movementTimeline.paused() // 時間軸暫停
+    if (currentLightState === 'green' || currentLightState === 'leftGreen') {
+      // 🚦 檢查車輛類型是否與燈號匹配
+      const canProceed =
+        (currentLightState === 'green' && this.laneNumber !== 1) || // 直行綠燈且非左轉車道
+        (currentLightState === 'leftGreen' && this.laneNumber === 1) // 左轉綠燈且為左轉車道
 
-      if (needsToStart) {
-        // 🚨 綠燈時強制啟動，不受碰撞檢查影響
-        this.movementTimeline.timeScale(1)
-        this.movementTimeline.resume()
-        this.waitingForGreen = false
-        this.isAtStopLine = false
-        this.currentState = 'moving'
+      if (canProceed) {
+        // 🚨 修復：檢查所有可能需要啟動的狀態
+        const needsToStart =
+          this.waitingForGreen || // 等待綠燈狀態
+          this.movementTimeline.timeScale() === 0 || // 時間軸停止
+          this.currentState === 'waiting' || // 等待狀態
+          this.currentState === 'stopped' || // 停止狀態
+          this.currentState === 'waitingForVehicle' || // 等待前車狀態
+          this.currentState === 'waitingForLeftTurnGreen' || // 等待左轉綠燈狀態
+          this.movementTimeline.paused() // 時間軸暫停
 
-        console.log(`🟢🚦 [${this.id}] 綠燈強制立即啟動 (清除所有等待狀態)`)
+        if (needsToStart) {
+          // 🚨 綠燈時強制啟動，不受碰撞檢查影響
+          this.movementTimeline.timeScale(1)
+          this.movementTimeline.resume()
+          this.waitingForGreen = false
+          this.isAtStopLine = false
+          this.currentState = 'moving'
+
+          const lightType = currentLightState === 'leftGreen' ? '左轉綠燈' : '直行綠燈'
+          console.log(`🟢🚦 [${this.id}] ${lightType}強制立即啟動 (清除所有等待狀態)`)
+        }
       }
     }
   }

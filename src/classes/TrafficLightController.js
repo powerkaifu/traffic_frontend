@@ -44,7 +44,7 @@ export default class TrafficLightController {
       },
       // 左轉綠燈時間
       leftTurnGreen: {
-        duration: 8, // 左轉綠燈持續時間（秒）
+        duration: 12, // 左轉綠燈持續時間（秒）- 從8秒增加到12秒
       },
       // 黃燈時間
       yellow: {
