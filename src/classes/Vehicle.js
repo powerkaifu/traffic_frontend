@@ -886,9 +886,10 @@ export default class Vehicle {
     const currentTime = Date.now()
     const timeSinceLastCheck = currentTime - this.lastCollisionCheck
 
-    // 🚦 強化修正：等待紅燈的車輛必須進行碰撞檢測以避免重疊
+    // 🚦 強化修正：左轉車輛必須更頻繁地進行碰撞檢測以避免重疊
+    const isLeftTurnVehicle = this.laneNumber === 1
     const shouldCheck =
-      timeSinceLastCheck > this.collisionCheckInterval || // 定期檢查
+      timeSinceLastCheck > (isLeftTurnVehicle ? this.collisionCheckInterval * 0.5 : this.collisionCheckInterval) || // 左轉車檢查頻率加倍
       this.isInCriticalZone() || // 危險區域
       this.currentState === 'moving' || // 移動狀態
       this.currentState === 'waiting' || // 🔧 等待狀態需檢查（關鍵！）
@@ -899,7 +900,8 @@ export default class Vehicle {
       this.currentState === 'waitingForVehicle' || // 🔧 新增：等待前車狀態
       this.waitingForGreen || // 等待綠燈狀態需檢查（關鍵！）
       this.isAtStopLine || // 🔧 新增：在停止線的車輛必須檢查
-      (this.movementTimeline && this.movementTimeline.timeScale() >= 0) // 🔧 修正：包含停止狀態(timeScale=0)
+      (this.movementTimeline && this.movementTimeline.timeScale() >= 0) || // 🔧 修正：包含停止狀態(timeScale=0)
+      isLeftTurnVehicle // 🚨 左轉車強制檢查
 
     if (!shouldCheck) {
       return null // 跳過檢查，節省性能
@@ -1000,13 +1002,10 @@ export default class Vehicle {
     let adjustedSafeDistance = safeDistance
     let adjustedStopDistance = stopDistance
 
-    // 🔧 左轉車道特殊處理：增加額外的安全距離
-    if (this.laneNumber === 1) {
-      adjustedSafeDistance = safeDistance * 1.3 // 左轉車使用更大的安全距離
-      adjustedStopDistance = stopDistance * 1.3
-    }
+    // 🔧 統一的距離調整邏輯，避免重複計算
+    let baseMultiplier = 1.0
 
-    // 🔧 強化修正：等待狀態使用更大的安全距離避免重疊
+    // 根據車輛狀態決定基本倍數
     if (
       this.currentState === 'waiting' ||
       this.currentState === 'slowing_for_light' ||
@@ -1015,24 +1014,20 @@ export default class Vehicle {
       this.waitingForGreen ||
       this.isAtStopLine
     ) {
-      // 🚨 關鍵修正：等待紅燈狀態下使用更大的安全距離
-      const waitingMultiplier = this.laneNumber === 1 ? 2.5 : 2.0 // 左轉車用更大倍數
-      adjustedSafeDistance = adjustedSafeDistance * waitingMultiplier
-      adjustedStopDistance = adjustedStopDistance * waitingMultiplier
-
-      console.log(
-        `🚦🛑 [${this.id}] 等待狀態安全距離調整: 停止=${adjustedStopDistance.toFixed(1)}px, 安全=${adjustedSafeDistance.toFixed(1)}px, 狀態=${this.currentState}`,
-      )
-    } else if (this.currentState === 'slowing_for_light' || this.waitingForGreen) {
-      if (this.laneNumber === 1) {
-        adjustedSafeDistance = adjustedSafeDistance * 2.0 // 🔧 左轉等待狀態用2倍距離
-        adjustedStopDistance = adjustedStopDistance * 2.0
-      } else {
-        adjustedSafeDistance = adjustedSafeDistance * 1.5
-        adjustedStopDistance = adjustedStopDistance * 1.5
-      }
-      console.log(`🚦 [${this.id}] 等待狀態安全距離調整: ${adjustedSafeDistance.toFixed(1)}px`)
+      // 🚨 修復：統一的等待狀態距離倍數，避免重複計算
+      baseMultiplier = this.laneNumber === 1 ? 2.0 : 1.8 // 左轉車稍微大一點但不過度
+    } else if (this.currentState === 'moving') {
+      // 移動狀態的基本倍數
+      baseMultiplier = this.laneNumber === 1 ? 1.2 : 1.0
     }
+
+    // 🔧 一次性計算最終距離，不重複調整
+    adjustedSafeDistance = safeDistance * baseMultiplier
+    adjustedStopDistance = stopDistance * baseMultiplier
+
+    console.log(
+      `� [${this.id}] 距離計算: 車道${this.laneNumber}, 狀態${this.currentState}, 倍數${baseMultiplier}, 停止=${adjustedStopDistance.toFixed(1)}px, 安全=${adjustedSafeDistance.toFixed(1)}px`,
+    )
 
     for (let vehicle of vehicles) {
       if (!vehicle.element || !vehicle.element.parentNode) continue
@@ -1091,32 +1086,40 @@ export default class Vehicle {
         }
       }
 
-      // 🚨 強化重疊檢測：更嚴格的重疊判定
+      // 🚨 強化重疊檢測：更嚴格的重疊判定，特別針對左轉車
       let isOverlapping = false
       if (this.direction === 'east' || this.direction === 'west') {
         // 水平方向重疊檢測：考慮車輛實際大小
         const horizontalOverlap = !(currentBox.right <= otherBox.left || currentBox.left >= otherBox.right)
-        const verticalAlignment = Math.abs(currentPos.y - otherPos.y) < 30 // 稍微放寬垂直對齊判定
+        const verticalAlignment = Math.abs(currentPos.y - otherPos.y) < (this.laneNumber === 1 ? 20 : 25) // 🔧 左轉車更嚴格
         isOverlapping = horizontalOverlap && verticalAlignment && inSameLane
       } else {
         // 垂直方向重疊檢測：考慮車輛實際大小
         const verticalOverlap = !(currentBox.bottom <= otherBox.top || currentBox.top >= otherBox.bottom)
-        const horizontalAlignment = Math.abs(currentPos.x - otherPos.x) < 30 // 稍微放寬水平對齊判定
+        const horizontalAlignment = Math.abs(currentPos.x - otherPos.x) < (this.laneNumber === 1 ? 20 : 25) // 🔧 左轉車更嚴格
         isOverlapping = verticalOverlap && horizontalAlignment && inSameLane
       }
 
+      // 🔧 額外的左轉車重疊檢測：如果距離過近也視為重疊
+      if (!isOverlapping && this.laneNumber === 1 && inSameLane && isFront && distance < 8) {
+        console.log(`🚨 [${this.id}] 左轉車距離過近視為重疊: ${distance.toFixed(1)}px`)
+        isOverlapping = true
+      }
+
       if (isOverlapping) {
-        console.log(`🚨 [${this.id}] 檢測到車輛重疊！前車: ${vehicle.id}, 當前狀態: ${this.currentState}`)
+        console.log(
+          `🚨 [${this.id}] 檢測到車輛重疊！前車: ${vehicle.id}, 當前狀態: ${this.currentState}, 車道: ${this.laneNumber}`,
+        )
         return {
           action: 'stop',
           vehicle: vehicle,
-          distance: 0,
+          distance: Math.max(0, distance),
           shouldStop: true,
           shouldFollow: false,
           followingSpeed: null,
           targetTimeScale: 0,
           isOverlapping: true,
-          reason: '車輛重疊，強制停止',
+          reason: `車輛重疊，強制停止 (車道${this.laneNumber})`,
         }
       }
 
@@ -1164,32 +1167,39 @@ export default class Vehicle {
           }
         }
 
-        // 🎯【關鍵修正】南北向車輛：優先檢查是否應該前進到停止線
-        // 如果車輛還未到達停止線，且燈號是紅燈，應該讓車輛繼續前進到停止線才停止
-        // 🔧 修正：擴展到所有方向，不只是南北向
+        // 🎯 修復：檢查是否應該前進到停止線，但必須確保不重疊
         const distanceToStopLine = this.getDistanceToStopLine()
         const trafficController = this.trafficLightController
         const currentLightState = trafficController?.getCurrentLightState(this.direction)
 
-        // 🎯 重要修正：對於車道1（左轉車道），需要檢查leftGreen而不是red
+        // 🚨 關鍵修復：左轉車的前進條件更嚴格，避免重疊
         let shouldContinueToStopLine = false
 
         if (this.laneNumber === 1) {
-          // 左轉車道：如果不是左轉綠燈，應該前進到停止線等待
-          // 🔧 強化修正：檢查前車是否已在等待，避免重疊
-          const hasRoomToContinue = distance > adjustedStopDistance * 2.0 // 🔧 增加到2倍距離
-          const frontVehicleNotWaiting = !vehicle.waitingForGreen && vehicle.currentState !== 'waiting' // 前車不在等待
+          // 🔧 左轉車道：更嚴格的條件檢查
+          const hasRoomToContinue = distance > adjustedStopDistance * 1.5 // 🔧 降低到1.5倍，更保守
+          const frontVehicleIsMoving =
+            vehicle.currentState === 'moving' && vehicle.movementTimeline && vehicle.movementTimeline.timeScale() > 0.1
+          const canSafelyFollow =
+            !vehicle.waitingForGreen && !vehicle.isAtStopLine && vehicle.currentState !== 'waiting'
 
           shouldContinueToStopLine =
             currentLightState !== 'leftGreen' &&
             distanceToStopLine &&
-            distanceToStopLine > 20 && // 🔧 增加到20px
+            distanceToStopLine > 30 && // 🔧 增加到30px更安全
             hasRoomToContinue &&
-            frontVehicleNotWaiting // 🔧 新增：前車必須不在等待狀態
+            (frontVehicleIsMoving || canSafelyFollow) // 🔧 前車必須在移動或可安全跟隨
+
+          console.log(
+            `🚗 [${this.id}] 左轉車前進條件檢查: 距離前車=${distance.toFixed(1)}px, 距停止線=${distanceToStopLine}px, 前車移動=${frontVehicleIsMoving}, 可跟隨=${canSafelyFollow}, 決定=${shouldContinueToStopLine}`,
+          )
         } else {
-          // 直行車道：如果不是直行綠燈，應該前進到停止線等待
-          const hasRoomToContinue = distance > adjustedStopDistance * 2.0 // 🔧 增加到2倍距離
-          const frontVehicleNotWaiting = !vehicle.waitingForGreen && vehicle.currentState !== 'waiting' // 前車不在等待
+          // 🔧 直行車道：同樣更嚴格的條件
+          const hasRoomToContinue = distance > adjustedStopDistance * 1.5
+          const frontVehicleIsMoving =
+            vehicle.currentState === 'moving' && vehicle.movementTimeline && vehicle.movementTimeline.timeScale() > 0.1
+          const canSafelyFollow =
+            !vehicle.waitingForGreen && !vehicle.isAtStopLine && vehicle.currentState !== 'waiting'
 
           shouldContinueToStopLine =
             (currentLightState === 'red' ||
@@ -1197,9 +1207,9 @@ export default class Vehicle {
               currentLightState === 'yellow' ||
               currentLightState === 'leftGreen') &&
             distanceToStopLine &&
-            distanceToStopLine > 20 && // 🔧 增加到20px
+            distanceToStopLine > 30 && // 🔧 增加到30px
             hasRoomToContinue &&
-            frontVehicleNotWaiting // 🔧 新增：前車必須不在等待狀態
+            (frontVehicleIsMoving || canSafelyFollow) // 🔧 前車必須在移動或可安全跟隨
         }
 
         // 🔧 強化修正：優先檢查前車等待狀態，防止重疊
