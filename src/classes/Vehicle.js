@@ -880,21 +880,25 @@ export default class Vehicle {
     return nearStopLine || isMoving || this.currentState === 'moving'
   }
 
-  // 🎯 修正：智能碰撞檢查 - 確保等待綠燈狀態下也能正常檢測
+  // 🎯 修正：智能碰撞檢查 - 確保等待紅燈狀態下也能正常檢測
   smartCollisionCheck(allVehicles) {
     const currentTime = Date.now()
     const timeSinceLastCheck = currentTime - this.lastCollisionCheck
 
-    // 🚦 強化修正：等待綠燈的車輛更需要頻繁碰撞檢測以避免重疊
+    // 🚦 強化修正：等待紅燈的車輛必須進行碰撞檢測以避免重疊
     const shouldCheck =
       timeSinceLastCheck > this.collisionCheckInterval || // 定期檢查
       this.isInCriticalZone() || // 危險區域
       this.currentState === 'moving' || // 移動狀態
-      this.currentState === 'waiting' || // 等待狀態需檢查
+      this.currentState === 'waiting' || // 🔧 等待狀態需檢查（關鍵！）
       this.currentState === 'following' || // 跟車狀態需檢查
       this.currentState === 'approaching_stop_line' || // 接近停止線狀態需檢查
+      this.currentState === 'slowing_for_light' || // 🔧 新增：為燈號減速狀態
+      this.currentState === 'slowing_for_red' || // 🔧 新增：為紅燈減速狀態
+      this.currentState === 'waitingForVehicle' || // 🔧 新增：等待前車狀態
       this.waitingForGreen || // 等待綠燈狀態需檢查（關鍵！）
-      this.movementTimeline.timeScale() > 0 // 只要車輛在移動就需檢查
+      this.isAtStopLine || // 🔧 新增：在停止線的車輛必須檢查
+      (this.movementTimeline && this.movementTimeline.timeScale() >= 0) // 🔧 修正：包含停止狀態(timeScale=0)
 
     if (!shouldCheck) {
       return null // 跳過檢查，節省性能
@@ -1001,8 +1005,24 @@ export default class Vehicle {
       adjustedStopDistance = stopDistance * 1.3
     }
 
-    // 🔧 強化修正：如果是等待狀態，使用更大的安全距離避免重疊
-    if (this.currentState === 'slowing_for_light' || this.waitingForGreen) {
+    // 🔧 強化修正：等待狀態使用更大的安全距離避免重疊
+    if (
+      this.currentState === 'waiting' ||
+      this.currentState === 'slowing_for_light' ||
+      this.currentState === 'slowing_for_red' ||
+      this.currentState === 'waitingForVehicle' ||
+      this.waitingForGreen ||
+      this.isAtStopLine
+    ) {
+      // 🚨 關鍵修正：等待紅燈狀態下使用更大的安全距離
+      const waitingMultiplier = this.laneNumber === 1 ? 2.5 : 2.0 // 左轉車用更大倍數
+      adjustedSafeDistance = adjustedSafeDistance * waitingMultiplier
+      adjustedStopDistance = adjustedStopDistance * waitingMultiplier
+
+      console.log(
+        `🚦🛑 [${this.id}] 等待狀態安全距離調整: 停止=${adjustedStopDistance.toFixed(1)}px, 安全=${adjustedSafeDistance.toFixed(1)}px, 狀態=${this.currentState}`,
+      )
+    } else if (this.currentState === 'slowing_for_light' || this.waitingForGreen) {
       if (this.laneNumber === 1) {
         adjustedSafeDistance = adjustedSafeDistance * 2.0 // 🔧 左轉等待狀態用2倍距離
         adjustedStopDistance = adjustedStopDistance * 2.0
@@ -1070,27 +1090,79 @@ export default class Vehicle {
         }
       }
 
-      // 檢查重疊
+      // 🚨 強化重疊檢測：更嚴格的重疊判定
       let isOverlapping = false
       if (this.direction === 'east' || this.direction === 'west') {
-        isOverlapping = !(currentBox.right <= otherBox.left || currentBox.left >= otherBox.right) && inSameLane
+        // 水平方向重疊檢測：考慮車輛實際大小
+        const horizontalOverlap = !(currentBox.right <= otherBox.left || currentBox.left >= otherBox.right)
+        const verticalAlignment = Math.abs(currentPos.y - otherPos.y) < 30 // 稍微放寬垂直對齊判定
+        isOverlapping = horizontalOverlap && verticalAlignment && inSameLane
       } else {
-        isOverlapping = !(currentBox.bottom <= otherBox.top || currentBox.top >= otherBox.bottom) && inSameLane
+        // 垂直方向重疊檢測：考慮車輛實際大小
+        const verticalOverlap = !(currentBox.bottom <= otherBox.top || currentBox.top >= otherBox.bottom)
+        const horizontalAlignment = Math.abs(currentPos.x - otherPos.x) < 30 // 稍微放寬水平對齊判定
+        isOverlapping = verticalOverlap && horizontalAlignment && inSameLane
       }
 
       if (isOverlapping) {
+        console.log(`🚨 [${this.id}] 檢測到車輛重疊！前車: ${vehicle.id}, 當前狀態: ${this.currentState}`)
         return {
+          action: 'stop',
           vehicle: vehicle,
           distance: 0,
           shouldStop: true,
           shouldFollow: false,
           followingSpeed: null,
+          targetTimeScale: 0,
           isOverlapping: true,
+          reason: '車輛重疊，強制停止',
         }
       }
 
       // 檢查是否在前方且距離需要處理
       if (inSameLane && isFront && distance < adjustedSafeDistance) {
+        // 🚨 關鍵修正：等待紅燈時的特殊處理邏輯
+        if (
+          this.currentState === 'waiting' ||
+          this.currentState === 'waitingForVehicle' ||
+          this.waitingForGreen ||
+          this.isAtStopLine
+        ) {
+          console.log(
+            `🚦🛑 [${this.id}] 等待紅燈時檢測前車距離: ${distance.toFixed(1)}px (需求停止: ${adjustedStopDistance.toFixed(1)}px)`,
+          )
+
+          if (distance <= adjustedStopDistance) {
+            return {
+              action: 'stop',
+              vehicle: vehicle,
+              distance: distance,
+              shouldStop: true,
+              shouldFollow: false,
+              followingSpeed: 0,
+              targetTimeScale: 0,
+              isOverlapping: distance < 5,
+              reason: '等待紅燈時距離太近需完全停止',
+            }
+          } else {
+            // 距離適中，使用非常慢的速度慢慢調整到合適位置
+            const targetTimeScale = Math.min(0.1, distance / adjustedSafeDistance) // 非常保守的速度
+            return {
+              action: 'follow',
+              vehicle: vehicle,
+              distance: distance,
+              shouldStop: false,
+              shouldFollow: true,
+              followingSpeed: this.initialSpeed * targetTimeScale,
+              targetTimeScale: targetTimeScale,
+              frontVehicleIsMoving: this.isFrontVehicleMoving(vehicle),
+              frontVehicleAtStopLine: this.isFrontVehicleAtStopLine(vehicle),
+              isOverlapping: false,
+              reason: `等待紅燈慢速調整，距離${distance.toFixed(1)}px`,
+            }
+          }
+        }
+
         // 🎯【關鍵修正】南北向車輛：優先檢查是否應該前進到停止線
         // 如果車輛還未到達停止線，且燈號是紅燈，應該讓車輛繼續前進到停止線才停止
         // 🔧 修正：擴展到所有方向，不只是南北向
@@ -1591,14 +1663,46 @@ export default class Vehicle {
           }
 
           this.periodicCheckTimer = setInterval(() => {
-            // � 統一交通燈響應：使用 directTrafficLightResponse 處理所有燈號變化
+            // 🚨 統一交通燈響應：使用 directTrafficLightResponse 處理所有燈號變化
             this.directTrafficLightResponse(trafficController)
+
+            // 🚨 強化：等待狀態也需要定期碰撞檢查，防止重疊
+            if (
+              this.currentState === 'waitingForVehicle' ||
+              this.currentState === 'waiting' ||
+              this.waitingForGreen ||
+              this.isAtStopLine
+            ) {
+              const collisionCheck = this.checkSimpleCollision(allVehicles)
+
+              if (collisionCheck && (collisionCheck.action === 'stop' || collisionCheck.isOverlapping)) {
+                // 發現距離太近或重疊的情況，強制調整
+                console.log(
+                  `🚨 [${this.id}] 定期檢查發現距離太近: ${collisionCheck.distance?.toFixed(1) || '0'}px，強制停止`,
+                )
+                if (this.movementTimeline) {
+                  this.movementTimeline.timeScale(0)
+                }
+                this.currentState = 'waiting'
+              } else if (collisionCheck && collisionCheck.action === 'follow') {
+                // 距離適中，允許慢速移動調整位置
+                const targetSpeed = Math.min(0.05, collisionCheck.targetTimeScale || 0.03) // 非常慢的速度
+                if (this.movementTimeline && this.movementTimeline.timeScale() !== targetSpeed) {
+                  gsap.to(this.movementTimeline, {
+                    timeScale: targetSpeed,
+                    duration: 0.5,
+                    ease: 'power2.out',
+                  })
+                  console.log(`🐌 [${this.id}] 定期檢查調整到慢速: ${(targetSpeed * 100).toFixed(1)}%`)
+                }
+              }
+            }
 
             // 🚨 簡化：檢查是否可以恢復移動（僅限碰撞相關）
             if (this.currentState === 'waitingForVehicle') {
               this.resumeMovement(allVehicles)
             }
-          }, 50) // 統一使用50ms間隔，與後面的邏輯一致
+          }, 30) // 🔧 使用更頻繁的檢查間隔，特別是對等待狀態
 
           // 邊界檢測標記 - 避免重複觸發 (移到正確位置)
           let hasBeenRemovedFromCollision = false
@@ -2023,7 +2127,39 @@ export default class Vehicle {
         this.periodicCheckTimer = setInterval(() => {
           // 🚨 統一交通燈響應：使用 directTrafficLightResponse 處理所有燈號變化
           this.directTrafficLightResponse(trafficController)
-        }, 50) // 改為每0.05秒檢查一次，更快速回應        // Template Method Pattern: 創建移動時間線模板
+
+          // 🚨 強化：等待狀態也需要定期碰撞檢查，防止重疊
+          if (
+            this.currentState === 'waitingForVehicle' ||
+            this.currentState === 'waiting' ||
+            this.waitingForGreen ||
+            this.isAtStopLine
+          ) {
+            const collisionCheck = this.checkSimpleCollision(allVehicles)
+
+            if (collisionCheck && (collisionCheck.action === 'stop' || collisionCheck.isOverlapping)) {
+              // 發現距離太近或重疊的情況，強制調整
+              console.log(
+                `🚨 [${this.id}] 定期檢查發現距離太近: ${collisionCheck.distance?.toFixed(1) || '0'}px，強制停止`,
+              )
+              if (this.movementTimeline) {
+                this.movementTimeline.timeScale(0)
+              }
+              this.currentState = 'waiting'
+            } else if (collisionCheck && collisionCheck.action === 'follow') {
+              // 距離適中，允許慢速移動調整位置
+              const targetSpeed = Math.min(0.05, collisionCheck.targetTimeScale || 0.03)
+              if (this.movementTimeline && this.movementTimeline.timeScale() !== targetSpeed) {
+                gsap.to(this.movementTimeline, {
+                  timeScale: targetSpeed,
+                  duration: 0.5,
+                  ease: 'power2.out',
+                })
+                console.log(`🐌 [${this.id}] 定期檢查調整到慢速: ${(targetSpeed * 100).toFixed(1)}%`)
+              }
+            }
+          }
+        }, 30) // 🔧 改為每30ms檢查一次，更快速回應        // Template Method Pattern: 創建移動時間線模板
         this.movementTimeline = gsap.timeline({
           onUpdate: () => {
             // 計算當前速度
