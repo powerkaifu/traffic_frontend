@@ -583,12 +583,29 @@ export default class Vehicle {
 
     const lightState = trafficController.getCurrentLightState(this.direction)
 
-    // 綠燈：恢復正常速度（如果之前在減速）
-    if (lightState === 'green') {
-      if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
-        return { action: 'resume_from_slow' }
+    // 🚦 新增：左轉車道邏輯 - 1號車道需要等待左轉綠燈
+    if (this.laneNumber === 1) {
+      // 左轉車道：只有左轉綠燈才能通行
+      if (lightState === 'leftGreen') {
+        if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
+          console.log(`🚦 [${this.id}] 左轉車道恢復：左轉綠燈`)
+          return { action: 'resume_from_slow' }
+        }
+        return null
+      } else if (lightState === 'green') {
+        // 直行綠燈時，左轉車道必須停止等待
+        console.log(`🚦 [${this.id}] 左轉車道停止：直行綠燈時不得通行`)
+        return { action: 'stop_for_left_turn_wait' }
       }
-      return null
+    } else {
+      // 直行車道：直行綠燈可以通行
+      if (lightState === 'green') {
+        if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
+          console.log(`🚦 [${this.id}] 直行車道恢復：直行綠燈`)
+          return { action: 'resume_from_slow' }
+        }
+        return null
+      }
     }
 
     // 紅燈或黃燈：準備停車，但不提前減速
@@ -1268,9 +1285,16 @@ export default class Vehicle {
                 // 🚨 無碰撞風險時，平滑恢復到正常速度（而非立即設定為1）
                 const currentTimeScale = this.movementTimeline.timeScale()
                 if (currentTimeScale < 1) {
-                  // 🚨 檢查當前燈號狀態，只有綠燈時才恢復移動
+                  // 🚨 檢查當前燈號狀態，根據車道類型決定是否恢復移動
                   const currentLightState = trafficController.getCurrentLightState(this.direction)
-                  if (currentLightState === 'green') {
+
+                  // 🚦 判斷車輛是否可以通行
+                  const canProceed =
+                    this.laneNumber === 1
+                      ? currentLightState === 'leftGreen' // 左轉車道需要左轉綠燈
+                      : currentLightState === 'green' // 直行車道需要直行綠燈
+
+                  if (canProceed) {
                     // 平滑恢復到正常速度，避免突然加速
                     gsap.to(this.movementTimeline, {
                       timeScale: 1,
@@ -1278,14 +1302,17 @@ export default class Vehicle {
                       ease: 'power2.out',
                     })
                     this.currentState = 'moving'
-                    console.log(`🚗 [${this.id}] 綠燈且無碰撞風險，平滑恢復正常速度`)
+                    const laneType = this.laneNumber === 1 ? '左轉' : '直行'
+                    const lightType = this.laneNumber === 1 ? '左轉綠燈' : '直行綠燈'
+                    console.log(`🚗 [${this.id}] ${laneType}車道：${lightType}且無碰撞風險，平滑恢復正常速度`)
                   } else {
-                    console.log(`🛑 [${this.id}] 無碰撞風險但${currentLightState}燈，保持當前速度`)
+                    const laneType = this.laneNumber === 1 ? '左轉' : '直行'
+                    console.log(`🛑 [${this.id}] ${laneType}車道：無碰撞風險但${currentLightState}燈，保持當前速度`)
                   }
                 }
               }
 
-              // 簡化紅綠燈檢查 - 只處理綠燈恢復
+              // 簡化紅綠燈檢查 - 處理綠燈恢復和左轉等待
               if (!shouldStop) {
                 const slowDownInfo = this.checkTrafficLightSlowDown(trafficController)
                 if (slowDownInfo && slowDownInfo.action === 'resume_from_slow') {
@@ -1298,6 +1325,12 @@ export default class Vehicle {
                     })
                     this.originalTimeScale = null
                   }
+                } else if (slowDownInfo && slowDownInfo.action === 'stop_for_left_turn_wait') {
+                  // 🚦 左轉車道在直行綠燈時必須停止
+                  this.movementTimeline.timeScale(0)
+                  this.currentState = 'waitingForLeftTurnGreen'
+                  this.waitingForGreen = true
+                  console.log(`🛑 [${this.id}] 左轉車道停止等待左轉綠燈`)
                 }
               }
 
@@ -1537,6 +1570,12 @@ export default class Vehicle {
                   })
                   this.originalTimeScale = null
                 }
+              } else if (slowDownInfo.action === 'stop_for_left_turn_wait') {
+                // 🚦 左轉車道在直行綠燈時必須停止
+                this.movementTimeline.timeScale(0)
+                this.currentState = 'waitingForLeftTurnGreen'
+                this.waitingForGreen = true
+                console.log(`🛑 [${this.id}] 左轉車道停止等待左轉綠燈`)
               }
             }
 
@@ -1553,7 +1592,14 @@ export default class Vehicle {
               // 檢查紅綠燈狀態
               const lightState = trafficController.getCurrentLightState(this.direction)
 
-              if (lightState === 'red' || lightState === 'allRed' || lightState === 'yellow') {
+              // 🚦 左轉車道特殊邏輯：在直行綠燈時也要停止
+              const shouldStopAtLine =
+                lightState === 'red' ||
+                lightState === 'allRed' ||
+                lightState === 'yellow' ||
+                (this.laneNumber === 1 && lightState === 'green') // 左轉車道在直行綠燈時停止
+
+              if (shouldStopAtLine) {
                 // 如果正在減速，讓它平滑停止
                 if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
                   gsap.to(this.movementTimeline, {
@@ -1563,11 +1609,19 @@ export default class Vehicle {
                     onComplete: () => {
                       this.stopMovement()
                       this.waitingForGreen = true
+                      if (this.laneNumber === 1 && lightState === 'green') {
+                        this.currentState = 'waitingForLeftTurnGreen'
+                        console.log(`🛑 [${this.id}] 左轉車道在停止線等待左轉綠燈 (當前: ${lightState})`)
+                      }
                     },
                   })
                 } else {
                   this.stopMovement()
                   this.waitingForGreen = true
+                  if (this.laneNumber === 1 && lightState === 'green') {
+                    this.currentState = 'waitingForLeftTurnGreen'
+                    console.log(`🛑 [${this.id}] 左轉車道在停止線等待左轉綠燈 (當前: ${lightState})`)
+                  }
                 }
 
                 // 🚨 移除重複的觀察者邏輯，讓 directTrafficLightResponse 處理狀態變化
