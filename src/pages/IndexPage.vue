@@ -249,24 +249,6 @@
           <div class="timer-phase">{{ currentPhase }}</div>
           <div class="timer-countdown">{{ countdown }}</div>
         </div>
-        <!-- 測試按鈕 -->
-        <button
-          @click="testVueReactivity"
-          style="
-            position: absolute;
-            bottom: -40px;
-            left: 0;
-            padding: 5px 10px;
-            background: #4caf50;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 12px;
-          "
-        >
-          測試響應性
-        </button>
       </div>
 
       <!-- 停止線 -->
@@ -564,27 +546,6 @@ const trafficDataCollector = new TrafficDataCollector()
 const currentPhase = ref('南北向 綠燈')
 const countdown = ref(15)
 const activeCars = ref([]) // 維護活躍車輛列表
-
-// 測試 Vue 響應性的函數
-const testVueReactivity = () => {
-  console.log('🧪 測試 Vue 響應性')
-  console.log(`🔍 當前值: phase="${currentPhase.value}", countdown=${countdown.value}`)
-
-  // 直接更新 ref 值
-  const originalPhase = currentPhase.value
-  const originalCountdown = countdown.value
-
-  currentPhase.value = '🧪 測試中...'
-  countdown.value = 99
-  console.log(`🔄 已更新: phase="${currentPhase.value}", countdown=${countdown.value}`)
-
-  // 2秒後恢復
-  setTimeout(() => {
-    currentPhase.value = originalPhase
-    countdown.value = originalCountdown
-    console.log(`🔄 已恢復: phase="${currentPhase.value}", countdown=${countdown.value}`)
-  }, 2000)
-}
 
 // AI 預測結果
 const aiPrediction = ref({
