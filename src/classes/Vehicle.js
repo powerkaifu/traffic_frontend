@@ -1028,16 +1028,16 @@ export default class Vehicle {
   static getDistanceConfig() {
     return {
       followingDistance: {
-        motor: 30,
-        small: 25,
-        large: 40,
+        motor: 15, // 縮短跟車距離
+        small: 12, // 縮短跟車距離
+        large: 20, // 縮短跟車距離
       },
       safeDistance: {
-        motor: 20,
-        small: 15,
-        large: 30,
+        motor: 10, // 縮短安全距離
+        small: 8, // 縮短安全距離
+        large: 15, // 縮短安全距離
       },
-      stopLineBuffer: 10,
+      stopLineBuffer: 5, // 縮短停止線緩衝距離
       speedConfig: speedConfig,
       timeMultiplier: this.timeMultiplier,
     }

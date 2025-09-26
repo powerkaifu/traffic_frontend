@@ -9,17 +9,20 @@
  */
 
 export class SimpleCollisionDetector {
+  // 🔧 可直接修改的距離參數 - 讓使用者自由調整
+  static STOP_DISTANCE = 2 // 停止距離（px）- 可直接修改此值
+  static SLOW_DISTANCE = 15 // 減速距離（px）- 可直接修改此值
+  static LANE_TOLERANCE = 30 // 車道對齊容差（px）- 可直接修改此值
+
   constructor(vehicle) {
     this.vehicle = vehicle
     this.lastCheckTime = 0
     this.checkInterval = 50 // 50ms檢查間隔，平衡性能與響應性
 
-    // 距離配置
-    this.STOP_DISTANCE = 5 // 5px以內立即停止
-    this.SLOW_DISTANCE = 25 // 25px以內開始減速
-    this.LANE_TOLERANCE = 30 // 車道對齊容差
-
     console.log(`🔧 [${this.vehicle.id}] SimpleCollisionDetector 已初始化`)
+    console.log(
+      `� 當前距離設定: STOP=${SimpleCollisionDetector.STOP_DISTANCE}px, SLOW=${SimpleCollisionDetector.SLOW_DISTANCE}px`,
+    )
   }
 
   /**
@@ -60,7 +63,7 @@ export class SimpleCollisionDetector {
 
       const distance = this.calculateDirectionalDistance(myPos, otherPos)
 
-      if (distance > 0 && distance < this.SLOW_DISTANCE && distance < minDistance) {
+      if (distance > 0 && distance < SimpleCollisionDetector.SLOW_DISTANCE && distance < minDistance) {
         minDistance = distance
         closestThreat = {
           vehicle: other,
@@ -76,7 +79,7 @@ export class SimpleCollisionDetector {
     // 根據距離決定動作
     const { distance, vehicle: threatVehicle } = closestThreat
 
-    if (distance <= this.STOP_DISTANCE) {
+    if (distance <= SimpleCollisionDetector.STOP_DISTANCE) {
       return {
         action: 'stop',
         vehicle: threatVehicle,
@@ -88,9 +91,13 @@ export class SimpleCollisionDetector {
       }
     }
 
-    if (distance <= this.SLOW_DISTANCE) {
+    if (distance <= SimpleCollisionDetector.SLOW_DISTANCE) {
       // 根據距離計算跟車速度 (距離越近速度越慢)
-      const speedRatio = Math.max(0.1, (distance - this.STOP_DISTANCE) / (this.SLOW_DISTANCE - this.STOP_DISTANCE))
+      const speedRatio = Math.max(
+        0.1,
+        (distance - SimpleCollisionDetector.STOP_DISTANCE) /
+          (SimpleCollisionDetector.SLOW_DISTANCE - SimpleCollisionDetector.STOP_DISTANCE),
+      )
       return {
         action: 'follow',
         vehicle: threatVehicle,
@@ -115,29 +122,30 @@ export class SimpleCollisionDetector {
       return -1 // 不在同車道，無需檢測
     }
 
-    // 獲取車輛尺寸
+    // 獲取車輛尺寸 - 統一使用較小的尺寸確保間距一致
     const vehicleSize = this.getVehicleSize()
+    const uniformSize = Math.min(vehicleSize.width, vehicleSize.height) // 使用較小的尺寸
 
     switch (this.vehicle.direction) {
       case 'east':
         // 東向：檢查右邊的車輛
         if (otherPos.x <= myPos.x) return -1 // 不在前方
-        return otherPos.x - myPos.x - vehicleSize.width
+        return otherPos.x - myPos.x - uniformSize
 
       case 'west':
         // 西向：檢查左邊的車輛
         if (otherPos.x >= myPos.x) return -1 // 不在前方
-        return myPos.x - otherPos.x - vehicleSize.width
+        return myPos.x - otherPos.x - uniformSize
 
       case 'north':
         // 北向：檢查上方的車輛
         if (otherPos.y >= myPos.y) return -1 // 不在前方
-        return myPos.y - otherPos.y - vehicleSize.height
+        return myPos.y - otherPos.y - uniformSize
 
       case 'south':
         // 南向：檢查下方的車輛
         if (otherPos.y <= myPos.y) return -1 // 不在前方
-        return otherPos.y - myPos.y - vehicleSize.height
+        return otherPos.y - myPos.y - uniformSize
 
       default:
         console.warn(`🚨 [${this.vehicle.id}] 未知的方向: ${this.vehicle.direction}`)
@@ -151,10 +159,10 @@ export class SimpleCollisionDetector {
   isInSameLane(myPos, otherPos) {
     if (this.vehicle.direction === 'east' || this.vehicle.direction === 'west') {
       // 東西向：檢查Y軸對齊
-      return Math.abs(myPos.y - otherPos.y) <= this.LANE_TOLERANCE
+      return Math.abs(myPos.y - otherPos.y) <= SimpleCollisionDetector.LANE_TOLERANCE
     } else {
       // 南北向：檢查X軸對齊
-      return Math.abs(myPos.x - otherPos.x) <= this.LANE_TOLERANCE
+      return Math.abs(myPos.x - otherPos.x) <= SimpleCollisionDetector.LANE_TOLERANCE
     }
   }
 
@@ -178,8 +186,8 @@ export class SimpleCollisionDetector {
   getStats() {
     return {
       checkInterval: this.checkInterval,
-      stopDistance: this.STOP_DISTANCE,
-      slowDistance: this.SLOW_DISTANCE,
+      stopDistance: SimpleCollisionDetector.STOP_DISTANCE,
+      slowDistance: SimpleCollisionDetector.SLOW_DISTANCE,
       laneNumber: this.vehicle.laneNumber,
       direction: this.vehicle.direction,
       vehicleType: this.vehicle.vehicleType,
@@ -209,14 +217,6 @@ export class SimpleCollisionDetector {
   }
 
   /**
-   * 設置距離參數
-   */
-  setDistances(stopDistance, slowDistance) {
-    this.STOP_DISTANCE = Math.max(1, stopDistance)
-    this.SLOW_DISTANCE = Math.max(this.STOP_DISTANCE + 5, slowDistance)
-  }
-
-  /**
    * 清理資源
    */
   dispose() {
@@ -231,14 +231,12 @@ export class CollisionDetectorFactory {
   static createForLane(vehicle, laneNumber) {
     const detector = new SimpleCollisionDetector(vehicle)
 
-    // 根據車道調整參數
+    // 根據車道調整檢查間隔
     if (laneNumber === 1) {
-      // 左轉車道：更保守的距離設定
-      detector.setDistances(8, 30)
-      detector.setCheckInterval(40) // 更頻繁檢查
+      // 左轉車道：更頻繁檢查
+      detector.setCheckInterval(40)
     } else {
       // 直行車道：標準設定
-      detector.setDistances(5, 25)
       detector.setCheckInterval(50)
     }
 
@@ -248,14 +246,12 @@ export class CollisionDetectorFactory {
   static createFastDetector(vehicle) {
     const detector = new SimpleCollisionDetector(vehicle)
     detector.setCheckInterval(25) // 高頻檢查
-    detector.setDistances(3, 20) // 更緊密間距
     return detector
   }
 
   static createConservativeDetector(vehicle) {
     const detector = new SimpleCollisionDetector(vehicle)
     detector.setCheckInterval(75) // 低頻檢查
-    detector.setDistances(10, 35) // 更寬鬆間距
     return detector
   }
 }
