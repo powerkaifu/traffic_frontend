@@ -10,9 +10,9 @@
 
 export class SimpleCollisionDetector {
   // 🔧 可直接修改的距離參數 - 讓使用者自由調整
-  static STOP_DISTANCE = 2 // 停止距離（px）- 可直接修改此值
-  static SLOW_DISTANCE = 15 // 減速距離（px）- 可直接修改此值
-  static LANE_TOLERANCE = 30 // 車道對齊容差（px）- 可直接修改此值
+  static STOP_DISTANCE = 12 // 停止距離（px）- 增加安全距離防止穿越
+  static SLOW_DISTANCE = 25 // 減速距離（px）- 增加跟車檢測範圍
+  static LANE_TOLERANCE = 25 // 車道對齊容差（px）- 減少容差提高精確度
 
   constructor(vehicle) {
     this.vehicle = vehicle
@@ -92,20 +92,42 @@ export class SimpleCollisionDetector {
     }
 
     if (distance <= SimpleCollisionDetector.SLOW_DISTANCE) {
-      // 根據距離計算跟車速度 (距離越近速度越慢)
-      const speedRatio = Math.max(
-        0.1,
-        (distance - SimpleCollisionDetector.STOP_DISTANCE) /
-          (SimpleCollisionDetector.SLOW_DISTANCE - SimpleCollisionDetector.STOP_DISTANCE),
-      )
+      // 🚨 新增：檢查前車速度，防止快車穿越慢車
+      const frontVehicleSpeed = threatVehicle.movementTimeline ? threatVehicle.movementTimeline.timeScale() : 0
+      const mySpeed = this.vehicle.movementTimeline ? this.vehicle.movementTimeline.timeScale() : 0
+
+      // 如果前車較慢或停止，後車必須更大幅度減速
+      let speedRatio
+      if (frontVehicleSpeed <= 0.1) {
+        // 前車停止，後車也必須停止
+        speedRatio = 0
+      } else if (frontVehicleSpeed < mySpeed) {
+        // 前車較慢，後車速度不能超過前車
+        speedRatio = Math.min(
+          frontVehicleSpeed * 0.8,
+          Math.max(
+            0.1,
+            (distance - SimpleCollisionDetector.STOP_DISTANCE) /
+              (SimpleCollisionDetector.SLOW_DISTANCE - SimpleCollisionDetector.STOP_DISTANCE),
+          ),
+        )
+      } else {
+        // 正常跟車
+        speedRatio = Math.max(
+          0.1,
+          (distance - SimpleCollisionDetector.STOP_DISTANCE) /
+            (SimpleCollisionDetector.SLOW_DISTANCE - SimpleCollisionDetector.STOP_DISTANCE),
+        )
+      }
+
       return {
         action: 'follow',
         vehicle: threatVehicle,
         distance: distance,
-        shouldStop: false,
+        shouldStop: speedRatio === 0,
         shouldFollow: true,
         targetSpeed: speedRatio,
-        reason: `跟車模式: ${distance.toFixed(1)}px, 速度: ${(speedRatio * 100).toFixed(0)}%`,
+        reason: `跟車模式: ${distance.toFixed(1)}px, 速度: ${(speedRatio * 100).toFixed(0)}%, 前車速度: ${(frontVehicleSpeed * 100).toFixed(0)}%`,
       }
     }
 

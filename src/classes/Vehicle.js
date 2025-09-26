@@ -592,28 +592,58 @@ export default class Vehicle {
 
     const lightState = trafficController.getCurrentLightState(this.direction)
 
-    // 🚦 新增：左轉車道邏輯 - 1號車道需要等待左轉綠燈
+    // 🚦 修正：完整的車道交通燈管制邏輯
     if (this.laneNumber === 1) {
-      // 左轉車道：只有左轉綠燈才能通行
+      // === 1號車道（左轉專用車道）===
       if (lightState === 'leftGreen') {
+        // 左轉綠燈：1號車道可以通行
         if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
-          console.log(`🚦 [${this.id}] 左轉車道恢復：左轉綠燈`)
+          console.log(`🚦 [${this.id}] 1號車道恢復：左轉綠燈`)
           return { action: 'resume_from_slow' }
         }
         return null
       } else if (lightState === 'green') {
-        // 直行綠燈時，左轉車道必須停止等待
-        console.log(`🚦 [${this.id}] 左轉車道停止：直行綠燈時不得通行`)
-        return { action: 'stop_for_left_turn_wait' }
+        // 直行綠燈：1號車道必須在停止線排隊等待
+        const distanceToStopLine = this.getDistanceToStopLine()
+
+        if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 50) {
+          console.log(
+            `🚦 [${this.id}] 1號車道停止線排隊：等待左轉綠燈 (距離停止線: ${distanceToStopLine.toFixed(1)}px)`,
+          )
+          return { action: 'stop_for_left_turn_wait' }
+        } else {
+          // 距離停止線還很遠，繼續前進到停止線排隊
+          console.log(
+            `🚦 [${this.id}] 1號車道前進到停止線排隊 (距離停止線: ${distanceToStopLine ? distanceToStopLine.toFixed(1) : 'unknown'}px)`,
+          )
+          return null // 繼續移動
+        }
       }
     } else {
-      // 直行車道：直行綠燈可以通行
+      // === 2、3、4號車道（直行車道）===
       if (lightState === 'green') {
+        // 直行綠燈：2、3、4號車道可以通行
         if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
-          console.log(`🚦 [${this.id}] 直行車道恢復：直行綠燈`)
+          console.log(`🚦 [${this.id}] ${this.laneNumber}號車道恢復：直行綠燈`)
           return { action: 'resume_from_slow' }
         }
         return null
+      } else if (lightState === 'leftGreen') {
+        // 左轉綠燈：2、3、4號車道必須在停止線排隊等待
+        const distanceToStopLine = this.getDistanceToStopLine()
+
+        if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 50) {
+          console.log(
+            `🚦 [${this.id}] ${this.laneNumber}號車道停止線排隊：等待直行綠燈 (距離停止線: ${distanceToStopLine.toFixed(1)}px)`,
+          )
+          return { action: 'stop_for_straight_wait' }
+        } else {
+          // 距離停止線還很遠，繼續前進到停止線排隊
+          console.log(
+            `🚦 [${this.id}] ${this.laneNumber}號車道前進到停止線排隊 (距離停止線: ${distanceToStopLine ? distanceToStopLine.toFixed(1) : 'unknown'}px)`,
+          )
+          return null // 繼續移動
+        }
       }
     }
 
@@ -1339,7 +1369,13 @@ export default class Vehicle {
                   this.movementTimeline.timeScale(0)
                   this.currentState = 'waitingForLeftTurnGreen'
                   this.waitingForGreen = true
-                  console.log(`🛑 [${this.id}] 左轉車道停止等待左轉綠燈`)
+                  console.log(`🛑 [${this.id}] 1號車道停止等待左轉綠燈`)
+                } else if (slowDownInfo && slowDownInfo.action === 'stop_for_straight_wait') {
+                  // 🚦 直行車道在左轉綠燈時必須停止
+                  this.movementTimeline.timeScale(0)
+                  this.currentState = 'waitingForStraightGreen'
+                  this.waitingForGreen = true
+                  console.log(`🛑 [${this.id}] ${this.laneNumber}號車道停止等待直行綠燈`)
                 }
               }
 
@@ -1580,11 +1616,53 @@ export default class Vehicle {
                   this.originalTimeScale = null
                 }
               } else if (slowDownInfo.action === 'stop_for_left_turn_wait') {
-                // 🚦 左轉車道在直行綠燈時必須停止
-                this.movementTimeline.timeScale(0)
-                this.currentState = 'waitingForLeftTurnGreen'
-                this.waitingForGreen = true
-                console.log(`🛑 [${this.id}] 左轉車道停止等待左轉綠燈`)
+                // 🚦 修復：左轉車道只有在停止線附近才停止等待左轉綠燈
+                const distanceToStopLine = this.getDistanceToStopLine()
+
+                if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 30) {
+                  // 接近停止線，停車等待左轉綠燈
+                  this.movementTimeline.timeScale(0)
+                  this.currentState = 'waitingForLeftTurnGreen'
+                  this.waitingForGreen = true
+                  console.log(
+                    `🛑 [${this.id}] 1號車道在停止線停車等待左轉綠燈 (距離: ${distanceToStopLine.toFixed(1)}px)`,
+                  )
+                } else {
+                  // 距離停止線還遠，減速但不停車
+                  gsap.to(this.movementTimeline, {
+                    timeScale: 0.6, // 減速到60%
+                    duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL,
+                    ease: 'power2.out',
+                  })
+                  this.currentState = 'slowing_for_left_turn_queue'
+                  console.log(
+                    `🚦 [${this.id}] 1號車道減速前往停止線排隊 (距離: ${distanceToStopLine ? distanceToStopLine.toFixed(1) : 'unknown'}px)`,
+                  )
+                }
+              } else if (slowDownInfo.action === 'stop_for_straight_wait') {
+                // 🚦 新增：直行車道在左轉綠燈時的處理
+                const distanceToStopLine = this.getDistanceToStopLine()
+
+                if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 30) {
+                  // 接近停止線，停車等待直行綠燈
+                  this.movementTimeline.timeScale(0)
+                  this.currentState = 'waitingForStraightGreen'
+                  this.waitingForGreen = true
+                  console.log(
+                    `🛑 [${this.id}] ${this.laneNumber}號車道在停止線停車等待直行綠燈 (距離: ${distanceToStopLine.toFixed(1)}px)`,
+                  )
+                } else {
+                  // 距離停止線還遠，減速但不停車
+                  gsap.to(this.movementTimeline, {
+                    timeScale: 0.6, // 減速到60%
+                    duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL,
+                    ease: 'power2.out',
+                  })
+                  this.currentState = 'slowing_for_straight_queue'
+                  console.log(
+                    `🚦 [${this.id}] ${this.laneNumber}號車道減速前往停止線排隊 (距離: ${distanceToStopLine ? distanceToStopLine.toFixed(1) : 'unknown'}px)`,
+                  )
+                }
               }
             }
 
@@ -1799,6 +1877,7 @@ export default class Vehicle {
           this.currentState === 'stopped' || // 停止狀態
           this.currentState === 'waitingForVehicle' || // 等待前車狀態
           this.currentState === 'waitingForLeftTurnGreen' || // 等待左轉綠燈狀態
+          this.currentState === 'waitingForStraightGreen' || // 等待直行綠燈狀態
           this.movementTimeline.paused() // 時間軸暫停
 
         if (needsToStart) {
