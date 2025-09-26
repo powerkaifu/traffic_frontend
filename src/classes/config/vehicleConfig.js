@@ -37,6 +37,12 @@ export const ANIMATION_CONFIG = {
     NONE: 'none', // 線性動畫，無緩動效果
     // 其他緩動效果已移除以避免車輛抖動
   },
+
+  // ⏰ 初始化和時間限制設定
+  INITIALIZATION_DELAY: 500, // 車輛初始化延遲時間（毫秒）
+  MIN_ANIMATION_TIME: 3, // 最短動畫時間（秒）
+  MAX_ANIMATION_TIME: 15, // 最長動畫時間（秒）
+  STUCK_CHECK_THRESHOLD: 10000, // 車輛停滯檢查閾值（毫秒）
 }
 
 // ===== 交通燈響應設定 =====
@@ -106,6 +112,14 @@ export const DISTANCE_CONFIG = {
       SOUTH: 0, // 南向停車偏移
     },
   },
+
+  // 🔧 系統設定項
+  CRITICAL_ZONE_THRESHOLD: 50, // 危險區域閾值（像素）
+  NEARBY_VEHICLE_RANGE: 100, // 附近車輛檢查範圍（像素）
+  DEFAULT_CROSSING_DISTANCE: 800, // 預設路口通過距離（像素）
+  DEFAULT_SPEED: 30, // 預設速度（km/h）
+  PIXELS_PER_METER: 100, // 像素轉換為米的比例（100像素）
+  METERS_PER_UNIT: 15, // 每單位的米數
 }
 
 // ===== 跟車行為設定 =====
@@ -152,6 +166,9 @@ export const COLLISION_CONFIG = {
     EMERGENCY_STOP: 3, // 緊急停車
     OVERLAPPING: 4, // 重疊
   },
+
+  // ⏱️ 檢測間隔設定
+  CHECK_INTERVAL: 100, // 碰撞檢查間隔（毫秒）
 }
 
 // ===== 動畫路徑設定 =====

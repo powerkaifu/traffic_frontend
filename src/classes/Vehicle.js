@@ -6,16 +6,25 @@ import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { speedConfig, stopLineConfig } from './config/trafficConfig.js' // 引入統一的速度設定和停止線配置
 import { SimpleCollisionDetector, CollisionDetectorFactory } from './vehicle_utils/SimpleCollisionDetector.js' // 🚀 新增：簡化碰撞檢測器
+import VehicleConfig, {
+  ANIMATION_CONFIG,
+  TRAFFIC_LIGHT_CONFIG,
+  DISTANCE_CONFIG,
+  FOLLOWING_CONFIG,
+  COLLISION_CONFIG,
+  PATH_CONFIG,
+  DEBUG_CONFIG,
+} from './config/vehicleConfig.js' // 🚀 整合：車輛行為配置
 
 // 註冊 GSAP 插件
 gsap.registerPlugin(MotionPathPlugin)
 
 export default class Vehicle {
   // 靜態屬性：統一控制動畫速度
-  static timeMultiplier = 1 // 控制整體動畫速度，數字越小動畫越快（0.4 = 2.5倍速）
+  static timeMultiplier = ANIMATION_CONFIG.TIME_MULTIPLIER // 從配置讀取動畫速度倍數
 
   // 🚨 新增：全局抖動抑制機制
-  static antiShakeGlobalCooldown = 100 // 全局冷卻時間（毫秒）
+  static antiShakeGlobalCooldown = ANIMATION_CONFIG.COOLDOWN_TIMES.GLOBAL_ANTI_SHAKE // 使用配置的冷卻時間
   static lastGlobalAdjustTime = 0 // 上次全局調整時間
 
   constructor(x, y, direction = 'east', vehicleType = 'large', laneNumber = 1) {
@@ -37,12 +46,12 @@ export default class Vehicle {
 
     // 🚨 新增：防抖動機制
     this.lastPositionAdjustTime = 0 // 上次位置調整時間
-    this.positionAdjustCooldown = 500 // 位置調整冷卻時間（毫秒）
+    this.positionAdjustCooldown = ANIMATION_CONFIG.COOLDOWN_TIMES.POSITION_ADJUST // 使用配置的位置調整冷卻時間
     this.isAdjustingPosition = false // 是否正在調整位置
 
     // 🚨 新增：防止時間縮放抖動
     this.lastTimeScaleChange = 0 // 上次時間縮放變更時間
-    this.timeScaleDebounceDelay = 200 // 時間縮放變更防抖延遲（毫秒）
+    this.timeScaleDebounceDelay = ANIMATION_CONFIG.COOLDOWN_TIMES.TIMESCALE_DEBOUNCE // 使用配置的時間縮放防抖延遲
     this.pendingTimeScale = null // 待應用的時間縮放值
     this.timeScaleTimeout = null // 時間縮放更新定時器
 
@@ -98,7 +107,7 @@ export default class Vehicle {
     // Strategy Pattern: 使用延遲策略避免剛生成就被卡住
     setTimeout(() => {
       this.justCreated = false
-    }, 500) // 減少到500毫秒，讓車輛更快進入正常行駛狀態
+    }, ANIMATION_CONFIG.INITIALIZATION_DELAY) // 減少到500毫秒，讓車輛更快進入正常行駛狀態
 
     // 🚨 新增：防停滯機制
     this.lastMovementTime = Date.now()
@@ -107,9 +116,9 @@ export default class Vehicle {
 
     // 🎯 新增：智能碰撞檢查控制
     this.lastCollisionCheck = 0 // 上次碰撞檢查時間
-    this.collisionCheckInterval = 100 // 碰撞檢查間隔（毫秒）
-    this.criticalZoneThreshold = 50 // 危險區域閾值（像素）
-    this.nearbyVehicleRange = 100 // 附近車輛檢查範圍（像素）
+    this.collisionCheckInterval = COLLISION_CONFIG.CHECK_INTERVAL // 碰撞檢查間隔（毫秒）
+    this.criticalZoneThreshold = DISTANCE_CONFIG.CRITICAL_ZONE_THRESHOLD // 危險區域閾值（像素）
+    this.nearbyVehicleRange = DISTANCE_CONFIG.NEARBY_VEHICLE_RANGE // 附近車輛檢查範圍（像素）
 
     // 🚀 新增：簡化碰撞檢測器
     this.collisionDetector = CollisionDetectorFactory.createForLane(this, laneNumber)
@@ -139,7 +148,7 @@ export default class Vehicle {
     const stuckDuration = now - this.lastMovementTime
 
     // 如果車輛停滯超過10秒，需要檢查是否是合理的燈號等待
-    if (stuckDuration > 10000) {
+    if (stuckDuration > ANIMATION_CONFIG.STUCK_CHECK_THRESHOLD) {
       // 🚨 修改：檢查當前燈號狀態，只有在綠燈但車輛仍停滯時才強制恢復
       const trafficController = window.trafficController
       if (trafficController && this.direction) {
@@ -244,21 +253,21 @@ export default class Vehicle {
     const range = speedConfig[this.vehicleType] || speedConfig.small
     if (!range) {
       console.warn(`[Vehicle] 未找到車輛類型 '${this.vehicleType}' 的速度設定，使用預設值。`)
-      return 30 // 返回一個安全預設值
+      return DISTANCE_CONFIG.DEFAULT_SPEED // 返回一個安全預設值
     }
     const randomSpeed = range.min + Math.random() * (range.max - range.min)
     return Math.round(randomSpeed)
   }
 
   // Template Method Pattern: 計算動畫持續時間的模板方法
-  calculateAnimationDuration(distance = 800) {
+  calculateAnimationDuration(distance = DISTANCE_CONFIG.DEFAULT_CROSSING_DISTANCE) {
     // Template Method Pattern: 定義計算動畫時間的標準流程
     // 假設路口通過距離約 800 像素
     const speed = this.initialSpeed // km/h
     const speedMs = (speed * 1000) / 3600 // 轉換為 m/s
 
     // 假設 100 像素 = 15 米（調整比例尺，讓距離感更真實）
-    const realDistance = (distance / 100) * 15 // 轉換為實際距離（米）
+    const realDistance = (distance / DISTANCE_CONFIG.PIXELS_PER_METER) * DISTANCE_CONFIG.METERS_PER_UNIT // 轉換為實際距離（米）
 
     // 計算理論時間（秒）
     const theoreticalTime = realDistance / speedMs
@@ -268,8 +277,8 @@ export default class Vehicle {
     const adjustedTheoretical = theoreticalTime * Vehicle.timeMultiplier
 
     // 調整時間範圍以適應新的速度
-    const minTime = 3 // 最短3秒
-    const maxTime = 15 // 最長15秒
+    const minTime = ANIMATION_CONFIG.MIN_ANIMATION_TIME // 最短3秒
+    const maxTime = ANIMATION_CONFIG.MAX_ANIMATION_TIME // 最長15秒
     const adjustedTime = Math.max(minTime, Math.min(maxTime, adjustedTheoretical))
 
     return adjustedTime
@@ -951,7 +960,7 @@ export default class Vehicle {
         // 沒有前車，平滑恢復到正常速度
         gsap.to(this.movementTimeline, {
           timeScale: 1,
-          duration: 0.5,
+          duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH, // 使用配置的平滑速度變化時間
           ease: 'power2.out',
         })
         this.currentState = 'moving'
@@ -974,7 +983,7 @@ export default class Vehicle {
 
         gsap.to(this.movementTimeline, {
           timeScale: targetSpeed,
-          duration: 0.3,
+          duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL, // 使用配置的一般速度變化時間
           ease: 'power2.out',
         })
 
@@ -1246,7 +1255,7 @@ export default class Vehicle {
                   // 平滑調整速度
                   gsap.to(this.movementTimeline, {
                     timeScale: targetSpeed,
-                    duration: 0.3,
+                    duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL, // 使用配置的一般速度變化時間
                     ease: 'power2.out',
                   })
 
@@ -1298,7 +1307,7 @@ export default class Vehicle {
                     // 平滑恢復到正常速度，避免突然加速
                     gsap.to(this.movementTimeline, {
                       timeScale: 1,
-                      duration: 0.5,
+                      duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH, // 使用配置的平滑過渡時間
                       ease: 'power2.out',
                     })
                     this.currentState = 'moving'
@@ -1320,8 +1329,8 @@ export default class Vehicle {
                   if (this.originalTimeScale) {
                     gsap.to(this.movementTimeline, {
                       timeScale: this.originalTimeScale,
-                      duration: 0.05,
-                      ease: 'none',
+                      duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.INSTANT, // 使用配置的瞬間變化時間
+                      ease: ANIMATION_CONFIG.EASING.NONE, // 使用配置的緩動效果
                     })
                     this.originalTimeScale = null
                   }
@@ -1348,8 +1357,8 @@ export default class Vehicle {
                   if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
                     gsap.to(this.movementTimeline, {
                       timeScale: 0,
-                      duration: 0.05, // 幾乎立即停車，消除停止線緩速
-                      ease: 'none',
+                      duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.INSTANT, // 幾乎立即停車，消除停止線緩速
+                      ease: ANIMATION_CONFIG.EASING.NONE,
                       onComplete: () => {
                         this.stopMovement()
                         this.waitingForGreen = true
@@ -1548,7 +1557,7 @@ export default class Vehicle {
 
               gsap.to(this.movementTimeline, {
                 timeScale: targetSpeed,
-                duration: 0.3,
+                duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL, // 使用配置的一般速度變化時間
                 ease: 'power2.out',
               })
 
@@ -1565,8 +1574,8 @@ export default class Vehicle {
                 if (this.originalTimeScale) {
                   gsap.to(this.movementTimeline, {
                     timeScale: this.originalTimeScale,
-                    duration: 0.05, // 幾乎立即恢復正常速度
-                    ease: 'none',
+                    duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.INSTANT, // 幾乎立即恢復正常速度
+                    ease: ANIMATION_CONFIG.EASING.NONE,
                   })
                   this.originalTimeScale = null
                 }
@@ -1604,8 +1613,8 @@ export default class Vehicle {
                 if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
                   gsap.to(this.movementTimeline, {
                     timeScale: 0,
-                    duration: 0.05, // 幾乎立即停車，消除停止線緩速
-                    ease: 'none',
+                    duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.INSTANT, // 幾乎立即停車，消除停止線緩速
+                    ease: ANIMATION_CONFIG.EASING.NONE,
                     onComplete: () => {
                       this.stopMovement()
                       this.waitingForGreen = true
