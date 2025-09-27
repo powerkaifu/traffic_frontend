@@ -1598,33 +1598,6 @@ export default class Vehicle {
     })
   }
 
-  // Command Pattern: 淡出動畫命令
-  fadeOut(duration = 1) {
-    // Command Pattern: 將淡出動畫封裝為可執行的命令
-    return gsap.to(this.element, {
-      opacity: 0,
-      scale: 0.8,
-      duration: duration,
-      ease: 'none',
-    })
-  }
-
-  // 🚗 淡入效果 - 修改為立即顯示，不使用動畫
-
-  fadeIn(duration = 1) {
-    // 🚗 修改：立即設置為完全可見，不使用動畫
-    return new Promise((resolve) => {
-      if (!this.element) {
-        resolve()
-        return
-      }
-
-      gsap.set(this.element, { opacity: 1, scale: 1 })
-      console.log(`🚗 [${this.id}] 車輛立即顯示`)
-      resolve()
-    })
-  }
-
   // Template Method Pattern: 移除車輛的清理模板方法
   remove() {
     // 記錄移除時間
