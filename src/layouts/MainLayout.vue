@@ -96,7 +96,7 @@
                 </div>
                 <div class="detail-item">
                   <span class="detail-label">間隔(s)：</span>
-                  <span class="detail-value">{{ (currentInterval / 1000).toFixed(2) }}</span>
+                  <span class="detail-value">{{ (currentInterval / 1000).toFixed(1) }}</span>
                 </div>
               </div>
 
@@ -129,7 +129,7 @@
                     style="flex: 1"
                     :disabled="isAutoMode"
                   />
-                  <span class="freq-value">{{ Math.floor(manualInterval / 1000) }}s</span>
+                  <span class="freq-value">{{ (manualInterval / 1000).toFixed(1) }}</span>
                 </div>
               </div>
             </div>
