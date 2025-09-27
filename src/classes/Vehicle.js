@@ -7,6 +7,7 @@ import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { speedConfig, stopLineConfig } from './config/trafficConfig.js' // 引入統一的速度設定和停止線配置
 import { SimpleCollisionDetector, CollisionDetectorFactory } from './vehicle_utils/SimpleCollisionDetector.js' // 🚀 新增：簡化碰撞檢測器
 import { StopLineController } from './vehicle_utils/StopLineController.js' // 🚀 新增：停止線控制器
+import { CollisionController } from './vehicle_utils/CollisionController.js' // 🚀 新增：碰撞控制器
 import VehicleConfig, {
   ANIMATION_CONFIG,
   TRAFFIC_LIGHT_CONFIG,
@@ -115,12 +116,6 @@ export default class Vehicle {
     this.stuckCheckTimer = null
     this.setupAntiStuckMechanism()
 
-    // 🎯 新增：智能碰撞檢查控制
-    this.lastCollisionCheck = 0 // 上次碰撞檢查時間
-    this.collisionCheckInterval = COLLISION_CONFIG.CHECK_INTERVAL // 碰撞檢查間隔（毫秒）
-    this.criticalZoneThreshold = DISTANCE_CONFIG.CRITICAL_ZONE_THRESHOLD // 危險區域閾值（像素）
-    this.nearbyVehicleRange = DISTANCE_CONFIG.NEARBY_VEHICLE_RANGE // 附近車輛檢查範圍（像素）
-
     // 🚀 新增：簡化碰撞檢測器
     this.collisionDetector = CollisionDetectorFactory.createForLane(this, laneNumber)
     console.log(`🔧 [${this.id}] 簡化碰撞檢測器已初始化，車道: ${laneNumber}`)
@@ -128,6 +123,10 @@ export default class Vehicle {
     // 🚀 新增：停止線控制器
     this.stopLineController = new StopLineController(this)
     console.log(`🔧 [${this.id}] 停止線控制器已初始化`)
+
+    // 🚀 新增：碰撞控制器
+    this.collisionController = new CollisionController(this)
+    console.log(`🔧 [${this.id}] 碰撞控制器已初始化`)
   }
 
   // 🚨 新增：防停滯機制
@@ -579,202 +578,36 @@ export default class Vehicle {
 
   // 🚨 極簡化碰撞檢測：只檢測 5px 間距，停止或繼續
   // 🚨 新增：檢查是否是同車道最接近停止線的車輛
+  // 🚀 簡化：委託給碰撞控制器
   isClosestToStopLine(allVehicles) {
-    const stopLine = this.getStopLinePosition()
-    if (!stopLine.x && !stopLine.y) return true
-
-    const currentPosition = this.getCurrentPosition()
-    let myDistanceToStopLine = 0
-
-    // 計算當前車輛到停止線的距離
-    if (this.direction === 'east') {
-      myDistanceToStopLine = Math.max(0, stopLine.x - currentPosition.x)
-    } else if (this.direction === 'west') {
-      myDistanceToStopLine = Math.max(0, currentPosition.x - stopLine.x)
-    } else if (this.direction === 'north') {
-      myDistanceToStopLine = Math.max(0, currentPosition.y - stopLine.y)
-    } else if (this.direction === 'south') {
-      myDistanceToStopLine = Math.max(0, stopLine.y - currentPosition.y)
-    }
-
-    // 檢查同車道是否有更接近停止線的車輛
-    for (let vehicle of allVehicles) {
-      if (vehicle.id === this.id || vehicle.direction !== this.direction || vehicle.laneNumber !== this.laneNumber)
-        continue
-
-      const otherPosition = vehicle.getCurrentPosition()
-      let otherDistanceToStopLine = 0
-
-      if (this.direction === 'east') {
-        otherDistanceToStopLine = Math.max(0, stopLine.x - otherPosition.x)
-      } else if (this.direction === 'west') {
-        otherDistanceToStopLine = Math.max(0, otherPosition.x - stopLine.x)
-      } else if (this.direction === 'north') {
-        otherDistanceToStopLine = Math.max(0, otherPosition.y - stopLine.y)
-      } else if (this.direction === 'south') {
-        otherDistanceToStopLine = Math.max(0, stopLine.y - otherPosition.y)
-      }
-
-      // 如果有其他車輛更接近停止線，則當前車輛不是最前面的
-      if (otherDistanceToStopLine < myDistanceToStopLine && otherDistanceToStopLine >= 0) {
-        return false
-      }
-    }
-
-    return true // 當前車輛是該車道最接近停止線的車
+    return this.collisionController.isClosestToStopLine(allVehicles)
   }
 
   // 🎯 新增：獲取附近車輛，優化檢查範圍
+  // 🚀 簡化：委託給碰撞控制器
   getNearbyVehicles(allVehicles) {
-    const currentBox = this.getBoundingBox()
-    const nearbyVehicles = []
-
-    for (let vehicle of allVehicles) {
-      if (vehicle.id === this.id || vehicle.direction !== this.direction) continue
-
-      const otherBox = vehicle.getBoundingBox()
-      let distance = 0
-      let isInRange = false
-
-      // 根據方向計算是否在檢查範圍內
-      switch (this.direction) {
-        case 'east':
-          distance = Math.abs(otherBox.centerX - currentBox.centerX)
-          isInRange =
-            otherBox.centerX > currentBox.centerX &&
-            distance <= this.nearbyVehicleRange &&
-            Math.abs(otherBox.centerY - currentBox.centerY) < 30
-          break
-        case 'west':
-          distance = Math.abs(otherBox.centerX - currentBox.centerX)
-          isInRange =
-            otherBox.centerX < currentBox.centerX &&
-            distance <= this.nearbyVehicleRange &&
-            Math.abs(otherBox.centerY - currentBox.centerY) < 30
-          break
-        case 'north':
-          distance = Math.abs(otherBox.centerY - currentBox.centerY)
-          isInRange =
-            otherBox.centerY < currentBox.centerY &&
-            distance <= this.nearbyVehicleRange &&
-            Math.abs(otherBox.centerX - currentBox.centerX) < 30
-          break
-        case 'south':
-          distance = Math.abs(otherBox.centerY - currentBox.centerY)
-          isInRange =
-            otherBox.centerY > currentBox.centerY &&
-            distance <= this.nearbyVehicleRange &&
-            Math.abs(otherBox.centerX - currentBox.centerX) < 30
-          break
-      }
-
-      if (isInRange) {
-        nearbyVehicles.push(vehicle)
-      }
-    }
-
-    return nearbyVehicles
+    return this.collisionController.getNearbyVehicles(allVehicles)
   }
 
   // 🎯 新增：判斷是否在危險區域
+  // 🚀 簡化：委託給碰撞控制器
   isInCriticalZone() {
-    // 檢查是否接近停止線
-    const distanceToStopLine = this.getDistanceToStopLine()
-    const nearStopLine = distanceToStopLine !== null && Math.abs(distanceToStopLine) < this.criticalZoneThreshold
-
-    // 檢查移動狀態
-    const isMoving = this.movementTimeline && this.movementTimeline.timeScale() > 0 && !this.movementTimeline.paused()
-
-    return nearStopLine || isMoving || this.currentState === 'moving'
+    return this.collisionController.isInCriticalZone()
   }
 
-  // 🎯 新增：智能碰撞檢查
+  // 🚀 簡化：委託給碰撞控制器
   smartCollisionCheck(allVehicles) {
-    const currentTime = Date.now()
-    const timeSinceLastCheck = currentTime - this.lastCollisionCheck
-
-    // 智能檢查策略
-    const shouldCheck =
-      timeSinceLastCheck > this.collisionCheckInterval || // 定期檢查
-      this.isInCriticalZone() || // 危險區域
-      this.currentState === 'moving' // 移動狀態
-
-    if (!shouldCheck) {
-      return null // 跳過檢查，節省性能
-    }
-
-    this.lastCollisionCheck = currentTime
-
-    // 只檢查附近車輛，而不是所有車輛
-    const nearbyVehicles = this.getNearbyVehicles(allVehicles)
-
-    if (nearbyVehicles.length === 0) {
-      return null // 附近沒有車輛，節省性能
-    }
-
-    // 🎯 性能優化：記錄檢查數量對比
-    if (Math.random() < 0.01) {
-      // 1%概率記錄（避免日誌過多）
-      console.log(`🎯 [${this.id}] 智能檢查: 從${allVehicles.length}台車縮減到${nearbyVehicles.length}台車`)
-    }
-
-    // 使用原有的碰撞檢查邏輯，但只檢查附近車輛
-    return this.performDetailedCollisionCheck(nearbyVehicles)
+    return this.collisionController.smartCollisionCheck(allVehicles)
   }
 
-  // 🎯 新增：詳細碰撞檢查（從原 checkSimpleCollision 分離出來）
+  // 🚀 簡化：委託給碰撞控制器
   performDetailedCollisionCheck(vehicles) {
-    // 跳過剛創建的車輛
-    if (this.justCreated) {
-      return null
-    }
-
-    const currentBox = this.getBoundingBox()
-    const UNIFORM_GAP = 12 // 統一安全距離（適用於所有車輛狀態）
-
-    for (let vehicle of vehicles) {
-      const otherBox = vehicle.getBoundingBox()
-      let distance = 0
-      let isFrontVehicle = false
-
-      // 簡單方向檢測
-      if (this.direction === 'east') {
-        isFrontVehicle = otherBox.centerX > currentBox.centerX && Math.abs(otherBox.centerY - currentBox.centerY) < 30
-        distance = isFrontVehicle ? otherBox.left - currentBox.right : 0
-      } else if (this.direction === 'west') {
-        isFrontVehicle = otherBox.centerX < currentBox.centerX && Math.abs(otherBox.centerY - currentBox.centerY) < 30
-        distance = isFrontVehicle ? currentBox.left - otherBox.right : 0
-      } else if (this.direction === 'north') {
-        isFrontVehicle = otherBox.centerY < currentBox.centerY && Math.abs(otherBox.centerX - currentBox.centerX) < 30
-        distance = isFrontVehicle ? currentBox.top - otherBox.bottom : 0
-      } else if (this.direction === 'south') {
-        isFrontVehicle = otherBox.centerY > currentBox.centerY && Math.abs(otherBox.centerX - currentBox.centerX) < 30
-        distance = isFrontVehicle ? otherBox.top - currentBox.bottom : 0
-      }
-
-      if (isFrontVehicle && distance < UNIFORM_GAP && distance >= 0) {
-        // 檢查前方車輛狀態
-        const isAtStopLine = vehicle.isAtStopLine || vehicle.waitingForGreen
-        const isMoving =
-          vehicle.movementTimeline && vehicle.movementTimeline.timeScale() > 0 && !vehicle.movementTimeline.paused()
-
-        return {
-          shouldStop: true,
-          vehicle: vehicle,
-          distance: distance,
-          requiredGap: UNIFORM_GAP,
-          frontVehicleAtStopLine: isAtStopLine,
-          frontVehicleIsMoving: isMoving,
-        }
-      }
-    }
-
-    return null // 沒有碰撞威脅
+    return this.collisionController.performDetailedCollisionCheck(vehicles)
   }
 
+  // 🚀 簡化：委託給碰撞控制器
   checkSimpleCollision(allVehicles) {
-    // 🚀 使用新的簡化碰撞檢測器
-    return this.collisionDetector.detectCollision(allVehicles)
+    return this.collisionController.checkSimpleCollision(allVehicles)
   }
 
   // 🚨 移除：setDebouncedTimeScale 方法已不再需要，使用直接的 timeScale 設置
@@ -811,7 +644,7 @@ export default class Vehicle {
       this.movementTimeline &&
       (this.currentState === 'waiting' || this.currentState === 'waitingForVehicle' || this.currentState === 'slowing')
     ) {
-      const collision = this.checkSimpleCollision(allVehicles)
+      const collision = this.collisionController.checkSimpleCollision(allVehicles)
 
       if (!collision) {
         // 沒有前車，平滑恢復到正常速度
@@ -1080,8 +913,8 @@ export default class Vehicle {
               }
 
               // 🚨 簡化碰撞檢測系統 - 區分第一台車和後續車輛
-              const shouldStop = this.checkSimpleCollision(allVehicles)
-              const isFirstVehicle = this.isClosestToStopLine(allVehicles)
+              const shouldStop = this.collisionController.checkSimpleCollision(allVehicles)
+              const isFirstVehicle = this.collisionController.isClosestToStopLine(allVehicles)
 
               if (shouldStop) {
                 const distance = shouldStop.distance
@@ -1407,7 +1240,7 @@ export default class Vehicle {
             }
 
             // 🚨 統一間距碰撞檢測：檢查12px統一間距
-            const collision = this.checkSimpleCollision(allVehicles)
+            const collision = this.collisionController.checkSimpleCollision(allVehicles)
 
             if (collision && collision.shouldStop) {
               const distance = collision.distance
@@ -1653,6 +1486,12 @@ export default class Vehicle {
     if (this.stopLineController) {
       this.stopLineController.dispose()
       this.stopLineController = null
+    }
+
+    // 🚀 清理碰撞控制器
+    if (this.collisionController) {
+      this.collisionController.dispose()
+      this.collisionController = null
     }
 
     // 移除DOM元素
