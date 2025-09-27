@@ -6,6 +6,7 @@ import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { speedConfig, stopLineConfig } from './config/trafficConfig.js' // 引入統一的速度設定和停止線配置
 import { SimpleCollisionDetector, CollisionDetectorFactory } from './vehicle_utils/SimpleCollisionDetector.js' // 🚀 新增：簡化碰撞檢測器
+import { StopLineController } from './vehicle_utils/StopLineController.js' // 🚀 新增：停止線控制器
 import VehicleConfig, {
   ANIMATION_CONFIG,
   TRAFFIC_LIGHT_CONFIG,
@@ -123,6 +124,10 @@ export default class Vehicle {
     // 🚀 新增：簡化碰撞檢測器
     this.collisionDetector = CollisionDetectorFactory.createForLane(this, laneNumber)
     console.log(`🔧 [${this.id}] 簡化碰撞檢測器已初始化，車道: ${laneNumber}`)
+
+    // 🚀 新增：停止線控制器
+    this.stopLineController = new StopLineController(this)
+    console.log(`🔧 [${this.id}] 停止線控制器已初始化`)
   }
 
   // 🚨 新增：防停滯機制
@@ -397,53 +402,9 @@ export default class Vehicle {
   }
 
   // Strategy Pattern: 根據方向計算停止線位置的策略方法
+  // 🚀 簡化：委託給停止線控制器
   getStopLinePosition() {
-    // Strategy Pattern: 每個方向都有不同的停止線計算策略
-    // 使用中央參考矩形來統一計算停止線位置
-    const centralRef = document.querySelector('.central-reference')
-    if (!centralRef) return { x: null, y: null }
-
-    const container = document.querySelector('.crossroad-area')
-    if (!container) return { x: null, y: null }
-
-    // 每次都重新獲取容器位置，以適應抽屜狀態變化
-    const centralRect = centralRef.getBoundingClientRect()
-    const containerRect = container.getBoundingClientRect()
-
-    // 計算中央矩形相對於容器的位置
-    const centralX = centralRect.left - containerRect.left
-    const centralY = centralRect.top - containerRect.top
-    const centralWidth = centralRect.width
-    const centralHeight = centralRect.height
-
-    // 從配置中獲取各方向的偏移設定
-    const offsets = stopLineConfig.directionOffsets
-
-    // 根據方向計算停止線位置（基於中央矩形的邊緣和配置偏移）
-    // Strategy Pattern: 不同方向使用不同的停止線定位策略
-    if (this.direction === 'east') {
-      return {
-        x: centralX + offsets.east.offsetX,
-        y: null,
-      }
-    } else if (this.direction === 'west') {
-      return {
-        x: centralX + centralWidth + offsets.west.offsetX,
-        y: null,
-      }
-    } else if (this.direction === 'north') {
-      return {
-        x: null,
-        y: centralY + centralHeight - offsets.north.offsetY,
-      }
-    } else if (this.direction === 'south') {
-      return {
-        x: null,
-        y: centralY + offsets.south.offsetY,
-      }
-    }
-
-    return { x: null, y: null }
+    return this.stopLineController.getStopLinePosition()
   }
 
   // Observer Pattern: 檢測容器位置變化的觀察者方法
@@ -529,127 +490,24 @@ export default class Vehicle {
   }
 
   // Template Method Pattern: 檢查是否到達停止線的模板方法
+  // � 簡化：委託給停止線控制器
   checkStopLine() {
-    // Template Method Pattern: 定義停止線檢查的標準流程
-    const stopLine = this.getStopLinePosition() // 這裡會獲取實際的停止線位置
-
-    if (!stopLine.x && !stopLine.y) return false
-
-    // 使用車頭位置進行停止線檢測
-    const vehicleHead = this.getVehicleHeadPosition()
-
-    // 🚨 修正：進一步調整敏感度，讓車輛幾乎貼近停止線才停止
-    const sensitivity = 0 // 正值表示在停止線位置檢測，0表示剛好在停止線
-
-    // Strategy Pattern: 不同方向使用不同的停止線檢查策略
-    if (this.direction === 'east') {
-      // 車頭在右側，檢查車頭X座標是否接近停止線
-      return vehicleHead.x >= stopLine.x - sensitivity && !this.isAtStopLine
-    } else if (this.direction === 'west') {
-      // 車頭在左側，檢查車頭X座標是否接近停止線
-      return vehicleHead.x <= stopLine.x + sensitivity && !this.isAtStopLine
-    } else if (this.direction === 'north') {
-      // 車頭在上方，檢查車頭Y座標是否接近停止線
-      return vehicleHead.y <= stopLine.y + sensitivity && !this.isAtStopLine
-    } else if (this.direction === 'south') {
-      // 車頭在下方，檢查車頭Y座標是否接近停止線
-      return vehicleHead.y >= stopLine.y - sensitivity && !this.isAtStopLine
-    }
-    return false
+    return this.stopLineController.shouldStopAtLine()
   }
 
   // Template Method Pattern: 計算車輛到停止線距離的模板方法
+  // 🚀 簡化：委託給停止線控制器
   getDistanceToStopLine() {
-    // Template Method Pattern: 定義距離計算的標準流程
-    const stopLine = this.getStopLinePosition()
-    if (!stopLine.x && !stopLine.y) return null
-
-    const vehicleHead = this.getVehicleHeadPosition()
-
-    // Strategy Pattern: 根據方向使用不同的距離計算策略
-    if (this.direction === 'east') {
-      // 東向：車頭到停止線的X軸距離
-      return stopLine.x - vehicleHead.x
-    } else if (this.direction === 'west') {
-      // 西向：車頭到停止線的X軸距離
-      return vehicleHead.x - stopLine.x
-    } else if (this.direction === 'north') {
-      // 北向：車頭到停止線的Y軸距離
-      return vehicleHead.y - stopLine.y
-    } else if (this.direction === 'south') {
-      // 南向：車頭到停止線的Y軸距離
-      return stopLine.y - vehicleHead.y
-    }
-
-    return null
+    return this.stopLineController.getDistanceToStopLine()
   }
 
-  // 簡化交通燈檢查：只處理綠燈通行和紅燈停止
+  // 🚀 簡化：使用停止線控制器處理交通燈邏輯
   checkTrafficLightSlowDown(trafficController) {
     if (this.hasPassedStopLine || this.waitingForGreen || this.isAtStopLine) {
       return null
     }
 
-    const lightState = trafficController.getCurrentLightState(this.direction)
-
-    // 🚦 修正：完整的車道交通燈管制邏輯
-    if (this.laneNumber === 1) {
-      // === 1號車道（左轉專用車道）===
-      if (lightState === 'leftGreen') {
-        // 左轉綠燈：1號車道可以通行
-        if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
-          console.log(`🚦 [${this.id}] 1號車道恢復：左轉綠燈`)
-          return { action: 'resume_from_slow' }
-        }
-        return null
-      } else if (lightState === 'green') {
-        // 直行綠燈：1號車道必須在停止線排隊等待
-        const distanceToStopLine = this.getDistanceToStopLine()
-
-        if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 10) {
-          console.log(
-            `🚦 [${this.id}] 1號車道停止線排隊：等待左轉綠燈 (距離停止線: ${distanceToStopLine.toFixed(1)}px)`,
-          )
-          return { action: 'stop_for_left_turn_wait' }
-        } else {
-          // 距離停止線還很遠，繼續前進到停止線排隊
-          console.log(
-            `🚦 [${this.id}] 1號車道前進到停止線排隊 (距離停止線: ${distanceToStopLine ? distanceToStopLine.toFixed(1) : 'unknown'}px)`,
-          )
-          return null // 繼續移動
-        }
-      }
-    } else {
-      // === 2、3、4號車道（直行車道）===
-      if (lightState === 'green') {
-        // 直行綠燈：2、3、4號車道可以通行
-        if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
-          console.log(`🚦 [${this.id}] ${this.laneNumber}號車道恢復：直行綠燈`)
-          return { action: 'resume_from_slow' }
-        }
-        return null
-      } else if (lightState === 'leftGreen') {
-        // 左轉綠燈：2、3、4號車道必須在停止線排隊等待
-        const distanceToStopLine = this.getDistanceToStopLine()
-
-        if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 10) {
-          console.log(
-            `🚦 [${this.id}] ${this.laneNumber}號車道停止線排隊：等待直行綠燈 (距離停止線: ${distanceToStopLine.toFixed(1)}px)`,
-          )
-          return { action: 'stop_for_straight_wait' }
-        } else {
-          // 距離停止線還很遠，繼續前進到停止線排隊
-          console.log(
-            `🚦 [${this.id}] ${this.laneNumber}號車道前進到停止線排隊 (距離停止線: ${distanceToStopLine ? distanceToStopLine.toFixed(1) : 'unknown'}px)`,
-          )
-          return null // 繼續移動
-        }
-      }
-    }
-
-    // 紅燈或黃燈：準備停車，但不提前減速
-    // 讓車輛保持正常速度直到停止線，然後直接停止
-    return null
+    return this.stopLineController.checkTrafficLightLogic(trafficController)
   }
 
   // 🚨 新增：獲取當前速度比例的輔助方法
@@ -930,54 +788,11 @@ export default class Vehicle {
   // enterFollowingMode 和 exitFollowingMode 已被移除
 
   // State Pattern: 停止移動狀態控制方法
+  // � 簡化：使用停止線控制器處理停車邏輯
   stopMovement() {
-    // State Pattern: 管理車輛從移動狀態轉換為等待狀態
     if (this.movementTimeline) {
-      // 🚨 精確停車：確保車頭剛好在停止線上
-      const stopLine = this.getStopLinePosition()
-      const vehicleHead = this.getVehicleHeadPosition()
-
-      if (stopLine && (stopLine.x || stopLine.y)) {
-        // 計算需要微調的距離
-        let adjustDistance = 0
-
-        if (this.direction === 'east') {
-          // 東向：車頭應該停在停止線的X座標上
-          adjustDistance = vehicleHead.x - stopLine.x
-        } else if (this.direction === 'west') {
-          // 西向：車頭應該停在停止線的X座標上
-          adjustDistance = stopLine.x - vehicleHead.x
-        } else if (this.direction === 'north') {
-          // 北向：車頭應該停在停止線的Y座標上
-          adjustDistance = stopLine.y - vehicleHead.y
-        } else if (this.direction === 'south') {
-          // 南向：車頭應該停在停止線的Y座標上
-          adjustDistance = vehicleHead.y - stopLine.y
-        }
-
-        // 🚨 修正：如果距離停止線超過1px（不論前後），需要微調到停止線位置
-        if (Math.abs(adjustDistance) > 1) {
-          console.log(`🚗 [${this.id}] 停車位置微調: ${adjustDistance.toFixed(1)}px`)
-
-          // 計算需要調整的進度
-          const currentProgress = this.movementTimeline.progress()
-          const totalDistance = 300 // 假設路徑總長度為300px
-          const adjustRatio = Math.abs(adjustDistance) / totalDistance
-
-          // 根據調整方向決定新進度
-          let newProgress
-          if (adjustDistance > 0) {
-            // 車輛超過停止線，需要倒退
-            newProgress = Math.max(0, currentProgress - adjustRatio)
-          } else {
-            // 車輛未到停止線，需要前進
-            newProgress = Math.min(1, currentProgress + adjustRatio)
-          }
-
-          // 微調到正確位置
-          this.movementTimeline.progress(newProgress)
-        }
-      }
+      // 使用停止線控制器進行精確位置微調
+      this.stopLineController.adjustStopPosition()
 
       this.movementTimeline.pause()
       if (this.currentState !== 'waitingForVehicle' && this.currentState !== 'waiting') {
@@ -1849,6 +1664,12 @@ export default class Vehicle {
     if (this.collisionDetector) {
       this.collisionDetector.dispose()
       this.collisionDetector = null
+    }
+
+    // 🚀 清理停止線控制器
+    if (this.stopLineController) {
+      this.stopLineController.dispose()
+      this.stopLineController = null
     }
 
     // 移除DOM元素
