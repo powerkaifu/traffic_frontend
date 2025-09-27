@@ -1046,12 +1046,19 @@ export default class Vehicle {
                 this.resumeMovement(allVehicles)
               }
 
-              // 停止線檢查和紅綠燈控制流程（與原方法相同的邏輯）
+              // 停止線檢查和紅綠燈控制流程
               if (!this.hasPassedStopLine && this.checkStopLine() && !this.waitingForGreen && !this.isAtStopLine) {
                 this.isAtStopLine = true
                 const lightState = trafficController.getCurrentLightState(this.direction)
 
-                if (lightState === 'red' || lightState === 'yellow' || lightState === 'allRed') {
+                // 🚨 修正：1號車道的特殊燈號邏輯
+                const shouldStop =
+                  lightState === 'red' ||
+                  lightState === 'yellow' ||
+                  lightState === 'allRed' ||
+                  (this.laneNumber === 1 && lightState === 'green') // 1號車道在直行綠燈時也要停止等待左轉綠燈
+
+                if (shouldStop) {
                   if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
                     gsap.to(this.movementTimeline, {
                       timeScale: 0,
@@ -1060,17 +1067,42 @@ export default class Vehicle {
                       onComplete: () => {
                         this.stopMovement()
                         this.waitingForGreen = true
+                        // 設置1號車道的等待狀態
+                        if (this.laneNumber === 1 && lightState === 'green') {
+                          this.currentState = 'waitingForLeftTurnGreen'
+                          console.log(`🛑🚦 [${this.id}] 1號車道在停止線等待左轉綠燈`)
+                        }
                       },
                     })
                   } else {
                     this.stopMovement()
                     this.waitingForGreen = true
+                    // 設置1號車道的等待狀態
+                    if (this.laneNumber === 1 && lightState === 'green') {
+                      this.currentState = 'waitingForLeftTurnGreen'
+                      console.log(`🛑🚦 [${this.id}] 1號車道在停止線等待左轉綠燈`)
+                    }
                   }
-                  // � 移除手動觀察者：讓 directTrafficLightResponse 統一處理燈號變化
                 } else {
-                  // 綠燈時直接通過
-                  this.isAtStopLine = false
-                  this.hasPassedStopLine = true
+                  // 🚨 修正：檢查1號車道是否為左轉綠燈
+                  const canProceed =
+                    (this.laneNumber !== 1 && lightState === 'green') || // 非1號車道的綠燈
+                    (this.laneNumber === 1 && lightState === 'leftGreen') // 1號車道的左轉綠燈
+
+                  if (canProceed) {
+                    // 可以通過停止線
+                    this.isAtStopLine = false
+                    this.hasPassedStopLine = true
+                    console.log(`🚗🟢 [${this.id}] 車道${this.laneNumber}通過停止線 (${lightState})`)
+                  } else {
+                    // 不能通過，需要等待
+                    this.stopMovement()
+                    this.waitingForGreen = true
+                    if (this.laneNumber === 1) {
+                      this.currentState = 'waitingForLeftTurnGreen'
+                      console.log(`🛑🚦 [${this.id}] 1號車道在停止線等待左轉綠燈 (當前${lightState})`)
+                    }
+                  }
                 }
               }
             },
@@ -1377,9 +1409,25 @@ export default class Vehicle {
 
                 //  移除超時機制：讓車輛完全依賴 directTrafficLightResponse 和燈號狀態
               } else {
-                // 綠燈時直接通過，標記已通過停止線
-                this.isAtStopLine = false
-                this.hasPassedStopLine = true
+                // 🚨 修正：檢查是否真的可以通過停止線
+                const canProceed =
+                  (this.laneNumber !== 1 && lightState === 'green') || // 非1號車道的綠燈
+                  (this.laneNumber === 1 && lightState === 'leftGreen') // 1號車道需要左轉綠燈
+
+                if (canProceed) {
+                  // 可以通過停止線
+                  this.isAtStopLine = false
+                  this.hasPassedStopLine = true
+                  console.log(`🚗🟢 [${this.id}] 車道${this.laneNumber}通過停止線 (${lightState})`)
+                } else {
+                  // 應該停止等待（這種情況理論上不應該出現，因為上面的 shouldStopAtLine 應該已經處理了）
+                  this.stopMovement()
+                  this.waitingForGreen = true
+                  if (this.laneNumber === 1) {
+                    this.currentState = 'waitingForLeftTurnGreen'
+                    console.log(`🛑🚦 [${this.id}] 1號車道在停止線等待左轉綠燈 (當前${lightState})`)
+                  }
+                }
               }
             }
           },
@@ -1499,12 +1547,24 @@ export default class Vehicle {
 
     const currentLightState = trafficController.getCurrentLightState(this.direction)
 
-    // 🔴 紅燈：不在此處直接停車，讓移動邏輯中的停止線檢查來處理紅燈停車
+    // � 重要：已通過停止線的車輛不再受燈號約束，繼續完成動畫
+    if (this.hasPassedStopLine) {
+      // 確保已通過停止線的車輛保持移動狀態
+      if (this.currentState !== 'moving' || this.movementTimeline.timeScale() === 0) {
+        this.currentState = 'moving'
+        this.movementTimeline.timeScale(1)
+        this.movementTimeline.resume()
+        console.log(`🚗🚦 [${this.id}] 已通過停止線，繼續完成動畫`)
+      }
+      return // 已通過停止線，不再檢查燈號
+    }
+
+    // �🔴 紅燈：不在此處直接停車，讓移動邏輯中的停止線檢查來處理紅燈停車
     // 這樣可確保車輛會前進到停止線才停，而不是立即原地停車
 
-    // 🟢 綠燈：立即啟動所有等待車輛
+    // 🟢 綠燈響應：根據車道類型決定是否可以移動
     if (currentLightState === 'green' || currentLightState === 'leftGreen') {
-      // 🚦 檢查車輛類型是否與燈號匹配
+      // 🚦 嚴格的車道燈號匹配檢查
       const canProceed =
         (currentLightState === 'green' && this.laneNumber !== 1) || // 直行綠燈且非左轉車道
         (currentLightState === 'leftGreen' && this.laneNumber === 1) // 左轉綠燈且為左轉車道
@@ -1532,7 +1592,15 @@ export default class Vehicle {
           const lightType = currentLightState === 'leftGreen' ? '左轉綠燈' : '直行綠燈'
           console.log(`🟢🚦 [${this.id}] ${lightType}強制立即啟動 (清除所有等待狀態)`)
         }
+      } else {
+        // 🚨 修正：移除1號車道在途中的燈號限制
+        // 1號車道車輛應該先移動到停止線進行排隊
+        // 燈號限制將在停止線處處理，而不是在移動途中
       }
+    } else {
+      // 🚨 修正：移除1號車道在途中的燈號限制
+      // 讓所有車輛都能先到達停止線排隊
+      // 燈號限制將在停止線檢查邏輯中處理
     }
   }
 
