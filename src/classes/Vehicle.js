@@ -791,13 +791,16 @@ export default class Vehicle {
   // � 簡化：使用停止線控制器處理停車邏輯
   stopMovement() {
     if (this.movementTimeline) {
-      // 使用停止線控制器進行精確位置微調
-      this.stopLineController.adjustStopPosition()
-
+      // 直接停止，不進行位置微調（避免反彈）
       this.movementTimeline.pause()
+
       if (this.currentState !== 'waitingForVehicle' && this.currentState !== 'waiting') {
         this.currentState = 'waiting'
       }
+
+      // 標記已經到達停止線
+      this.isAtStopLine = true
+      console.log(`🛑 [${this.id}] ${this.direction} 已停在停止線`)
     }
   }
 
@@ -818,7 +821,14 @@ export default class Vehicle {
           ease: 'power2.out',
         })
         this.currentState = 'moving'
-        console.log(`🚗 [${this.id}] 前方無車輛，平滑恢復移動`)
+
+        // 重置停止線狀態，準備識別下一個停止線
+        this.isAtStopLine = false
+        if (this.stopLineController) {
+          this.stopLineController.state = 'approaching'
+        }
+
+        console.log(`🚗 [${this.id}] 前方無車輛，平滑恢復移動，已重置停止線狀態`)
       } else {
         // 有前車，根據距離調整速度
         const distance = collision.distance

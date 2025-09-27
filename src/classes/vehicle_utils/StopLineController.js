@@ -58,12 +58,15 @@ export class StopLineController {
         break
     }
 
-    // 調試信息
-    console.log(`🎯 [${this.vehicle.id}] 停止線位置計算:`, {
-      direction: this.vehicle.direction,
-      centralRect: { x: centralX, y: centralY, w: centralWidth, h: centralHeight },
-      stopLine: position,
-    })
+    // 調試信息（降低頻率）
+    if (Math.random() < 0.001) {
+      // 0.1%機率記錄
+      console.log(`🎯 [${this.vehicle.id}] 停止線位置計算:`, {
+        direction: this.vehicle.direction,
+        centralRect: { x: centralX, y: centralY, w: centralWidth, h: centralHeight },
+        stopLine: position,
+      })
+    }
 
     return position
   }
@@ -195,11 +198,17 @@ export class StopLineController {
   }
 
   /**
-   * 執行停車位置微調
+   * 執行停車位置微調（僅在特殊情況下使用）
+   * @param {boolean} force 是否強制執行微調
    * @returns {boolean} true表示有進行微調
    */
-  adjustStopPosition() {
+  adjustStopPosition(force = false) {
     if (!this.vehicle.movementTimeline) return false
+
+    // 如果車輛已經停在停止線，不進行微調（避免反彈）
+    if (this.vehicle.isAtStopLine && !force) {
+      return false
+    }
 
     const targetPos = this.getTargetStopPosition()
     if (!targetPos) return false
@@ -223,8 +232,8 @@ export class StopLineController {
         break
     }
 
-    // 如果偏差超過閾值，進行微調
-    const threshold = STOP_LINE_CONFIG.DETECTION.ADJUSTMENT_THRESHOLD
+    // 只有在偏差很大時才進行微調
+    const threshold = STOP_LINE_CONFIG.DETECTION.ADJUSTMENT_THRESHOLD * 2 // 提高閾值
     if (Math.abs(adjustDistance) > threshold) {
       const currentProgress = this.vehicle.movementTimeline.progress()
       const totalDistance = 300 // 假設路徑總長度
@@ -241,7 +250,7 @@ export class StopLineController {
 
       this.vehicle.movementTimeline.progress(newProgress)
       console.log(
-        `🚗 [${this.vehicle.id}] ${this.vehicle.direction} 停車微調: ${adjustDistance.toFixed(1)}px (閾值: ${threshold})`,
+        `� [${this.vehicle.id}] ${this.vehicle.direction} 強制微調: ${adjustDistance.toFixed(1)}px (閾值: ${threshold})`,
       )
       return true
     }
