@@ -4,7 +4,17 @@
  * 由 AutoTrafficGenerator 和 MainLayout 共同使用
  */
 
-// 時段交通情境配置
+/**
+ * 時段交通情境配置
+ *
+ * 使用檔案和方法：
+ * - MainLayout.vue:
+ *   * template 中的情境按鈕顯示 (timeScenarios)
+ *   * currentScenarioDetails computed 屬性
+ *   * switchToTimeScenario() 方法
+ *   * updateGenerationConfig() 方法
+ * - AutoTrafficGenerator.js: 暫時未直接使用，使用 getScenarioByTime() 函數替代
+ */
 export const timeScenarios = [
   {
     key: 'peak_hours',
@@ -13,6 +23,7 @@ export const timeScenarios = [
     icon: '🚀',
     timeRange: '07:00-08:00,17:00-18:00',
     hourRanges: [
+      // 目前暫未使用，預留給未來擴展
       { start: 7, end: 8 },
       { start: 17, end: 18 },
     ],
@@ -36,6 +47,7 @@ export const timeScenarios = [
     icon: '🌞',
     timeRange: '09:00-16:00,19:00-22:00',
     hourRanges: [
+      // 預留擴展用
       { start: 9, end: 16 },
       { start: 19, end: 22 },
     ],
@@ -59,44 +71,69 @@ export const timeScenarios = [
     icon: '🌙',
     timeRange: '23:00-06:00',
     hourRanges: [
+      // 預留擴展用
       { start: 23, end: 24 },
       { start: 0, end: 6 },
     ],
     config: {
       interval: { min: 20000, max: 40000, normal: 30000 },
+
       vehicleTypes: [
         { type: 'motor', weight: 80 },
         { type: 'small', weight: 15 },
         { type: 'large', weight: 5 },
       ],
+
       peakMultiplier: 1,
+
       maxLiveVehicles: 100,
+
       densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
+
       description: '凌晨時段',
     },
   },
 ]
 
-// 車型組合配置（AutoTrafficGenerator 使用）
+/**
+ * 車型組合配置
+ *
+ * 使用檔案和方法：
+ * - AutoTrafficGenerator.js:
+ *   * constructor 中的 this.vehicleMixes 屬性初始化
+ *   * 原本的 trafficProfiles 陣列中 vehicleMix 屬性對應
+ *   * 用於決定不同交通狀況下的車型產生比例
+ */
 export const vehicleMixes = {
   light: {
-    motor: 0.2,
-    small: 0.7,
-    large: 0.1,
+    // 輕度交通時的車型比例
+    motor: 0.2, // 機車 20%
+    small: 0.7, // 小客車 70%
+    large: 0.1, // 大型車 10%
   },
   normal: {
-    motor: 0.4,
-    small: 0.5,
-    large: 0.1,
+    // 一般交通時的車型比例
+    motor: 0.4, // 機車 40%
+    small: 0.5, // 小客車 50%
+    large: 0.1, // 大型車 10%
   },
   heavy: {
-    motor: 0.6,
-    small: 0.3,
-    large: 0.1,
+    // 繁忙交通時的車型比例
+    motor: 0.6, // 機車 60%
+    small: 0.3, // 小客車 30%
+    large: 0.1, // 大型車 10%
   },
 }
 
-// 預設配置
+/**
+ * 預設配置
+ *
+ * 使用檔案和方法：
+ * - AutoTrafficGenerator.js:
+ *   * constructor 中的 this.defaultConfig 屬性
+ *   * this.config 的初始值來源
+ *   * updateConfig() 方法的基礎設定
+ */
 export const defaultConfig = {
   interval: { min: 3000, max: 8000, normal: 5000 },
   peakMultiplier: 1.5,
@@ -116,7 +153,17 @@ export const defaultConfig = {
   },
 }
 
-// 交通配置檔案結構（AutoTrafficGenerator 使用）
+/**
+ * 交通配置檔案結構（目前已不使用，保留供參考）
+ *
+ * 原本使用檔案和方法：
+ * - AutoTrafficGenerator.js:
+ *   * constructor 中的 this.trafficProfiles 屬性
+ *   * 原本用於 24 小時自動模式的時段配置
+ *   * 現已被 getScenarioByTime() 函數取代
+ *
+ * 注意：此配置已被 getScenarioByTime() 函數取代，保留僅供參考
+ */
 export const trafficProfiles = [
   {
     name: '深夜',
@@ -132,9 +179,10 @@ export const trafficProfiles = [
     },
   },
   {
-    name: '上午尖峰',
+    name: '上午尖峰', // 對應 getScenarioByTime() 的 '尖峰' 時段
     hours: { start: 7, end: 8 },
     config: {
+      // 對應 getScenarioByTime() 尖峰時段的設定
       interval: { min: 4000, max: 7000, normal: 5500 },
       peakMultiplier: 3.5,
       vehicleTypes: [
@@ -145,9 +193,10 @@ export const trafficProfiles = [
     },
   },
   {
-    name: '日間離峰',
+    name: '日間離峰', // 對應 getScenarioByTime() 的 '離峰' 時段
     hours: { start: 9, end: 16 },
     config: {
+      // 對應 getScenarioByTime() 離峰時段的設定
       interval: { min: 4000, max: 6000, normal: 5000 },
       peakMultiplier: 2.5,
       vehicleTypes: [
@@ -158,9 +207,10 @@ export const trafficProfiles = [
     },
   },
   {
-    name: '傍晚尖峰',
+    name: '傍晚尖峰', // 對應 getScenarioByTime() 的 '尖峰' 時段
     hours: { start: 17, end: 18 },
     config: {
+      // 與上午尖峰相同的設定
       interval: { min: 4000, max: 7000, normal: 5500 },
       peakMultiplier: 3.5,
       vehicleTypes: [
@@ -171,9 +221,10 @@ export const trafficProfiles = [
     },
   },
   {
-    name: '夜晚',
+    name: '夜晚', // 對應 getScenarioByTime() 的 '離峰' 時段
     hours: { start: 19, end: 22 },
     config: {
+      // 與日間離峰相同的設定
       interval: { min: 4000, max: 6000, normal: 5000 },
       peakMultiplier: 2.5,
       vehicleTypes: [
@@ -187,13 +238,20 @@ export const trafficProfiles = [
 
 /**
  * 根據當前時間取得對應的交通情境配置
+ *
+ * 使用檔案和方法：
+ * - AutoTrafficGenerator.js:
+ *   * _applyTrafficProfile() 方法中呼叫
+ *   * 自動模式下根據模擬時間決定交通情境
+ *   * 替代原本的硬編碼時段判斷邏輯
+ *
  * @param {Date} currentTime - 當前時間
- * @returns {Object} 交通情境配置
+ * @returns {Object} 交通情境配置，包含 name, interval, peakMultiplier, vehicleTypes, description
  */
 export function getScenarioByTime(currentTime) {
   const currentHour = currentTime.getHours()
 
-  // 尖峰時段
+  // 尖峰時段 (7-8時, 17-18時)
   if ((currentHour >= 7 && currentHour < 8) || (currentHour >= 17 && currentHour < 18)) {
     return {
       name: '尖峰',
@@ -207,7 +265,7 @@ export function getScenarioByTime(currentTime) {
       description: '尖峰時段',
     }
   }
-  // 離峰時段
+  // 離峰時段 (9-16時, 19-22時)
   else if ((currentHour >= 9 && currentHour < 16) || (currentHour >= 19 && currentHour < 22)) {
     return {
       name: '離峰',
@@ -221,7 +279,7 @@ export function getScenarioByTime(currentTime) {
       description: '離峰時段',
     }
   }
-  // 凌晨時段
+  // 凌晨時段 (其他時間)
   else {
     return {
       name: '凌晨',
@@ -239,8 +297,14 @@ export function getScenarioByTime(currentTime) {
 
 /**
  * 根據 key 取得時段情境配置
- * @param {string} scenarioKey - 情境 key
- * @returns {Object|null} 情境配置
+ *
+ * 使用檔案和方法：
+ * - MainLayout.vue:
+ *   * switchToTimeScenario() 方法中可能使用
+ *   * 未來擴展手動模式情境切換功能時使用
+ *
+ * @param {string} scenarioKey - 情境 key (peak_hours, off_peak, late_night)
+ * @returns {Object|null} 情境配置物件，如果找不到則返回 null
  */
 export function getScenarioByKey(scenarioKey) {
   return timeScenarios.find((scenario) => scenario.key === scenarioKey) || null
