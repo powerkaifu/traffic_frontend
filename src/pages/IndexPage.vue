@@ -1072,44 +1072,6 @@ onMounted(async () => {
       }
     }
 
-    // 🎯 顯示使用說明
-    console.log(`
-🎯 車輛間距控制已啟用！
-使用方法：
-- setVehicleDistance(2.0)     // 設置整體間距為兩倍
-- setVehicleDistance(0.5)     // 設置整體間距為一半
-- setNorthSouthDistance(0.6)  // 專門調整南北向間距
-- setNorthSouthDistance(1.2)  // 增加南北向間距
-- getVehicleDistanceConfig()  // 查看當前配置
-
-🎯 直行優先的左轉燈號流程已啟用！
-燈號順序：
-1. 直行綠燈(greenLight.png) → 車道2,3,4直行車通過
-2. 直行黃燈(yellowLight.png) → 直行車準備停止
-3. 全紅階段(redLight.png) → 安全緩衝
-4. 左轉綠燈(redLeftLight.png) → 只有車道1左轉車可通過
-5. 左轉黃燈(yellowLight.png) → 左轉車準備停止
-6. 左轉紅燈(redLight.png) → 左轉車停止
-7. 全紅(redLight.png) → 切換準備
-
-🎯 左轉車道邏輯修正：
-- 車道1：左轉專用車道，只有在左轉綠燈時才能通行
-- 車道2,3,4：直行車道，只有在直行綠燈時才能通行
-- 自動生成器：20%機率生成左轉車輛(車道1)，80%機率生成直行車輛(車道2-4)
-
-測試功能：
-- testNewTrafficFlow()        // 查看當前燈號狀態
-- testLeftTurnLanes()         // 查看左轉車道車輛狀態
-- generateLeftTurnVehicle('east') // 強制生成東向左轉車輛
-- generateLeftTurnVehicle('west') // 強制生成西向左轉車輛
-
-🔧 東西向左轉問題已修正：
-東西向車道1的車輛現在應該能正確響應左轉綠燈信號！
-自動生成的車輛已區分為直行車(車道2-4)和左轉車(車道1)。
-
-當前車輛配置: ${JSON.stringify(Vehicle.getDistanceConfig(), null, 2)}
-    `)
-
     // 輸出車道統計信息（調試用）
     console.log('🛣️ 車道統計信息：', trafficController.getLaneStatistics())
 

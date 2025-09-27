@@ -312,6 +312,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRouter, useRoute } from 'vue-router'
+import { timeScenarios } from 'src/classes/config/trafficScenarioConfig.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -343,62 +344,7 @@ const manualPeakMultiplier = ref(1.0)
 const manualInterval = ref(1000)
 const currentInterval = ref(7.0)
 
-const timeScenarios = [
-  {
-    key: 'peak_hours',
-    name: '尖峰時段',
-    shortName: '尖峰',
-    icon: '🚀',
-    timeRange: '07:00-08:00,17:00-18:00',
-    config: {
-      interval: { min: 4000, max: 7000, normal: 5500 }, // 與 AutoTrafficGenerator.js 保持一致
-      vehicleTypes: [
-        { type: 'motor', weight: 60 },
-        { type: 'small', weight: 40 }, // 與 AutoTrafficGenerator.js 保持一致
-        { type: 'large', weight: 10 }, // 與 AutoTrafficGenerator.js 保持一致
-      ],
-      peakMultiplier: 3.5, // 與 AutoTrafficGenerator.js 保持一致
-      maxLiveVehicles: 100,
-      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
-    },
-  },
-  {
-    key: 'off_peak',
-    name: '離峰時段',
-    shortName: '離峰',
-    icon: '🌞',
-    timeRange: '09:00-16:00,19:00-22:00',
-    config: {
-      interval: { min: 4000, max: 6000, normal: 5000 }, // 與 AutoTrafficGenerator.js 保持一致
-      vehicleTypes: [
-        { type: 'motor', weight: 30 },
-        { type: 'small', weight: 55 },
-        { type: 'large', weight: 15 },
-      ],
-      peakMultiplier: 2.5, // 與 AutoTrafficGenerator.js 保持一致
-      maxLiveVehicles: 100,
-      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
-    },
-  },
-  {
-    key: 'late_night',
-    name: '凌晨時段',
-    shortName: '凌晨',
-    icon: '🌙',
-    timeRange: '23:00-06:00',
-    config: {
-      interval: { min: 20000, max: 40000, normal: 30000 }, // 與 AutoTrafficGenerator.js 保持一致
-      vehicleTypes: [
-        { type: 'motor', weight: 80 },
-        { type: 'small', weight: 15 },
-        { type: 'large', weight: 5 }, // 與 AutoTrafficGenerator.js 保持一致
-      ],
-      peakMultiplier: 1, // 與 AutoTrafficGenerator.js 保持一致
-      maxLiveVehicles: 100,
-      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
-    },
-  },
-]
+// timeScenarios 已從 trafficScenarioConfig.js 匯入
 
 const currentScenarioDetails = computed(() => {
   const s = timeScenarios.find((s) => s.key === currentTimeScenario.value)

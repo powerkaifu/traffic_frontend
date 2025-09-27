@@ -1,6 +1,8 @@
 /**
  * AutoTrafficGenerator.js - 自動車流分派系統
  */
+import { getScenarioByTime, vehicleMixes, defaultConfig } from './config/trafficScenarioConfig.js'
+
 export default class AutoTrafficGenerator {
   constructor(trafficController) {
     this.trafficController = trafficController
@@ -11,22 +13,13 @@ export default class AutoTrafficGenerator {
     this.laneGenerationCooldown = {} // 記錄每個車道的最後生成時間
     this.minLaneInterval = 2000 // 同一車道最小生成間隔（2秒）
 
-    // 預設完整配置
-    this.defaultConfig = {
-      interval: { min: 1000, max: 5000, normal: 3000 }, // 🚨 修改為更短的間隔 1-5秒
-      densityThresholds: { light: 8, moderate: 15, heavy: 25, congested: 35 }, // 降低密度閾值，更早開始控制
-      vehicleTypes: [
-        { type: 'motor', weight: 35 },
-        { type: 'small', weight: 50 },
-        { type: 'large', weight: 15 },
-      ],
-      peakMultiplier: 1.0,
-    }
+    // 使用共用配置
+    this.defaultConfig = defaultConfig
 
     // 當前生效配置
     this.config = { ...this.defaultConfig }
     this.statistics = { total: 0 }
-    this.maxLiveVehicles = 100 // 最大同時車輛數 - 調整為 100
+    this.maxLiveVehicles = 100 // 最大同時車輛數
 
     // ==========================================
     // 🚗 自動模式相關屬性
@@ -46,23 +39,7 @@ export default class AutoTrafficGenerator {
       { from: 19, to: 24, description: '夜晚', peakMultiplier: 0.2, vehicleMix: 'normal' }, // 更低
     ]
 
-    this.vehicleMixes = {
-      light: [
-        { type: 'small', weight: 70 },
-        { type: 'motor', weight: 20 },
-        { type: 'large', weight: 10 },
-      ],
-      normal: [
-        { type: 'small', weight: 50 },
-        { type: 'motor', weight: 35 },
-        { type: 'large', weight: 15 },
-      ],
-      heavy: [
-        { type: 'small', weight: 40 },
-        { type: 'motor', weight: 40 },
-        { type: 'large', weight: 20 },
-      ],
-    }
+    this.vehicleMixes = vehicleMixes
   }
 
   // 啟動生成
@@ -181,48 +158,10 @@ export default class AutoTrafficGenerator {
     this.autoModeTimer = null
   }
 
-  // 根據模擬時間套用交通設定檔
+  // 根據模擬時間套用交通設定檔，使用於自動模式
   _applyTrafficProfile() {
-    const currentHour = this.simulationTime.getHours()
-    // 尖峰、離峰、凌晨三大時段
-    let scenario = null
-    if ((currentHour >= 7 && currentHour < 8) || (currentHour >= 17 && currentHour < 18)) {
-      scenario = {
-        name: '尖峰',
-        interval: { min: 4000, max: 7000, normal: 5500 }, // 增加最小間隔和正常間隔
-        peakMultiplier: 3.5, // 降低乘數避免過度密集
-        vehicleTypes: [
-          { type: 'motor', weight: 60 }, // 調整車型比例
-          { type: 'small', weight: 40 },
-          { type: 'large', weight: 10 },
-        ],
-        description: '尖峰時段',
-      }
-    } else if ((currentHour >= 9 && currentHour < 16) || (currentHour >= 19 && currentHour < 22)) {
-      scenario = {
-        name: '離峰',
-        interval: { min: 4000, max: 6000, normal: 5000 },
-        peakMultiplier: 2.5,
-        vehicleTypes: [
-          { type: 'motor', weight: 30 },
-          { type: 'small', weight: 55 },
-          { type: 'large', weight: 15 },
-        ],
-        description: '離峰時段',
-      }
-    } else {
-      scenario = {
-        name: '凌晨',
-        interval: { min: 20000, max: 40000, normal: 30000 },
-        peakMultiplier: 1,
-        vehicleTypes: [
-          { type: 'motor', weight: 80 },
-          { type: 'small', weight: 15 },
-          { type: 'large', weight: 5 },
-        ],
-        description: '凌晨時段',
-      }
-    }
+    // 使用統一配置取得當前時段情境
+    const scenario = getScenarioByTime(this.simulationTime)
 
     // interval.normal 加入隨機波動 ±10%
     const rand = 0.9 + Math.random() * 0.2
