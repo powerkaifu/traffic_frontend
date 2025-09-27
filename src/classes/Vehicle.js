@@ -5,9 +5,8 @@
 import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { speedConfig, stopLineConfig } from './config/trafficConfig.js' // 引入統一的速度設定和停止線配置
-import { SimpleCollisionDetector, CollisionDetectorFactory } from './vehicle_utils/SimpleCollisionDetector.js' // 🚀 新增：簡化碰撞檢測器
 import { StopLineController } from './vehicle_utils/StopLineController.js' // 🚀 新增：停止線控制器
-import { CollisionController } from './vehicle_utils/CollisionController.js' // 🚀 新增：碰撞控制器
+import { CollisionController } from './vehicle_utils/CollisionController.js' // 🚀 新增：碰撞控制器（整合 SimpleCollisionDetector）
 import VehicleConfig, {
   ANIMATION_CONFIG,
   TRAFFIC_LIGHT_CONFIG,
@@ -116,17 +115,13 @@ export default class Vehicle {
     this.stuckCheckTimer = null
     this.setupAntiStuckMechanism()
 
-    // 🚀 新增：簡化碰撞檢測器
-    this.collisionDetector = CollisionDetectorFactory.createForLane(this, laneNumber)
-    console.log(`🔧 [${this.id}] 簡化碰撞檢測器已初始化，車道: ${laneNumber}`)
-
     // 🚀 新增：停止線控制器
     this.stopLineController = new StopLineController(this)
     console.log(`🔧 [${this.id}] 停止線控制器已初始化`)
 
-    // 🚀 新增：碰撞控制器
-    this.collisionController = new CollisionController(this)
-    console.log(`🔧 [${this.id}] 碰撞控制器已初始化`)
+    // 🚀 新增：碰撞控制器（整合 SimpleCollisionDetector 功能）
+    this.collisionController = CollisionController.createForLane(this, laneNumber)
+    console.log(`🔧 [${this.id}] 碰撞控制器已初始化，車道: ${laneNumber}`)
   }
 
   // 🚨 新增：防停滯機制
@@ -1476,19 +1471,13 @@ export default class Vehicle {
       this.laneLabel = null
     }
 
-    // 🚀 清理碰撞檢測器
-    if (this.collisionDetector) {
-      this.collisionDetector.dispose()
-      this.collisionDetector = null
-    }
-
     // 🚀 清理停止線控制器
     if (this.stopLineController) {
       this.stopLineController.dispose()
       this.stopLineController = null
     }
 
-    // 🚀 清理碰撞控制器
+    // 🚀 清理碰撞控制器（整合 SimpleCollisionDetector 功能）
     if (this.collisionController) {
       this.collisionController.dispose()
       this.collisionController = null
