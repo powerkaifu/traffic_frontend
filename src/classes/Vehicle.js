@@ -844,10 +844,10 @@ export default class Vehicle {
         .then(() => {
           // 🚨 修正：在開始移動前檢查燈號狀態，特別是1號車道
           const currentLightState = trafficController.getCurrentLightState(this.direction)
-          
+
           // 檢查1號車道是否可以在當前燈號下移動
-          const canStart = 
-            (this.laneNumber !== 1) || // 非1號車道可以移動到停止線排隊
+          const canStart =
+            this.laneNumber !== 1 || // 非1號車道可以移動到停止線排隊
             (this.laneNumber === 1 && currentLightState === 'leftGreen') // 1號車道只能在左轉綠燈時移動
 
           if (canStart) {
@@ -859,7 +859,7 @@ export default class Vehicle {
             this.waitingForGreen = true
             console.log(`🛑🚦 [${this.id}] 1號車道等待左轉綠燈 (當前: ${currentLightState})`)
           }
-          
+
           this.isAtStopLine = false
           this.hasPassedStopLine = false
 
