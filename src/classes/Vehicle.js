@@ -538,8 +538,8 @@ export default class Vehicle {
     // 使用車頭位置進行停止線檢測
     const vehicleHead = this.getVehicleHeadPosition()
 
-    // 🚨 修正：在到達停止線前就檢測，讓車輛有足夠時間停車
-    const sensitivity = 10 // 正值表示在停止線前10px就檢測
+    // 🚨 修正：進一步調整敏感度，讓車輛幾乎貼近停止線才停止
+    const sensitivity = 0 // 正值表示在停止線位置檢測，0表示剛好在停止線
 
     // Strategy Pattern: 不同方向使用不同的停止線檢查策略
     if (this.direction === 'east') {
@@ -606,7 +606,7 @@ export default class Vehicle {
         // 直行綠燈：1號車道必須在停止線排隊等待
         const distanceToStopLine = this.getDistanceToStopLine()
 
-        if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 50) {
+        if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 10) {
           console.log(
             `🚦 [${this.id}] 1號車道停止線排隊：等待左轉綠燈 (距離停止線: ${distanceToStopLine.toFixed(1)}px)`,
           )
@@ -632,7 +632,7 @@ export default class Vehicle {
         // 左轉綠燈：2、3、4號車道必須在停止線排隊等待
         const distanceToStopLine = this.getDistanceToStopLine()
 
-        if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 50) {
+        if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 10) {
           console.log(
             `🚦 [${this.id}] ${this.laneNumber}號車道停止線排隊：等待直行綠燈 (距離停止線: ${distanceToStopLine.toFixed(1)}px)`,
           )
@@ -955,15 +955,24 @@ export default class Vehicle {
           adjustDistance = vehicleHead.y - stopLine.y
         }
 
-        // 如果超過停止線超過5px，需要微調回來
-        if (adjustDistance > 5) {
+        // 🚨 修正：如果距離停止線超過1px（不論前後），需要微調到停止線位置
+        if (Math.abs(adjustDistance) > 1) {
           console.log(`🚗 [${this.id}] 停車位置微調: ${adjustDistance.toFixed(1)}px`)
 
-          // 計算需要倒退的進度
+          // 計算需要調整的進度
           const currentProgress = this.movementTimeline.progress()
           const totalDistance = 300 // 假設路徑總長度為300px
-          const adjustRatio = adjustDistance / totalDistance
-          const newProgress = Math.max(0, currentProgress - adjustRatio)
+          const adjustRatio = Math.abs(adjustDistance) / totalDistance
+
+          // 根據調整方向決定新進度
+          let newProgress
+          if (adjustDistance > 0) {
+            // 車輛超過停止線，需要倒退
+            newProgress = Math.max(0, currentProgress - adjustRatio)
+          } else {
+            // 車輛未到停止線，需要前進
+            newProgress = Math.min(1, currentProgress + adjustRatio)
+          }
 
           // 微調到正確位置
           this.movementTimeline.progress(newProgress)
@@ -1619,7 +1628,7 @@ export default class Vehicle {
                 // 🚦 修復：左轉車道只有在停止線附近才停止等待左轉綠燈
                 const distanceToStopLine = this.getDistanceToStopLine()
 
-                if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 30) {
+                if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 5) {
                   // 接近停止線，停車等待左轉綠燈
                   this.movementTimeline.timeScale(0)
                   this.currentState = 'waitingForLeftTurnGreen'
@@ -1643,7 +1652,7 @@ export default class Vehicle {
                 // 🚦 新增：直行車道在左轉綠燈時的處理
                 const distanceToStopLine = this.getDistanceToStopLine()
 
-                if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 30) {
+                if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 5) {
                   // 接近停止線，停車等待直行綠燈
                   this.movementTimeline.timeScale(0)
                   this.currentState = 'waitingForStraightGreen'
