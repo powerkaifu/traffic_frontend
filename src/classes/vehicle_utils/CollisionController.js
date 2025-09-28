@@ -29,6 +29,75 @@ export class CollisionController {
   }
 
   /**
+   * 🚦 判斷車輛是否已經通過停止線
+   * @returns {boolean} true表示已通過停止線
+   */
+  isVehiclePassedStopLine() {
+    // 首先檢查車輛的內建標記
+    if (this.vehicle.hasPassedStopLine) {
+      return true
+    }
+
+    const stopLine = this.vehicle.getStopLinePosition()
+    const currentPos = this.vehicle.getCurrentPosition()
+
+    if ((!stopLine.x && !stopLine.y) || !currentPos) {
+      return false // 無法判斷時預設為未通過
+    }
+
+    let hasPassedStopLine = false
+
+    // 根據車輛方向判斷是否已通過停止線
+    switch (this.vehicle.direction) {
+      case 'east':
+        hasPassedStopLine = currentPos.x > stopLine.x
+        break
+      case 'west':
+        hasPassedStopLine = currentPos.x < stopLine.x
+        break
+      case 'north':
+        hasPassedStopLine = currentPos.y < stopLine.y
+        break
+      case 'south':
+        hasPassedStopLine = currentPos.y > stopLine.y
+        break
+    }
+
+    return hasPassedStopLine
+  }
+
+  /**
+   * 🚦 判斷另一輛車是否已經通過停止線
+   * @param {Vehicle} otherVehicle 其他車輛
+   * @returns {boolean}
+   */
+  isOtherVehiclePassedStopLine(otherVehicle) {
+    if (otherVehicle.hasPassedStopLine) {
+      return true
+    }
+
+    const stopLine = otherVehicle.getStopLinePosition()
+    const otherPos = otherVehicle.getCurrentPosition()
+
+    if ((!stopLine.x && !stopLine.y) || !otherPos) {
+      return false
+    }
+
+    switch (otherVehicle.direction) {
+      case 'east':
+        return otherPos.x > stopLine.x
+      case 'west':
+        return otherPos.x < stopLine.x
+      case 'north':
+        return otherPos.y < stopLine.y
+      case 'south':
+        return otherPos.y > stopLine.y
+      default:
+        return false
+    }
+  }
+
+  /**
    * 判斷是否最接近停止線
    * @param {Array} allVehicles 所有車輛陣列
    * @returns {boolean} true表示是最接近停止線的車輛
@@ -154,7 +223,7 @@ export class CollisionController {
   }
 
   /**
-   * 智能碰撞檢查
+   * 🚦 智能碰撞檢查 - 根據停止線位置採用不同策略
    * @param {Array} allVehicles 所有車輛陣列
    * @returns {Object|null} 碰撞結果或null
    */
@@ -174,21 +243,146 @@ export class CollisionController {
 
     this.lastCollisionCheck = currentTime
 
-    // 只檢查附近車輛，而不是所有車輛
-    const nearbyVehicles = this.getNearbyVehicles(allVehicles)
+    // 🚦 根據當前車輛是否通過停止線決定碰撞策略
+    const hasPassedStopLine = this.isVehiclePassedStopLine()
 
-    if (nearbyVehicles.length === 0) {
-      return null // 附近沒有車輛，節省性能
+    if (hasPassedStopLine) {
+      // ✅ 已通過停止線：允許穿透超車，不進行嚴格碰撞檢測
+      console.log(`🚦✅ [${this.vehicle.id}] 已通過停止線，啟用穿透模式`)
+      return null // 不阻止移動，允許穿透
+    } else {
+      // 🚦❌ 未通過停止線：執行嚴格排隊機制
+      console.log(`🚦❌ [${this.vehicle.id}] 未通過停止線，執行排隊檢測`)
+      return this.performQueueingCollisionCheck(allVehicles)
+    }
+  }
+
+  /**
+   * 🚗 停止線前排隊碰撞檢測 - 確保車輛逐一接近停止線
+   * @param {Array} allVehicles 所有車輛陣列
+   * @returns {Object|null} 碰撞結果或null
+   */
+  performQueueingCollisionCheck(allVehicles) {
+    const currentBox = this.vehicle.getBoundingBox()
+    const QUEUE_GAP = 15 // 排隊安全距離
+
+    // 只檢查同方向同車道的車輛
+    const samePathVehicles = allVehicles.filter(
+      (v) =>
+        v.id !== this.vehicle.id && v.direction === this.vehicle.direction && v.laneNumber === this.vehicle.laneNumber,
+    )
+
+    let closestFrontVehicle = null
+    let minDistance = Infinity
+
+    for (let vehicle of samePathVehicles) {
+      const otherBox = vehicle.getBoundingBox()
+      let distance = 0
+      let isFrontVehicle = false
+
+      // 檢查是否為前方車輛
+      switch (this.vehicle.direction) {
+        case 'east':
+          isFrontVehicle = otherBox.centerX > currentBox.centerX && Math.abs(otherBox.centerY - currentBox.centerY) < 30
+          distance = isFrontVehicle ? otherBox.left - currentBox.right : Infinity
+          break
+        case 'west':
+          isFrontVehicle = otherBox.centerX < currentBox.centerX && Math.abs(otherBox.centerY - currentBox.centerY) < 30
+          distance = isFrontVehicle ? currentBox.left - otherBox.right : Infinity
+          break
+        case 'north':
+          isFrontVehicle = otherBox.centerY < currentBox.centerY && Math.abs(otherBox.centerX - currentBox.centerX) < 30
+          distance = isFrontVehicle ? currentBox.top - otherBox.bottom : Infinity
+          break
+        case 'south':
+          isFrontVehicle = otherBox.centerY > currentBox.centerY && Math.abs(otherBox.centerX - currentBox.centerX) < 30
+          distance = isFrontVehicle ? otherBox.top - currentBox.bottom : Infinity
+          break
+      }
+
+      // 找到最近的前方車輛
+      if (isFrontVehicle && distance < minDistance && distance >= 0) {
+        minDistance = distance
+        closestFrontVehicle = vehicle
+      }
     }
 
-    // 🎯 性能優化：記錄檢查數量對比
-    if (Math.random() < 0.01) {
-      // 1%概率記錄（避免日誌過多）
-      console.log(`🎯 [${this.vehicle.id}] 智能檢查: 從${allVehicles.length}台車縮減到${nearbyVehicles.length}台車`)
+    // 如果沒有前方車輛，檢查是否接近停止線
+    if (!closestFrontVehicle) {
+      return this.checkStopLineApproach()
     }
 
-    // 使用原有的碰撞檢查邏輯，但只檢查附近車輛
-    return this.performDetailedCollisionCheck(nearbyVehicles)
+    // 檢查與前車距離
+    if (minDistance < QUEUE_GAP) {
+      // 🚦 關鍵：檢查前車是否也在停止線前排隊
+      const frontVehiclePassedStopLine = this.isOtherVehiclePassedStopLine(closestFrontVehicle)
+
+      if (frontVehiclePassedStopLine) {
+        // ✅ 前車已通過停止線，允許當前車輛繼續前進到停止線
+        console.log(`🚦➡️ [${this.vehicle.id}] 前車已通過停止線，繼續前進到停止線`)
+        return this.checkStopLineApproach()
+      } else {
+        // ❌ 前車仍在停止線前，需要排隊等待
+        const frontVehicleMoving =
+          closestFrontVehicle.movementTimeline &&
+          closestFrontVehicle.movementTimeline.timeScale() > 0 &&
+          !closestFrontVehicle.movementTimeline.paused()
+
+        return {
+          shouldStop: !frontVehicleMoving, // 前車停止時才完全停止
+          shouldFollow: frontVehicleMoving, // 前車移動時跟隨
+          vehicle: closestFrontVehicle,
+          distance: minDistance,
+          requiredGap: QUEUE_GAP,
+          reason: `停止線前排隊: 距離${minDistance.toFixed(1)}px, 前車${frontVehicleMoving ? '移動中' : '已停止'}`,
+          targetSpeed: frontVehicleMoving ? Math.min(0.8, minDistance / QUEUE_GAP) : 0,
+        }
+      }
+    }
+
+    // 距離足夠，檢查停止線
+    return this.checkStopLineApproach()
+  }
+
+  /**
+   * 🚦 檢查接近停止線的情況
+   * @returns {Object|null} 停止線檢查結果
+   */
+  checkStopLineApproach() {
+    const stopLine = this.vehicle.getStopLinePosition()
+    const currentPos = this.vehicle.getCurrentPosition()
+
+    if ((!stopLine.x && !stopLine.y) || !currentPos) {
+      return null // 無停止線資訊，允許通行
+    }
+
+    let distanceToStopLine = 0
+
+    // 計算到停止線的距離
+    switch (this.vehicle.direction) {
+      case 'east':
+        distanceToStopLine = Math.max(0, stopLine.x - currentPos.x)
+        break
+      case 'west':
+        distanceToStopLine = Math.max(0, currentPos.x - stopLine.x)
+        break
+      case 'north':
+        distanceToStopLine = Math.max(0, currentPos.y - stopLine.y)
+        break
+      case 'south':
+        distanceToStopLine = Math.max(0, stopLine.y - currentPos.y)
+        break
+    }
+
+    // 如果距離停止線很近且燈號不允許通行，則停止
+    if (distanceToStopLine < 20) {
+      // 20px內接近停止線
+      // 這裡可以加入交通燈檢查邏輯
+      console.log(`🚦🔴 [${this.vehicle.id}] 接近停止線: ${distanceToStopLine.toFixed(1)}px`)
+      return null // 讓交通燈邏輯處理停止
+    }
+
+    return null // 允許繼續前進
   }
 
   /**
@@ -265,6 +459,18 @@ export class CollisionController {
     if (!myPos) {
       return null
     }
+
+    // 🚦 核心邏輯：根據停止線位置決定碰撞策略
+    const hasPassedStopLine = this.isVehiclePassedStopLine()
+
+    if (hasPassedStopLine) {
+      // ✅ 已通過停止線：允許穿透，不進行碰撞檢測
+      console.log(`🚦✅ [${this.vehicle.id}] 簡單檢測：已通過停止線，允許穿透`)
+      return null
+    }
+
+    // ❌ 未通過停止線：執行原有碰撞檢測
+    console.log(`🚦❌ [${this.vehicle.id}] 簡單檢測：未通過停止線，執行碰撞檢測`)
 
     // 只檢查同方向的車輛
     const sameDirectionVehicles = allVehicles.filter(
