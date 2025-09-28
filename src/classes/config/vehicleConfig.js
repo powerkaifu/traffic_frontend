@@ -12,7 +12,7 @@
 // ===== 動畫與時間設定 =====
 export const ANIMATION_CONFIG = {
   // 🎬 全域動畫控制
-  TIME_MULTIPLIER: 1, // 控制整體動畫速度，數字越小動畫越快（0.4 = 2.5倍速）
+  TIME_MULTIPLIER: 1.0, // 控制整體動畫速度：越小越快，越大越慢（0.5=2倍速，2=半速）
 
   // ⚡ 速度變化動畫時間 (秒)
   SPEED_CHANGE_DURATION: {
@@ -40,8 +40,8 @@ export const ANIMATION_CONFIG = {
 
   // ⏰ 初始化和時間限制設定
   INITIALIZATION_DELAY: 500, // 車輛初始化延遲時間（毫秒）
-  MIN_ANIMATION_TIME: 3, // 最短動畫時間（秒）
-  MAX_ANIMATION_TIME: 15, // 最長動畫時間（秒）
+  MIN_ANIMATION_TIME: 1, // 最短動畫時間（秒）- 降低以支援更快速度
+  MAX_ANIMATION_TIME: 30, // 最長動畫時間（秒）- 提高以支援更慢速度
   STUCK_CHECK_THRESHOLD: 10000, // 車輛停滯檢查閾值（毫秒）
 }
 
@@ -209,25 +209,3 @@ export default {
   PATH_CONFIG,
   DEBUG_CONFIG,
 }
-
-/**
- * 🎛️ 快速調整指南：
- *
- * 🚗 讓車輛反應更快：
- * - 減少 ANIMATION_CONFIG.SPEED_CHANGE_DURATION 中的數值
- * - 減少 ANIMATION_CONFIG.COOLDOWN_TIMES 中的時間
- * - 減少 FOLLOWING_CONFIG.CHECK_INTERVAL
- *
- * 🛡️ 增加行車安全性：
- * - 增加 DISTANCE_CONFIG.BASE_DISTANCES 中的距離
- * - 增加 DISTANCE_CONFIG.DISTANCE_MULTIPLIERS 中的倍數
- * - 增加 COLLISION_CONFIG.DETECTION_DISTANCES 中的檢測距離
- *
- * 🚦 調整紅綠燈行為：
- * - 修改 TRAFFIC_LIGHT_CONFIG.YELLOW_LIGHT 中的距離和倍數
- * - 調整 TRAFFIC_LIGHT_CONFIG.RED_LIGHT 中的減速參數
- *
- * 🎬 改善動畫流暢度：
- * - 調整 ANIMATION_CONFIG.TIME_MULTIPLIER（數值越小越快）
- * - 修改 ANIMATION_CONFIG.SPEED_CHANGE_DURATION 中對應的持續時間
- */

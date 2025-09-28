@@ -271,13 +271,12 @@ export default class Vehicle {
     // 計算理論時間（秒）
     const theoreticalTime = realDistance / speedMs
 
-    // 加快動畫速度：使用更小的時間倍數
-    // 使用統一的動畫速度控制
+    // 🎬 動畫速度控制：TIME_MULTIPLIER 越小越快，越大越慢
     const adjustedTheoretical = theoreticalTime * Vehicle.timeMultiplier
 
-    // 調整時間範圍以適應新的速度
-    const minTime = ANIMATION_CONFIG.MIN_ANIMATION_TIME // 最短3秒
-    const maxTime = ANIMATION_CONFIG.MAX_ANIMATION_TIME // 最長15秒
+    // 調整時間範圍以支援更大的速度變化範圍
+    const minTime = ANIMATION_CONFIG.MIN_ANIMATION_TIME // 最短1秒
+    const maxTime = ANIMATION_CONFIG.MAX_ANIMATION_TIME // 最長30秒
     const adjustedTime = Math.max(minTime, Math.min(maxTime, adjustedTheoretical))
 
     return adjustedTime
@@ -822,9 +821,9 @@ export default class Vehicle {
           const realDistance = (pathLength / 100) * 15 // 轉換為實際距離（米）
           const speedMs = (this.initialSpeed * 1000) / 3600 // 轉換為 m/s
           let theoreticalTime = realDistance / speedMs
-          // 使用統一的動畫速度控制
+          // 🎬 動畫速度控制：TIME_MULTIPLIER 越小越快，越大越慢
           theoreticalTime *= Vehicle.timeMultiplier
-          animationDuration = Math.max(3, Math.min(15, theoreticalTime)) // 調整時間範圍
+          animationDuration = Math.max(1, Math.min(30, theoreticalTime)) // 擴大時間範圍
         } catch (error) {
           console.warn(`⚠️ 無法計算路徑長度，使用預設動畫時間:`, error)
           animationDuration = this.calculateAnimationDuration()
@@ -1210,10 +1209,10 @@ export default class Vehicle {
         const realDistance = (this.totalDistance / 100) * 15
         const speedMs = (this.initialSpeed * 1000) / 3600
         let theoreticalTime = realDistance / speedMs
-        // 使用統一的動畫速度控制
+        // 🎬 動畫速度控制：TIME_MULTIPLIER 越小越快，越大越慢
         theoreticalTime *= Vehicle.timeMultiplier
-        // 限制合理範圍
-        animationDuration = Math.max(3, Math.min(15, theoreticalTime))
+        // 擴大合理範圍以支援更大的速度變化
+        animationDuration = Math.max(1, Math.min(30, theoreticalTime))
       }
 
       // Strategy Pattern: 使用延遲策略避免剛生成就被碰撞檢測影響

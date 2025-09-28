@@ -428,7 +428,7 @@ export default class TrafficLightController {
           // 🎯【階段3】全紅階段 - 安全緩衝
           this.updateLightState('east', 'red')
           this.updateLightState('west', 'red')
-          this.updateTimer('全紅階段', this.phaseTimings.allRed.duration)
+          this.updateTimer('全紅階段\n安全緩衝', this.phaseTimings.allRed.duration)
           await this.countdownDelay(this.phaseTimings.allRed.duration * 1000)
 
           // 🎯【階段4】東西向左轉綠燈（後左轉）
