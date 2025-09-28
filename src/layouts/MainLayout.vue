@@ -84,18 +84,18 @@
               <!-- 當前情境參數顯示 -->
               <div v-if="currentScenarioDetails && !isAutoMode" class="scenario-details">
                 <div class="detail-item">
-                  <span class="detail-label">頻率 (秒)：</span>
+                  <span class="detail-label">頻率（秒）：</span>
                   <span class="detail-value"
                     >{{ currentScenarioDetails.interval.min / 1000 }} /
                     {{ currentScenarioDetails.interval.max / 1000 }}</span
                   >
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">機/小/大 (%)：</span>
+                  <span class="detail-label">機/小/大 出現機率（%）：</span>
                   <span class="detail-value">{{ currentScenarioDetails.ratios }}</span>
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">間隔(s)：</span>
+                  <span class="detail-label">實際生成間隔（秒）：</span>
                   <span class="detail-value">{{ (currentInterval / 1000).toFixed(1) }}</span>
                 </div>
               </div>
@@ -345,7 +345,6 @@ const manualInterval = ref(1000)
 const currentInterval = ref(7.0)
 
 // timeScenarios 已從 trafficScenarioConfig.js 匯入
-
 const currentScenarioDetails = computed(() => {
   const s = timeScenarios.find((s) => s.key === currentTimeScenario.value)
   if (!s) return null

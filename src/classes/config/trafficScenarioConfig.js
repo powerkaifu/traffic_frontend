@@ -2,6 +2,35 @@
  * 交通情境配置檔
  * 統一管理所有交通相關的參數設定，包括時段情境、車型組合、密度閾值等
  * 由 AutoTrafficGenerator 和 MainLayout 共同使用
+ *
+ * ========================================
+ * 🚗 車輛生成速度與數量最相關的屬性：
+ * ========================================
+ *
+ * 【手動模式】- 由 MainLayout.vue 的拉桿控制：
+ * 1. manualInterval (生成間隔拉桿) - 直接決定基礎生成間隔
+ * 2. manualPeakMultiplier (流量強度拉桿) - 倍率，數值越大車流越密集
+ *
+ * 【自動模式】- 由時段自動切換：
+ * 1. interval.normal - 基礎生成間隔 (毫秒)
+ * 2. peakMultiplier - 車流強度倍率，影響實際生成速度
+ *
+ * 【共同影響】：
+ * 3. maxLiveVehicles - 同時場上最大車輛數，達到上限會暫停生成
+ * 4. vehicleTypes - 各車型權重，影響生成的車型比例
+ *
+ * ========================================
+ * 🔧 實際生成公式：
+ * ========================================
+ * 手動模式：finalInterval = manualInterval / manualPeakMultiplier
+ * 自動模式：base = interval.normal / peakMultiplier (還會根據密度動態調整)
+ * 最終延遲：Math.max(min, Math.min(max, calculated_interval))
+ *
+ * ⚠️  interval.min 和 interval.max 主要用於：
+ *    - UI 顯示參考範圍
+ *    - 限制最終計算結果的邊界值
+ *    - 不直接參與生成，而是作為約束條件
+ *
  */
 
 /**
