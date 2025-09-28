@@ -205,6 +205,9 @@ export class CollisionController {
     const currentBox = this.vehicle.getBoundingBox()
     const UNIFORM_GAP = 12 // 統一安全距離（適用於所有車輛狀態）
 
+    // 🚨 1號車道特殊處理：使用更大的安全距離
+    const LANE_1_ENHANCED_GAP = this.vehicle.laneNumber === 1 ? 18 : UNIFORM_GAP // 1號車道使用18px安全距離
+
     for (let vehicle of vehicles) {
       const otherBox = vehicle.getBoundingBox()
       let distance = 0
@@ -225,7 +228,7 @@ export class CollisionController {
         distance = isFrontVehicle ? otherBox.top - currentBox.bottom : 0
       }
 
-      if (isFrontVehicle && distance < UNIFORM_GAP && distance >= 0) {
+      if (isFrontVehicle && distance < LANE_1_ENHANCED_GAP && distance >= 0) {
         // 檢查前方車輛狀態
         const isAtStopLine = vehicle.isAtStopLine || vehicle.waitingForGreen
         const isMoving =
@@ -235,7 +238,7 @@ export class CollisionController {
           shouldStop: true,
           vehicle: vehicle,
           distance: distance,
-          requiredGap: UNIFORM_GAP,
+          requiredGap: LANE_1_ENHANCED_GAP, // 使用對應的安全距離
           frontVehicleAtStopLine: isAtStopLine,
           frontVehicleIsMoving: isMoving,
         }
@@ -447,8 +450,8 @@ export class CollisionController {
 
     // 根據車道調整檢查間隔
     if (laneNumber === 1) {
-      // 左轉車道：更頻繁檢查
-      controller.setCheckInterval(40)
+      // 左轉車道：更頻繁檢查，減少重疊風險
+      controller.setCheckInterval(30) // 從40ms改為30ms，更頻繁檢查
     } else {
       // 直行車道：標準設定
       controller.setCheckInterval(50)

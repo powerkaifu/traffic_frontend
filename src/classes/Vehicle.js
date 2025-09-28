@@ -936,24 +936,30 @@ export default class Vehicle {
                 // 🚨 綠燈跟車邏輯：如果是綠燈且前車正在移動，根據距離調整速度
                 const currentLightState = trafficController.getCurrentLightState(this.direction)
 
+                // 🚨 修正：1號車道在左轉綠燈時也應執行跟車邏輯
+                const isValidLightForFollowing =
+                  (this.laneNumber === 1 && (currentLightState === 'leftGreen' || currentLightState === 'green')) ||
+                  (this.laneNumber !== 1 && currentLightState === 'green')
+
                 if (
-                  currentLightState === 'green' &&
+                  isValidLightForFollowing &&
                   !this.waitingForGreen &&
                   shouldStop.frontVehicleIsMoving &&
                   this.movementTimeline
                 ) {
-                  // 🚨 距離感知速度控制：根據實際距離調整速度，確保保持12px間隙
+                  // 🚨 1號車道使用更嚴格的距離控制
+                  const isLane1 = this.laneNumber === 1
                   let targetSpeed
 
-                  if (distance <= requiredGap * 0.5) {
-                    // 距離太近：大幅減速但不完全停止
-                    targetSpeed = 0.2
-                  } else if (distance <= requiredGap * 0.8) {
+                  if (distance <= requiredGap * 0.4) {
+                    // 1號車道：更嚴格的距離控制
+                    targetSpeed = isLane1 ? 0.15 : 0.2
+                  } else if (distance <= requiredGap * 0.7) {
                     // 距離適中：適度速度
-                    targetSpeed = 0.5
-                  } else if (distance <= requiredGap * 1.2) {
+                    targetSpeed = isLane1 ? 0.4 : 0.5
+                  } else if (distance <= requiredGap * 1.0) {
                     // 距離接近理想：接近正常速度
-                    targetSpeed = 0.8
+                    targetSpeed = isLane1 ? 0.7 : 0.8
                   } else {
                     // 距離充足：正常速度
                     targetSpeed = 1.0
@@ -966,7 +972,9 @@ export default class Vehicle {
                     ease: 'power2.out',
                   })
 
-                  console.log(`🟢🚗 [${this.id}] 綠燈距離感知跟車：距離${distance.toFixed(1)}px → 速度${targetSpeed}`)
+                  console.log(
+                    `🟢🚗 [${this.id}] ${isLane1 ? '左轉' : '直行'}綠燈距離感知跟車：距離${distance.toFixed(1)}px → 速度${targetSpeed} (車道${this.laneNumber})`,
+                  )
                   this.currentState = 'following'
                   return
                 }
@@ -1005,9 +1013,10 @@ export default class Vehicle {
                   const currentLightState = trafficController.getCurrentLightState(this.direction)
 
                   // 🚦 判斷車輛是否可以通行
+                  // 🚨 修正：1號車道在直行綠燈時也應執行碰撞檢測，只是不能通過停止線
                   const canProceed =
                     this.laneNumber === 1
-                      ? currentLightState === 'leftGreen' // 左轉車道需要左轉綠燈
+                      ? currentLightState === 'leftGreen' || currentLightState === 'green' // 左轉車道在任何綠燈時都執行碰撞檢測
                       : currentLightState === 'green' // 直行車道需要直行綠燈
 
                   if (canProceed) {
