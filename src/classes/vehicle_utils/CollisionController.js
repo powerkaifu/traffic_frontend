@@ -98,6 +98,33 @@ export class CollisionController {
   }
 
   /**
+   * 🚦 檢查當前交通燈是否允許車輛通行
+   * @returns {boolean} true表示交通燈允許通行
+   */
+  canProceedWithCurrentLight() {
+    // 需要從外部獲取交通燈控制器，這裡暫時返回 false
+    // 讓 Vehicle.js 中的邏輯來處理交通燈檢查
+    try {
+      // 嘗試從車輛的運行環境中獲取交通燈狀態
+      if (typeof window !== 'undefined' && window.trafficController) {
+        const currentLightState = window.trafficController.getCurrentLightState(this.vehicle.direction)
+
+        // 🚦 根據車道和燈號狀態判斷是否可以通行
+        const canProceed =
+          (currentLightState === 'green' && this.vehicle.laneNumber !== 1) || // 直行綠燈且非左轉車道
+          (currentLightState === 'leftGreen' && this.vehicle.laneNumber === 1) || // 左轉綠燈且為左轉車道
+          (currentLightState === 'green' && this.vehicle.laneNumber === 1) // 直行綠燈時左轉車道也可通行（某些情況）
+
+        return canProceed
+      }
+    } catch (error) {
+      console.warn(`[${this.vehicle.id}] 無法獲取交通燈狀態:`, error)
+    }
+
+    return false // 預設不允許通行，保持安全
+  }
+
+  /**
    * 判斷是否最接近停止線
    * @param {Array} allVehicles 所有車輛陣列
    * @returns {boolean} true表示是最接近停止線的車輛
@@ -245,14 +272,18 @@ export class CollisionController {
 
     // 🚦 根據當前車輛是否通過停止線決定碰撞策略
     const hasPassedStopLine = this.isVehiclePassedStopLine()
+    const canProceedWithTrafficLight = this.canProceedWithCurrentLight()
 
-    if (hasPassedStopLine) {
-      // ✅ 已通過停止線：允許穿透超車，不進行嚴格碰撞檢測
-      console.log(`🚦✅ [${this.vehicle.id}] 已通過停止線，啟用穿透模式`)
+    if (hasPassedStopLine || canProceedWithTrafficLight) {
+      // ✅ 已通過停止線 OR 交通燈允許通行：允許穿透超車
+      if (Math.random() < 0.02) {
+        // 2% 概率輸出日誌，減少干擾
+        const reason = hasPassedStopLine ? '已通過停止線' : '交通燈允許通行'
+        console.log(`🚦✅ [${this.vehicle.id}] ${reason}，啟用穿透模式`)
+      }
       return null // 不阻止移動，允許穿透
     } else {
-      // 🚦❌ 未通過停止線：執行嚴格排隊機制
-      console.log(`🚦❌ [${this.vehicle.id}] 未通過停止線，執行排隊檢測`)
+      // 🚦❌ 未通過停止線且交通燈不允許：執行智能排隊機制
       return this.performQueueingCollisionCheck(allVehicles)
     }
   }
@@ -312,36 +343,54 @@ export class CollisionController {
       return this.checkStopLineApproach()
     }
 
-    // 檢查與前車距離
-    if (minDistance < QUEUE_GAP) {
-      // 🚦 關鍵：檢查前車是否也在停止線前排隊
-      const frontVehiclePassedStopLine = this.isOtherVehiclePassedStopLine(closestFrontVehicle)
+    // 🚦 核心改進：根據不同情況決定是否允許車輛繼續前進
+    const frontVehiclePassedStopLine = closestFrontVehicle
+      ? this.isOtherVehiclePassedStopLine(closestFrontVehicle)
+      : false
+    const frontVehicleMoving =
+      closestFrontVehicle &&
+      closestFrontVehicle.movementTimeline &&
+      closestFrontVehicle.movementTimeline.timeScale() > 0 &&
+      !closestFrontVehicle.movementTimeline.paused()
 
-      if (frontVehiclePassedStopLine) {
-        // ✅ 前車已通過停止線，允許當前車輛繼續前進到停止線
-        console.log(`🚦➡️ [${this.vehicle.id}] 前車已通過停止線，繼續前進到停止線`)
-        return this.checkStopLineApproach()
-      } else {
-        // ❌ 前車仍在停止線前，需要排隊等待
-        const frontVehicleMoving =
-          closestFrontVehicle.movementTimeline &&
-          closestFrontVehicle.movementTimeline.timeScale() > 0 &&
-          !closestFrontVehicle.movementTimeline.paused()
+    // 🚦 情況1：前車已通過停止線 - 允許繼續前進到停止線
+    if (frontVehiclePassedStopLine) {
+      console.log(`🚦➡️ [${this.vehicle.id}] 前車已通過停止線，允許繼續前進到停止線`)
+      return null // 不阻止移動，讓車輛繼續前進到停止線
+    }
 
-        return {
-          shouldStop: !frontVehicleMoving, // 前車停止時才完全停止
-          shouldFollow: frontVehicleMoving, // 前車移動時跟隨
-          vehicle: closestFrontVehicle,
-          distance: minDistance,
-          requiredGap: QUEUE_GAP,
-          reason: `停止線前排隊: 距離${minDistance.toFixed(1)}px, 前車${frontVehicleMoving ? '移動中' : '已停止'}`,
-          targetSpeed: frontVehicleMoving ? Math.min(0.8, minDistance / QUEUE_GAP) : 0,
-        }
+    // 🚦 情況2：前車正在移動且距離合理 - 跟隨前進
+    if (frontVehicleMoving && minDistance >= 8) {
+      // 8px 最小跟隨距離
+      console.log(`🚦🚗 [${this.vehicle.id}] 跟隨前車移動，距離：${minDistance.toFixed(1)}px`)
+      return {
+        shouldStop: false,
+        shouldFollow: true,
+        vehicle: closestFrontVehicle,
+        distance: minDistance,
+        requiredGap: QUEUE_GAP,
+        reason: `跟隨前車排隊移動: 距離${minDistance.toFixed(1)}px`,
+        targetSpeed: Math.min(0.9, Math.max(0.3, minDistance / QUEUE_GAP)), // 根據距離調整速度 0.3-0.9
       }
     }
 
-    // 距離足夠，檢查停止線
-    return this.checkStopLineApproach()
+    // 🚦 情況3：距離太近但前車已停止 - 停止等待
+    if (minDistance < 8) {
+      console.log(`🚦🛑 [${this.vehicle.id}] 距離太近，停止等待前車，距離：${minDistance.toFixed(1)}px`)
+      return {
+        shouldStop: true,
+        shouldFollow: false,
+        vehicle: closestFrontVehicle,
+        distance: minDistance,
+        requiredGap: QUEUE_GAP,
+        reason: `距離太近停止等待: 距離${minDistance.toFixed(1)}px`,
+        targetSpeed: 0,
+      }
+    }
+
+    // 🚦 情況4：距離足夠或無前車 - 自由前進到停止線
+    console.log(`🚦✅ [${this.vehicle.id}] 距離足夠，自由前進到停止線`)
+    return null // 不阻止移動，讓車輛自由前進
   }
 
   /**
@@ -374,15 +423,10 @@ export class CollisionController {
         break
     }
 
-    // 如果距離停止線很近且燈號不允許通行，則停止
-    if (distanceToStopLine < 20) {
-      // 20px內接近停止線
-      // 這裡可以加入交通燈檢查邏輯
-      console.log(`🚦🔴 [${this.vehicle.id}] 接近停止線: ${distanceToStopLine.toFixed(1)}px`)
-      return null // 讓交通燈邏輯處理停止
-    }
-
-    return null // 允許繼續前進
+    // 🚦 重要：不在碰撞檢測階段阻止車輛前進到停止線
+    // 交通燈邏輯會在適當的時候處理停止線的停車行為
+    console.log(`🚦➡️ [${this.vehicle.id}] 接近停止線: ${distanceToStopLine.toFixed(1)}px，允許前進`)
+    return null // 始終允許車輛前進到停止線，由交通燈邏輯處理停車
   }
 
   /**
@@ -460,17 +504,21 @@ export class CollisionController {
       return null
     }
 
-    // 🚦 核心邏輯：根據停止線位置決定碰撞策略
+    // 🚦 核心邏輯：根據停止線位置和交通燈狀態決定碰撞策略
     const hasPassedStopLine = this.isVehiclePassedStopLine()
+    const canProceedWithTrafficLight = this.canProceedWithCurrentLight()
 
-    if (hasPassedStopLine) {
-      // ✅ 已通過停止線：允許穿透，不進行碰撞檢測
-      console.log(`🚦✅ [${this.vehicle.id}] 簡單檢測：已通過停止線，允許穿透`)
+    if (hasPassedStopLine || canProceedWithTrafficLight) {
+      // ✅ 已通過停止線 OR 交通燈允許通行：允許穿透，不進行碰撞檢測
+      if (Math.random() < 0.02) {
+        // 2% 概率輸出日誌
+        const reason = hasPassedStopLine ? '已通過停止線' : '交通燈允許通行'
+        console.log(`🚦✅ [${this.vehicle.id}] 簡單檢測：${reason}，允許穿透`)
+      }
       return null
     }
 
-    // ❌ 未通過停止線：執行原有碰撞檢測
-    console.log(`🚦❌ [${this.vehicle.id}] 簡單檢測：未通過停止線，執行碰撞檢測`)
+    // ❌ 未通過停止線且交通燈不允許：執行原有碰撞檢測
 
     // 只檢查同方向的車輛
     const sameDirectionVehicles = allVehicles.filter(
