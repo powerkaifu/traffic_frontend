@@ -102,18 +102,26 @@ export class CollisionController {
    * @returns {boolean} true表示交通燈允許通行
    */
   canProceedWithCurrentLight() {
-    // 需要從外部獲取交通燈控制器，這裡暫時返回 false
-    // 讓 Vehicle.js 中的邏輯來處理交通燈檢查
     try {
       // 嘗試從車輛的運行環境中獲取交通燈狀態
       if (typeof window !== 'undefined' && window.trafficController) {
         const currentLightState = window.trafficController.getCurrentLightState(this.vehicle.direction)
 
-        // 🚦 根據車道和燈號狀態判斷是否可以通行
-        const canProceed =
-          (currentLightState === 'green' && this.vehicle.laneNumber !== 1) || // 直行綠燈且非左轉車道
-          (currentLightState === 'leftGreen' && this.vehicle.laneNumber === 1) || // 左轉綠燈且為左轉車道
-          (currentLightState === 'green' && this.vehicle.laneNumber === 1) // 直行綠燈時左轉車道也可通行（某些情況）
+        // 🚦 嚴格的交通燈邏輯，特別針對1號車道（左轉車道）
+        let canProceed = false
+
+        if (this.vehicle.laneNumber === 1) {
+          // 🚦 1號車道（左轉車道）：只有左轉綠燈才允許通行
+          canProceed = currentLightState === 'leftGreen'
+
+          if (Math.random() < 0.05) {
+            // 5% 概率輸出日誌
+            console.log(`🚦🔴 [${this.vehicle.id}] 1號車道檢查: 燈號=${currentLightState}, 允許通行=${canProceed}`)
+          }
+        } else {
+          // 🚦 其他車道（直行車道）：綠燈允許通行
+          canProceed = currentLightState === 'green'
+        }
 
         return canProceed
       }
@@ -295,7 +303,10 @@ export class CollisionController {
    */
   performQueueingCollisionCheck(allVehicles) {
     const currentBox = this.vehicle.getBoundingBox()
-    const QUEUE_GAP = 15 // 排隊安全距離
+
+    // 🚦 針對1號車道使用更嚴格的排隊距離
+    const QUEUE_GAP = this.vehicle.laneNumber === 1 ? 20 : 15 // 1號車道使用20px，其他車道15px
+    const MIN_FOLLOW_DISTANCE = this.vehicle.laneNumber === 1 ? 12 : 8 // 1號車道最小跟隨距離12px
 
     // 只檢查同方向同車道的車輛
     const samePathVehicles = allVehicles.filter(
@@ -360,9 +371,10 @@ export class CollisionController {
     }
 
     // 🚦 情況2：前車正在移動且距離合理 - 跟隨前進
-    if (frontVehicleMoving && minDistance >= 8) {
-      // 8px 最小跟隨距離
-      console.log(`🚦🚗 [${this.vehicle.id}] 跟隨前車移動，距離：${minDistance.toFixed(1)}px`)
+    if (frontVehicleMoving && minDistance >= MIN_FOLLOW_DISTANCE) {
+      console.log(
+        `🚦🚗 [${this.vehicle.id}] 跟隨前車移動，距離：${minDistance.toFixed(1)}px (最小距離: ${MIN_FOLLOW_DISTANCE}px)`,
+      )
       return {
         shouldStop: false,
         shouldFollow: true,
@@ -375,8 +387,10 @@ export class CollisionController {
     }
 
     // 🚦 情況3：距離太近但前車已停止 - 停止等待
-    if (minDistance < 8) {
-      console.log(`🚦🛑 [${this.vehicle.id}] 距離太近，停止等待前車，距離：${minDistance.toFixed(1)}px`)
+    if (minDistance < MIN_FOLLOW_DISTANCE) {
+      console.log(
+        `🚦🛑 [${this.vehicle.id}] 距離太近，停止等待前車，距離：${minDistance.toFixed(1)}px (最小距離: ${MIN_FOLLOW_DISTANCE}px)`,
+      )
       return {
         shouldStop: true,
         shouldFollow: false,
@@ -508,14 +522,25 @@ export class CollisionController {
     const hasPassedStopLine = this.isVehiclePassedStopLine()
     const canProceedWithTrafficLight = this.canProceedWithCurrentLight()
 
-    if (hasPassedStopLine || canProceedWithTrafficLight) {
-      // ✅ 已通過停止線 OR 交通燈允許通行：允許穿透，不進行碰撞檢測
+    // 🚦 特別處理1號車道：即使交通燈允許通行，也要更謹慎地檢查距離
+    if (hasPassedStopLine) {
+      // ✅ 已通過停止線：完全允許穿透
       if (Math.random() < 0.02) {
-        // 2% 概率輸出日誌
-        const reason = hasPassedStopLine ? '已通過停止線' : '交通燈允許通行'
-        console.log(`🚦✅ [${this.vehicle.id}] 簡單檢測：${reason}，允許穿透`)
+        console.log(`🚦✅ [${this.vehicle.id}] 簡單檢測：已通過停止線，允許穿透`)
       }
       return null
+    } else if (canProceedWithTrafficLight && this.vehicle.laneNumber !== 1) {
+      // ✅ 非1號車道且交通燈允許通行：允許穿透
+      if (Math.random() < 0.02) {
+        console.log(`🚦✅ [${this.vehicle.id}] 簡單檢測：交通燈允許通行（非1號車道），允許穿透`)
+      }
+      return null
+    } else if (canProceedWithTrafficLight && this.vehicle.laneNumber === 1) {
+      // ⚠️ 1號車道且交通燈允許通行：仍需檢查基本碰撞避免重疊
+      if (Math.random() < 0.05) {
+        console.log(`🚦⚠️ [${this.vehicle.id}] 1號車道左轉綠燈：允許通行但仍需基本碰撞檢測`)
+      }
+      // 繼續執行碰撞檢測，但使用較寬鬆的距離要求
     }
 
     // ❌ 未通過停止線且交通燈不允許：執行原有碰撞檢測
@@ -556,7 +581,19 @@ export class CollisionController {
     // 根據距離決定動作
     const { distance, vehicle: threatVehicle } = closestThreat
 
-    if (distance <= CollisionController.STOP_DISTANCE) {
+    // 🚦 根據車道和交通燈狀態調整碰撞檢測參數
+    const isLane1WithLeftGreen = this.vehicle.laneNumber === 1 && canProceedWithTrafficLight
+
+    // 🚦 1號車道在左轉綠燈時使用較寬鬆的距離要求
+    const effectiveStopDistance = isLane1WithLeftGreen
+      ? CollisionController.STOP_DISTANCE * 0.7 // 7px instead of 12px
+      : CollisionController.STOP_DISTANCE
+
+    const effectiveSlowDistance = isLane1WithLeftGreen
+      ? CollisionController.SLOW_DISTANCE * 0.8 // 20px instead of 25px
+      : CollisionController.SLOW_DISTANCE
+
+    if (distance <= effectiveStopDistance) {
       return {
         action: 'stop',
         vehicle: threatVehicle,
@@ -564,12 +601,12 @@ export class CollisionController {
         shouldStop: true,
         shouldFollow: false,
         targetSpeed: 0,
-        requiredGap: CollisionController.STOP_DISTANCE,
-        reason: `距離過近需停止: ${distance.toFixed(1)}px`,
+        requiredGap: effectiveStopDistance,
+        reason: `距離過近需停止: ${distance.toFixed(1)}px (有效停止距離: ${effectiveStopDistance.toFixed(1)}px)`,
       }
     }
 
-    if (distance <= CollisionController.SLOW_DISTANCE) {
+    if (distance <= effectiveSlowDistance) {
       // 檢查前車速度，防止快車穿越慢車
       const frontVehicleSpeed = threatVehicle.movementTimeline ? threatVehicle.movementTimeline.timeScale() : 0
       const mySpeed = this.vehicle.movementTimeline ? this.vehicle.movementTimeline.timeScale() : 0
@@ -583,19 +620,15 @@ export class CollisionController {
         // 前車較慢，後車速度不能超過前車
         speedRatio = Math.min(
           frontVehicleSpeed * 0.8,
-          Math.max(
-            0.1,
-            (distance - CollisionController.STOP_DISTANCE) /
-              (CollisionController.SLOW_DISTANCE - CollisionController.STOP_DISTANCE),
-          ),
+          Math.max(0.1, (distance - effectiveStopDistance) / (effectiveSlowDistance - effectiveStopDistance)),
         )
       } else {
-        // 正常跟車
-        speedRatio = Math.max(
+        // 正常跟車，1號車道左轉綠燈時允許較高速度
+        const baseSpeedRatio = Math.max(
           0.1,
-          (distance - CollisionController.STOP_DISTANCE) /
-            (CollisionController.SLOW_DISTANCE - CollisionController.STOP_DISTANCE),
+          (distance - effectiveStopDistance) / (effectiveSlowDistance - effectiveStopDistance),
         )
+        speedRatio = isLane1WithLeftGreen ? Math.min(1.0, baseSpeedRatio * 1.2) : baseSpeedRatio
       }
 
       return {
@@ -605,8 +638,8 @@ export class CollisionController {
         shouldStop: speedRatio === 0,
         shouldFollow: true,
         targetSpeed: speedRatio,
-        requiredGap: CollisionController.STOP_DISTANCE,
-        reason: `跟車模式: ${distance.toFixed(1)}px, 速度: ${(speedRatio * 100).toFixed(0)}%, 前車速度: ${(frontVehicleSpeed * 100).toFixed(0)}%`,
+        requiredGap: effectiveStopDistance,
+        reason: `跟車模式: ${distance.toFixed(1)}px, 速度: ${(speedRatio * 100).toFixed(0)}%, 前車速度: ${(frontVehicleSpeed * 100).toFixed(0)}% ${isLane1WithLeftGreen ? '(1號車道左轉綠燈)' : ''}`,
       }
     }
 
@@ -702,13 +735,16 @@ export class CollisionController {
   static createForLane(vehicle, laneNumber) {
     const controller = new CollisionController(vehicle)
 
-    // 根據車道調整檢查間隔
+    // 根據車道調整檢查間隔和參數
     if (laneNumber === 1) {
-      // 左轉車道：更頻繁檢查，減少重疊風險
-      controller.setCheckInterval(30) // 從40ms改為30ms，更頻繁檢查
+      // 左轉車道：更頻繁檢查，更嚴格的距離控制
+      controller.setCheckInterval(25) // 更頻繁檢查：25ms
+      controller.nearbyVehicleRange = 80 // 較小的檢查範圍，專注於近距離車輛
+      console.log(`🚦🔴 [${vehicle.id}] 1號車道特殊配置：檢查間隔25ms，範圍80px`)
     } else {
       // 直行車道：標準設定
       controller.setCheckInterval(50)
+      controller.nearbyVehicleRange = 100
     }
 
     return controller
