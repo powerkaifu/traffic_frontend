@@ -58,16 +58,6 @@ export class StopLineController {
         break
     }
 
-    // 調試信息（降低頻率）
-    if (Math.random() < 0.001) {
-      // 0.1%機率記錄
-      console.log(`🎯 [${this.vehicle.id}] 停止線位置計算:`, {
-        direction: this.vehicle.direction,
-        centralRect: { x: centralX, y: centralY, w: centralWidth, h: centralHeight },
-        stopLine: position,
-      })
-    }
-
     return position
   }
 
@@ -124,17 +114,6 @@ export class StopLineController {
         break
       default:
         return null
-    }
-
-    // 調試信息（偶爾記錄）
-    if (Math.random() < 0.01) {
-      // 1%機率記錄
-      console.log(`📏 [${this.vehicle.id}] 距離停止線:`, {
-        direction: this.vehicle.direction,
-        vehicleHead: vehicleHead,
-        stopLine: stopLine,
-        distance: distance?.toFixed(1),
-      })
     }
 
     return distance

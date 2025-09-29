@@ -95,8 +95,6 @@ export default class Vehicle {
         opacity: 1,
         scale: 1,
       })
-
-      console.log(`🚗 [${this.id}] 車輛在 (${x}, ${y}) 立即顯示`)
     })
 
     // 新增車道編號標籤顯示
@@ -117,11 +115,9 @@ export default class Vehicle {
 
     // 🚀 新增：停止線控制器
     this.stopLineController = new StopLineController(this)
-    console.log(`🔧 [${this.id}] 停止線控制器已初始化`)
 
     // 🚀 新增：碰撞控制器（整合 SimpleCollisionDetector 功能）
     this.collisionController = CollisionController.createForLane(this, laneNumber)
-    console.log(`🔧 [${this.id}] 碰撞控制器已初始化，車道: ${laneNumber}`)
   }
 
   // 🚨 新增：防停滯機制
@@ -152,14 +148,6 @@ export default class Vehicle {
       const trafficController = window.trafficController
       if (trafficController && this.direction) {
         const currentLightState = trafficController.getCurrentLightState(this.direction)
-        if (currentLightState === 'green' && !this.hasPassedStopLine) {
-          console.log(`🚨 [${this.id}] 綠燈但停滯(${(stuckDuration / 1000).toFixed(1)}s)，執行強制恢復`)
-          this.forceUnstuck()
-        } else if (currentLightState === 'red' || currentLightState === 'allRed') {
-          console.log(`🛑 [${this.id}] 紅燈等待停滯(${(stuckDuration / 1000).toFixed(1)}s)，這是正常的`)
-          // 紅燈時停滯是正常的，重置停滯時間避免重複警告
-          this.lastMovementTime = now
-        }
       }
     }
   }
@@ -176,7 +164,6 @@ export default class Vehicle {
 
       const currentLightState = trafficController.getCurrentLightState(this.direction)
       if (currentLightState !== 'green') {
-        console.log(`🛑 [${this.id}] ${currentLightState}燈狀態，不執行強制恢復`)
         return
       }
 
@@ -189,12 +176,10 @@ export default class Vehicle {
           // 恢復為原始速度，而不是慢速度
           const targetTimeScale = this.originalTimeScale || 1
           this.movementTimeline.timeScale(targetTimeScale)
-          console.log(`🔧 [${this.id}] 綠燈時恢復時間軸移動到原始速度: ${targetTimeScale}`)
         }
 
         if (this.movementTimeline.paused()) {
           this.movementTimeline.resume()
-          console.log(`🔧 [${this.id}] 綠燈時恢復暫停的動畫`)
         }
       }
 
@@ -452,16 +437,6 @@ export default class Vehicle {
 
     const isOutOfBounds = this.checkBoundsForDirection(position, svgBounds)
 
-    // 添加更詳細的邊界檢測調試信息
-    if (isOutOfBounds && (this.id.endsWith('1') || Math.random() < 0.1)) {
-      console.log(`🚗 [${this.id}] 邊界檢測詳情:`, {
-        position: `(${position.x.toFixed(1)}, ${position.y.toFixed(1)})`,
-        direction: this.direction,
-        bounds: svgBounds,
-        isOutOfBounds,
-      })
-    }
-
     return isOutOfBounds
   }
 
@@ -627,7 +602,6 @@ export default class Vehicle {
 
       // 標記已經到達停止線
       this.isAtStopLine = true
-      console.log(`🛑 [${this.id}] ${this.direction} 已停在停止線`)
     }
   }
 
@@ -654,8 +628,6 @@ export default class Vehicle {
         if (this.stopLineController) {
           this.stopLineController.state = 'approaching'
         }
-
-        console.log(`🚗 [${this.id}] 前方無車輛，平滑恢復移動，已重置停止線狀態`)
       } else {
         // 有前車，根據距離調整速度
         const distance = collision.distance
@@ -677,8 +649,6 @@ export default class Vehicle {
           duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL, // 使用配置的一般速度變化時間
           ease: 'power2.out',
         })
-
-        console.log(`🚗 [${this.id}] 前車距離: ${distance.toFixed(1)}px，調整速度至${targetSpeed}`)
       }
     }
   }
@@ -763,7 +733,6 @@ export default class Vehicle {
   // Static Method: 獲取指定方向和車道的路徑起始位置
   static getPathStartPosition(direction, laneNumber) {
     const pathId = `${direction}Lane${laneNumber}Straight`
-    console.log(`🔍 查找路徑元素: #${pathId}`)
     const pathElement = document.querySelector(`#${pathId}`)
 
     if (!pathElement) {
@@ -774,7 +743,6 @@ export default class Vehicle {
     try {
       // 獲取路徑的起始點（t=0的位置）
       const startPoint = pathElement.getPointAtLength(0)
-      console.log(`✅ 獲取路徑起始位置 ${pathId}:`, startPoint)
 
       // 根據 SVG viewBox="0 0 1400 1000" 座標系統返回位置
       return {
@@ -782,7 +750,6 @@ export default class Vehicle {
         y: startPoint.y,
       }
     } catch (error) {
-      console.error(`❌ 獲取路徑起始位置失敗: ${pathId}`, error)
       return null
     }
   }
@@ -791,9 +758,6 @@ export default class Vehicle {
   moveAlongPath(trafficController, allVehicles = [], onVehicleOutOfBounds = null) {
     // Command Pattern: 將複雜的路徑移動邏輯封裝為可執行的命令
     return new Promise((resolve) => {
-      // 🚨 新增：支援所有四個方向的 MotionPath 動畫
-      console.log(`🚗 [${this.id}] ${this.direction}向車輛開始 MotionPath 動畫 - 車道: ${this.laneNumber}`)
-
       // 獲取 SVG 路徑元素
       const pathElement = document.querySelector(`#${this.getSvgPathId()}`)
       if (!pathElement) {
@@ -856,7 +820,6 @@ export default class Vehicle {
             // 1號車道在非左轉綠燈時等待
             this.currentState = 'waitingForLeftTurnGreen'
             this.waitingForGreen = true
-            console.log(`🛑🚦 [${this.id}] 1號車道等待左轉綠燈 (當前: ${currentLightState})`)
           }
 
           this.isAtStopLine = false
@@ -916,7 +879,6 @@ export default class Vehicle {
               const isOutOfBounds = this.checkOutOfBounds(currentPos)
               if (isOutOfBounds && !hasBeenRemovedFromCollision && onVehicleOutOfBounds) {
                 hasBeenRemovedFromCollision = true
-                console.log(`🚗 [${this.id}] 離開邊界，從碰撞檢測中移除`)
                 onVehicleOutOfBounds(this.id)
                 // 修復：避免車輛突然消失，讓動畫自然完成
                 return
@@ -929,10 +891,6 @@ export default class Vehicle {
               if (shouldStop) {
                 const distance = shouldStop.distance
                 const requiredGap = shouldStop.requiredGap || 12
-
-                // 🚨 基於距離的漸進式速度控制，確保統一12px間隙
-                console.log(`🚗 [${this.id}] 碰撞檢測: 距離${distance.toFixed(1)}px, 需求${requiredGap}px`)
-
                 // 🚨 綠燈跟車邏輯：如果是綠燈且前車正在移動，根據距離調整速度
                 const currentLightState = trafficController.getCurrentLightState(this.direction)
 
@@ -971,10 +929,6 @@ export default class Vehicle {
                     duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL, // 使用配置的一般速度變化時間
                     ease: 'power2.out',
                   })
-
-                  console.log(
-                    `🟢🚗 [${this.id}] ${isLane1 ? '左轉' : '直行'}綠燈距離感知跟車：距離${distance.toFixed(1)}px → 速度${targetSpeed} (車道${this.laneNumber})`,
-                  )
                   this.currentState = 'following'
                   return
                 }
@@ -991,7 +945,6 @@ export default class Vehicle {
                   const recheckLightState = trafficController.getCurrentLightState(this.direction)
                   if (recheckLightState === 'green' && !this.waitingForGreen) {
                     // 第一台車：前方車輛在停止線等待且不移動，繼續前進到停止線
-                    console.log(`🚗 [${this.id}] 綠燈時第一台車，前方車輛在停止線等待，繼續前進到停止線`)
                     const currentTimeScale = this.movementTimeline.timeScale()
                     if (currentTimeScale < 1) {
                       this.movementTimeline.timeScale(1)
@@ -1002,7 +955,6 @@ export default class Vehicle {
                   // 前方車輛停止且不移動：停止跟車
                   this.movementTimeline.timeScale(0)
                   this.currentState = 'stopped'
-                  console.log(`🛑 [${this.id}] ${isFirstVehicle ? '第一台車遇到停止車輛' : '後續車輛跟車停止'}`)
                   return
                 }
               } else if (this.movementTimeline) {
@@ -1029,10 +981,8 @@ export default class Vehicle {
                     this.currentState = 'moving'
                     const laneType = this.laneNumber === 1 ? '左轉' : '直行'
                     const lightType = this.laneNumber === 1 ? '左轉綠燈' : '直行綠燈'
-                    console.log(`🚗 [${this.id}] ${laneType}車道：${lightType}且無碰撞風險，平滑恢復正常速度`)
                   } else {
                     const laneType = this.laneNumber === 1 ? '左轉' : '直行'
-                    console.log(`🛑 [${this.id}] ${laneType}車道：無碰撞風險但${currentLightState}燈，保持當前速度`)
                   }
                 }
               }
@@ -1055,13 +1005,11 @@ export default class Vehicle {
                   this.movementTimeline.timeScale(0)
                   this.currentState = 'waitingForLeftTurnGreen'
                   this.waitingForGreen = true
-                  console.log(`🛑 [${this.id}] 1號車道停止等待左轉綠燈`)
                 } else if (slowDownInfo && slowDownInfo.action === 'stop_for_straight_wait') {
                   // 🚦 直行車道在左轉綠燈時必須停止
                   this.movementTimeline.timeScale(0)
                   this.currentState = 'waitingForStraightGreen'
                   this.waitingForGreen = true
-                  console.log(`🛑 [${this.id}] ${this.laneNumber}號車道停止等待直行綠燈`)
                 }
               }
 
@@ -1094,7 +1042,6 @@ export default class Vehicle {
                         // 設置1號車道的等待狀態
                         if (this.laneNumber === 1 && lightState === 'green') {
                           this.currentState = 'waitingForLeftTurnGreen'
-                          console.log(`🛑🚦 [${this.id}] 1號車道在停止線等待左轉綠燈`)
                         }
                       },
                     })
@@ -1104,7 +1051,6 @@ export default class Vehicle {
                     // 設置1號車道的等待狀態
                     if (this.laneNumber === 1 && lightState === 'green') {
                       this.currentState = 'waitingForLeftTurnGreen'
-                      console.log(`🛑🚦 [${this.id}] 1號車道在停止線等待左轉綠燈`)
                     }
                   }
                 } else {
@@ -1117,14 +1063,12 @@ export default class Vehicle {
                     // 可以通過停止線
                     this.isAtStopLine = false
                     this.hasPassedStopLine = true
-                    console.log(`🚗🟢 [${this.id}] 車道${this.laneNumber}通過停止線 (${lightState})`)
                   } else {
                     // 不能通過，需要等待
                     this.stopMovement()
                     this.waitingForGreen = true
                     if (this.laneNumber === 1) {
                       this.currentState = 'waitingForLeftTurnGreen'
-                      console.log(`🛑🚦 [${this.id}] 1號車道在停止線等待左轉綠燈 (當前${lightState})`)
                     }
                   }
                 }
@@ -1138,21 +1082,16 @@ export default class Vehicle {
               }
 
               this.currentState = 'completed'
-              console.log(`🚗 [${this.id}] 路徑動畫已完成`)
 
               // 🚨 立即移除機制：動畫完成時立刻從碰撞檢測中移除
               if (!hasBeenRemovedFromCollision && onVehicleOutOfBounds) {
                 hasBeenRemovedFromCollision = true
-                console.log(`🚗 [${this.id}] 動畫完成，立即從碰撞檢測中移除`)
                 onVehicleOutOfBounds(this.id)
               }
               this.remove() // 🚨 動畫完成強制移除 DOM
               resolve()
             },
           })
-
-          // 使用 MotionPathPlugin 創建路徑動畫 - 根據官方文件的建議語法
-          console.log(`🚗 [${this.id}] 開始 MotionPath 動畫，路徑: #${this.getSvgPathId()}`)
 
           // 🚨 車輛已在 IndexPage.vue 中使用 getPathStartPosition() 創建在正確位置
           // 移除多餘的位置設置，避免視覺跳躍
@@ -1172,7 +1111,6 @@ export default class Vehicle {
           // 🚨 修正：如果車輛處於等待狀態，暫停時間軸
           if (this.waitingForGreen || this.currentState === 'waitingForLeftTurnGreen') {
             this.movementTimeline.timeScale(0)
-            console.log(`🚦 [${this.id}] 車道${this.laneNumber}等待狀態，暫停動畫`)
           }
         }, 100) // 延遲100毫秒開始移動
     })
@@ -1322,7 +1260,6 @@ export default class Vehicle {
               })
 
               this.currentState = targetSpeed === 0 ? 'waitingForVehicle' : 'slowing'
-              console.log(`🛑 [${this.id}] 前車距離: ${distance.toFixed(1)}px，調整速度至${targetSpeed}`)
               return
             }
 
@@ -1348,9 +1285,6 @@ export default class Vehicle {
                   this.movementTimeline.timeScale(0)
                   this.currentState = 'waitingForLeftTurnGreen'
                   this.waitingForGreen = true
-                  console.log(
-                    `🛑 [${this.id}] 1號車道在停止線停車等待左轉綠燈 (距離: ${distanceToStopLine.toFixed(1)}px)`,
-                  )
                 } else {
                   // 距離停止線還遠，減速但不停車
                   gsap.to(this.movementTimeline, {
@@ -1359,9 +1293,6 @@ export default class Vehicle {
                     ease: 'power2.out',
                   })
                   this.currentState = 'slowing_for_left_turn_queue'
-                  console.log(
-                    `🚦 [${this.id}] 1號車道減速前往停止線排隊 (距離: ${distanceToStopLine ? distanceToStopLine.toFixed(1) : 'unknown'}px)`,
-                  )
                 }
               } else if (slowDownInfo.action === 'stop_for_straight_wait') {
                 // 🚦 新增：直行車道在左轉綠燈時的處理
@@ -1372,9 +1303,6 @@ export default class Vehicle {
                   this.movementTimeline.timeScale(0)
                   this.currentState = 'waitingForStraightGreen'
                   this.waitingForGreen = true
-                  console.log(
-                    `🛑 [${this.id}] ${this.laneNumber}號車道在停止線停車等待直行綠燈 (距離: ${distanceToStopLine.toFixed(1)}px)`,
-                  )
                 } else {
                   // 距離停止線還遠，減速但不停車
                   gsap.to(this.movementTimeline, {
@@ -1383,9 +1311,6 @@ export default class Vehicle {
                     ease: 'power2.out',
                   })
                   this.currentState = 'slowing_for_straight_queue'
-                  console.log(
-                    `🚦 [${this.id}] ${this.laneNumber}號車道減速前往停止線排隊 (距離: ${distanceToStopLine ? distanceToStopLine.toFixed(1) : 'unknown'}px)`,
-                  )
                 }
               }
             }
@@ -1420,19 +1345,11 @@ export default class Vehicle {
                     onComplete: () => {
                       this.stopMovement()
                       this.waitingForGreen = true
-                      if (this.laneNumber === 1 && lightState === 'green') {
-                        this.currentState = 'waitingForLeftTurnGreen'
-                        console.log(`🛑 [${this.id}] 左轉車道在停止線等待左轉綠燈 (當前: ${lightState})`)
-                      }
                     },
                   })
                 } else {
                   this.stopMovement()
                   this.waitingForGreen = true
-                  if (this.laneNumber === 1 && lightState === 'green') {
-                    this.currentState = 'waitingForLeftTurnGreen'
-                    console.log(`🛑 [${this.id}] 左轉車道在停止線等待左轉綠燈 (當前: ${lightState})`)
-                  }
                 }
 
                 // 🚨 移除重複的觀察者邏輯，讓 directTrafficLightResponse 處理狀態變化
@@ -1448,14 +1365,12 @@ export default class Vehicle {
                   // 可以通過停止線
                   this.isAtStopLine = false
                   this.hasPassedStopLine = true
-                  console.log(`🚗🟢 [${this.id}] 車道${this.laneNumber}通過停止線 (${lightState})`)
                 } else {
                   // 應該停止等待（這種情況理論上不應該出現，因為上面的 shouldStopAtLine 應該已經處理了）
                   this.stopMovement()
                   this.waitingForGreen = true
                   if (this.laneNumber === 1) {
                     this.currentState = 'waitingForLeftTurnGreen'
-                    console.log(`🛑🚦 [${this.id}] 1號車道在停止線等待左轉綠燈 (當前${lightState})`)
                   }
                 }
               }
@@ -1584,7 +1499,6 @@ export default class Vehicle {
         this.currentState = 'moving'
         this.movementTimeline.timeScale(1)
         this.movementTimeline.resume()
-        console.log(`🚗🚦 [${this.id}] 已通過停止線，繼續完成動畫`)
       }
       return // 已通過停止線，不再檢查燈號
     }
@@ -1620,7 +1534,6 @@ export default class Vehicle {
           this.currentState = 'moving'
 
           const lightType = currentLightState === 'leftGreen' ? '左轉綠燈' : '直行綠燈'
-          console.log(`🟢🚦 [${this.id}] ${lightType}強制立即啟動 (清除所有等待狀態)`)
         }
       } else {
         // 🚨 修正：移除1號車道在途中的燈號限制
@@ -1633,8 +1546,4 @@ export default class Vehicle {
       // 燈號限制將在停止線檢查邏輯中處理
     }
   }
-
-  // 🚨 移除 checkGreenLightFollowing 方法 - 功能已被 directTrafficLightResponse 替代且未被使用
-
-  // 🚨 移除 enforceTrafficSignalCompliance 方法 - 功能已被 directTrafficLightResponse 替代且未被使用
 }

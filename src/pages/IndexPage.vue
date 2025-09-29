@@ -467,7 +467,6 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => 
         while (Date.now() - startTime < maxWait) {
           const pathElement = document.querySelector(`#${pathId}`)
           if (pathElement && pathElement.getTotalLength && pathElement.getTotalLength() > 0) {
-            console.log(`✅ [${vehicle.id}] SVG 路徑元素已準備好: ${pathId}`)
             return true
           }
           await new Promise((resolve) => setTimeout(resolve, 50))
@@ -480,15 +479,11 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => 
       // 等待 SVG 路徑準備好
       await waitForSvgPaths()
 
-      // 🚗 修改：車輛直接顯示，不使用淡入動畫
-      console.log(`🚗 [${vehicle.id}] 直接開始移動，無淡入動畫`)
-
       // 🚨 改進：提前移除機制 - 當車輛離開邊界時立即從碰撞檢測中移除
       const handleVehicleOutOfBounds = (vehicleId) => {
         const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicleId)
         if (vehicleIndex > -1) {
           activeCars.value.splice(vehicleIndex, 1)
-          console.log(`🚗 [${vehicleId}] 已從 activeCars 中立即移除，避免塞車`)
         }
       }
 
@@ -499,7 +494,6 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => 
       const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
       if (vehicleIndex > -1) {
         activeCars.value.splice(vehicleIndex, 1)
-        console.log(`🚗 [${vehicle.id}] 動畫完成，最終清理`)
       }
 
       // 🚨 直接移除車輛，不執行淡出動畫
@@ -518,7 +512,6 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => 
               },
             }),
           )
-          console.log(`🚗 [${vehicle.id}] DOM 元素已直接移除`)
         } catch (error) {
           console.warn(`⚠️ 車輛直接移除失敗:`, error)
         }

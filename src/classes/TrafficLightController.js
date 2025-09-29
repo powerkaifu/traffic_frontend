@@ -309,23 +309,13 @@ export default class TrafficLightController {
         inconsistencies.push(`${direction}: Controller(${controllerState}) != DOM(${domState})`)
       }
     }
-
-    if (inconsistencies.length > 0) {
-      console.error('🚨 [DEBUG] 發現狀態不一致：', inconsistencies)
-    } else {
-      console.log('✅ [DEBUG] 所有燈號狀態一致')
-    }
   }
 
   // State Pattern: 更新燈號狀態並通知觀察者
   updateLightState(direction, state) {
-    console.log(`🚦 [TrafficController] 設置 ${direction} 燈號為 ${state}`)
     this.currentLightStates[direction] = state
     if (this.lights[direction]) {
       this.lights[direction].setState(state)
-      console.log(`🚦 [TrafficController] ${direction} 燈號 DOM 已更新為 ${state}`)
-    } else {
-      console.warn(`🚦 [TrafficController] 警告：${direction} 燈號元素不存在`)
     }
     this.notifyObservers(direction, state) // Observer Pattern
   }

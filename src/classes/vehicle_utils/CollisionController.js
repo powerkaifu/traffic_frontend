@@ -375,9 +375,9 @@ export class CollisionController {
       }
     }
 
-    // 如果沒有前方車輛，檢查是否接近停止線
+    // 如果沒有前方車輛，檢查是否接近停止線或前方已停車輛
     if (!closestFrontVehicle) {
-      return this.checkStopLineApproach()
+      return this.checkStopLineApproach(allVehicles, QUEUE_GAP, MIN_FOLLOW_DISTANCE)
     }
 
     // 🚦 核心改進：根據不同情況決定是否允許車輛繼續前進
@@ -436,6 +436,27 @@ export class CollisionController {
 
     // 🚦 情況3：距離太近但前車已停止 - 停止等待
     if (minDistance < MIN_FOLLOW_DISTANCE) {
+      // 如果前車已停止，但距離略大於停止距離，允許慢速前進到排隊位置
+      const frontIsStopped =
+        !closestFrontVehicle ||
+        closestFrontVehicle.currentState === 'waitingForVehicle' ||
+        closestFrontVehicle.currentState === 'stopped' ||
+        closestFrontVehicle.waitingForGreen ||
+        (closestFrontVehicle.movementTimeline && closestFrontVehicle.movementTimeline.timeScale() <= 0.01)
+
+      if (frontIsStopped && minDistance > Math.max(4, QUEUE_GAP * 0.3)) {
+        console.log(`🚦➡️ [${this.vehicle.id}] 前車已停止但距離可接受，緩慢前進到排隊位置: ${minDistance.toFixed(1)}px`)
+        return {
+          shouldStop: false,
+          shouldFollow: true,
+          vehicle: closestFrontVehicle,
+          distance: minDistance,
+          requiredGap: QUEUE_GAP,
+          reason: `緩慢前進到排隊位置`,
+          targetSpeed: 0.12,
+        }
+      }
+
       console.log(
         `🚦🛑 [${this.vehicle.id}] 距離太近，停止等待前車，距離：${minDistance.toFixed(1)}px (最小距離: ${MIN_FOLLOW_DISTANCE}px)`,
       )
@@ -459,7 +480,8 @@ export class CollisionController {
    * 🚦 檢查接近停止線的情況
    * @returns {Object|null} 停止線檢查結果
    */
-  checkStopLineApproach() {
+  checkStopLineApproach(allVehicles = [], queueGap = 15, minFollow = 8) {
+    // 檢查停止線與前方已停止車輛，並維持 queueGap 的距離
     const stopLine = this.vehicle.getStopLinePosition()
     const currentPos = this.vehicle.getCurrentPosition()
 
@@ -468,7 +490,6 @@ export class CollisionController {
     }
 
     let distanceToStopLine = 0
-
     // 計算到停止線的距離
     switch (this.vehicle.direction) {
       case 'east':
@@ -485,10 +506,70 @@ export class CollisionController {
         break
     }
 
-    // 🚦 重要：不在碰撞檢測階段阻止車輛前進到停止線
-    // 交通燈邏輯會在適當的時候處理停止線的停車行為
-    console.log(`🚦➡️ [${this.vehicle.id}] 接近停止線: ${distanceToStopLine.toFixed(1)}px，允許前進`)
-    return null // 始終允許車輛前進到停止線，由交通燈邏輯處理停車
+    // 找尋同車道且已停止的前方車輛，確保與其保持安全距離
+    let nearestStoppedFront = null
+    let nearestStoppedDistance = Infinity
+
+    for (let v of allVehicles) {
+      if (
+        v.id === this.vehicle.id ||
+        v.direction !== this.vehicle.direction ||
+        v.laneNumber !== this.vehicle.laneNumber
+      )
+        continue
+      const otherPos = v.getCurrentPosition()
+      if (!otherPos) continue
+
+      const d = this.calculateDirectionalDistance(currentPos, otherPos)
+      // 如果前方車輛在停止或等待狀態，視為停止車輛
+      const isStopped =
+        v.currentState === 'waitingForVehicle' ||
+        v.currentState === 'stopped' ||
+        v.waitingForGreen ||
+        (v.movementTimeline && v.movementTimeline.timeScale() <= 0.01)
+      if (d >= 0 && isStopped && d < nearestStoppedDistance) {
+        nearestStoppedFront = v
+        nearestStoppedDistance = d
+      }
+    }
+
+    // 如果發現前方已停止車輛，且距離小於 queueGap 或小於 minFollow，則停止
+    if (nearestStoppedFront && (nearestStoppedDistance < queueGap || nearestStoppedDistance < minFollow)) {
+      console.log(
+        `🚦🛑 [${this.vehicle.id}] 接近停止的前車，保持間距: ${nearestStoppedDistance.toFixed(1)}px (需要 ${queueGap}px)`,
+      )
+      return {
+        shouldStop: true,
+        shouldFollow: false,
+        vehicle: nearestStoppedFront,
+        distance: nearestStoppedDistance,
+        requiredGap: queueGap,
+        reason: `接近停止車輛，保持距離`,
+        targetSpeed: 0,
+      }
+    }
+
+    // 如果沒有停止車輛，但到停止線的距離小於 queueGap，則緩慢前進到保持距離位置
+    if (distanceToStopLine <= queueGap) {
+      // 計算合適速度以逐步靠近但不壓上
+      const speedRatio = Math.max(0.0, distanceToStopLine / Math.max(1, queueGap))
+      console.log(
+        `🚦➡️ [${this.vehicle.id}] 接近停止線但保持間距: ${distanceToStopLine.toFixed(1)}px, 速度比例: ${speedRatio.toFixed(2)}`,
+      )
+      return {
+        shouldStop: false,
+        shouldFollow: true,
+        vehicle: null,
+        distance: distanceToStopLine,
+        requiredGap: queueGap,
+        reason: `接近停止線，保持距離並減速`,
+        targetSpeed: Math.max(0.05, speedRatio),
+      }
+    }
+
+    // 距離足夠，允許前進
+    console.log(`🚦✅ [${this.vehicle.id}] 接近停止線距離足夠: ${distanceToStopLine.toFixed(1)}px`)
+    return null
   }
 
   /**
@@ -497,8 +578,63 @@ export class CollisionController {
    * @returns {Object|null} 碰撞結果或null
    */
   performDetailedCollisionCheck(vehicles) {
-    // 跳過剛創建的車輛
+    // 對於剛創建的車輛，不完全跳過檢查，而是使用寬鬆檢查
     if (this.vehicle.justCreated) {
+      // 寬鬆檢查：允許向停止線前進，但避免與前車瞬間重疊
+      const currentBox = this.vehicle.getBoundingBox()
+      const relaxedGap = this.vehicle.laneNumber === 1 ? 14 : 10 // 新車使用較寬鬆的間距
+
+      for (let vehicle of vehicles) {
+        if (vehicle.id === this.vehicle.id) continue
+        const otherBox = vehicle.getBoundingBox()
+        let distance = 0
+        let isFrontVehicle = false
+
+        // 複製方向檢測邏輯以判斷前車
+        if (this.vehicle.direction === 'east') {
+          isFrontVehicle = otherBox.centerX > currentBox.centerX && Math.abs(otherBox.centerY - currentBox.centerY) < 30
+          distance = isFrontVehicle ? otherBox.left - currentBox.right : -1
+        } else if (this.vehicle.direction === 'west') {
+          isFrontVehicle = otherBox.centerX < currentBox.centerX && Math.abs(otherBox.centerY - currentBox.centerY) < 30
+          distance = isFrontVehicle ? currentBox.left - otherBox.right : -1
+        } else if (this.vehicle.direction === 'north') {
+          isFrontVehicle = otherBox.centerY < currentBox.centerY && Math.abs(otherBox.centerX - currentBox.centerX) < 30
+          distance = isFrontVehicle ? currentBox.top - otherBox.bottom : -1
+        } else if (this.vehicle.direction === 'south') {
+          isFrontVehicle = otherBox.centerY > currentBox.centerY && Math.abs(otherBox.centerX - currentBox.centerX) < 30
+          distance = isFrontVehicle ? otherBox.top - currentBox.bottom : -1
+        }
+
+        if (isFrontVehicle && distance >= 0) {
+          // 非常接近（瞬間重疊風險） -> 立即停止
+          if (distance < Math.max(4, relaxedGap * 0.4)) {
+            return {
+              shouldStop: true,
+              shouldFollow: false,
+              vehicle: vehicle,
+              distance: distance,
+              requiredGap: relaxedGap,
+              reason: '新生成車輛：距離過近，立即停止',
+              targetSpeed: 0,
+            }
+          }
+
+          // 接近但不致命 -> 慢速跟隨，逐步靠近停止線
+          if (distance < relaxedGap) {
+            return {
+              shouldStop: false,
+              shouldFollow: true,
+              vehicle: vehicle,
+              distance: distance,
+              requiredGap: relaxedGap,
+              reason: '新生成車輛：寬鬆跟隨前車以形成排隊',
+              targetSpeed: 0.18,
+            }
+          }
+        }
+      }
+
+      // 若沒有前車威脅，允許前進（以正常速度由其他邏輯控制）
       return null
     }
 
@@ -662,8 +798,13 @@ export class CollisionController {
       // 如果前車較慢或停止，後車必須更大幅度減速
       let speedRatio
       if (frontVehicleSpeed <= 0.1) {
-        // 前車停止，後車也必須停止
-        speedRatio = 0
+        // 前車停止：如果距離稍微大於停止距離，允許緩慢前進以形成排隊
+        if (distance > effectiveStopDistance + 2) {
+          speedRatio = 0.12 // 非常緩慢的前進速度
+        } else {
+          // 距離太近仍需停止
+          speedRatio = 0
+        }
       } else if (frontVehicleSpeed < mySpeed) {
         // 前車較慢，後車速度不能超過前車
         speedRatio = Math.min(
