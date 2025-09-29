@@ -1233,18 +1233,6 @@ onUnmounted(() => {
 /* RoadA 往東 */
 .traffic-light.bottom-left {
   top: 50%;
-  /* .center-dot {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        width: 18px;
-        height: 18px;
-        background: rgba(255, 0, 0, 0.8);
-        border-radius: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 101;
-        pointer-events: none;
-      } */
   left: 50%;
   transform: translate(-220%, 290%) rotate(90deg);
 }
@@ -1275,6 +1263,9 @@ onUnmounted(() => {
   top: -180%;
   left: 85%;
 }
+.traffic-light.top-right img {
+  transform: rotate(180deg);
+}
 
 /* RoadC 往南 */
 .traffic-light.top-left {
@@ -1291,6 +1282,10 @@ onUnmounted(() => {
   position: absolute;
   top: -60%;
   left: 40%;
+}
+
+.traffic-light.top-left img {
+  transform: rotate(180deg);
 }
 
 /* RoadD 往北 */
