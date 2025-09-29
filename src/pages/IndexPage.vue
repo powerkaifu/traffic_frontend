@@ -1246,6 +1246,9 @@ onUnmounted(() => {
   top: 180%;
   left: 15%;
 }
+.traffic-light.bottom-left img {
+  transform: scale(1.2) rotate(180deg) translateX(-5px);
+}
 
 /* RoadB 往西 */
 .traffic-light.top-right {
@@ -1264,7 +1267,7 @@ onUnmounted(() => {
   left: 85%;
 }
 .traffic-light.top-right img {
-  transform: rotate(180deg);
+  transform: scale(1.2) rotate(180deg) translateX(5px);
 }
 
 /* RoadC 往南 */
@@ -1285,7 +1288,7 @@ onUnmounted(() => {
 }
 
 .traffic-light.top-left img {
-  transform: rotate(180deg);
+  transform: scale(1.2) rotate(180deg) translateX(5px);
 }
 
 /* RoadD 往北 */
@@ -1303,6 +1306,9 @@ onUnmounted(() => {
   position: absolute;
   top: 100%;
   left: 90%;
+}
+.traffic-light.bottom-right img {
+  transform: scale(1.2) translateX(5px);
 }
 
 /* 小機器人助手 ------------------------------------------------- */
