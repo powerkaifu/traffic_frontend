@@ -180,8 +180,6 @@ export default class TrafficDataCollector {
       window.removeEventListener('vehicleRemoved', this.vehicleRemovedListener)
       this.vehicleRemovedListener = null
     }
-
-    console.log('🔇 停止監聽車輛事件')
   }
 
   /**

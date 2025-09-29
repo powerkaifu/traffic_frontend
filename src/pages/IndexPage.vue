@@ -370,7 +370,6 @@ const selectOptimalLane = (direction) => {
   // 如果有多個車道車輛數量相同，隨機選擇一個
   const selectedLane = availableLanes[Math.floor(Math.random() * availableLanes.length)]
 
-  console.log(`🔍 車道密度分析 ${direction}:`, laneCounts, `選擇車道${selectedLane.laneNumber}`)
   return selectedLane.laneNumber
 }
 
@@ -394,24 +393,16 @@ const isCarInStartArea = (carPos, direction) => {
 
 // 自動產生車輛的事件處理函數
 const handleAutoGenerate = (event) => {
-  console.log('🔍 handleAutoGenerate 被調用:', event.detail)
   const { direction, vehicleType } = event.detail
 
   const laneNumber = selectOptimalLane(direction)
-  console.log(`🔍 智能選擇車道: ${direction}Lane${laneNumber}`)
 
   // 使用路徑起始位置生成車輛
   const pathStartPosition = Vehicle.getPathStartPosition(direction, laneNumber)
-  console.log('🔍 pathStartPosition:', pathStartPosition)
 
   if (!pathStartPosition) {
-    console.error(`❌ 無法獲取路徑起始位置: ${direction}Lane${laneNumber}`)
     return
   }
-
-  console.log(
-    `🚗 車輛將從路徑起始位置生成: ${direction}Lane${laneNumber} (${pathStartPosition.x}, ${pathStartPosition.y})`,
-  )
 
   // 創建車輛
   createVehicleWithPosition(pathStartPosition.x, pathStartPosition.y, direction, vehicleType, laneNumber)
@@ -419,7 +410,6 @@ const handleAutoGenerate = (event) => {
 
 // 🎯 處理自動左轉車輛生成事件
 const handleAutoGenerateLeftTurn = (event) => {
-  console.log('🔍 handleAutoGenerateLeftTurn 被調用:', event.detail)
   const { direction, type } = event.detail
 
   // 強制使用車道1（左轉專用車道）
@@ -427,13 +417,8 @@ const handleAutoGenerateLeftTurn = (event) => {
   const pathStartPosition = Vehicle.getPathStartPosition(direction, laneNumber)
 
   if (!pathStartPosition) {
-    console.error(`❌ 無法獲取左轉車道路徑起始位置: ${direction}Lane${laneNumber}`)
     return
   }
-
-  console.log(
-    `🚗 左轉車輛將從車道1生成: ${direction}Lane${laneNumber} (${pathStartPosition.x}, ${pathStartPosition.y})`,
-  )
 
   // 創建左轉車輛
   createVehicleWithPosition(pathStartPosition.x, pathStartPosition.y, direction, type, laneNumber)
@@ -819,8 +804,6 @@ const disablePathEditing = () => {
 
   // 移除鍵盤事件監聽器（使用與添加時相同的選項）
   document.removeEventListener('keydown', handleKeyDown, { capture: false })
-
-  console.log('🧹 路徑編輯器、觀察器和事件監聽器已清理完成')
 }
 
 // 導出所有路徑資料（編輯後）

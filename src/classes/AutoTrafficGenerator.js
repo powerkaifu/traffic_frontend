@@ -73,9 +73,6 @@ export default class AutoTrafficGenerator {
         500, // 最小500ms保證碰撞檢測有效
         Math.min(2000, Math.round(avgInterval * 1.2)), // 最大2000ms避免太長冷卻
       )
-      console.log(
-        `� 車道最小生成間隔動態調整為: ${this.minLaneInterval}ms (基於平均生成間隔 ${Math.round(avgInterval)}ms)`,
-      )
     }
 
     // �🚨 新增：如果配置包含車道間隔設置，更新它（手動設定可覆蓋動態調整）
@@ -88,23 +85,19 @@ export default class AutoTrafficGenerator {
     if (this.isAutoMode) {
       this.toggleAutoMode(false)
     }
-    console.log('🔧 已切換手動設定：', this.config, 'maxLiveVehicles:', this.maxLiveVehicles)
   }
 
   // 🚨 新增：設置車道最小間隔的專用方法
   setMinLaneInterval(intervalMs) {
     this.minLaneInterval = Math.max(500, intervalMs) // 最小不少於500ms
-    console.log(`🔧 車道最小生成間隔設置為: ${this.minLaneInterval}ms`)
   }
 
   // 🚨 新增：清除特定車道的冷卻狀態（緊急情況使用）
   clearLaneCooldown(direction) {
     if (direction) {
       delete this.laneGenerationCooldown[direction]
-      console.log(`🔧 已清除 ${direction} 方向的車道冷卻`)
     } else {
       this.laneGenerationCooldown = {}
-      console.log(`🔧 已清除所有車道冷卻`)
     }
   }
 
@@ -462,7 +455,6 @@ export default class AutoTrafficGenerator {
           detail: { direction: selectedDir, type: type, speed: speed, timestamp: Date.now() },
         }),
       )
-      console.log(`✅ 生成左轉車輛：${selectedDir}方向車道1 ${type}型`)
     } else {
       // 生成直行車輛（車道2-4）
       window.dispatchEvent(
@@ -478,10 +470,6 @@ export default class AutoTrafficGenerator {
       }),
     )
     this.statistics.total++
-
-    console.log(
-      `✅ 成功生成車輛：${selectedDir}方向 ${type}型，下次該方向可生成時間：${new Date(now + this.minLaneInterval).toLocaleTimeString()}`,
-    )
   }
 
   _getDensity(dir) {

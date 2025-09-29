@@ -177,16 +177,10 @@ export default class TrafficLightController {
       north: -200,
       south: containerHeight + 200,
     }
-
-    console.log('✅ 車道位置已根據容器中心重新計算完畢。')
   }
 
   // 獲取指定方向的所有車道位置
   getLanePositions(direction) {
-    if (!this.lanePositions[direction]) {
-      console.warn(`⚠️ 未找到方向 ${direction} 的車道配置`)
-      return []
-    }
     return this.lanePositions[direction]
   }
 
@@ -244,15 +238,11 @@ export default class TrafficLightController {
 
   // Factory Pattern: 初始化所有紅綠燈（包含左轉燈號）
   init(eastElement, westElement, southElement, northElement) {
-    console.log('🚦 [TrafficController] 開始初始化交通燈...')
-
     // Factory Pattern: 創建 TrafficLight 實例
     this.lights.east = new TrafficLight(eastElement)
     this.lights.west = new TrafficLight(westElement)
     this.lights.south = new TrafficLight(southElement)
     this.lights.north = new TrafficLight(northElement)
-
-    console.log('🚦 [TrafficController] 所有燈號實例已創建')
 
     // State Pattern: 設置初始狀態：全部紅燈，等待開始
     this.updateLightState('south', 'red')
@@ -261,8 +251,6 @@ export default class TrafficLightController {
     this.updateLightState('west', 'red')
 
     this.currentPhase = 'northSouth' // 一開始以南北向為主
-
-    console.log('🚦 [TrafficController] 初始狀態設置完成：全部紅燈，等待開始')
 
     // 除錯：檢查初始狀態
     this.debugLightStates()
