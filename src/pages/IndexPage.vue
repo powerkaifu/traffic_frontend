@@ -14,9 +14,7 @@
           width: '100%',
           height: '100%',
           'pointer-events': isPathEditMode ? 'auto' : 'none',
-          'z-index': 10,
-          'background-color': 'rgba(0, 100, 200, 0.1)',
-          border: '2px dashed rgba(255, 255, 0, 0.3)',
+          'z-index': 0,
         }"
       >
         <!-- 往東車道1 直行路徑（車輛從畫面外進入到離開畫面） - 可編輯 -->
@@ -1176,8 +1174,6 @@ onUnmounted(() => {
   background-repeat: no-repeat;
   border-radius: 8px;
   position: relative;
-  /* overflow: hidden; */
-  /* border: 3px dashed rgba(255, 255, 255, 0.1); */
 }
 
 /* 路標背景 ------------------------------------------------- */
@@ -1457,8 +1453,8 @@ onUnmounted(() => {
 /* 路徑編輯控制按鈕樣式 ---------------------------------------- */
 .path-edit-control {
   position: absolute;
-  bottom: 0%;
-  right: -14%;
+  bottom: 5%;
+  right: -16%;
   z-index: 1001;
   display: flex;
   flex-direction: column;
@@ -1468,7 +1464,7 @@ onUnmounted(() => {
 .edit-btn,
 .export-btn,
 .visibility-btn {
-  padding: 12px 20px;
+  padding: 10px;
   border: 2px solid rgb(63, 117, 205);
   border-radius: 8px;
   background: linear-gradient(135deg, rgba(35, 80, 150, 0.9), rgba(35, 30, 100, 0.9));

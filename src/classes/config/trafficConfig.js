@@ -201,14 +201,14 @@ export const stopLineConfig = {
     // ⬇️ 南向車輛停止線（停在路口上側邊界）
     south: {
       offsetX: null, // 南北向車輛不需要 X 軸偏移
-      offsetY: 0, // Y軸偏移：0 表示車頭停在矩形上邊界
+      offsetY: -10, // Y軸偏移：0 表示車頭停在矩形上邊界
       description: '南向車輛停在中央路口上邊界，車頭不可越過此線',
     },
 
     // ⬆️ 北向車輛停止線（停在路口下側邊界）
     north: {
       offsetX: null, // 南北向車輛不需要 X 軸偏移
-      offsetY: 0, // Y軸偏移：0 表示車頭停在矩形下邊界
+      offsetY: -10, // Y軸偏移：0 表示車頭停在矩形下邊界
       description: '北向車輛停在中央路口下邊界，車頭不可越過此線',
     },
   },
