@@ -282,16 +282,26 @@ export class CollisionController {
     const hasPassedStopLine = this.isVehiclePassedStopLine()
     const canProceedWithTrafficLight = this.canProceedWithCurrentLight()
 
-    if (hasPassedStopLine || canProceedWithTrafficLight) {
-      // ✅ 已通過停止線 OR 交通燈允許通行：允許穿透超車
+    if (hasPassedStopLine) {
+      // ✅ 已通過停止線：完全允許穿透
       if (Math.random() < 0.02) {
-        // 2% 概率輸出日誌，減少干擾
-        const reason = hasPassedStopLine ? '已通過停止線' : '交通燈允許通行'
-        console.log(`🚦✅ [${this.vehicle.id}] ${reason}，啟用穿透模式`)
+        console.log(`🚦✅ [${this.vehicle.id}] 已通過停止線，啟用穿透模式`)
+      }
+      return null // 不阻止移動，允許穿透
+    } else if (canProceedWithTrafficLight && this.vehicle.laneNumber !== 1) {
+      // ✅ 非1號車道且交通燈允許通行：允許穿透超車
+      if (Math.random() < 0.02) {
+        console.log(`🚦✅ [${this.vehicle.id}] 交通燈允許通行（非1號車道），啟用穿透模式`)
       }
       return null // 不阻止移動，允許穿透
     } else {
-      // 🚦❌ 未通過停止線且交通燈不允許：執行智能排隊機制
+      // 🚦❌ 1號車道或交通燈不允許：執行智能排隊機制
+      // 🚦 重要：1號車道即使在左轉綠燈時也要執行排隊檢測，參照直行車道模式
+      if (this.vehicle.laneNumber === 1 && canProceedWithTrafficLight) {
+        if (Math.random() < 0.05) {
+          console.log(`🚦⚠️ [${this.vehicle.id}] 1號車道左轉綠燈：執行寬鬆排隊檢測`)
+        }
+      }
       return this.performQueueingCollisionCheck(allVehicles)
     }
   }
@@ -303,10 +313,26 @@ export class CollisionController {
    */
   performQueueingCollisionCheck(allVehicles) {
     const currentBox = this.vehicle.getBoundingBox()
+    const canProceedWithTrafficLight = this.canProceedWithCurrentLight()
 
-    // 🚦 針對1號車道使用更嚴格的排隊距離
-    const QUEUE_GAP = this.vehicle.laneNumber === 1 ? 20 : 15 // 1號車道使用20px，其他車道15px
-    const MIN_FOLLOW_DISTANCE = this.vehicle.laneNumber === 1 ? 12 : 8 // 1號車道最小跟隨距離12px
+    // 🚦 根據車道和交通燈狀態動態調整排隊參數
+    let QUEUE_GAP, MIN_FOLLOW_DISTANCE
+
+    if (this.vehicle.laneNumber === 1) {
+      if (canProceedWithTrafficLight) {
+        // 🚦 1號車道左轉綠燈：使用較寬鬆的參數，但仍維持基本排隊
+        QUEUE_GAP = 12 // 從20px降到12px
+        MIN_FOLLOW_DISTANCE = 8 // 從12px降到8px
+      } else {
+        // 🚦 1號車道紅燈：使用嚴格的排隊距離
+        QUEUE_GAP = 20
+        MIN_FOLLOW_DISTANCE = 12
+      }
+    } else {
+      // 🚦 其他車道：標準參數
+      QUEUE_GAP = 15
+      MIN_FOLLOW_DISTANCE = 8
+    }
 
     // 只檢查同方向同車道的車輛
     const samePathVehicles = allVehicles.filter(
@@ -366,14 +392,36 @@ export class CollisionController {
 
     // 🚦 情況1：前車已通過停止線 - 允許繼續前進到停止線
     if (frontVehiclePassedStopLine) {
+      // 🚦 1號車道特殊處理：即使前車通過停止線，也要檢查基本距離
+      if (this.vehicle.laneNumber === 1 && !canProceedWithTrafficLight && minDistance < MIN_FOLLOW_DISTANCE) {
+        console.log(`🚦🛑 [${this.vehicle.id}] 1號車道：前車雖已通過停止線但距離太近，暫停等待`)
+        return {
+          shouldStop: true,
+          shouldFollow: false,
+          vehicle: closestFrontVehicle,
+          distance: minDistance,
+          requiredGap: QUEUE_GAP,
+          reason: `1號車道前車通過停止線但距離太近: 距離${minDistance.toFixed(1)}px`,
+          targetSpeed: 0,
+        }
+      }
+
       console.log(`🚦➡️ [${this.vehicle.id}] 前車已通過停止線，允許繼續前進到停止線`)
       return null // 不阻止移動，讓車輛繼續前進到停止線
     }
 
     // 🚦 情況2：前車正在移動且距離合理 - 跟隨前進
     if (frontVehicleMoving && minDistance >= MIN_FOLLOW_DISTANCE) {
+      // 🚦 計算目標速度，1號車道左轉綠燈時允許更高速度
+      let targetSpeed = Math.min(0.9, Math.max(0.3, minDistance / QUEUE_GAP)) // 基礎速度 0.3-0.9
+
+      if (this.vehicle.laneNumber === 1 && canProceedWithTrafficLight) {
+        // 🚦 1號車道左轉綠燈：允許更高速度和更流暢的跟車
+        targetSpeed = Math.min(1.0, Math.max(0.5, (minDistance / QUEUE_GAP) * 1.2))
+      }
+
       console.log(
-        `🚦🚗 [${this.vehicle.id}] 跟隨前車移動，距離：${minDistance.toFixed(1)}px (最小距離: ${MIN_FOLLOW_DISTANCE}px)`,
+        `🚦🚗 [${this.vehicle.id}] 跟隨前車移動，距離：${minDistance.toFixed(1)}px (最小距離: ${MIN_FOLLOW_DISTANCE}px) 速度: ${(targetSpeed * 100).toFixed(0)}%`,
       )
       return {
         shouldStop: false,
@@ -382,7 +430,7 @@ export class CollisionController {
         distance: minDistance,
         requiredGap: QUEUE_GAP,
         reason: `跟隨前車排隊移動: 距離${minDistance.toFixed(1)}px`,
-        targetSpeed: Math.min(0.9, Math.max(0.3, minDistance / QUEUE_GAP)), // 根據距離調整速度 0.3-0.9
+        targetSpeed: targetSpeed,
       }
     }
 
