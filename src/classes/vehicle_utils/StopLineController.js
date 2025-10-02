@@ -149,6 +149,56 @@ export class StopLineController {
   }
 
   /**
+   * 調整車輛位置以精確對齊停止線
+   * @returns {boolean} true表示成功調整
+   */
+  alignToStopLine() {
+    const stopLine = this.getStopLinePosition()
+    if (!stopLine.x && !stopLine.y) return false
+
+    const currentPos = this.vehicle.getCurrentPosition()
+    const vehicleConfig = this.vehicle.getVehicleConfig()
+    const size = { width: vehicleConfig.width, height: vehicleConfig.height }
+
+    // 計算車輛應該停在的位置（車輛左上角座標）
+    let targetX = currentPos.x
+    let targetY = currentPos.y
+
+    switch (this.vehicle.direction) {
+      case 'east':
+        // 東向：車頭（右側）應該對齊停止線
+        targetX = stopLine.x - size.width
+        break
+      case 'west':
+        // 西向：車頭（左側）應該對齊停止線
+        targetX = stopLine.x
+        break
+      case 'north':
+        // 北向：車頭（上方）應該對齊停止線
+        targetY = stopLine.y
+        break
+      case 'south':
+        // 南向：車頭（下方）應該對齊停止線
+        targetY = stopLine.y - size.height
+        break
+    }
+
+    // 使用 GSAP 平滑地調整到精確位置
+    const gsap = window.gsap
+    if (gsap) {
+      gsap.to(this.vehicle.element, {
+        x: targetX,
+        y: targetY,
+        duration: 0.1,
+        ease: 'power2.out',
+      })
+      return true
+    }
+
+    return false
+  }
+
+  /**
    * 獲取理想停車位置（停止線前幾px）
    * @returns {Object} {x, y} 目標位置座標
    */

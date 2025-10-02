@@ -6,16 +6,16 @@
 export const STOP_LINE_CONFIG = {
   // 檢測敏感度配置
   DETECTION: {
-    SENSITIVITY: 2, // 在停止線前多少px觸發檢測
+    SENSITIVITY: 10, // 在停止線前多少px觸發檢測（增加靈敏度，讓車輛更早檢測到停止線）
     ADJUSTMENT_THRESHOLD: 0.5, // 位置微調的最小閾值
   },
 
   // 停車目標位置配置
   TARGET_POSITION: {
-    EAST: 5, // 東向：停止線前5px
-    WEST: 5, // 西向：停止線前5px
-    NORTH: 5, // 北向：停止線前5px
-    SOUTH: 5, // 南向：停止線前5px
+    EAST: 0, // 東向：車頭剛好對齊停止線
+    WEST: 0, // 西向：車頭剛好對齊停止線
+    NORTH: 0, // 北向：車頭剛好對齊停止線
+    SOUTH: 0, // 南向：車頭剛好對齊停止線
   },
 
   // 交通燈邏輯相關距離

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Vehicle.js - 車輛實體類別
  */
 /* eslint-disable */
@@ -593,8 +593,13 @@ export default class Vehicle {
   // � 簡化：使用停止線控制器處理停車邏輯
   stopMovement() {
     if (this.movementTimeline) {
-      // 直接停止，不進行位置微調（避免反彈）
+      // 暫停動畫
       this.movementTimeline.pause()
+
+      // 精確對齊到停止線位置
+      if (this.stopLineController) {
+        this.stopLineController.alignToStopLine()
+      }
 
       if (this.currentState !== 'waitingForVehicle' && this.currentState !== 'waiting') {
         this.currentState = 'waiting'
