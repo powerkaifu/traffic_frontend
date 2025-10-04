@@ -2,6 +2,12 @@
   <q-page class="simulation-page">
     <!-- 十字路口場景模擬頁面內容 -->
     <div ref="crossroadContainer" class="crossroad-area">
+      <!-- 十字路口車輛遮罩層 - 用於隱藏超出十字路口範圍的車輛 -->
+      <div class="crossroad-mask">
+        <!-- 車輛容器 - 所有車輛都會添加到這個容器中 -->
+        <div ref="vehicleContainer" class="vehicle-container"></div>
+      </div>
+
       <!-- 車道路徑 SVG (for GSAP MotionPath) -->
       <svg
         viewBox="0 0 1400 1000"
@@ -426,7 +432,8 @@ const handleAutoGenerateLeftTurn = (event) => {
 const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => {
   // 使用指定位置創建車輛
   const vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, trafficController)
-  vehicle.addTo(crossroadContainer.value)
+  // 將車輛添加到車輛容器中，而不是直接添加到 crossroadContainer
+  vehicle.addTo(vehicleContainer.value || crossroadContainer.value)
   activeCars.value.push(vehicle)
   window.dispatchEvent(
     new CustomEvent('vehicleAdded', {
@@ -512,6 +519,7 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => 
 }
 
 const crossroadContainer = ref(null)
+const vehicleContainer = ref(null) // 車輛專用容器
 const trafficController = new TrafficLightController()
 const autoTrafficGenerator = new AutoTrafficGenerator(trafficController)
 
@@ -1174,6 +1182,30 @@ onUnmounted(() => {
   background-repeat: no-repeat;
   border-radius: 8px;
   position: relative;
+}
+
+/* 十字路口車輛遮罩層 - 用於隱藏超出十字路口範圍的車輛 */
+.crossroad-mask {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  /* 覆蓋整個十字路口背景區域 */
+  width: 100%;
+  height: calc(100vh - 400px);
+  z-index: 5; /* 在 SVG 路徑之上，但在其他 UI 元素之下 */
+  pointer-events: none; /* 不攔截點擊事件 */
+  /* overflow: hidden; */
+  /* 開發時可以加上邊框來調整大小 */
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+}
+
+/* 車輛容器 - 所有車輛都添加到這個容器中 */
+.vehicle-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* 車輛本身可以有自己的 pointer-events */
 }
 
 /* 路標背景 ------------------------------------------------- */
