@@ -283,32 +283,37 @@
         </div>
       </div>
 
-      <!-- 路徑編輯控制按鈕 -->
-      <div class="path-edit-control">
-        <button @click="togglePathEditMode" :class="['edit-btn', { active: isPathEditMode }]" title="切換路徑編輯模式">
-          {{ isPathEditMode ? '🔒 停用編輯' : '✏️ 編輯路徑' }}
-        </button>
-        <button
-          @click="togglePathVisibility"
-          :class="['visibility-btn', { 'path-hidden': !isPathVisible }]"
-          title="切換路徑顯示/隱藏"
-        >
-          {{ isPathVisible ? '👁️ 隱藏路徑' : '👁️‍🗨️ 顯示路徑' }}
-        </button>
-        <button v-if="isPathEditMode" @click="exportPathData" class="export-btn" title="導出編輯後的路徑資料">
-          📋 導出路徑
-        </button>
-        <div v-if="isPathEditMode" class="edit-instructions">
-          <div class="instructions-title">🎯 路徑編輯指南</div>
-          <div class="instructions-list">
-            <div>• <strong>ALT+Click</strong> 路徑：新增控制點</div>
-            <div>• <strong>ALT+Click</strong> 錨點：切換平滑/尖角</div>
-            <div>• <strong>ALT+拖拽</strong> 錨點：獲取手柄</div>
-            <div>• <strong>SHIFT+Click</strong>：多選錨點</div>
-            <div>• <strong>DELETE</strong>：刪除選中錨點</div>
-            <div>• <strong>CTRL+Z</strong>：撤銷操作</div>
-            <div class="highlight-note">只能編輯高亮的車道1和車道4</div>
-          </div>
+      <!-- 路徑功能控制欄 -->
+      <div class="path-control-panel">
+        <div class="panel-header">路徑功能</div>
+        <div class="panel-buttons">
+          <button
+            @click="togglePathVisibility"
+            :class="['panel-btn', 'visibility-btn', { active: isPathVisible }]"
+            :title="isPathVisible ? '隱藏路徑' : '顯示路徑'"
+          >
+            <span class="btn-icon">{{ isPathVisible ? '👁️' : '👁️‍🗨️' }}</span>
+            <span class="btn-text">{{ isPathVisible ? '隱藏路徑' : '顯示路徑' }}</span>
+          </button>
+
+          <button
+            @click="togglePathEditMode"
+            :class="['panel-btn', 'edit-btn', { active: isPathEditMode }]"
+            title="切換路徑編輯模式"
+          >
+            <span class="btn-icon">{{ isPathEditMode ? '🔒' : '✏️' }}</span>
+            <span class="btn-text">{{ isPathEditMode ? '停用編輯' : '編輯路徑' }}</span>
+          </button>
+
+          <button
+            v-if="isPathEditMode"
+            @click="exportPathData"
+            class="panel-btn export-btn"
+            title="導出編輯後的路徑資料"
+          >
+            <span class="btn-icon">📋</span>
+            <span class="btn-text">導出路徑</span>
+          </button>
         </div>
       </div>
     </div>
@@ -1484,154 +1489,129 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-/* 路徑編輯控制按鈕樣式 ---------------------------------------- */
-.path-edit-control {
+/* 路徑功能控制欄樣式 ---------------------------------------- */
+.path-control-panel {
   position: absolute;
-  bottom: 5%;
-  right: -16%;
+  top: 50%;
+  right: 5%;
+  transform: translateY(-50%);
   z-index: 1001;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(35, 80, 150, 0.95), rgba(35, 30, 100, 0.95));
+  border: 2px solid rgb(63, 117, 205);
+  border-radius: 12px;
+  padding: 16px 12px;
+  box-shadow: 0 0 20px rgba(30, 30, 100, 0.8);
+  backdrop-filter: blur(10px);
+  min-width: 140px;
 }
 
-.edit-btn,
-.export-btn,
-.visibility-btn {
-  padding: 10px;
+.panel-header {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: rgb(200, 220, 255);
+  text-align: center;
+  margin-bottom: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(63, 117, 205, 0.5);
+}
+
+.panel-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel-btn {
+  padding: 12px 10px;
   border: 2px solid rgb(63, 117, 205);
   border-radius: 8px;
-  background: linear-gradient(135deg, rgba(35, 80, 150, 0.9), rgba(35, 30, 100, 0.9));
+  background: linear-gradient(135deg, rgba(45, 90, 160, 0.9), rgba(45, 40, 110, 0.9));
   color: white;
   font-size: 14px;
-  font-weight: bold;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 0 15px rgba(30, 30, 100, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 60px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.export-btn {
-  background: linear-gradient(135deg, rgba(34, 139, 34, 0.9), rgba(0, 100, 0, 0.9));
-  border-color: rgb(34, 139, 34);
+.btn-icon {
+  font-size: 20px;
+  line-height: 1;
 }
 
-.visibility-btn {
+.btn-text {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* 顯示/隱藏路徑按鈕 */
+.panel-btn.visibility-btn {
   background: linear-gradient(135deg, rgba(138, 43, 226, 0.9), rgba(75, 0, 130, 0.9));
   border-color: rgb(138, 43, 226);
 }
 
-.visibility-btn.path-hidden {
+.panel-btn.visibility-btn:not(.active) {
   background: linear-gradient(135deg, rgba(128, 128, 128, 0.9), rgba(64, 64, 64, 0.9));
   border-color: rgb(128, 128, 128);
 }
 
-.edit-btn:hover,
-.export-btn:hover,
-.visibility-btn:hover {
-  background: linear-gradient(135deg, rgba(45, 90, 160, 0.9), rgba(45, 40, 110, 0.9));
-  transform: translateY(-2px);
-  box-shadow: 0 0 20px rgba(30, 30, 100, 0.8);
-}
-
-.export-btn:hover {
-  background: linear-gradient(135deg, rgba(44, 149, 44, 0.9), rgba(10, 110, 10, 0.9));
-}
-
-.visibility-btn:hover {
+.panel-btn.visibility-btn:hover {
   background: linear-gradient(135deg, rgba(148, 53, 236, 0.9), rgba(85, 10, 140, 0.9));
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(138, 43, 226, 0.5);
 }
 
-.visibility-btn.path-hidden:hover {
+.panel-btn.visibility-btn:not(.active):hover {
   background: linear-gradient(135deg, rgba(138, 138, 138, 0.9), rgba(74, 74, 74, 0.9));
 }
 
-.edit-btn.active {
+/* 編輯路徑按鈕 */
+.panel-btn.edit-btn {
+  background: linear-gradient(135deg, rgba(35, 80, 150, 0.9), rgba(35, 30, 100, 0.9));
+  border-color: rgb(63, 117, 205);
+}
+
+.panel-btn.edit-btn.active {
   background: linear-gradient(135deg, rgba(255, 165, 0, 0.9), rgba(255, 140, 0, 0.9));
   border-color: rgb(255, 165, 0);
-  color: white;
-  animation: pulse 2s infinite;
+  animation: pulse-btn 2s infinite;
 }
 
-@keyframes pulse {
+.panel-btn.edit-btn:hover {
+  background: linear-gradient(135deg, rgba(55, 100, 170, 0.9), rgba(45, 40, 120, 0.9));
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(63, 117, 205, 0.5);
+}
+
+/* 導出路徑按鈕 */
+.panel-btn.export-btn {
+  background: linear-gradient(135deg, rgba(34, 139, 34, 0.9), rgba(0, 100, 0, 0.9));
+  border-color: rgb(34, 139, 34);
+}
+
+.panel-btn.export-btn:hover {
+  background: linear-gradient(135deg, rgba(44, 149, 44, 0.9), rgba(10, 110, 10, 0.9));
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 139, 34, 0.5);
+}
+
+@keyframes pulse-btn {
   0% {
-    box-shadow: 0 0 15px rgba(255, 165, 0, 0.6);
+    box-shadow: 0 2px 8px rgba(255, 165, 0, 0.4);
   }
   50% {
-    box-shadow: 0 0 25px rgba(255, 165, 0, 0.8);
+    box-shadow: 0 4px 16px rgba(255, 165, 0, 0.7);
   }
   100% {
-    box-shadow: 0 0 15px rgba(255, 165, 0, 0.6);
-  }
-}
-
-.edit-instructions {
-  margin-top: 8px;
-  padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.8);
-  color: #ffff99;
-  font-size: 12px;
-  border-radius: 8px;
-  text-align: left;
-  max-width: 280px;
-  border: 1px solid rgba(255, 255, 153, 0.3);
-}
-
-.instructions-title {
-  font-weight: bold;
-  margin-bottom: 8px;
-  color: #ffffff;
-  font-size: 13px;
-  text-align: center;
-}
-
-.instructions-list {
-  line-height: 1.4;
-}
-
-.instructions-list > div {
-  margin-bottom: 3px;
-}
-
-.instructions-list strong {
-  color: #ffcc00;
-  font-weight: bold;
-}
-
-.highlight-note {
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 153, 0.2);
-  color: #00ff88;
-  font-style: italic;
-  text-align: center;
-}
-
-.current-editing {
-  margin-top: 8px;
-  padding: 8px;
-  background: rgba(0, 150, 255, 0.2);
-  border: 1px solid rgba(0, 150, 255, 0.5);
-  border-radius: 4px;
-  color: #00bfff;
-  font-weight: bold;
-  text-align: center;
-  animation: pulse 2s infinite;
-}
-
-.current-editing strong {
-  color: #ffffff;
-}
-
-@keyframes pulse {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-  100% {
-    opacity: 1;
+    box-shadow: 0 2px 8px rgba(255, 165, 0, 0.4);
   }
 }
 </style>
