@@ -70,6 +70,12 @@ export const TRAFFIC_LIGHT_CONFIG = {
       GRADUAL: 1.0, // 漸進減速比例
     },
   },
+
+  // 🚦 等待燈號變化時的減速設定
+  WAITING_FOR_LIGHT: {
+    SLOW_SPEED: 0.6, // 等待燈號時的減速速度（60%）
+    STOP_DISTANCE_THRESHOLD: 5, // 接近停止線的距離閾值（5px內停止）
+  },
 }
 
 // ===== 車輛間距與安全距離設定 =====
@@ -138,6 +144,55 @@ export const FOLLOWING_CONFIG = {
     // 溫和跟車設定
     GENTLE_THRESHOLD: 5, // 速度差異小於5時使用溫和跟車
     GENTLE_RATIO: 0.1, // 溫和跟車時的最低速度比例
+  },
+
+  // 🚗 綠燈跟車速度設定（根據距離比例）
+  GREEN_LIGHT_FOLLOWING: {
+    LANE1: {
+      // 1號車道（左轉）- 更謹慎
+      VERY_CLOSE: 0.15, // distance <= gap * 0.4
+      CLOSE: 0.4, // distance <= gap * 0.7
+      NORMAL: 0.7, // distance <= gap * 1.0
+      FAR: 1.0, // distance > gap * 1.0
+    },
+    OTHER_LANES: {
+      // 其他車道（直行）- 較快
+      VERY_CLOSE: 0.2, // distance <= gap * 0.4
+      CLOSE: 0.5, // distance <= gap * 0.7
+      NORMAL: 0.8, // distance <= gap * 1.0
+      FAR: 1.0, // distance > gap * 1.0
+    },
+    // 距離閾值比例
+    DISTANCE_THRESHOLDS: {
+      VERY_CLOSE: 0.4, // 非常接近
+      CLOSE: 0.7, // 接近
+      NORMAL: 1.0, // 正常
+    },
+  },
+
+  // 🔄 恢復移動速度設定（resumeMovement）
+  RESUME_SPEED: {
+    QUEUE_ZONE: {
+      // 在排隊區域的速度設定
+      VERY_CLOSE: 0, // distance <= gap * 0.3
+      CLOSE: 0.15, // distance <= gap * 0.6
+      NORMAL: 0.3, // distance <= gap * 0.8
+      FAR: 0.5, // distance > gap * 0.8
+    },
+    NON_QUEUE_ZONE: {
+      // 非排隊區域的速度設定
+      VERY_CLOSE: 0, // distance <= gap * 0.3
+      CLOSE: 0.2, // distance <= gap * 0.6
+      NORMAL: 0.5, // distance <= gap * 1.0
+      FAR: 0.8, // distance > gap * 1.0
+    },
+    // 距離閾值比例
+    DISTANCE_THRESHOLDS: {
+      VERY_CLOSE: 0.3,
+      CLOSE: 0.6,
+      NORMAL: 0.8,
+      FAR: 1.0,
+    },
   },
 
   // ⚡ 跟車檢測間隔 (毫秒)

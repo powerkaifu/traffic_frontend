@@ -1046,28 +1046,28 @@ export default class Vehicle {
                   shouldStop.frontVehicleIsMoving &&
                   this.movementTimeline
                 ) {
-                  // 🚨 1號車道使用更嚴格的距離控制
+                  // 🚨 綠燈跟車：根據距離調整速度（使用配置）
                   const isLane1 = this.laneNumber === 1
+                  const thresholds = FOLLOWING_CONFIG.GREEN_LIGHT_FOLLOWING.DISTANCE_THRESHOLDS
+                  const speeds = isLane1 
+                    ? FOLLOWING_CONFIG.GREEN_LIGHT_FOLLOWING.LANE1 
+                    : FOLLOWING_CONFIG.GREEN_LIGHT_FOLLOWING.OTHER_LANES
+                  
                   let targetSpeed
-
-                  if (distance <= requiredGap * 0.4) {
-                    // 1號車道：更嚴格的距離控制
-                    targetSpeed = isLane1 ? 0.15 : 0.2
-                  } else if (distance <= requiredGap * 0.7) {
-                    // 距離適中：適度速度
-                    targetSpeed = isLane1 ? 0.4 : 0.5
-                  } else if (distance <= requiredGap * 1.0) {
-                    // 距離接近理想：接近正常速度
-                    targetSpeed = isLane1 ? 0.7 : 0.8
+                  if (distance <= requiredGap * thresholds.VERY_CLOSE) {
+                    targetSpeed = speeds.VERY_CLOSE
+                  } else if (distance <= requiredGap * thresholds.CLOSE) {
+                    targetSpeed = speeds.CLOSE
+                  } else if (distance <= requiredGap * thresholds.NORMAL) {
+                    targetSpeed = speeds.NORMAL
                   } else {
-                    // 距離充足：正常速度
-                    targetSpeed = 1.0
+                    targetSpeed = speeds.FAR
                   }
 
                   // 平滑調整速度
                   gsap.to(this.movementTimeline, {
                     timeScale: targetSpeed,
-                    duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL, // 使用配置的一般速度變化時間
+                    duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL,
                     ease: 'power2.out',
                   })
                   this.currentState = 'following'
@@ -1379,23 +1379,26 @@ export default class Vehicle {
 
             if (collision && collision.shouldStop) {
               const distance = collision.distance
-              const requiredGap = collision.requiredGap || 12
+              const requiredGap = collision.requiredGap || DISTANCE_CONFIG.BASE_DISTANCES.MIN_GAP
 
-              // 🚨 基於距離的漸進式停車，而非直接停止
+              // 🚨 基於距離的漸進式停車（使用配置）
+              const thresholds = FOLLOWING_CONFIG.RESUME_SPEED.DISTANCE_THRESHOLDS
+              const speeds = FOLLOWING_CONFIG.RESUME_SPEED.NON_QUEUE_ZONE
+              
               let targetSpeed
-              if (distance <= requiredGap * 0.3) {
-                targetSpeed = 0 // 完全停止
-              } else if (distance <= requiredGap * 0.6) {
-                targetSpeed = 0.2 // 大幅減速
-              } else if (distance <= requiredGap * 0.8) {
-                targetSpeed = 0.5 // 適度減速
+              if (distance <= requiredGap * thresholds.VERY_CLOSE) {
+                targetSpeed = speeds.VERY_CLOSE // 完全停止
+              } else if (distance <= requiredGap * thresholds.CLOSE) {
+                targetSpeed = speeds.CLOSE // 大幅減速
+              } else if (distance <= requiredGap * thresholds.NORMAL) {
+                targetSpeed = speeds.NORMAL // 適度減速
               } else {
-                targetSpeed = 0.8 // 輕微減速
+                targetSpeed = speeds.FAR // 輕微減速
               }
 
               gsap.to(this.movementTimeline, {
                 timeScale: targetSpeed,
-                duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL, // 使用配置的一般速度變化時間
+                duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL,
                 ease: 'power2.out',
               })
 
@@ -1426,9 +1429,9 @@ export default class Vehicle {
                   this.currentState = 'waitingForLeftTurnGreen'
                   this.waitingForGreen = true
                 } else {
-                  // 距離停止線還遠，減速但不停車
+                  // 距離停止線還遠，減速但不停車（使用配置）
                   gsap.to(this.movementTimeline, {
-                    timeScale: 0.6, // 減速到60%
+                    timeScale: TRAFFIC_LIGHT_CONFIG.WAITING_FOR_LIGHT.SLOW_SPEED,
                     duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL,
                     ease: 'power2.out',
                   })
@@ -1438,15 +1441,15 @@ export default class Vehicle {
                 // 🚦 新增：直行車道在左轉綠燈時的處理
                 const distanceToStopLine = this.getDistanceToStopLine()
 
-                if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 5) {
-                  // 接近停止線，停車等待直行綠燈
+                if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= TRAFFIC_LIGHT_CONFIG.WAITING_FOR_LIGHT.STOP_DISTANCE_THRESHOLD) {
+                  // 接近停止線，停車等待直行綠燈（使用配置）
                   this.movementTimeline.timeScale(0)
                   this.currentState = 'waitingForStraightGreen'
                   this.waitingForGreen = true
                 } else {
-                  // 距離停止線還遠，減速但不停車
+                  // 距離停止線還遠，減速但不停車（使用配置）
                   gsap.to(this.movementTimeline, {
-                    timeScale: 0.6, // 減速到60%
+                    timeScale: TRAFFIC_LIGHT_CONFIG.WAITING_FOR_LIGHT.SLOW_SPEED,
                     duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL,
                     ease: 'power2.out',
                   })
