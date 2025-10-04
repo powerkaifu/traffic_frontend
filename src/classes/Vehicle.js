@@ -16,6 +16,7 @@ import VehicleConfig, {
   PATH_CONFIG,
   DEBUG_CONFIG,
 } from './config/vehicleConfig.js' // 🚀 整合：車輛行為配置
+import { STOP_LINE_CONFIG } from './config/stopLineConfig.js' // 🚀 導入：停止線配置
 
 // 註冊 GSAP 插件
 gsap.registerPlugin(MotionPathPlugin)
@@ -817,8 +818,8 @@ export default class Vehicle {
     const distanceToStopLine = this.getDistanceToStopLine()
     if (distanceToStopLine === null) return false
 
-    // 定義停止線附近區域為50px範圍
-    const stopLineProximity = 50
+    // 使用配置的停止線附近區域範圍
+    const stopLineProximity = STOP_LINE_CONFIG.DETECTION.PROXIMITY_RANGE
     return Math.abs(distanceToStopLine) <= stopLineProximity
   }
 
@@ -878,7 +879,7 @@ export default class Vehicle {
         small: 8, // 縮短安全距離
         large: 15, // 縮短安全距離
       },
-      stopLineBuffer: 5, // 縮短停止線緩衝距離
+      stopLineBuffer: STOP_LINE_CONFIG.VEHICLE_CONFIG.STOP_LINE_BUFFER, // 使用配置的停止線緩衝距離
       speedConfig: speedConfig,
       timeMultiplier: this.timeMultiplier,
     }
@@ -1423,8 +1424,8 @@ export default class Vehicle {
                 // 🚦 修復：左轉車道只有在停止線附近才停止等待左轉綠燈
                 const distanceToStopLine = this.getDistanceToStopLine()
 
-                if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= 5) {
-                  // 接近停止線，停車等待左轉綠燈
+                if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= STOP_LINE_CONFIG.TRAFFIC_LIGHT.APPROACH_DISTANCE) {
+                  // 接近停止線，停車等待左轉綠燈（使用配置）
                   this.movementTimeline.timeScale(0)
                   this.currentState = 'waitingForLeftTurnGreen'
                   this.waitingForGreen = true

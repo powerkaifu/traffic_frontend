@@ -85,7 +85,7 @@ export class StopLineController {
   }
 
   /**
-   * 計算車頭到停止線的距離
+   * 計算車頭到停止線的距離（考慮 TARGET_POSITION 偏移）
    * @returns {number|null} 距離（像素），null表示無法計算
    */
   getDistanceToStopLine() {
@@ -93,24 +93,31 @@ export class StopLineController {
     if (!stopLine.x && !stopLine.y) return null
 
     const vehicleHead = this.getVehicleHeadPosition()
+    const targetOffset = STOP_LINE_CONFIG.TARGET_POSITION
     let distance = null
+    let targetPosition
 
     switch (this.vehicle.direction) {
       case 'east':
-        // 東向：車頭在右側，正值表示還沒到停止線
-        distance = stopLine.x - vehicleHead.x
+        // 東向：計算到目標停止位置的距離
+        // 目標位置 = 停止線 - TARGET_POSITION
+        targetPosition = stopLine.x - targetOffset.EAST
+        distance = targetPosition - vehicleHead.x
         break
       case 'west':
-        // 西向：車頭在左側，正值表示還沒到停止線
-        distance = vehicleHead.x - stopLine.x
+        // 西向：計算到目標停止位置的距離
+        targetPosition = stopLine.x + targetOffset.WEST
+        distance = vehicleHead.x - targetPosition
         break
       case 'north':
-        // 北向：車頭在上方，正值表示還沒到停止線
-        distance = vehicleHead.y - stopLine.y
+        // 北向：計算到目標停止位置的距離
+        targetPosition = stopLine.y + targetOffset.NORTH
+        distance = vehicleHead.y - targetPosition
         break
       case 'south':
-        // 南向：車頭在下方，正值表示還沒到停止線
-        distance = stopLine.y - vehicleHead.y
+        // 南向：計算到目標停止位置的距離
+        targetPosition = stopLine.y - targetOffset.SOUTH
+        distance = targetPosition - vehicleHead.y
         break
       default:
         return null
@@ -120,7 +127,7 @@ export class StopLineController {
   }
 
   /**
-   * 檢查是否應該在停止線停車
+   * 檢查是否應該在停止線停車（考慮 TARGET_POSITION 偏移）
    * @returns {boolean} true表示應該停車
    */
   shouldStopAtLine() {
@@ -133,23 +140,35 @@ export class StopLineController {
 
     const vehicleHead = this.getVehicleHeadPosition()
     const sensitivity = STOP_LINE_CONFIG.DETECTION.SENSITIVITY
+    const targetOffset = STOP_LINE_CONFIG.TARGET_POSITION
+    let targetPosition
 
+    // 計算目標停止位置（考慮 TARGET_POSITION 偏移）
     switch (this.vehicle.direction) {
       case 'east':
-        return vehicleHead.x >= stopLine.x - sensitivity
+        // 東向：目標位置 = 停止線 - TARGET_POSITION
+        // 例如 TARGET_POSITION = 100，則目標在停止線前100px
+        targetPosition = stopLine.x - targetOffset.EAST
+        return vehicleHead.x >= targetPosition - sensitivity
       case 'west':
-        return vehicleHead.x <= stopLine.x + sensitivity
+        // 西向：目標位置 = 停止線 + TARGET_POSITION
+        targetPosition = stopLine.x + targetOffset.WEST
+        return vehicleHead.x <= targetPosition + sensitivity
       case 'north':
-        return vehicleHead.y <= stopLine.y + sensitivity
+        // 北向：目標位置 = 停止線 + TARGET_POSITION
+        targetPosition = stopLine.y + targetOffset.NORTH
+        return vehicleHead.y <= targetPosition + sensitivity
       case 'south':
-        return vehicleHead.y >= stopLine.y - sensitivity
+        // 南向：目標位置 = 停止線 - TARGET_POSITION
+        targetPosition = stopLine.y - targetOffset.SOUTH
+        return vehicleHead.y >= targetPosition - sensitivity
       default:
         return false
     }
   }
 
   /**
-   * 調整車輛位置以精確對齊停止線
+   * 調整車輛位置以精確對齊停止線（使用 TARGET_POSITION 配置）
    * @returns {boolean} true表示成功調整
    */
   alignToStopLine() {
@@ -159,27 +178,33 @@ export class StopLineController {
     const currentPos = this.vehicle.getCurrentPosition()
     const vehicleConfig = this.vehicle.getVehicleConfig()
     const size = { width: vehicleConfig.width, height: vehicleConfig.height }
+    const targetOffset = STOP_LINE_CONFIG.TARGET_POSITION
 
     // 計算車輛應該停在的位置（車輛左上角座標）
+    // 使用 TARGET_POSITION 配置來調整停車位置
     let targetX = currentPos.x
     let targetY = currentPos.y
 
     switch (this.vehicle.direction) {
       case 'east':
-        // 東向：車頭（右側）應該對齊停止線
-        targetX = stopLine.x - size.width
+        // 東向：車頭（右側）應該對齊停止線，並考慮偏移
+        // targetOffset.EAST 為正值時，車輛停在停止線前
+        targetX = stopLine.x - size.width - targetOffset.EAST
         break
       case 'west':
-        // 西向：車頭（左側）應該對齊停止線
-        targetX = stopLine.x
+        // 西向：車頭（左側）應該對齊停止線，並考慮偏移
+        // targetOffset.WEST 為正值時，車輛停在停止線前
+        targetX = stopLine.x + targetOffset.WEST
         break
       case 'north':
-        // 北向：車頭（上方）應該對齊停止線
-        targetY = stopLine.y
+        // 北向：車頭（上方）應該對齊停止線，並考慮偏移
+        // targetOffset.NORTH 為正值時，車輛停在停止線前
+        targetY = stopLine.y + targetOffset.NORTH
         break
       case 'south':
-        // 南向：車頭（下方）應該對齊停止線
-        targetY = stopLine.y - size.height
+        // 南向：車頭（下方）應該對齊停止線，並考慮偏移
+        // targetOffset.SOUTH 為正值時，車輛停在停止線前
+        targetY = stopLine.y - size.height - targetOffset.SOUTH
         break
     }
 
@@ -199,8 +224,8 @@ export class StopLineController {
   }
 
   /**
-   * 獲取理想停車位置（停止線前幾px）
-   * @returns {Object} {x, y} 目標位置座標
+   * 獲取理想停車位置（車頭位置，考慮 TARGET_POSITION 偏移）
+   * @returns {Object} {x, y} 目標車頭位置座標
    */
   getTargetStopPosition() {
     const stopLine = this.getStopLinePosition()
@@ -210,16 +235,20 @@ export class StopLineController {
 
     switch (this.vehicle.direction) {
       case 'east':
-        // 東向：停在停止線前（X軸減少）
+        // 東向：車頭應該停在停止線前 EAST px 的位置
+        // targetOffset.EAST 為正值時，車頭停在停止線左側（前方）
         return { x: stopLine.x - targetOffset.EAST, y: null }
       case 'west':
-        // 西向：停在停止線前（X軸增加）
+        // 西向：車頭應該停在停止線前 WEST px 的位置
+        // targetOffset.WEST 為正值時，車頭停在停止線右側（前方）
         return { x: stopLine.x + targetOffset.WEST, y: null }
       case 'north':
-        // 北向：停在停止線前（Y軸增加）
+        // 北向：車頭應該停在停止線前 NORTH px 的位置
+        // targetOffset.NORTH 為正值時，車頭停在停止線下方（前方）
         return { x: null, y: stopLine.y + targetOffset.NORTH }
       case 'south':
-        // 南向：停在停止線前（Y軸減少）
+        // 南向：車頭應該停在停止線前 SOUTH px 的位置
+        // targetOffset.SOUTH 為正值時，車頭停在停止線上方（前方）
         return { x: null, y: stopLine.y - targetOffset.SOUTH }
       default:
         return null
