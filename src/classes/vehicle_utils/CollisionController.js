@@ -4,23 +4,18 @@
  * 整合了 SimpleCollisionDetector 的功能
  */
 
-import { COLLISION_CONFIG } from '../config/vehicleConfig.js'
+import { COLLISION_CONFIG, FOLLOWING_CONFIG, DISTANCE_CONFIG } from '../config/vehicleConfig.js'
 
 export class CollisionController {
-  // 🔧 SimpleCollisionDetector 整合的距離參數
-  static STOP_DISTANCE = 12 // 停止距離（px）
-  static SLOW_DISTANCE = 25 // 減速距離（px）
-  static LANE_TOLERANCE = 25 // 車道對齊容差（px）
-
   constructor(vehicle) {
     this.vehicle = vehicle
     this.lastCollisionCheck = 0 // 上次碰撞檢查時間
     this.collisionCheckInterval = COLLISION_CONFIG.CHECK_INTERVAL // 碰撞檢查間隔（毫秒）
-    this.nearbyVehicleRange = 100 // 附近車輛檢查範圍
+    this.nearbyVehicleRange = DISTANCE_CONFIG.NEARBY_VEHICLE_RANGE // 附近車輛檢查範圍（使用配置）
 
     // SimpleCollisionDetector 整合的屬性
     this.lastCheckTime = 0
-    this.checkInterval = 50 // 50ms檢查間隔，平衡性能與響應性
+    this.checkInterval = COLLISION_CONFIG.SIMPLE_CHECK_INTERVAL // 使用配置的檢查間隔
   }
 
   /**
@@ -695,7 +690,7 @@ export class CollisionController {
 
       const distance = this.calculateDirectionalDistance(myPos, otherPos)
 
-      if (distance > 0 && distance < CollisionController.SLOW_DISTANCE && distance < minDistance) {
+      if (distance > 0 && distance < COLLISION_CONFIG.DETECTION_DISTANCES.SLOW_DISTANCE && distance < minDistance) {
         minDistance = distance
         closestThreat = {
           vehicle: other,
@@ -716,12 +711,12 @@ export class CollisionController {
 
     // 🚦 1號車道在左轉綠燈時使用較寬鬆的距離要求
     const effectiveStopDistance = isLane1WithLeftGreen
-      ? CollisionController.STOP_DISTANCE * 0.7 // 7px instead of 12px
-      : CollisionController.STOP_DISTANCE
+      ? COLLISION_CONFIG.DETECTION_DISTANCES.STOP_DISTANCE * 0.7 // 7px instead of 12px
+      : COLLISION_CONFIG.DETECTION_DISTANCES.STOP_DISTANCE
 
     const effectiveSlowDistance = isLane1WithLeftGreen
-      ? CollisionController.SLOW_DISTANCE * 0.8 // 20px instead of 25px
-      : CollisionController.SLOW_DISTANCE
+      ? COLLISION_CONFIG.DETECTION_DISTANCES.SLOW_DISTANCE * 0.8 // 20px instead of 25px
+      : COLLISION_CONFIG.DETECTION_DISTANCES.SLOW_DISTANCE
 
     if (distance <= effectiveStopDistance) {
       return {
@@ -741,6 +736,9 @@ export class CollisionController {
       const frontVehicleSpeed = threatVehicle.movementTimeline ? threatVehicle.movementTimeline.timeScale() : 0
       const mySpeed = this.vehicle.movementTimeline ? this.vehicle.movementTimeline.timeScale() : 0
 
+      // 🧠 智能預測減速：根據相對速度提前減速
+      const prediction = this.predictiveSlowdown(threatVehicle, distance)
+      
       // 如果前車較慢或停止，後車必須更大幅度減速
       let speedRatio
       if (frontVehicleSpeed <= 0.1) {
@@ -751,16 +749,19 @@ export class CollisionController {
           // 距離太近仍需停止
           speedRatio = 0
         }
+      } else if (prediction.shouldSlowDown) {
+        // 🧠 使用智能預測的推薦速度
+        speedRatio = prediction.recommendedSpeed
       } else if (frontVehicleSpeed < mySpeed) {
         // 前車較慢，後車速度不能超過前車
         speedRatio = Math.min(
           frontVehicleSpeed * 0.8,
-          Math.max(0.1, (distance - effectiveStopDistance) / (effectiveSlowDistance - effectiveStopDistance)),
+          Math.max(FOLLOWING_CONFIG.SPEED_RATIOS.MIN_ABSOLUTE_RATIO, (distance - effectiveStopDistance) / (effectiveSlowDistance - effectiveStopDistance)),
         )
       } else {
         // 正常跟車，1號車道左轉綠燈時允許較高速度
         const baseSpeedRatio = Math.max(
-          0.1,
+          FOLLOWING_CONFIG.SPEED_RATIOS.MIN_ABSOLUTE_RATIO,
           (distance - effectiveStopDistance) / (effectiveSlowDistance - effectiveStopDistance),
         )
         speedRatio = isLane1WithLeftGreen ? Math.min(1.0, baseSpeedRatio * 1.2) : baseSpeedRatio
@@ -774,7 +775,9 @@ export class CollisionController {
         shouldFollow: true,
         targetSpeed: speedRatio,
         requiredGap: effectiveStopDistance,
-        reason: `跟車模式: ${distance.toFixed(1)}px, 速度: ${(speedRatio * 100).toFixed(0)}%, 前車速度: ${(frontVehicleSpeed * 100).toFixed(0)}% ${isLane1WithLeftGreen ? '(1號車道左轉綠燈)' : ''}`,
+        reason: prediction.shouldSlowDown 
+          ? prediction.reason
+          : `跟車模式: ${distance.toFixed(1)}px, 速度: ${(speedRatio * 100).toFixed(0)}%, 前車速度: ${(frontVehicleSpeed * 100).toFixed(0)}% ${isLane1WithLeftGreen ? '(1號車道左轉綠燈)' : ''}`,
       }
     }
 
@@ -828,10 +831,10 @@ export class CollisionController {
   isInSameLane(myPos, otherPos) {
     if (this.vehicle.direction === 'east' || this.vehicle.direction === 'west') {
       // 東西向：檢查Y軸對齊
-      return Math.abs(myPos.y - otherPos.y) <= CollisionController.LANE_TOLERANCE
+      return Math.abs(myPos.y - otherPos.y) <= COLLISION_CONFIG.DETECTION_DISTANCES.LANE_TOLERANCE
     } else {
       // 南北向：檢查X軸對齊
-      return Math.abs(myPos.x - otherPos.x) <= CollisionController.LANE_TOLERANCE
+      return Math.abs(myPos.x - otherPos.x) <= COLLISION_CONFIG.DETECTION_DISTANCES.LANE_TOLERANCE
     }
   }
 
@@ -847,6 +850,66 @@ export class CollisionController {
     }
 
     return sizeMap[this.vehicle.vehicleType] || sizeMap['large']
+  }
+
+  /**
+   * 🧠 計算相對速度（後車速度 - 前車速度）
+   * @param {Vehicle} frontVehicle 前方車輛
+   * @returns {number} 相對速度比例（0-1）
+   */
+  calculateRelativeSpeed(frontVehicle) {
+    if (!frontVehicle || !frontVehicle.movementTimeline || !this.vehicle.movementTimeline) {
+      return 0
+    }
+
+    const mySpeed = this.vehicle.movementTimeline.timeScale()
+    const frontSpeed = frontVehicle.movementTimeline.paused() ? 0 : frontVehicle.movementTimeline.timeScale()
+
+    return mySpeed - frontSpeed
+  }
+
+  /**
+   * 🧠 智能預測減速距離
+   * @param {Vehicle} frontVehicle 前方車輛
+   * @param {number} currentDistance 當前距離
+   * @returns {Object} 預測結果 {shouldSlowDown, recommendedSpeed, reason}
+   */
+  predictiveSlowdown(frontVehicle, currentDistance) {
+    if (!FOLLOWING_CONFIG.PREDICTIVE_SLOWDOWN.ENABLED) {
+      return { shouldSlowDown: false, recommendedSpeed: 1.0, reason: '預測減速未啟用' }
+    }
+
+    const relativeSpeed = this.calculateRelativeSpeed(frontVehicle)
+    
+    // 如果後車速度不快於前車，不需要預測減速
+    if (relativeSpeed <= FOLLOWING_CONFIG.PREDICTIVE_SLOWDOWN.RELATIVE_SPEED_THRESHOLD) {
+      return { shouldSlowDown: false, recommendedSpeed: 1.0, reason: '相對速度安全' }
+    }
+
+    // 計算預測距離：根據相對速度動態調整
+    const predictionDistance = Math.min(
+      FOLLOWING_CONFIG.PREDICTIVE_SLOWDOWN.MAX_PREDICTION_DISTANCE,
+      Math.max(
+        FOLLOWING_CONFIG.PREDICTIVE_SLOWDOWN.MIN_PREDICTION_DISTANCE,
+        currentDistance * FOLLOWING_CONFIG.PREDICTIVE_SLOWDOWN.PREDICTION_DISTANCE_MULTIPLIER * relativeSpeed
+      )
+    )
+
+    // 如果當前距離小於預測距離，需要減速
+    if (currentDistance < predictionDistance) {
+      // 計算推薦速度：距離越近，速度越低
+      const distanceRatio = currentDistance / predictionDistance
+      const baseSpeed = 0.3 // 基礎速度
+      const recommendedSpeed = Math.max(baseSpeed, distanceRatio * 0.9)
+
+      return {
+        shouldSlowDown: true,
+        recommendedSpeed: recommendedSpeed,
+        reason: `預測減速: 相對速度${relativeSpeed.toFixed(2)}, 距離${currentDistance.toFixed(1)}px < 預測距離${predictionDistance.toFixed(1)}px`,
+      }
+    }
+
+    return { shouldSlowDown: false, recommendedSpeed: 1.0, reason: '距離充足' }
   }
 
   /**

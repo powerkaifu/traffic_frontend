@@ -753,7 +753,7 @@ export default class Vehicle {
   }
 
   // 🚨 極簡化恢復移動方法
-  // 🚨 基於距離的平滑恢復移動
+  // 🚨 基於距離的平滑恢復移動 - 使用配置參數
   resumeMovement(allVehicles = []) {
     if (
       this.movementTimeline &&
@@ -779,19 +779,29 @@ export default class Vehicle {
           this.stopLineController.state = 'approaching'
         }
       } else {
-        // 有前車，根據距離調整速度
+        // 有前車，根據距離調整速度（使用配置的閾值）
         const distance = collision.distance
-        const requiredGap = collision.requiredGap || 12
+        const requiredGap = collision.requiredGap || DISTANCE_CONFIG.BASE_DISTANCES.MIN_GAP
+
+        // 🎯 使用配置的距離閾值來決定速度
+        const thresholds = FOLLOWING_CONFIG.RESUME_SPEED.DISTANCE_THRESHOLDS
+        const speedConfig = FOLLOWING_CONFIG.RESUME_SPEED.NON_QUEUE_ZONE
 
         let targetSpeed
-        if (distance <= requiredGap * 0.3) {
-          targetSpeed = 0 // 完全停止
-        } else if (distance <= requiredGap * 0.6) {
-          targetSpeed = 0.2 // 大幅減速
-        } else if (distance <= requiredGap * 0.8) {
-          targetSpeed = 0.5 // 適度減速
+        const distanceRatio = distance / requiredGap
+
+        if (distanceRatio <= thresholds.VERY_CLOSE) {
+          // 非常接近：完全停止
+          targetSpeed = speedConfig.VERY_CLOSE
+        } else if (distanceRatio <= thresholds.CLOSE) {
+          // 接近：大幅減速
+          targetSpeed = speedConfig.CLOSE
+        } else if (distanceRatio <= thresholds.NORMAL) {
+          // 正常：適度減速
+          targetSpeed = speedConfig.NORMAL
         } else {
-          targetSpeed = 0.8 // 可以較快移動
+          // 較遠：可以較快移動
+          targetSpeed = speedConfig.FAR
           
           // 💨 新增：較快移動時顯示加速效果
           if (targetSpeed >= 0.7 && this.currentState !== 'moving') {

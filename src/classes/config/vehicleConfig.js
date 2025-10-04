@@ -196,21 +196,33 @@ export const FOLLOWING_CONFIG = {
   },
 
   // ⚡ 跟車檢測間隔 (毫秒)
-  CHECK_INTERVAL: 1500, // 跟車狀態檢查間隔（從2000ms優化到1500ms）
+  CHECK_INTERVAL: 500, // 跟車狀態檢查間隔（優化：從1500ms降低到500ms以提高響應速度）
 
   // 🔄 推力設定
   PUSH_FORCE: {
     STOPPED_VEHICLE: 0.05, // 停車車輛的推力係數
   },
+
+  // 🧠 智能減速預測設定
+  PREDICTIVE_SLOWDOWN: {
+    ENABLED: true, // 啟用智能預測減速
+    RELATIVE_SPEED_THRESHOLD: 0.2, // 相對速度閾值（當速度差異大於此值時啟動預測）
+    PREDICTION_DISTANCE_MULTIPLIER: 1.5, // 預測距離倍數（根據相對速度計算提前減速距離）
+    MIN_PREDICTION_DISTANCE: 30, // 最小預測距離（像素）
+    MAX_PREDICTION_DISTANCE: 80, // 最大預測距離（像素）
+  },
 }
 
 // ===== 碰撞檢測設定 =====
 export const COLLISION_CONFIG = {
-  // 🎯 檢測距離設定 (像素)
+  // 🎯 檢測距離設定 (像素) - 從 CollisionController 硬編碼移至配置
   DETECTION_DISTANCES: {
     FRONT_CHECK: 100, // 前方碰撞檢測距離
     SIDE_CHECK: 50, // 側向碰撞檢測距離
     INTERSECTION_CHECK: 80, // 路口碰撞檢測距離
+    STOP_DISTANCE: 12, // 停止距離（原 CollisionController.STOP_DISTANCE）
+    SLOW_DISTANCE: 25, // 減速距離（原 CollisionController.SLOW_DISTANCE）
+    LANE_TOLERANCE: 25, // 車道對齊容差（原 CollisionController.LANE_TOLERANCE）
   },
 
   // ⚠️ 威脅等級設定
@@ -222,8 +234,9 @@ export const COLLISION_CONFIG = {
     OVERLAPPING: 4, // 重疊
   },
 
-  // ⏱️ 檢測間隔設定
-  CHECK_INTERVAL: 100, // 碰撞檢查間隔（毫秒）
+  // ⏱️ 檢測間隔設定（毫秒）
+  CHECK_INTERVAL: 100, // 碰撞檢查間隔
+  SIMPLE_CHECK_INTERVAL: 50, // 簡單碰撞檢查間隔（優化：更頻繁的檢查）
 }
 
 // ===== 動畫路徑設定 =====
