@@ -1193,11 +1193,11 @@ onUnmounted(() => {
   /* 遮罩層必須與 crossroad-area 保持相同尺寸，確保座標系統一致 */
   width: 100%;
   height: 100%;
-  overflow: hidden;
   z-index: 5; /* 在 SVG 路徑之上，但在其他 UI 元素之下 */
   pointer-events: none; /* 不攔截點擊事件 */
   /* 開發時可以加上邊框來調整大小 */
-  /* border: 2px dashed rgba(255, 0, 0, 0.5); */
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+  /* overflow: hidden; */
 }
 
 /* 車輛容器 - 所有車輛都添加到這個容器中 */
