@@ -311,7 +311,32 @@
         <button @click="clearAllVehicles" class="toolbar-btn clear-btn" title="清空車輛">
           <span class="btn-icon">🧹</span>
         </button>
+
+        <!-- 分隔線 -->
+        <div class="toolbar-divider"></div>
+
+        <button @click="toggleWeatherMenu" :class="['toolbar-btn', { active: showWeatherMenu }]" title="天氣效果">
+          <span class="btn-icon">{{ getWeatherIcon() }}</span>
+        </button>
       </div>
+
+      <!-- 天氣選單 -->
+      <transition name="weather-menu">
+        <div v-if="showWeatherMenu" class="weather-menu">
+          <div class="weather-menu-header">天氣效果</div>
+          <div class="weather-options">
+            <button
+              v-for="weather in weatherOptions"
+              :key="weather.type"
+              @click="changeWeather(weather.type)"
+              :class="['weather-option', { active: currentWeather === weather.type }]"
+            >
+              <span class="weather-icon">{{ weather.icon }}</span>
+              <span class="weather-label">{{ weather.label }}</span>
+            </button>
+          </div>
+        </div>
+      </transition>
     </div>
     <!-- lumo 小機器人助手 -->
     <div class="robot-assistant">
@@ -331,6 +356,8 @@ import TrafficDataCollector from '../classes/TrafficDataCollector.js'
 import Vehicle from '../classes/Vehicle.js'
 import { createLanePathCalculator } from '../utils/lanePathCalculator.js'
 import { stopLineConfig } from '../classes/config/trafficConfig.js'
+import WeatherController from '../classes/WeatherController.js'
+import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
 
 // 註冊 GSAP MotionPathPlugin 和 MotionPathHelper
 gsap.registerPlugin(MotionPathPlugin, MotionPathHelper)
@@ -554,6 +581,65 @@ const pathTooltip = ref({
 })
 // 路徑計算器實例
 let lanePathCalculator = null
+
+// ===== 天氣效果相關 =====
+let weatherController = null // 天氣控制器實例
+const currentWeather = ref(WEATHER_TYPES.CLEAR) // 當前天氣
+const showWeatherMenu = ref(false) // 是否顯示天氣選單
+
+// 天氣選項
+const weatherOptions = ref([
+  { type: WEATHER_TYPES.CLEAR, icon: '☀️', label: '晴天' },
+  { type: WEATHER_TYPES.RAIN, icon: '🌧️', label: '雨天' },
+  { type: WEATHER_TYPES.HEAVY_RAIN, icon: '⛈️', label: '大雨' },
+  { type: WEATHER_TYPES.FOG, icon: '🌫️', label: '霧天' },
+  { type: WEATHER_TYPES.SNOW, icon: '❄️', label: '雪天' },
+])
+
+// 切換天氣選單
+const toggleWeatherMenu = () => {
+  showWeatherMenu.value = !showWeatherMenu.value
+}
+
+// 獲取當前天氣圖標
+const getWeatherIcon = () => {
+  const option = weatherOptions.value.find((w) => w.type === currentWeather.value)
+  return option ? option.icon : '🌤️'
+}
+
+// 切換天氣
+const changeWeather = async (weatherType) => {
+  if (!weatherController) {
+    console.warn('⚠️ 天氣控制器未初始化')
+    return
+  }
+
+  try {
+    await weatherController.changeWeather(weatherType)
+    currentWeather.value = weatherType
+    showWeatherMenu.value = false
+
+    // 通知用戶
+    const option = weatherOptions.value.find((w) => w.type === weatherType)
+    window.$q.notify({
+      type: 'info',
+      message: `天氣已切換至 ${option ? option.label : weatherType}`,
+      icon: option ? option.icon : '🌤️',
+      position: 'top',
+      timeout: 2000,
+    })
+
+    console.log(`🌤️ 天氣已切換至 ${weatherType}`)
+  } catch (error) {
+    console.error('❌ 切換天氣失敗:', error)
+    window.$q.notify({
+      type: 'negative',
+      message: '切換天氣失敗',
+      position: 'top',
+      timeout: 2000,
+    })
+  }
+}
 
 // 啟用/停用路徑編輯模式
 const togglePathEditMode = () => {
@@ -1195,6 +1281,13 @@ onMounted(async () => {
     // 設置全域交通數據收集器
     window.trafficDataCollector = trafficDataCollector
 
+    // 🌤️ 初始化天氣控制器
+    console.log('🌤️ 初始化天氣系統...')
+    weatherController = new WeatherController(crossroadContainer.value)
+    // 設置全域天氣控制器，讓車輛可以訪問
+    window.weatherController = weatherController
+    console.log('✅ 天氣系統已初始化')
+
     console.log('✅ 所有系統已初始化完成')
   }
 })
@@ -1226,6 +1319,14 @@ onUnmounted(() => {
     vehicle.remove()
   })
   activeCars.value = []
+
+  // 🌤️ 清理天氣控制器
+  if (weatherController) {
+    console.log('🌤️ 清理天氣系統...')
+    weatherController.destroy()
+    weatherController = null
+    window.weatherController = null
+  }
 
   // 確保鍵盤事件監聽器被移除（使用與添加時相同的選項）
   document.removeEventListener('keydown', handleKeyDown, { capture: false })
@@ -1669,5 +1770,102 @@ onUnmounted(() => {
   background: linear-gradient(to right, rgba(63, 117, 205, 0), rgba(63, 117, 205, 0.6), rgba(63, 117, 205, 0));
   margin: 8px 10px;
   box-shadow: 0 0 5px rgba(63, 117, 205, 0.4);
+}
+
+/* ===== 天氣選單樣式 ===== */
+.weather-menu {
+  position: fixed;
+  left: 70px;
+  top: 39%;
+  width: 200px;
+  background: rgba(20, 30, 48, 0.95);
+  border: 1px solid rgba(63, 117, 205, 0.5);
+  border-radius: 8px;
+  padding: 10px;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(63, 117, 205, 0.3);
+  backdrop-filter: blur(10px);
+  z-index: 1001;
+}
+
+.weather-menu-header {
+  color: #00ff88;
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 10px;
+  text-align: center;
+  text-shadow: 0 0 5px rgba(0, 255, 136, 0.5);
+}
+
+.weather-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.weather-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(30, 50, 80, 0.6);
+  border: 1px solid rgba(63, 117, 205, 0.3);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.weather-option:hover {
+  background: rgba(63, 117, 205, 0.4);
+  border-color: rgba(63, 117, 205, 0.6);
+  transform: translateX(3px);
+  box-shadow: 0 0 8px rgba(63, 117, 205, 0.5);
+}
+
+.weather-option.active {
+  background: rgba(0, 255, 136, 0.2);
+  border-color: #00ff88;
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+}
+
+.weather-option .weather-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.weather-option .weather-label {
+  flex: 1;
+}
+
+/* 天氣選單動畫 */
+.weather-menu-enter-active,
+.weather-menu-leave-active {
+  transition: all 0.3s ease;
+}
+
+.weather-menu-enter-from {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.weather-menu-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+/* ===== 天氣效果層樣式 ===== */
+.weather-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1000;
+  overflow: hidden;
 }
 </style>

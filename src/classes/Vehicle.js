@@ -636,6 +636,15 @@ export default class Vehicle {
     return currentTimeScale / baseTimeScale
   }
 
+  // 🌤️ 獲取天氣對速度的影響倍數
+  getWeatherSpeedMultiplier() {
+    // 從全域天氣控制器獲取速度倍數
+    if (window.weatherController && typeof window.weatherController.getSpeedMultiplier === 'function') {
+      return window.weatherController.getSpeedMultiplier()
+    }
+    return 1.0 // 預設無影響
+  }
+
   // Adapter Pattern: 獲取當前位置的適配器方法
   getCurrentPosition() {
     // Adapter Pattern: 將GSAP的座標系統適配為標準座標
@@ -952,6 +961,14 @@ export default class Vehicle {
           let theoreticalTime = realDistance / speedMs
           // 🎬 動畫速度控制：TIME_MULTIPLIER 越小越快，越大越慢
           theoreticalTime *= Vehicle.timeMultiplier
+
+          // 🌤️ 天氣影響：根據天氣調整速度（降低速度 = 增加時間）
+          const weatherMultiplier = this.getWeatherSpeedMultiplier()
+          if (weatherMultiplier < 1.0) {
+            // 速度降低時，時間需要增加（時間 = 1 / 速度）
+            theoreticalTime /= weatherMultiplier
+          }
+
           animationDuration = Math.max(1, Math.min(30, theoreticalTime)) // 擴大時間範圍
         } catch (error) {
           console.warn(`⚠️ 無法計算路徑長度，使用預設動畫時間:`, error)
