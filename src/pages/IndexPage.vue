@@ -1243,7 +1243,7 @@ onUnmounted(() => {
   left: 15%;
 }
 .traffic-light.bottom-left img {
-  transform: scale(1.2) rotate(180deg) translateX(-5px);
+  transform: scale(1.2) rotate(0deg) translateX(5px);
 }
 
 /* RoadB 往西 */

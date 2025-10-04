@@ -810,23 +810,10 @@ export default class Vehicle {
           }
         })
         .then(() => {
-          // 🚨 修正：在開始移動前檢查燈號狀態，特別是1號車道
-          const currentLightState = trafficController.getCurrentLightState(this.direction)
-
-          // 檢查1號車道是否可以在當前燈號下移動
-          const canStart =
-            this.laneNumber !== 1 || // 非1號車道可以移動到停止線排隊
-            (this.laneNumber === 1 && currentLightState === 'leftGreen') // 1號車道只能在左轉綠燈時移動
-
-          if (canStart) {
-            this.currentState = 'moving'
-            this.waitingForGreen = false
-          } else {
-            // 1號車道在非左轉綠燈時等待
-            this.currentState = 'waitingForLeftTurnGreen'
-            this.waitingForGreen = true
-          }
-
+          // 🚨 修正：所有車輛（包括1號左轉車道）都應該先移動到停止線排隊
+          // 燈號限制僅在停止線處檢查，而不是在起始位置就限制
+          this.currentState = 'moving'
+          this.waitingForGreen = false
           this.isAtStopLine = false
           this.hasPassedStopLine = false
 
@@ -1113,10 +1100,9 @@ export default class Vehicle {
             // 🚨 移除重複的 onUpdate，統一在時間線級別處理
           })
 
-          // 🚨 修正：如果車輛處於等待狀態，暫停時間軸
-          if (this.waitingForGreen || this.currentState === 'waitingForLeftTurnGreen') {
-            this.movementTimeline.timeScale(0)
-          }
+          // 🚨 移除：不再在初始化時暫停車輛
+          // 所有車輛（包括1號左轉車道）都應該立即開始移動到停止線排隊
+          // 燈號限制僅在到達停止線時才檢查
         }, 100) // 延遲100毫秒開始移動
     })
   }
