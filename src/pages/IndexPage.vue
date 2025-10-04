@@ -1190,19 +1190,21 @@ onUnmounted(() => {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  /* 覆蓋整個十字路口背景區域 */
+  /* 遮罩層必須與 crossroad-area 保持相同尺寸，確保座標系統一致 */
   width: 100%;
-  height: calc(100vh - 400px);
+  height: 100%;
+  overflow: hidden;
   z-index: 5; /* 在 SVG 路徑之上，但在其他 UI 元素之下 */
   pointer-events: none; /* 不攔截點擊事件 */
-  /* overflow: hidden; */
   /* 開發時可以加上邊框來調整大小 */
-  border: 2px dashed rgba(255, 255, 255, 0.1);
+  /* border: 2px dashed rgba(255, 0, 0, 0.5); */
 }
 
 /* 車輛容器 - 所有車輛都添加到這個容器中 */
 .vehicle-container {
-  position: relative;
+  position: absolute;
+  left: 0;
+  top: 0;
   width: 100%;
   height: 100%;
   pointer-events: none; /* 車輛本身可以有自己的 pointer-events */
