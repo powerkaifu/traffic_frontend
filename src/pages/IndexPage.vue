@@ -283,37 +283,50 @@
         </div>
       </div>
 
-      <!-- 路徑功能控制欄 -->
-      <div class="path-control-panel">
-        <div class="panel-header">路徑功能</div>
-        <div class="panel-buttons">
-          <button
-            @click="togglePathVisibility"
-            :class="['panel-btn', 'visibility-btn', { active: isPathVisible }]"
-            :title="isPathVisible ? '隱藏路徑' : '顯示路徑'"
-          >
-            <span class="btn-icon">{{ isPathVisible ? '👁️' : '👁️‍🗨️' }}</span>
-            <span class="btn-text">{{ isPathVisible ? '隱藏路徑' : '顯示路徑' }}</span>
-          </button>
+      <!-- 路口設置控制欄（可收合） -->
+      <div :class="['intersection-control-panel', { collapsed: isPanelCollapsed }]">
+        <!-- 收合/展開按鈕 -->
+        <button class="panel-toggle-btn" @click="togglePanel" :title="isPanelCollapsed ? '展開面板' : '收合面板'">
+          <span class="toggle-icon">{{ isPanelCollapsed ? '►' : '◄' }}</span>
+        </button>
 
-          <button
-            @click="togglePathEditMode"
-            :class="['panel-btn', 'edit-btn', { active: isPathEditMode }]"
-            title="切換路徑編輯模式"
-          >
-            <span class="btn-icon">{{ isPathEditMode ? '🔒' : '✏️' }}</span>
-            <span class="btn-text">{{ isPathEditMode ? '停用編輯' : '編輯路徑' }}</span>
-          </button>
+        <!-- 面板內容 -->
+        <div class="panel-content">
+          <div class="panel-header">路口設置</div>
+          <div class="panel-buttons">
+            <button
+              @click="togglePathVisibility"
+              :class="['panel-btn', 'visibility-btn', { active: isPathVisible }]"
+              :title="isPathVisible ? '隱藏路徑' : '顯示路徑'"
+            >
+              <span class="btn-icon">{{ isPathVisible ? '👁️' : '👁️‍🗨️' }}</span>
+              <span class="btn-text">{{ isPathVisible ? '隱藏路徑' : '顯示路徑' }}</span>
+            </button>
 
-          <button
-            v-if="isPathEditMode"
-            @click="exportPathData"
-            class="panel-btn export-btn"
-            title="導出編輯後的路徑資料"
-          >
-            <span class="btn-icon">📋</span>
-            <span class="btn-text">導出路徑</span>
-          </button>
+            <button
+              @click="togglePathEditMode"
+              :class="['panel-btn', 'edit-btn', { active: isPathEditMode }]"
+              title="切換路徑編輯模式"
+            >
+              <span class="btn-icon">{{ isPathEditMode ? '🔒' : '✏️' }}</span>
+              <span class="btn-text">{{ isPathEditMode ? '停用編輯' : '編輯路徑' }}</span>
+            </button>
+
+            <button
+              v-if="isPathEditMode"
+              @click="exportPathData"
+              class="panel-btn export-btn"
+              title="導出編輯後的路徑資料"
+            >
+              <span class="btn-icon">📋</span>
+              <span class="btn-text">導出路徑</span>
+            </button>
+
+            <button @click="clearAllVehicles" class="panel-btn clear-btn" title="清空所有車輛">
+              <span class="btn-icon">🧹</span>
+              <span class="btn-text">清空車輛</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -545,6 +558,7 @@ const aiPrediction = ref({
 // MotionPathHelper 控制
 const isPathEditMode = ref(false)
 const isPathVisible = ref(false) // 路徑預設隱藏，需要按按鈕才顯示
+const isPanelCollapsed = ref(false) // 路口設置面板收合狀態
 const pathHelpers = ref([])
 const pathObservers = ref([]) // 路徑變化觀察器
 const tempEditedPaths = ref({}) // 暫存編輯中的路徑數據
@@ -573,6 +587,80 @@ const togglePathEditMode = () => {
 // 切換路徑顯示/隱藏
 const togglePathVisibility = () => {
   isPathVisible.value = !isPathVisible.value
+}
+
+// 切換路口設置面板收合狀態
+const togglePanel = () => {
+  isPanelCollapsed.value = !isPanelCollapsed.value
+}
+
+// 清空所有車輛
+const clearAllVehicles = () => {
+  console.log('🧹 開始清空所有車輛...')
+
+  try {
+    // 獲取當前活躍車輛數量
+    const vehicleCount = activeCars.value.length
+    console.log(`📊 當前活躍車輛數量：${vehicleCount}`)
+
+    if (vehicleCount === 0) {
+      console.log('✅ 沒有車輛需要清空')
+      window.$q.notify({
+        type: 'info',
+        message: '目前沒有車輛',
+        position: 'top',
+        timeout: 2000,
+      })
+      return
+    }
+
+    // 複製車輛列表，避免在遍歷時修改原數組
+    const vehiclesToRemove = [...activeCars.value]
+
+    // 清空車輛列表
+    activeCars.value = []
+
+    // 逐一移除車輛的 DOM 元素
+    vehiclesToRemove.forEach((vehicle, index) => {
+      try {
+        if (vehicle && typeof vehicle.remove === 'function') {
+          vehicle.remove()
+          console.log(`🚗 已移除車輛 ${index + 1}/${vehicleCount}: ${vehicle.id}`)
+        }
+      } catch (error) {
+        console.warn(`⚠️ 移除車輛失敗 (${vehicle.id}):`, error)
+      }
+    })
+
+    console.log('✅ 所有車輛已清空完成')
+
+    // 顯示成功通知
+    window.$q.notify({
+      type: 'positive',
+      message: `已清空 ${vehicleCount} 輛車輛`,
+      position: 'top',
+      timeout: 2000,
+      icon: '🧹',
+    })
+
+    // 發送車輛清空事件
+    window.dispatchEvent(
+      new CustomEvent('allVehiclesCleared', {
+        detail: {
+          count: vehicleCount,
+          timestamp: new Date().toISOString(),
+        },
+      }),
+    )
+  } catch (error) {
+    console.error('❌ 清空車輛時發生錯誤:', error)
+    window.$q.notify({
+      type: 'negative',
+      message: '清空車輛時發生錯誤',
+      position: 'top',
+      timeout: 3000,
+    })
+  }
 }
 
 // 啟用路徑編輯功能
@@ -1489,23 +1577,83 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-/* 路徑功能控制欄樣式 ---------------------------------------- */
-.path-control-panel {
-  position: absolute;
+/* 路口設置控制欄樣式（可收合） ---------------------------------------- */
+.intersection-control-panel {
+  position: fixed;
   top: 50%;
-  right: 5%;
+  left: 0;
   transform: translateY(-50%);
   z-index: 1001;
+  display: flex;
+  flex-direction: row;
+  transition: all 0.3s ease;
+}
+
+/* 收合狀態 */
+.intersection-control-panel.collapsed .panel-content {
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.intersection-control-panel.collapsed .panel-toggle-btn {
+  left: 0;
+}
+
+/* 面板內容 */
+.panel-content {
   display: flex;
   flex-direction: column;
   gap: 12px;
   background: linear-gradient(135deg, rgba(35, 80, 150, 0.95), rgba(35, 30, 100, 0.95));
   border: 2px solid rgb(63, 117, 205);
-  border-radius: 12px;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+  border-left: none;
   padding: 16px 12px;
-  box-shadow: 0 0 20px rgba(30, 30, 100, 0.8);
+  box-shadow: 4px 0 20px rgba(30, 30, 100, 0.8);
   backdrop-filter: blur(10px);
   min-width: 140px;
+  transition: all 0.3s ease;
+}
+
+/* 收合/展開按鈕 */
+.panel-toggle-btn {
+  position: absolute;
+  left: 152px; /* panel-content width + padding */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 80px;
+  background: linear-gradient(135deg, rgba(35, 80, 150, 0.95), rgba(35, 30, 100, 0.95));
+  border: 2px solid rgb(63, 117, 205);
+  border-left: none;
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 4px 0 15px rgba(30, 30, 100, 0.6);
+  z-index: 1;
+}
+
+.panel-toggle-btn:hover {
+  background: linear-gradient(135deg, rgba(55, 100, 170, 0.95), rgba(45, 40, 120, 0.95));
+  box-shadow: 4px 0 20px rgba(30, 30, 100, 0.9);
+}
+
+.toggle-icon {
+  font-size: 18px;
+  font-weight: bold;
+  transition: transform 0.3s ease;
+}
+
+.panel-toggle-btn:hover .toggle-icon {
+  transform: scale(1.2);
 }
 
 .panel-header {
@@ -1601,6 +1749,18 @@ onUnmounted(() => {
   background: linear-gradient(135deg, rgba(44, 149, 44, 0.9), rgba(10, 110, 10, 0.9));
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(34, 139, 34, 0.5);
+}
+
+/* 清空車輛按鈕 */
+.panel-btn.clear-btn {
+  background: linear-gradient(135deg, rgba(220, 53, 69, 0.9), rgba(176, 27, 27, 0.9));
+  border-color: rgb(220, 53, 69);
+}
+
+.panel-btn.clear-btn:hover {
+  background: linear-gradient(135deg, rgba(230, 63, 79, 0.9), rgba(186, 37, 37, 0.9));
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.5);
 }
 
 @keyframes pulse-btn {
