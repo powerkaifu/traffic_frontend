@@ -283,51 +283,34 @@
         </div>
       </div>
 
-      <!-- 路口設置控制欄（可收合） -->
-      <div :class="['intersection-control-panel', { collapsed: isPanelCollapsed }]">
-        <!-- 收合/展開按鈕 -->
-        <button class="panel-toggle-btn" @click="togglePanel" :title="isPanelCollapsed ? '展開面板' : '收合面板'">
-          <span class="toggle-icon">{{ isPanelCollapsed ? '►' : '◄' }}</span>
+      <!-- Photoshop 風格左側工具欄 -->
+      <div class="photoshop-toolbar">
+        <button
+          @click="togglePathVisibility"
+          :class="['toolbar-btn', { active: isPathVisible }]"
+          :title="isPathVisible ? '隱藏路徑' : '顯示路徑'"
+        >
+          <span class="btn-icon">{{ isPathVisible ? '👁️' : '👁️‍🗨️' }}</span>
         </button>
 
-        <!-- 面板內容 -->
-        <div class="panel-content">
-          <div class="panel-header">路口設置</div>
-          <div class="panel-buttons">
-            <button
-              @click="togglePathVisibility"
-              :class="['panel-btn', 'visibility-btn', { active: isPathVisible }]"
-              :title="isPathVisible ? '隱藏路徑' : '顯示路徑'"
-            >
-              <span class="btn-icon">{{ isPathVisible ? '👁️' : '👁️‍🗨️' }}</span>
-              <span class="btn-text">{{ isPathVisible ? '隱藏路徑' : '顯示路徑' }}</span>
-            </button>
+        <button
+          @click="togglePathEditMode"
+          :class="['toolbar-btn', { active: isPathEditMode }]"
+          :title="isPathEditMode ? '停用編輯' : '編輯路徑'"
+        >
+          <span class="btn-icon">{{ isPathEditMode ? '🔒' : '✏️' }}</span>
+        </button>
 
-            <button
-              @click="togglePathEditMode"
-              :class="['panel-btn', 'edit-btn', { active: isPathEditMode }]"
-              title="切換路徑編輯模式"
-            >
-              <span class="btn-icon">{{ isPathEditMode ? '🔒' : '✏️' }}</span>
-              <span class="btn-text">{{ isPathEditMode ? '停用編輯' : '編輯路徑' }}</span>
-            </button>
+        <button @click="exportPathData" class="toolbar-btn" title="導出路徑">
+          <span class="btn-icon">📋</span>
+        </button>
 
-            <button
-              v-if="isPathEditMode"
-              @click="exportPathData"
-              class="panel-btn export-btn"
-              title="導出編輯後的路徑資料"
-            >
-              <span class="btn-icon">📋</span>
-              <span class="btn-text">導出路徑</span>
-            </button>
+        <!-- 分隔線 -->
+        <div class="toolbar-divider"></div>
 
-            <button @click="clearAllVehicles" class="panel-btn clear-btn" title="清空所有車輛">
-              <span class="btn-icon">🧹</span>
-              <span class="btn-text">清空車輛</span>
-            </button>
-          </div>
-        </div>
+        <button @click="clearAllVehicles" class="toolbar-btn clear-btn" title="清空車輛">
+          <span class="btn-icon">🧹</span>
+        </button>
       </div>
     </div>
     <!-- lumo 小機器人助手 -->
@@ -558,7 +541,6 @@ const aiPrediction = ref({
 // MotionPathHelper 控制
 const isPathEditMode = ref(false)
 const isPathVisible = ref(false) // 路徑預設隱藏，需要按按鈕才顯示
-const isPanelCollapsed = ref(false) // 路口設置面板收合狀態
 const pathHelpers = ref([])
 const pathObservers = ref([]) // 路徑變化觀察器
 const tempEditedPaths = ref({}) // 暫存編輯中的路徑數據
@@ -587,11 +569,6 @@ const togglePathEditMode = () => {
 // 切換路徑顯示/隱藏
 const togglePathVisibility = () => {
   isPathVisible.value = !isPathVisible.value
-}
-
-// 切換路口設置面板收合狀態
-const togglePanel = () => {
-  isPanelCollapsed.value = !isPanelCollapsed.value
 }
 
 // 清空所有車輛
@@ -1577,201 +1554,101 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-/* 路口設置控制欄樣式（可收合） ---------------------------------------- */
-.intersection-control-panel {
+/* Photoshop 風格左側工具欄 ---------------------------------------- */
+.photoshop-toolbar {
   position: fixed;
   top: 50%;
   left: 0;
   transform: translateY(-50%);
   z-index: 1001;
   display: flex;
-  flex-direction: row;
-  transition: all 0.3s ease;
-}
-
-/* 收合狀態 */
-.intersection-control-panel.collapsed .panel-content {
-  transform: translateX(-100%);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.intersection-control-panel.collapsed .panel-toggle-btn {
-  left: 0;
-}
-
-/* 面板內容 */
-.panel-content {
-  display: flex;
   flex-direction: column;
-  gap: 12px;
-  background: linear-gradient(135deg, rgba(35, 80, 150, 0.95), rgba(35, 30, 100, 0.95));
-  border: 2px solid rgb(63, 117, 205);
-  border-top-right-radius: 12px;
-  border-bottom-right-radius: 12px;
-  border-left: none;
-  padding: 16px 12px;
-  box-shadow: 4px 0 20px rgba(30, 30, 100, 0.8);
-  backdrop-filter: blur(10px);
-  min-width: 140px;
-  transition: all 0.3s ease;
+  gap: 0;
+  background: linear-gradient(135deg, rgba(40, 40, 40, 0.98), rgba(30, 30, 30, 0.98));
+  border-right: 1px solid rgba(100, 100, 100, 0.5);
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+  padding: 8px 0;
 }
 
-/* 收合/展開按鈕 */
-.panel-toggle-btn {
-  position: absolute;
-  left: 152px; /* panel-content width + padding */
-  top: 50%;
-  transform: translateY(-50%);
-  width: 32px;
-  height: 80px;
-  background: linear-gradient(135deg, rgba(35, 80, 150, 0.95), rgba(35, 30, 100, 0.95));
-  border: 2px solid rgb(63, 117, 205);
-  border-left: none;
-  border-top-right-radius: 12px;
-  border-bottom-right-radius: 12px;
-  color: white;
-  font-size: 16px;
+.toolbar-btn {
+  width: 52px;
+  height: 52px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
   cursor: pointer;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
-  box-shadow: 4px 0 15px rgba(30, 30, 100, 0.6);
-  z-index: 1;
+  position: relative;
+  padding: 0;
 }
 
-.panel-toggle-btn:hover {
-  background: linear-gradient(135deg, rgba(55, 100, 170, 0.95), rgba(45, 40, 120, 0.95));
-  box-shadow: 4px 0 20px rgba(30, 30, 100, 0.9);
-}
-
-.toggle-icon {
-  font-size: 18px;
-  font-weight: bold;
-  transition: transform 0.3s ease;
-}
-
-.panel-toggle-btn:hover .toggle-icon {
-  transform: scale(1.2);
-}
-
-.panel-header {
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: rgb(200, 220, 255);
-  text-align: center;
-  margin-bottom: 4px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(63, 117, 205, 0.5);
-}
-
-.panel-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.panel-btn {
-  padding: 12px 10px;
-  border: 2px solid rgb(63, 117, 205);
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(45, 90, 160, 0.9), rgba(45, 40, 110, 0.9));
-  color: white;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-height: 60px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.btn-icon {
-  font-size: 20px;
+.toolbar-btn .btn-icon {
+  font-size: 24px;
   line-height: 1;
+  filter: grayscale(0.3);
+  transition: all 0.2s ease;
 }
 
-.btn-text {
+/* Hover 效果 */
+.toolbar-btn:hover {
+  background: rgba(80, 80, 80, 0.8);
+}
+
+.toolbar-btn:hover .btn-icon {
+  filter: grayscale(0);
+  transform: scale(1.15);
+}
+
+/* Tooltip 效果 */
+.toolbar-btn::after {
+  content: attr(title);
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 8px;
+  padding: 6px 12px;
+  background: rgba(40, 40, 40, 0.95);
+  color: white;
   font-size: 13px;
+  font-weight: 500;
+  border-radius: 4px;
   white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 10000;
+  border: 1px solid rgba(100, 100, 100, 0.5);
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
 }
 
-/* 顯示/隱藏路徑按鈕 */
-.panel-btn.visibility-btn {
-  background: linear-gradient(135deg, rgba(138, 43, 226, 0.9), rgba(75, 0, 130, 0.9));
-  border-color: rgb(138, 43, 226);
+.toolbar-btn:hover::after {
+  opacity: 1;
 }
 
-.panel-btn.visibility-btn:not(.active) {
-  background: linear-gradient(135deg, rgba(128, 128, 128, 0.9), rgba(64, 64, 64, 0.9));
-  border-color: rgb(128, 128, 128);
+/* Active 狀態 */
+.toolbar-btn.active {
+  background: rgba(100, 150, 255, 0.3);
+  border-left: 3px solid rgba(100, 150, 255, 1);
 }
 
-.panel-btn.visibility-btn:hover {
-  background: linear-gradient(135deg, rgba(148, 53, 236, 0.9), rgba(85, 10, 140, 0.9));
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(138, 43, 226, 0.5);
+.toolbar-btn.active .btn-icon {
+  filter: grayscale(0);
+  color: rgba(100, 150, 255, 1);
 }
 
-.panel-btn.visibility-btn:not(.active):hover {
-  background: linear-gradient(135deg, rgba(138, 138, 138, 0.9), rgba(74, 74, 74, 0.9));
+/* 清空車輛按鈕特殊樣式 */
+.toolbar-btn.clear-btn:hover {
+  background: rgba(220, 53, 69, 0.3);
 }
 
-/* 編輯路徑按鈕 */
-.panel-btn.edit-btn {
-  background: linear-gradient(135deg, rgba(35, 80, 150, 0.9), rgba(35, 30, 100, 0.9));
-  border-color: rgb(63, 117, 205);
-}
-
-.panel-btn.edit-btn.active {
-  background: linear-gradient(135deg, rgba(255, 165, 0, 0.9), rgba(255, 140, 0, 0.9));
-  border-color: rgb(255, 165, 0);
-  animation: pulse-btn 2s infinite;
-}
-
-.panel-btn.edit-btn:hover {
-  background: linear-gradient(135deg, rgba(55, 100, 170, 0.9), rgba(45, 40, 120, 0.9));
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(63, 117, 205, 0.5);
-}
-
-/* 導出路徑按鈕 */
-.panel-btn.export-btn {
-  background: linear-gradient(135deg, rgba(34, 139, 34, 0.9), rgba(0, 100, 0, 0.9));
-  border-color: rgb(34, 139, 34);
-}
-
-.panel-btn.export-btn:hover {
-  background: linear-gradient(135deg, rgba(44, 149, 44, 0.9), rgba(10, 110, 10, 0.9));
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(34, 139, 34, 0.5);
-}
-
-/* 清空車輛按鈕 */
-.panel-btn.clear-btn {
-  background: linear-gradient(135deg, rgba(220, 53, 69, 0.9), rgba(176, 27, 27, 0.9));
-  border-color: rgb(220, 53, 69);
-}
-
-.panel-btn.clear-btn:hover {
-  background: linear-gradient(135deg, rgba(230, 63, 79, 0.9), rgba(186, 37, 37, 0.9));
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.5);
-}
-
-@keyframes pulse-btn {
-  0% {
-    box-shadow: 0 2px 8px rgba(255, 165, 0, 0.4);
-  }
-  50% {
-    box-shadow: 0 4px 16px rgba(255, 165, 0, 0.7);
-  }
-  100% {
-    box-shadow: 0 2px 8px rgba(255, 165, 0, 0.4);
-  }
+/* 分隔線 */
+.toolbar-divider {
+  height: 1px;
+  background: linear-gradient(to right, rgba(100, 100, 100, 0), rgba(100, 100, 100, 0.5), rgba(100, 100, 100, 0));
+  margin: 4px 8px;
 }
 </style>
