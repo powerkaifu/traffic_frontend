@@ -1564,42 +1564,50 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0;
-  background: linear-gradient(135deg, rgba(40, 40, 40, 0.98), rgba(30, 30, 30, 0.98));
-  border-right: 1px solid rgba(100, 100, 100, 0.5);
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
-  padding: 8px 0;
+  /* 與其他介面元素保持一致的漸變背景 */
+  background: linear-gradient(135deg, rgba(35, 80, 150, 0.95), rgba(35, 30, 100, 0.95));
+  border: 2px solid rgb(63, 117, 205);
+  border-left: none;
+  border-radius: 0 12px 12px 0;
+  box-shadow:
+    0 0 20px rgba(30, 30, 100, 0.8),
+    4px 0 15px rgba(63, 117, 205, 0.3);
+  backdrop-filter: blur(10px);
+  padding: 10px 0;
 }
 
 .toolbar-btn {
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(200, 220, 255, 0.9);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   padding: 0;
+  margin: 2px 0;
 }
 
 .toolbar-btn .btn-icon {
-  font-size: 24px;
+  font-size: 26px;
   line-height: 1;
-  filter: grayscale(0.3);
-  transition: all 0.2s ease;
+  filter: drop-shadow(0 0 3px rgba(0, 255, 136, 0.3));
+  transition: all 0.3s ease;
 }
 
 /* Hover 效果 */
 .toolbar-btn:hover {
-  background: rgba(80, 80, 80, 0.8);
+  background: rgba(63, 117, 205, 0.4);
+  transform: translateX(2px);
 }
 
 .toolbar-btn:hover .btn-icon {
-  filter: grayscale(0);
-  transform: scale(1.15);
+  filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.6));
+  transform: scale(1.2);
 }
 
 /* Tooltip 效果 */
@@ -1609,20 +1617,22 @@ onUnmounted(() => {
   left: 100%;
   top: 50%;
   transform: translateY(-50%);
-  margin-left: 8px;
-  padding: 6px 12px;
-  background: rgba(40, 40, 40, 0.95);
-  color: white;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: 4px;
+  margin-left: 12px;
+  padding: 8px 14px;
+  /* 與其他介面保持一致的樣式 */
+  background: linear-gradient(135deg, rgba(35, 80, 150, 0.95), rgba(35, 30, 100, 0.95));
+  border: 2px solid rgb(63, 117, 205);
+  border-radius: 8px;
+  color: rgb(200, 220, 255);
+  font-size: 14px;
+  font-weight: 600;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.3s ease;
   z-index: 10000;
-  border: 1px solid rgba(100, 100, 100, 0.5);
-  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 15px rgba(30, 30, 100, 0.8);
+  backdrop-filter: blur(10px);
 }
 
 .toolbar-btn:hover::after {
@@ -1631,24 +1641,33 @@ onUnmounted(() => {
 
 /* Active 狀態 */
 .toolbar-btn.active {
-  background: rgba(100, 150, 255, 0.3);
-  border-left: 3px solid rgba(100, 150, 255, 1);
+  background: rgba(63, 117, 205, 0.5);
+  border-left: 4px solid #00ff88;
+  box-shadow: inset 0 0 10px rgba(0, 255, 136, 0.3);
 }
 
 .toolbar-btn.active .btn-icon {
-  filter: grayscale(0);
-  color: rgba(100, 150, 255, 1);
+  filter: drop-shadow(0 0 10px rgba(0, 255, 136, 0.8));
+  color: #00ff88;
+  transform: scale(1.1);
 }
 
 /* 清空車輛按鈕特殊樣式 */
 .toolbar-btn.clear-btn:hover {
-  background: rgba(220, 53, 69, 0.3);
+  background: rgba(220, 53, 69, 0.4);
+  border-left: 3px solid rgba(255, 100, 100, 0.8);
+}
+
+.toolbar-btn.clear-btn:hover .btn-icon {
+  filter: drop-shadow(0 0 8px rgba(255, 100, 100, 0.8));
+  color: rgba(255, 150, 150, 1);
 }
 
 /* 分隔線 */
 .toolbar-divider {
-  height: 1px;
-  background: linear-gradient(to right, rgba(100, 100, 100, 0), rgba(100, 100, 100, 0.5), rgba(100, 100, 100, 0));
-  margin: 4px 8px;
+  height: 2px;
+  background: linear-gradient(to right, rgba(63, 117, 205, 0), rgba(63, 117, 205, 0.6), rgba(63, 117, 205, 0));
+  margin: 8px 10px;
+  box-shadow: 0 0 5px rgba(63, 117, 205, 0.4);
 }
 </style>
