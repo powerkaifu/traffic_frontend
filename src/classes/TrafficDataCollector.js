@@ -148,6 +148,25 @@ export default class TrafficDataCollector {
         timestamp: timestamp || new Date().toISOString(),
         action: 'added',
       })
+      
+      // 🔥 立即更新平均速度和佔用率
+      this.calculateAverageSpeeds()
+      this.calculateOccupancy()
+      
+      // 🔥 立即觸發UI更新事件
+      window.dispatchEvent(
+        new CustomEvent('trafficDataUpdated', {
+          detail: {
+            currentData: this.getCurrentPeriodSummary(),
+            timestamp: new Date().toISOString(),
+            source: 'vehicle_added',
+          },
+        }),
+      )
+      
+      console.log(
+        `📌 車輛記錄: ${direction}方向 ${type}車輛, 速度: ${speed}km/h, 總數: ${this.currentPeriodData.totalCount[direction].total}`,
+      )
     }
 
     this.vehicleRemovedListener = (event) => {
