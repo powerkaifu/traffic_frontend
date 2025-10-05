@@ -76,17 +76,18 @@ export default class TrafficDataCollector {
     this.isCollecting = true
     this.resetCurrentPeriod()
 
-    // 綠燈事件監聽
+    // 🔧 修正：立即啟動車輛事件監聽，不受綠燈限制
+    this.startVehicleEventListening()
+
+    // 綠燈事件監聽（僅用於重置和發送 API）
     this.greenLightListenerStart = () => {
-      console.log('🟢 綠燈開始，啟動車輛事件收集')
+      console.log('🟢 綠燈開始，重置數據收集週期')
       this.greenLightActive = true
       this.resetCurrentPeriod()
-      this.startVehicleEventListening()
     }
     this.greenLightListenerEnd = () => {
-      console.log('� 綠燈結束，停止收集並送出 API')
+      console.log('🔴 綠燈結束，發送 API')
       this.greenLightActive = false
-      this.stopVehicleEventListening()
       this.finalizeCurrentPeriodAndSend()
     }
     window.addEventListener('greenLightStarted', this.greenLightListenerStart)
@@ -95,7 +96,7 @@ export default class TrafficDataCollector {
     // 若要保留原本定時收集，可選擇啟用
     // this.startPeriodicCollection()
 
-    console.log('🚀 交通數據收集器已啟動 (綠燈週期模式)')
+    console.log('🚀 交通數據收集器已啟動 (持續監聽模式)')
   }
 
   /**
@@ -138,8 +139,13 @@ export default class TrafficDataCollector {
    * 開始監聽車輛事件
    */
   startVehicleEventListening() {
-    // 僅在綠燈期間啟用
-    if (!this.greenLightActive) return
+    // 🔧 修正：移除綠燈檢查，持續監聽所有車輛事件
+    // 防止重複註冊監聽器
+    if (this.vehicleAddedListener || this.vehicleRemovedListener) {
+      console.log('⚠️ 車輛事件監聽器已存在，跳過註冊')
+      return
+    }
+
     this.vehicleAddedListener = (event) => {
       const { direction, type, vehicleId, speed, timestamp } = event.detail
       this.recordVehicleData(direction, type, {
@@ -148,11 +154,11 @@ export default class TrafficDataCollector {
         timestamp: timestamp || new Date().toISOString(),
         action: 'added',
       })
-      
+
       // 🔥 立即更新平均速度和佔用率
       this.calculateAverageSpeeds()
       this.calculateOccupancy()
-      
+
       // 🔥 立即觸發UI更新事件
       window.dispatchEvent(
         new CustomEvent('trafficDataUpdated', {
@@ -162,10 +168,6 @@ export default class TrafficDataCollector {
             source: 'vehicle_added',
           },
         }),
-      )
-      
-      console.log(
-        `📌 車輛記錄: ${direction}方向 ${type}車輛, 速度: ${speed}km/h, 總數: ${this.currentPeriodData.totalCount[direction].total}`,
       )
     }
 
@@ -183,7 +185,7 @@ export default class TrafficDataCollector {
     window.addEventListener('vehicleAdded', this.vehicleAddedListener)
     window.addEventListener('vehicleRemoved', this.vehicleRemovedListener)
 
-    console.log('🎧 開始監聽車輛事件 (綠燈期間)')
+    console.log('🎧 開始監聽車輛事件 (持續監聽模式)')
   }
 
   /**
