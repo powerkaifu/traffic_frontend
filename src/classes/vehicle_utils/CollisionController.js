@@ -288,23 +288,26 @@ export class CollisionController {
     const currentBox = this.vehicle.getBoundingBox()
     const canProceedWithTrafficLight = this.canProceedWithCurrentLight()
 
+    // 🚦 使用配置文件的排隊參數
+    const baseGap = DISTANCE_CONFIG.BASE_DISTANCES.MIN_GAP // 25px
+    
     // 🚦 根據車道和交通燈狀態動態調整排隊參數
     let QUEUE_GAP, MIN_FOLLOW_DISTANCE
 
     if (this.vehicle.laneNumber === 1) {
       if (canProceedWithTrafficLight) {
-        // 🚦 1號車道左轉綠燈：使用較寬鬆的參數，但仍維持基本排隊
-        QUEUE_GAP = 12 // 從20px降到12px
-        MIN_FOLLOW_DISTANCE = 8 // 從12px降到8px
+        // 🚦 1號車道左轉綠燈：使用較寬鬆的參數
+        QUEUE_GAP = baseGap * 0.8 // 20px
+        MIN_FOLLOW_DISTANCE = baseGap * 0.5 // 12.5px
       } else {
         // 🚦 1號車道紅燈：使用嚴格的排隊距離
-        QUEUE_GAP = 20
-        MIN_FOLLOW_DISTANCE = 12
+        QUEUE_GAP = baseGap // 25px
+        MIN_FOLLOW_DISTANCE = baseGap * 0.6 // 15px
       }
     } else {
       // 🚦 其他車道：標準參數
-      QUEUE_GAP = 15
-      MIN_FOLLOW_DISTANCE = 8
+      QUEUE_GAP = baseGap // 25px
+      MIN_FOLLOW_DISTANCE = baseGap * 0.5 // 12.5px
     }
 
     // 只檢查同方向同車道的車輛
@@ -402,9 +405,9 @@ export class CollisionController {
       }
     }
 
-    // 🚦 情況3：距離太近但前車已停止 - 停止等待
+    // 🚦 情況3：距離太近但前車已停止
     if (minDistance < MIN_FOLLOW_DISTANCE) {
-      // 如果前車已停止，但距離略大於停止距離，允許慢速前進到排隊位置
+      // 檢查前車是否已停止
       const frontIsStopped =
         !closestFrontVehicle ||
         closestFrontVehicle.currentState === 'waitingForVehicle' ||
@@ -412,6 +415,7 @@ export class CollisionController {
         closestFrontVehicle.waitingForGreen ||
         (closestFrontVehicle.movementTimeline && closestFrontVehicle.movementTimeline.timeScale() <= 0.01)
 
+      // ✅ 原始正確邏輯：前車停止時，如果距離略大於停止距離，允許慢速前進
       if (frontIsStopped && minDistance > Math.max(4, QUEUE_GAP * 0.3)) {
         return {
           shouldStop: false,
@@ -419,11 +423,12 @@ export class CollisionController {
           vehicle: closestFrontVehicle,
           distance: minDistance,
           requiredGap: QUEUE_GAP,
-          reason: `緩慢前進到排隊位置`,
+          reason: `緩慢前進到排隊位置: 距離${minDistance.toFixed(1)}px`,
           targetSpeed: 0.12,
         }
       }
 
+      // ✅ 距離太近：完全停止
       return {
         shouldStop: true,
         shouldFollow: false,
@@ -742,9 +747,10 @@ export class CollisionController {
       // 如果前車較慢或停止，後車必須更大幅度減速
       let speedRatio
       if (frontVehicleSpeed <= 0.1) {
-        // 前車停止：如果距離稍微大於停止距離，允許緩慢前進以形成排隊
+        // 前車停止：使用標準的緩慢前進速度
         if (distance > effectiveStopDistance + 2) {
-          speedRatio = 0.12 // 非常緩慢的前進速度
+          // 使用配置的最小跟車速度
+          speedRatio = FOLLOWING_CONFIG.SPEED_RATIOS.MIN_SPEED_RATIO // 0.15
         } else {
           // 距離太近仍需停止
           speedRatio = 0
