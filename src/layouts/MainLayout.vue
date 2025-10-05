@@ -72,7 +72,13 @@
                   v-for="scenario in timeScenarios"
                   :key="scenario.key"
                   @click="switchToTimeScenario(scenario.key)"
-                  :class="['scenario-btn-compact', { active: currentTimeScenario === scenario.key }]"
+                  :class="[
+                    'scenario-btn-compact',
+                    {
+                      active: isScenarioActive(scenario.key),
+                      'auto-matched': !isAutoMode && autoMatchedScenario === scenario.key,
+                    },
+                  ]"
                   :title="`${scenario.name} (${scenario.timeRange})`"
                   :disabled="isAutoMode"
                 >
@@ -344,6 +350,9 @@ const manualPeakMultiplier = ref(1.0)
 const manualInterval = ref(1000)
 const currentInterval = ref(7.0)
 
+// 🎯 新增：拉桿自動匹配的情境（用於高亮顯示）
+const autoMatchedScenario = ref(null)
+
 // timeScenarios 已從 trafficScenarioConfig.js 匯入
 const currentScenarioDetails = computed(() => {
   const s = timeScenarios.find((s) => s.key === currentTimeScenario.value)
@@ -362,6 +371,52 @@ const drawerWidth = computed(() => {
   return 600
 })
 const lightPosition = computed(() => (rightDrawerOpen.value && $q.screen.gt.md ? '35% 50%' : '50% 50%'))
+
+// 🎯 新增：計算拉桿值與情境的匹配度
+// 基於配置文件 timeScenarios，完全配置驅動
+function calculateScenarioMatch(currentMultiplier, currentInterval) {
+  // 從配置讀取各情境的參數
+  const scenarios = timeScenarios.map((scenario) => ({
+    key: scenario.key,
+    name: scenario.name,
+    multiplier: scenario.config.peakMultiplier,
+    interval: scenario.config.interval.normal,
+  }))
+
+  // 計算每個情境與當前值的距離（歐幾里得距離）
+  const scores = scenarios.map((scenario) => {
+    // 歸一化：將不同量綱的參數標準化到同一尺度
+    const multiplierDiff = Math.abs(currentMultiplier - scenario.multiplier) / 4.0 // peakMultiplier 最大約 4.0
+    const intervalDiff = Math.abs(currentInterval - scenario.interval) / 25000 // interval 最大約 25000ms
+
+    // 計算歐幾里得距離
+    const distance = Math.sqrt(multiplierDiff ** 2 + intervalDiff ** 2)
+
+    return {
+      key: scenario.key,
+      name: scenario.name,
+      distance: distance,
+    }
+  })
+
+  // 找出距離最小的情境（最接近的）
+  const closest = scores.reduce((min, curr) => (curr.distance < min.distance ? curr : min))
+
+  return closest.key
+}
+
+// 🎯 新增：判斷情境按鈕是否應該高亮
+// 自動模式：按當前時段情境高亮
+// 手動模式：按拉桿匹配的情境高亮
+function isScenarioActive(scenarioKey) {
+  if (isAutoMode.value) {
+    // 自動模式：高亮當前時段對應的情境
+    return currentTimeScenario.value === scenarioKey
+  } else {
+    // 手動模式：高亮拉桿自動匹配的情境
+    return autoMatchedScenario.value === scenarioKey
+  }
+}
 
 const forceUpdateTrigger = ref(0)
 const startDataUpdate = () => {
@@ -434,6 +489,9 @@ function updateGenerationConfig() {
   const baseInterval = manualInterval.value
   const multiplier = manualPeakMultiplier.value
 
+  // 🎯 新增：計算並更新自動匹配的情境
+  autoMatchedScenario.value = calculateScenarioMatch(multiplier, baseInterval)
+
   let finalInterval = baseInterval
   if (multiplier > 0) {
     // 🚨 修正：multiplier 越大，間隔應該越短（生成越頻繁）
@@ -460,6 +518,7 @@ function updateGenerationConfig() {
     finalInterval,
     minInterval,
     maxInterval,
+    autoMatchedScenario: autoMatchedScenario.value, // 🎯 新增：顯示匹配的情境
   })
   console.log('interval:', window.autoTrafficGenerator?.config?.interval)
   console.log('maxLiveVehicles:', window.autoTrafficGenerator?.maxLiveVehicles)
@@ -701,6 +760,47 @@ onUnmounted(() => {
   color: #ffffff;
   box-shadow: 0 0 12px rgba(0, 123, 255, 0.8);
   transform: translateY(-2px) scale(1.05);
+}
+
+/* 🎯 新增：自動匹配時的脈動動畫效果 */
+.scenario-btn-compact.auto-matched:not(:disabled) {
+  animation: pulse-glow 2s ease-in-out infinite;
+  position: relative;
+}
+
+/* 🎯 新增：自動匹配指示點 */
+.scenario-btn-compact.auto-matched:not(:disabled)::after {
+  content: '●';
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  color: #00ff00;
+  font-size: 8px;
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+/* 脈動動畫 */
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 12px rgba(0, 123, 255, 0.8);
+  }
+  50% {
+    box-shadow:
+      0 0 20px rgba(0, 123, 255, 1),
+      0 0 30px rgba(0, 255, 255, 0.6);
+  }
+}
+
+/* 閃爍動畫 */
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 .scenario-btn-compact:disabled {
@@ -1153,7 +1253,7 @@ onUnmounted(() => {
 
   .system-header {
     right: 0;
-    top: 20px;
+    top: 40px;
     left: 180px;
   }
 

@@ -689,7 +689,7 @@ const clearAllVehicles = () => {
     activeCars.value = []
 
     // 逐一移除車輛的 DOM 元素
-    vehiclesToRemove.forEach((vehicle, index) => {
+    vehiclesToRemove.forEach((vehicle) => {
       try {
         if (vehicle && typeof vehicle.remove === 'function') {
           vehicle.remove()
