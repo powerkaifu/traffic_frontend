@@ -251,7 +251,12 @@
       <div class="timer-display">
         <div class="timer-content">
           <div class="timer-phase">{{ currentPhase }}</div>
-          <div class="timer-countdown">{{ countdown }}</div>
+          <div 
+            class="timer-countdown" 
+            :style="getCountdownStyle()"
+          >
+            {{ countdown }}
+          </div>
         </div>
       </div>
 
@@ -356,7 +361,7 @@ import AutoTrafficGenerator from '../classes/AutoTrafficGenerator.js'
 import TrafficDataCollector from '../classes/TrafficDataCollector.js'
 import Vehicle from '../classes/Vehicle.js'
 import { createLanePathCalculator } from '../utils/lanePathCalculator.js'
-import { stopLineConfig } from '../classes/config/trafficConfig.js'
+import { stopLineConfig, lightColorConfig } from '../classes/config/trafficConfig.js'
 import WeatherController from '../classes/WeatherController.js'
 import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
 
@@ -562,6 +567,35 @@ const trafficDataCollector = new TrafficDataCollector()
 const currentPhase = ref('南北向 綠燈')
 const countdown = ref(15)
 const activeCars = ref([]) // 維護活躍車輛列表
+
+// 🎨 根據當前燈號狀態計算倒數計時器顏色
+const getCountdownStyle = () => {
+  const phaseText = currentPhase.value
+  
+  // 根據燈號文字判斷顏色
+  if (phaseText.includes('綠燈') || phaseText.includes('左轉綠')) {
+    return {
+      color: lightColorConfig.green,
+      textShadow: lightColorConfig.textShadow.green
+    }
+  } else if (phaseText.includes('黃燈')) {
+    return {
+      color: lightColorConfig.yellow,
+      textShadow: lightColorConfig.textShadow.yellow
+    }
+  } else if (phaseText.includes('紅燈') || phaseText.includes('全紅')) {
+    return {
+      color: lightColorConfig.red,
+      textShadow: lightColorConfig.textShadow.red
+    }
+  }
+  
+  // 預設為綠色（保持原有樣式）
+  return {
+    color: lightColorConfig.green,
+    textShadow: lightColorConfig.textShadow.green
+  }
+}
 
 // AI 預測結果
 const aiPrediction = ref({
@@ -1572,8 +1606,10 @@ onUnmounted(() => {
 .timer-countdown {
   font-size: 2.5rem;
   font-weight: bold;
-  color: #00ff88;
-  text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+  /* 顏色現在由 getCountdownStyle() 動態設定，移除硬編碼 */
+  /* color: #00ff88; */
+  /* text-shadow: 0 0 10px rgba(0, 255, 136, 0.5); */
+  transition: all 0.3s ease; /* 添加顏色變化過渡效果 */
 }
 
 .timer-unit {
