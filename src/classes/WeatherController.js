@@ -23,6 +23,8 @@ export class WeatherController {
     this.particles = [] // 粒子陣列
     this.animations = [] // 動畫陣列
     this.isActive = false // 是否啟用天氣效果
+    this.lightningInterval = null // 閃電定時器
+    this.lightningLayer = null // 閃電圖層
 
     this.init()
   }
@@ -85,6 +87,7 @@ export class WeatherController {
         break
       case WEATHER_TYPES.HEAVY_RAIN:
         this.createRain('HEAVY')
+        this.createLightning() // 大雨時啟用閃電效果
         break
       case WEATHER_TYPES.FOG:
         this.createFog()
@@ -371,16 +374,126 @@ export class WeatherController {
   }
 
   /**
+   * 創建閃電效果（用於大雨天氣）
+   */
+  createLightning() {
+    const config = RAIN_CONFIG.LIGHTNING
+
+    if (!config.ENABLED) {
+      return
+    }
+
+    console.log('⚡ 創建閃電效果')
+
+    // 創建閃電圖層
+    this.lightningLayer = document.createElement('div')
+    this.lightningLayer.className = 'lightning-layer'
+    this.lightningLayer.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: ${config.FLASH_COLOR};
+      opacity: 0;
+      pointer-events: none;
+      z-index: 1001;
+    `
+
+    this.weatherLayer.appendChild(this.lightningLayer)
+
+    // 啟動閃電循環
+    this.scheduleLightning()
+  }
+
+  /**
+   * 安排下一次閃電
+   */
+  scheduleLightning() {
+    const config = RAIN_CONFIG.LIGHTNING
+
+    // 清除舊的定時器
+    if (this.lightningInterval) {
+      clearTimeout(this.lightningInterval)
+    }
+
+    // 隨機間隔時間
+    const interval =
+      (config.MIN_INTERVAL + Math.random() * (config.MAX_INTERVAL - config.MIN_INTERVAL)) * 1000
+
+    this.lightningInterval = setTimeout(() => {
+      this.triggerLightning()
+    }, interval)
+  }
+
+  /**
+   * 觸發閃電效果
+   */
+  triggerLightning() {
+    if (!this.lightningLayer) {
+      return
+    }
+
+    const config = RAIN_CONFIG.LIGHTNING
+
+    // 單次閃電
+    gsap.to(this.lightningLayer, {
+      opacity: 1,
+      duration: config.FLASH_DURATION * 0.3,
+      ease: 'power2.in',
+      onComplete: () => {
+        gsap.to(this.lightningLayer, {
+          opacity: 0,
+          duration: config.FLASH_DURATION * 0.7,
+          ease: 'power2.out',
+        })
+      },
+    })
+
+    // 有機率觸發雙重閃電
+    if (Math.random() < config.DOUBLE_FLASH_CHANCE) {
+      setTimeout(() => {
+        if (this.lightningLayer) {
+          gsap.to(this.lightningLayer, {
+            opacity: 0.8,
+            duration: config.FLASH_DURATION * 0.4,
+            ease: 'power2.in',
+            onComplete: () => {
+              gsap.to(this.lightningLayer, {
+                opacity: 0,
+                duration: config.FLASH_DURATION * 0.6,
+                ease: 'power2.out',
+              })
+            },
+          })
+        }
+      }, config.DOUBLE_FLASH_DELAY * 1000)
+    }
+
+    // 安排下一次閃電
+    this.scheduleLightning()
+  }
+
+  /**
    * 清除天氣效果
    */
   async clearWeather() {
     return new Promise((resolve) => {
-      if (this.particles.length === 0 && this.animations.length === 0) {
+      if (this.particles.length === 0 && this.animations.length === 0 && !this.lightningInterval) {
         resolve()
         return
       }
 
       console.log('🧹 清除天氣效果')
+
+      // 停止閃電定時器
+      if (this.lightningInterval) {
+        clearTimeout(this.lightningInterval)
+        this.lightningInterval = null
+      }
+
+      // 清除閃電圖層引用
+      this.lightningLayer = null
 
       // 停止所有動畫
       this.animations.forEach((tween) => {
@@ -439,11 +552,18 @@ export class WeatherController {
   destroy() {
     this.clearWeather()
 
+    // 清除閃電定時器
+    if (this.lightningInterval) {
+      clearTimeout(this.lightningInterval)
+      this.lightningInterval = null
+    }
+
     if (this.weatherLayer && this.weatherLayer.parentNode) {
       this.weatherLayer.parentNode.removeChild(this.weatherLayer)
     }
 
     this.weatherLayer = null
+    this.lightningLayer = null
     this.container = null
 
     console.log('🌤️ 天氣系統已銷毀')

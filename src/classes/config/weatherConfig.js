@@ -46,6 +46,17 @@ export const RAIN_CONFIG = {
     NORMAL: 0.8, // 中雨：速度降至80%
     HEAVY: 0.7, // 大雨：速度降至70%
   },
+
+  // 閃電效果設定（僅用於大雨）
+  LIGHTNING: {
+    ENABLED: true, // 是否啟用閃電效果
+    MIN_INTERVAL: 3, // 最短間隔時間（秒）
+    MAX_INTERVAL: 8, // 最長間隔時間（秒）
+    FLASH_DURATION: 0.2, // 閃光持續時間（秒）
+    FLASH_COLOR: 'rgba(255, 255, 255, 0.4)', // 閃電顏色
+    DOUBLE_FLASH_CHANCE: 0.3, // 雙重閃電機率（30%）
+    DOUBLE_FLASH_DELAY: 0.15, // 雙重閃電間隔（秒）
+  },
 }
 
 // ===== 霧天效果設定 =====
