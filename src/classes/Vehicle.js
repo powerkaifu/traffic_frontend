@@ -944,8 +944,13 @@ export default class Vehicle {
 
       // 記錄移動開始時間和初始化數據
       this.movementStartTime = new Date().toISOString()
-      this.currentSpeed = this.initialSpeed
-      this.maxSpeed = this.initialSpeed
+      
+      // 🌤️ 初始化速度時考慮天氣影響
+      const weatherMultiplier = this.getWeatherSpeedMultiplier()
+      const effectiveSpeed = Math.round(this.initialSpeed * weatherMultiplier)
+      
+      this.currentSpeed = effectiveSpeed
+      this.maxSpeed = effectiveSpeed
 
       let lastPosition = this.getCurrentPosition()
       let lastTime = Date.now()
@@ -1034,7 +1039,12 @@ export default class Vehicle {
                 )
                 const pixelSpeed = deltaDistance / deltaTime
                 const meterSpeed = (pixelSpeed / 100) * 15
-                const kmhSpeed = meterSpeed * 3.6
+                let kmhSpeed = meterSpeed * 3.6
+                
+                // 🌤️ 應用天氣影響到速度計算
+                const weatherMultiplier = this.getWeatherSpeedMultiplier()
+                kmhSpeed *= weatherMultiplier
+                
                 this.currentSpeed = Math.round(kmhSpeed)
                 this.maxSpeed = Math.max(this.maxSpeed, this.currentSpeed)
                 lastPosition = currentPos
@@ -1290,8 +1300,13 @@ export default class Vehicle {
     return new Promise((resolve) => {
       // 記錄移動開始時間和初始化數據
       this.movementStartTime = new Date().toISOString()
-      this.currentSpeed = this.initialSpeed
-      this.maxSpeed = this.initialSpeed
+      
+      // 🌤️ 初始化速度時考慮天氣影響
+      const weatherMultiplier = this.getWeatherSpeedMultiplier()
+      const effectiveSpeed = Math.round(this.initialSpeed * weatherMultiplier)
+      
+      this.currentSpeed = effectiveSpeed
+      this.maxSpeed = effectiveSpeed
 
       // 計算總距離 - 根據車輛方向確保正交移動
       const startPos = this.getCurrentPosition()
@@ -1367,7 +1382,11 @@ export default class Vehicle {
               // 計算像素/秒速度，然後轉換為 km/h (假設100像素 = 15米)
               const pixelSpeed = deltaDistance / deltaTime
               const meterSpeed = (pixelSpeed / 100) * 15 // 轉換為 m/s
-              const kmhSpeed = meterSpeed * 3.6 // 轉換為 km/h
+              let kmhSpeed = meterSpeed * 3.6 // 轉換為 km/h
+
+              // 🌤️ 應用天氣影響到速度計算
+              const weatherMultiplier = this.getWeatherSpeedMultiplier()
+              kmhSpeed *= weatherMultiplier
 
               this.currentSpeed = Math.round(kmhSpeed)
               this.maxSpeed = Math.max(this.maxSpeed, this.currentSpeed)

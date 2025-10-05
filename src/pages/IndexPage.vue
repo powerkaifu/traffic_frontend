@@ -347,6 +347,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { useQuasar } from 'quasar'
 import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { MotionPathHelper } from 'gsap/MotionPathHelper'
@@ -361,6 +362,9 @@ import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
 
 // 註冊 GSAP MotionPathPlugin 和 MotionPathHelper
 gsap.registerPlugin(MotionPathPlugin, MotionPathHelper)
+
+// 使用 Quasar
+const $q = useQuasar()
 
 // 提升 handleScenarioChange 作用域，讓 onUnmounted 可移除
 const handleScenarioChange = (event) => {
@@ -622,7 +626,7 @@ const changeWeather = async (weatherType) => {
 
     // 通知用戶
     const option = weatherOptions.value.find((w) => w.type === currentWeather.value)
-    window.$q.notify({
+    $q.notify({
       type: 'info',
       message: `天氣已切換至 ${option ? option.label : currentWeather.value}`,
       icon: option ? option.icon : '🌤️',
@@ -633,7 +637,7 @@ const changeWeather = async (weatherType) => {
     console.log(`🌤️ 天氣已切換至 ${currentWeather.value}`)
   } catch (error) {
     console.error('❌ 切換天氣失敗:', error)
-    window.$q.notify({
+    $q.notify({
       type: 'negative',
       message: '切換天氣失敗',
       position: 'top',
@@ -669,7 +673,7 @@ const clearAllVehicles = () => {
 
     if (vehicleCount === 0) {
       console.log('✅ 沒有車輛需要清空')
-      window.$q.notify({
+      $q.notify({
         type: 'info',
         message: '目前沒有車輛',
         position: 'top',
@@ -689,7 +693,6 @@ const clearAllVehicles = () => {
       try {
         if (vehicle && typeof vehicle.remove === 'function') {
           vehicle.remove()
-          console.log(`🚗 已移除車輛 ${index + 1}/${vehicleCount}: ${vehicle.id}`)
         }
       } catch (error) {
         console.warn(`⚠️ 移除車輛失敗 (${vehicle.id}):`, error)
@@ -699,7 +702,7 @@ const clearAllVehicles = () => {
     console.log('✅ 所有車輛已清空完成')
 
     // 顯示成功通知
-    window.$q.notify({
+    $q.notify({
       type: 'positive',
       message: `已清空 ${vehicleCount} 輛車輛`,
       position: 'top',
@@ -718,7 +721,7 @@ const clearAllVehicles = () => {
     )
   } catch (error) {
     console.error('❌ 清空車輛時發生錯誤:', error)
-    window.$q.notify({
+    $q.notify({
       type: 'negative',
       message: '清空車輛時發生錯誤',
       position: 'top',
