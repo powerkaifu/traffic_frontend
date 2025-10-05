@@ -2,6 +2,7 @@
  * AutoTrafficGenerator.js - 自動車流分派系統
  */
 import { getScenarioByTime, vehicleMixes, defaultConfig } from './config/trafficScenarioConfig.js'
+import { FOLLOWING_CONFIG } from './config/vehicleConfig.js'
 
 export default class AutoTrafficGenerator {
   constructor(trafficController) {
@@ -9,9 +10,12 @@ export default class AutoTrafficGenerator {
     this.isRunning = false
     this.timer = null
 
-    // 🚨 新增：車道級別生成冷卻機制
+    // 🚨 新增：車道級別生成冷卻機制（使用配置參數）
     this.laneGenerationCooldown = {} // 記錄每個車道的最後生成時間
     this.minLaneInterval = 2000 // 同一車道最小生成間隔（2秒）
+
+    // 🚗 從配置中獲取安全距離，並計算合適的生成間隔
+    this.updateGenerationIntervalsFromConfig()
 
     // 使用共用配置
     this.defaultConfig = defaultConfig
@@ -40,6 +44,25 @@ export default class AutoTrafficGenerator {
     ]
 
     this.vehicleMixes = vehicleMixes
+  }
+
+  // 🚗 新增：從配置文件更新生成間隔參數
+  updateGenerationIntervalsFromConfig() {
+    const autoFollowConfig = FOLLOWING_CONFIG.AUTO_FOLLOW_AFTER_COLLISION
+    if (autoFollowConfig && autoFollowConfig.LONG_DISTANCE_QUEUE_CATCH_UP) {
+      const safeDistance = autoFollowConfig.LONG_DISTANCE_QUEUE_CATCH_UP.SAFE_SPAWN_DISTANCE || 100
+
+      // 根據安全距離計算最小生成間隔
+      // 假設車輛平均速度為30km/h ≈ 8.33m/s ≈ 8.33px/10ms
+      // 要通過safeDistance需要的時間 = safeDistance / (8.33 * 100) * 1000 ms
+      const avgSpeedPxPerMs = 0.833 // 30km/h轉換為像素/毫秒
+      const timeToPassSafeDistance = safeDistance / avgSpeedPxPerMs
+
+      // 設置最小間隔為通過安全距離所需時間的1.5倍（安全係數）
+      this.minLaneInterval = Math.max(1000, Math.round(timeToPassSafeDistance * 1.5))
+
+      console.log(`🔧 根據配置安全距離(${safeDistance}px)計算車道生成間隔: ${this.minLaneInterval}ms`)
+    }
   }
 
   // 啟動生成
@@ -327,7 +350,9 @@ export default class AutoTrafficGenerator {
         : []
 
       let isTooClose = false
-      const minVehicleDistance = 150 // 🚨 增加最小車輛距離到150px（約2個車身長度）
+      // 🚗 使用配置的安全生成距離
+      const minVehicleDistance =
+        FOLLOWING_CONFIG.AUTO_FOLLOW_AFTER_COLLISION.LONG_DISTANCE_QUEUE_CATCH_UP.SAFE_SPAWN_DISTANCE || 100
 
       for (const vehicle of sameDirectionVehicles) {
         // 獲取車輛當前位置
@@ -380,7 +405,10 @@ export default class AutoTrafficGenerator {
         return
       }
 
-      // 🚨 新增：檢查是否有車輛在同一車道的前200px範圍內
+      // 🚨 新增：檢查是否有車輛在同一車道的前方範圍內
+      const frontCheckDistance =
+        FOLLOWING_CONFIG.AUTO_FOLLOW_AFTER_COLLISION.LONG_DISTANCE_QUEUE_CATCH_UP.SAFE_SPAWN_DISTANCE * 2 || 200 // 檢查前方2倍安全距離
+
       for (const vehicle of sameDirectionVehicles) {
         if (!vehicle.currentPosition || !vehicle.laneNumber) continue
 
@@ -389,7 +417,6 @@ export default class AutoTrafficGenerator {
         if (!wouldBeInSameLane) continue
 
         let isInFrontRange = false
-        const frontCheckDistance = 200 // 檢查前方200px範圍
 
         switch (selectedDir) {
           case 'east':
@@ -407,7 +434,7 @@ export default class AutoTrafficGenerator {
         }
 
         if (isInFrontRange) {
-          console.log(`🚨 ${selectedDir}方向前方200px內有同車道車輛，延後生成`)
+          console.log(`🚨 ${selectedDir}方向前方${frontCheckDistance}px內有同車道車輛，延後生成`)
           setTimeout(() => this._scheduleNext(), Math.max(400, this.minLaneInterval / 2))
           return
         }
@@ -447,6 +474,21 @@ export default class AutoTrafficGenerator {
 
     // 🎯 新增：左轉車輛生成機率（20%機率生成左轉車輛）
     const isLeftTurn = Math.random() < 0.2
+
+    // 🚗 新增：最終生成前的安全位置檢查
+    const spawnPoints = {
+      east: { x: 0, y: isLeftTurn ? 300 : 350 }, // 東向起始點
+      west: { x: 800, y: isLeftTurn ? 300 : 350 }, // 西向起始點
+      north: { x: isLeftTurn ? 400 : 450, y: 600 }, // 北向起始點
+      south: { x: isLeftTurn ? 400 : 450, y: 0 }, // 南向起始點
+    }
+
+    const proposedSpawnPoint = spawnPoints[selectedDir]
+    if (!this._isSpawnPositionSafe(selectedDir, proposedSpawnPoint)) {
+      console.log(`🚨 ${selectedDir}方向生成位置不安全，延後生成`)
+      setTimeout(() => this._scheduleNext(), Math.max(500, this.minLaneInterval / 2))
+      return
+    }
 
     if (isLeftTurn) {
       // 生成左轉車輛（車道1）
@@ -539,5 +581,43 @@ export default class AutoTrafficGenerator {
     } else {
       return existingVehicle.laneNumber >= 2 && existingVehicle.laneNumber <= 4 // 直行車輛在車道2-4
     }
+  }
+
+  // 🚗 新增：檢查生成位置是否安全（避免與前車重疊碰撞）
+  _isSpawnPositionSafe(direction, proposedSpawnPoint) {
+    const sameDirectionVehicles = window.liveVehicles
+      ? window.liveVehicles.filter((v) => v.direction === direction && v.currentPosition)
+      : []
+
+    // 使用配置的安全生成距離
+    const safeDistance =
+      FOLLOWING_CONFIG.AUTO_FOLLOW_AFTER_COLLISION.LONG_DISTANCE_QUEUE_CATCH_UP.SAFE_SPAWN_DISTANCE || 100
+
+    for (const vehicle of sameDirectionVehicles) {
+      if (!vehicle.currentPosition) continue
+
+      let distance = 0
+      switch (direction) {
+        case 'east':
+          distance = Math.abs(vehicle.currentPosition.x - proposedSpawnPoint.x)
+          break
+        case 'west':
+          distance = Math.abs(vehicle.currentPosition.x - proposedSpawnPoint.x)
+          break
+        case 'north':
+          distance = Math.abs(vehicle.currentPosition.y - proposedSpawnPoint.y)
+          break
+        case 'south':
+          distance = Math.abs(vehicle.currentPosition.y - proposedSpawnPoint.y)
+          break
+      }
+
+      if (distance < safeDistance) {
+        console.log(`🚨 生成位置距離現有車輛太近: ${distance.toFixed(1)}px < ${safeDistance}px`)
+        return false
+      }
+    }
+
+    return true
   }
 }
