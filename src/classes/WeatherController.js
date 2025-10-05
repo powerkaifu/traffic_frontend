@@ -58,6 +58,13 @@ export class WeatherController {
    * @param {string} weatherType - 天氣類型
    */
   async changeWeather(weatherType) {
+    // 如果點擊當前已啟用的天氣，則切換回晴天（關閉效果）
+    if (this.currentWeather === weatherType && weatherType !== WEATHER_TYPES.CLEAR) {
+      console.log(`🌤️ 關閉天氣效果：${weatherType} -> ${WEATHER_TYPES.CLEAR}`)
+      weatherType = WEATHER_TYPES.CLEAR
+    }
+
+    // 如果已經是目標天氣，無需切換
     if (this.currentWeather === weatherType) {
       console.log(`🌤️ 天氣已經是 ${weatherType}，無需切換`)
       return
@@ -389,6 +396,8 @@ export class WeatherController {
           // 清空天氣圖層
           if (this.weatherLayer) {
             this.weatherLayer.innerHTML = ''
+            // 重置 opacity 為 1，以便下次天氣效果可以正常顯示
+            gsap.set(this.weatherLayer, { opacity: 1 })
           }
           this.particles = []
           this.isActive = false

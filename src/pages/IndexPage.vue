@@ -616,20 +616,21 @@ const changeWeather = async (weatherType) => {
 
   try {
     await weatherController.changeWeather(weatherType)
-    currentWeather.value = weatherType
+    // 從控制器獲取實際的當前天氣（支援切換回晴天的行為）
+    currentWeather.value = weatherController.getCurrentWeather()
     showWeatherMenu.value = false
 
     // 通知用戶
-    const option = weatherOptions.value.find((w) => w.type === weatherType)
+    const option = weatherOptions.value.find((w) => w.type === currentWeather.value)
     window.$q.notify({
       type: 'info',
-      message: `天氣已切換至 ${option ? option.label : weatherType}`,
+      message: `天氣已切換至 ${option ? option.label : currentWeather.value}`,
       icon: option ? option.icon : '🌤️',
       position: 'top',
       timeout: 2000,
     })
 
-    console.log(`🌤️ 天氣已切換至 ${weatherType}`)
+    console.log(`🌤️ 天氣已切換至 ${currentWeather.value}`)
   } catch (error) {
     console.error('❌ 切換天氣失敗:', error)
     window.$q.notify({
