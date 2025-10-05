@@ -211,6 +211,29 @@ export const FOLLOWING_CONFIG = {
     MIN_PREDICTION_DISTANCE: 30, // 最小預測距離（像素）
     MAX_PREDICTION_DISTANCE: 80, // 最大預測距離（像素）
   },
+
+  // 🚗 碰撞後自動跟隨設定
+  AUTO_FOLLOW_AFTER_COLLISION: {
+    ENABLED: true, // 啟用碰撞後自動跟隨
+    MIN_FOLLOW_DISTANCE: 8, // 最小跟隨距離（px）- 低於此距離停止
+    TARGET_FOLLOW_DISTANCE: 25, // 目標跟隨距離（px）- 理想間距
+    MAX_FOLLOW_DISTANCE: 50, // 最大跟隨距離（px）- 超過此距離啟動跟隨
+    
+    // 跟隨速度設定（根據距離動態調整）
+    FOLLOW_SPEEDS: {
+      VERY_CLOSE: 0.05, // 非常接近（8-15px）- 微調速度
+      CLOSE: 0.12, // 接近（15-25px）- 慢速靠近
+      NORMAL: 0.18, // 正常（25-35px）- 一般跟隨
+      FAR: 0.25, // 較遠（35-50px）- 快速跟隨
+    },
+    
+    // 距離判斷閾值
+    DISTANCE_THRESHOLDS: {
+      VERY_CLOSE: 15, // 非常接近閾值（px）
+      CLOSE: 25, // 接近閾值（px）
+      NORMAL: 35, // 正常閾值（px）
+    },
+  },
 }
 
 // ===== 碰撞檢測設定 =====

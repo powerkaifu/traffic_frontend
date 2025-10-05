@@ -766,7 +766,10 @@ export default class Vehicle {
   resumeMovement(allVehicles = []) {
     if (
       this.movementTimeline &&
-      (this.currentState === 'waiting' || this.currentState === 'waitingForVehicle' || this.currentState === 'slowing')
+      (this.currentState === 'waiting' || 
+       this.currentState === 'waitingForVehicle' || 
+       this.currentState === 'slowing' ||
+       this.currentState === 'autoFollowing') // 🚗 加入自動跟隨狀態
     ) {
       const collision = this.collisionController.checkSimpleCollision(allVehicles)
 
@@ -788,6 +791,17 @@ export default class Vehicle {
           this.stopLineController.state = 'approaching'
         }
       } else {
+        // 🚗 檢查是否為自動跟隨模式
+        if (collision.autoFollowing && collision.targetSpeed > 0) {
+          gsap.to(this.movementTimeline, {
+            timeScale: collision.targetSpeed,
+            duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL,
+            ease: 'power2.out',
+          })
+          this.currentState = 'autoFollowing'
+          return
+        }
+        
         // 有前車，根據距離調整速度（使用配置的閾值）
         const distance = collision.distance
         const requiredGap = collision.requiredGap || DISTANCE_CONFIG.BASE_DISTANCES.MIN_GAP
@@ -1010,7 +1024,7 @@ export default class Vehicle {
             this.directTrafficLightResponse(trafficController)
 
             // 🚨 簡化：檢查是否可以恢復移動（僅限碰撞相關）
-            if (this.currentState === 'waitingForVehicle') {
+            if (this.currentState === 'waitingForVehicle' || this.currentState === 'autoFollowing') {
               this.resumeMovement(allVehicles)
             }
           }, 50) // 統一使用50ms間隔，與後面的邏輯一致
@@ -1066,6 +1080,17 @@ export default class Vehicle {
               // 🚨 簡化碰撞檢測系統 - 區分第一台車和後續車輛
               const shouldStop = this.collisionController.checkSimpleCollision(allVehicles)
               const isFirstVehicle = this.collisionController.isClosestToStopLine(allVehicles)
+
+              // 🚗 優先處理自動跟隨模式
+              if (shouldStop && shouldStop.autoFollowing && shouldStop.targetSpeed > 0) {
+                gsap.to(this.movementTimeline, {
+                  timeScale: shouldStop.targetSpeed,
+                  duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL,
+                  ease: 'power2.out',
+                })
+                this.currentState = 'autoFollowing' // 設為自動跟隨狀態
+                return
+              }
 
               if (shouldStop) {
                 const distance = shouldStop.distance
@@ -1193,7 +1218,7 @@ export default class Vehicle {
               }
 
               // 等待前車的恢復檢查
-              if (this.currentState === 'waitingForVehicle') {
+              if (this.currentState === 'waitingForVehicle' || this.currentState === 'autoFollowing') {
                 this.resumeMovement(allVehicles)
               }
 

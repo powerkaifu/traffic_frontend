@@ -724,6 +724,49 @@ export class CollisionController {
       : COLLISION_CONFIG.DETECTION_DISTANCES.SLOW_DISTANCE
 
     if (distance <= effectiveStopDistance) {
+      // 🚗 碰撞後自動跟隨功能
+      const autoFollowConfig = FOLLOWING_CONFIG.AUTO_FOLLOW_AFTER_COLLISION
+      
+      if (autoFollowConfig.ENABLED) {
+        // 檢查前車是否停止
+        const frontVehicleSpeed = threatVehicle.movementTimeline ? threatVehicle.movementTimeline.timeScale() : 0
+        const frontIsStopped = frontVehicleSpeed <= 0.1
+        
+        // 🎯 自動跟隨邏輯：根據距離動態調整跟隨速度
+        if (frontIsStopped && distance > autoFollowConfig.MIN_FOLLOW_DISTANCE) {
+          let followSpeed = 0
+          const thresholds = autoFollowConfig.DISTANCE_THRESHOLDS
+          const speeds = autoFollowConfig.FOLLOW_SPEEDS
+          
+          // 根據距離選擇跟隨速度
+          if (distance <= thresholds.VERY_CLOSE) {
+            followSpeed = speeds.VERY_CLOSE // 8-15px: 微調速度 0.05
+          } else if (distance <= thresholds.CLOSE) {
+            followSpeed = speeds.CLOSE // 15-25px: 慢速靠近 0.12
+          } else if (distance <= thresholds.NORMAL) {
+            followSpeed = speeds.NORMAL // 25-35px: 一般跟隨 0.18
+          } else if (distance <= autoFollowConfig.MAX_FOLLOW_DISTANCE) {
+            followSpeed = speeds.FAR // 35-50px: 快速跟隨 0.25
+          }
+          
+          if (followSpeed > 0) {
+            return {
+              action: 'follow',
+              vehicle: threatVehicle,
+              distance: distance,
+              shouldStop: false,
+              shouldFollow: true,
+              frontVehicleIsMoving: false,
+              targetSpeed: followSpeed,
+              requiredGap: autoFollowConfig.TARGET_FOLLOW_DISTANCE,
+              autoFollowing: true, // 標記為自動跟隨模式
+              reason: `自動跟隨前車: ${distance.toFixed(1)}px -> 目標${autoFollowConfig.TARGET_FOLLOW_DISTANCE}px (速度${(followSpeed*100).toFixed(0)}%)`,
+            }
+          }
+        }
+      }
+      
+      // 原始邏輯：距離太近或前車移動時完全停止
       return {
         action: 'stop',
         vehicle: threatVehicle,
