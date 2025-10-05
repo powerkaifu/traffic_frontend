@@ -100,7 +100,7 @@ export const lightConfig = {
 // ===== 交通燈顏色配置 =====
 /**
  * 🎨 交通燈顏色設定
- * 
+ *
  * 用於界面倒數計時器文字顏色對應燈號狀態
  * 遵循標準交通燈號顏色規範
  */
@@ -108,18 +108,18 @@ export const lightColorConfig = {
   // 🔴 紅燈相關狀態 - 紅色
   red: '#FF4444',
   allRed: '#FF4444',
-  
-  // 🟡 黃燈狀態 - 黃色  
+
+  // 🟡 黃燈狀態 - 黃色
   yellow: '#FFD700',
-  
+
   // 🟢 綠燈相關狀態 - 綠色
   green: '#00FF88',
   leftTurnGreen: '#00FF88',
-  
+
   // 🎨 其他視覺效果
   textShadow: {
     red: '0 0 10px rgba(255, 68, 68, 0.6)',
-    yellow: '0 0 10px rgba(255, 215, 0, 0.6)', 
+    yellow: '0 0 10px rgba(255, 215, 0, 0.6)',
     green: '0 0 10px rgba(0, 255, 136, 0.6)',
   },
 }

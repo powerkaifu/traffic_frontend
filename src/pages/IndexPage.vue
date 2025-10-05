@@ -251,10 +251,7 @@
       <div class="timer-display">
         <div class="timer-content">
           <div class="timer-phase">{{ currentPhase }}</div>
-          <div 
-            class="timer-countdown" 
-            :style="getCountdownStyle()"
-          >
+          <div class="timer-countdown" :style="getCountdownStyle()">
             {{ countdown }}
           </div>
         </div>
@@ -571,29 +568,29 @@ const activeCars = ref([]) // 維護活躍車輛列表
 // 🎨 根據當前燈號狀態計算倒數計時器顏色
 const getCountdownStyle = () => {
   const phaseText = currentPhase.value
-  
+
   // 根據燈號文字判斷顏色
   if (phaseText.includes('綠燈') || phaseText.includes('左轉綠')) {
     return {
       color: lightColorConfig.green,
-      textShadow: lightColorConfig.textShadow.green
+      textShadow: lightColorConfig.textShadow.green,
     }
   } else if (phaseText.includes('黃燈')) {
     return {
       color: lightColorConfig.yellow,
-      textShadow: lightColorConfig.textShadow.yellow
+      textShadow: lightColorConfig.textShadow.yellow,
     }
   } else if (phaseText.includes('紅燈') || phaseText.includes('全紅')) {
     return {
       color: lightColorConfig.red,
-      textShadow: lightColorConfig.textShadow.red
+      textShadow: lightColorConfig.textShadow.red,
     }
   }
-  
+
   // 預設為綠色（保持原有樣式）
   return {
     color: lightColorConfig.green,
-    textShadow: lightColorConfig.textShadow.green
+    textShadow: lightColorConfig.textShadow.green,
   }
 }
 
