@@ -376,6 +376,10 @@ export default class TrafficLightController {
           this.updateTimer('全紅階段\n安全緩衝', this.phaseTimings.allRed.duration)
           await this.countdownDelay(this.phaseTimings.allRed.duration * 1000)
 
+          // 🔧 修正：在南北向時相結束前，重置數據以準備東西向時相
+          console.log('🔄 [相位切換] 南北向時相結束，重置數據以準備東西向')
+          this.resetTrafficDataForNextCycle()
+
           // 切換至東西向
           this.currentPhase = 'eastWest'
           this.dynamicTiming.eastWest = this.nextTiming.eastWest
@@ -431,6 +435,10 @@ export default class TrafficLightController {
           this.updateTimer('全紅階段', this.phaseTimings.allRed.duration)
           await this.countdownDelay(this.phaseTimings.allRed.duration * 1000)
 
+          // 🔧 修正：在東西向時相結束前，重置數據以準備南北向時相
+          console.log('🔄 [相位切換] 東西向時相結束，重置數據以準備南北向')
+          this.resetTrafficDataForNextCycle()
+
           // 切換至南北向
           this.currentPhase = 'northSouth'
           this.dynamicTiming.northSouth = this.nextTiming.northSouth
@@ -438,8 +446,8 @@ export default class TrafficLightController {
           this.debugLightStates()
         }
 
-        // 重置車輛數據以準備下一輪收集
-        this.resetVehicleData()
+        // 🔧 移除：不再在這裡重置，改為在相位切換時重置
+        // this.resetVehicleData()
       } catch (error) {
         console.error('🚨 交通燈循環出現錯誤:', error)
         await this.delay(1000)
@@ -465,6 +473,14 @@ export default class TrafficLightController {
     const totalSeconds = Math.floor(totalMs / 1000)
     let apiTriggered = false
 
+    // 🔧 修正：計算實際觸發時機，確保不會錯過
+    // 如果總秒數 < apiTriggerSeconds，則在開始時立即觸發
+    const actualTriggerSeconds = Math.min(apiTriggerSeconds, totalSeconds)
+
+    console.log(
+      `🕐 [API觸發檢查] 總綠燈時間: ${totalSeconds}秒, 設定觸發時間: ${apiTriggerSeconds}秒, 實際觸發時間: ${actualTriggerSeconds}秒`,
+    )
+
     for (let i = totalSeconds; i > 0; i--) {
       if (this.onTimerUpdate) {
         // 只更新倒數秒數，不改變時相描述
@@ -472,8 +488,9 @@ export default class TrafficLightController {
       }
 
       // Strategy Pattern: 在剩餘指定秒數時觸發API
-      if (i === apiTriggerSeconds && !apiTriggered) {
-        console.log(`⏰ 剩餘 ${apiTriggerSeconds} 秒，開始 AI 預測流程...`)
+      if (i === actualTriggerSeconds && !apiTriggered) {
+        console.log(`⏰ [API觸發] 剩餘 ${i} 秒，開始 AI 預測流程...`)
+        console.log(`📊 [API觸發] 當前相位: ${this.currentPhase}, 綠燈總時間: ${totalSeconds}秒`)
 
         // 1. 收集當前週期的完整數據
         const currentCycleData = this.collectIntersectionData()
@@ -484,15 +501,21 @@ export default class TrafficLightController {
         // 3. 立即更新特徵模擬數據顯示
         this.updateFeatureSimulationDisplay(currentCycleData)
 
-        // 4. 標記準備重置數據（3秒後執行，避免突然清空）
-        setTimeout(() => {
-          this.resetTrafficDataForNextCycle()
-        }, 3000)
+        // 🔧 修正：不再立即重置數據，改為在相位切換時重置
+        // 這樣可以累積完整週期的車輛數據
+        console.log('ℹ️ [API觸發] 數據已發送，將在相位切換時重置數據')
 
         apiTriggered = true
       }
 
       await this.delay(1000)
+    }
+
+    // 🔧 安全檢查：如果整個循環結束都沒觸發，記錄警告
+    if (!apiTriggered) {
+      console.warn(
+        `⚠️ [API觸發失敗] 南北向綠燈 ${totalSeconds} 秒已結束，但未觸發API（設定值: ${apiTriggerSeconds}秒）`,
+      )
     }
   }
 
@@ -513,6 +536,9 @@ export default class TrafficLightController {
 
     const vdData = []
 
+    // 🔧 添加日誌：顯示當前 vehicleData 狀態
+    console.log('📊 [數據收集] 當前 vehicleData 原始狀態:', JSON.stringify(this.vehicleData, null, 2))
+
     // Strategy Pattern: VD_ID 映射策略
     const vdMapping = {
       east: 'VLRJX20', // 東向
@@ -525,14 +551,34 @@ export default class TrafficLightController {
     Object.keys(this.vehicleData).forEach((direction, index) => {
       const data = this.vehicleData[direction]
 
-      // 應用縮放因子並確保最小車流量（模擬中等交通流量）
-      const minMotor = 3 // 最少機車數量
-      const minSmall = 2 // 最少小客車數量
-      const minLarge = 1 // 最少大客車數量
+      // 🔧 修正：只在總數為 0 時使用最小值，否則使用真實數據
+      const totalRaw = data.motor + data.small + data.large
 
-      const scaledMotor = Math.max(Math.round(data.motor * this.dataScalingFactor), minMotor)
-      const scaledSmall = Math.max(Math.round(data.small * this.dataScalingFactor), minSmall)
-      const scaledLarge = Math.max(Math.round(data.large * this.dataScalingFactor), minLarge)
+      let scaledMotor, scaledSmall, scaledLarge
+
+      if (totalRaw === 0) {
+        // 沒有車輛時使用最小值
+        const minMotor = 1 // 降低最少機車數量
+        const minSmall = 1 // 降低最少小客車數量
+        const minLarge = 0 // 降低最少大客車數量
+
+        scaledMotor = minMotor
+        scaledSmall = minSmall
+        scaledLarge = minLarge
+
+        console.log(
+          `⚠️ [數據收集] ${direction} 方向無車輛，使用最小值: motor=${minMotor}, small=${minSmall}, large=${minLarge}`,
+        )
+      } else {
+        // 有車輛時使用真實數據（應用縮放因子）
+        scaledMotor = Math.round(data.motor * this.dataScalingFactor)
+        scaledSmall = Math.round(data.small * this.dataScalingFactor)
+        scaledLarge = Math.round(data.large * this.dataScalingFactor)
+
+        console.log(
+          `✅ [數據收集] ${direction} 方向 - 原始: motor=${data.motor}, small=${data.small}, large=${data.large} | 縮放後: motor=${scaledMotor}, small=${scaledSmall}, large=${scaledLarge}`,
+        )
+      }
       const totalVehicles = scaledMotor + scaledSmall + scaledLarge
 
       // 計算平均速度
@@ -575,6 +621,9 @@ export default class TrafficLightController {
         Speed_T: 0, // 聯結車平均車速（目前設為 0）
       })
     })
+
+    // 🔧 添加日誌：顯示處理後的數據
+    console.log('📤 [數據發送] 處理後的 vdData:', JSON.stringify(vdData, null, 2))
 
     return vdData
   }
@@ -796,10 +845,14 @@ export default class TrafficLightController {
 
   // 重置車輛數據
   resetVehicleData() {
+    // 🔧 添加日誌：顯示重置前的數據
+    console.log('🔄 [數據重置] 重置前 vehicleData:', JSON.stringify(this.vehicleData, null, 2))
+
     Object.keys(this.vehicleData).forEach((direction) => {
       this.vehicleData[direction] = { motor: 0, small: 0, large: 0 }
     })
-    console.log('🔄 車輛數據已重置')
+
+    console.log('✅ [數據重置] 車輛數據已重置為 0')
   }
 
   // ==========================================
