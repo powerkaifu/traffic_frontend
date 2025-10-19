@@ -432,7 +432,7 @@ export default class TrafficLightController {
           this.updateLightState('west', 'red') // 西向左轉紅燈(redLight.png)
 
           // 🎯【階段7】全紅階段 - 切換前緩衝
-          this.updateTimer('全紅階段', this.phaseTimings.allRed.duration)
+          this.updateTimer('全紅階段\n安全緩衝', this.phaseTimings.allRed.duration)
           await this.countdownDelay(this.phaseTimings.allRed.duration * 1000)
 
           // 🔧 修正：在東西向時相結束前，重置數據以準備南北向時相
