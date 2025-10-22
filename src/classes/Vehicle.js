@@ -290,10 +290,10 @@ export default class Vehicle {
     const div = document.createElement('div')
     div.className = 'vehicle' // 改為 vehicle 類名
     div.vehicleInstance = this // 保存車輛實例的引用
-    
+
     // 🌓 新增：計算陰影大小（根據車型）
     const shadowSize = this.vehicleType === 'large' ? 10 : this.vehicleType === 'small' ? 8 : 6
-    
+
     div.style.cssText = `
       position: absolute;
       width: ${vehicleConfig.width}px;
@@ -308,10 +308,10 @@ export default class Vehicle {
       transform-origin: center center;
       filter: drop-shadow(3px 3px ${shadowSize}px rgba(0, 0, 0, 0.4));
     `
-    
+
     // 💨 新增：創建速度線容器
     this.createSpeedLines(div, vehicleConfig)
-    
+
     return div
   }
 
@@ -319,10 +319,10 @@ export default class Vehicle {
   createSpeedLines(container, vehicleConfig) {
     this.speedLines = document.createElement('div')
     this.speedLines.className = 'speed-lines'
-    
+
     // 根據方向決定速度線的位置和方向
     const lineStyle = this.getSpeedLineStyle(vehicleConfig)
-    
+
     this.speedLines.style.cssText = `
       position: absolute;
       ${lineStyle.position}
@@ -332,7 +332,7 @@ export default class Vehicle {
       pointer-events: none;
       z-index: 5;
     `
-    
+
     // 創建3條速度線
     for (let i = 0; i < 3; i++) {
       const line = document.createElement('div')
@@ -346,7 +346,7 @@ export default class Vehicle {
       `
       this.speedLines.appendChild(line)
     }
-    
+
     container.appendChild(this.speedLines)
   }
 
@@ -354,7 +354,7 @@ export default class Vehicle {
   getSpeedLineStyle(vehicleConfig) {
     const width = vehicleConfig.width
     const height = vehicleConfig.height
-    
+
     switch (this.direction) {
       case 'east':
         return {
@@ -402,20 +402,20 @@ export default class Vehicle {
   // 💨 新增：顯示加速效果
   showAccelerationEffect(isIntense = false) {
     if (!this.speedLines) return
-    
+
     this.isAccelerating = true
-    
+
     // 根據是否強烈加速調整效果
     const opacity = isIntense ? 0.8 : 0.5
     const duration = isIntense ? 0.8 : 0.5
-    
+
     // 淡入速度線
     gsap.to(this.speedLines, {
       opacity: opacity,
       duration: 0.2,
       ease: 'power2.out',
     })
-    
+
     // 自動淡出
     gsap.to(this.speedLines, {
       opacity: 0,
@@ -431,7 +431,7 @@ export default class Vehicle {
   // 💨 新增：隱藏加速效果
   hideAccelerationEffect() {
     if (!this.speedLines) return
-    
+
     gsap.to(this.speedLines, {
       opacity: 0,
       duration: 0.2,
@@ -490,7 +490,7 @@ export default class Vehicle {
     `
 
     // 將標籤添加到車輛元素中
-    this.element.appendChild(this.laneLabel)
+    // this.element.appendChild(this.laneLabel)
   }
 
   // Factory Pattern + Strategy Pattern: 獲取車輛配置的工廠策略方法
@@ -766,10 +766,10 @@ export default class Vehicle {
   resumeMovement(allVehicles = []) {
     if (
       this.movementTimeline &&
-      (this.currentState === 'waiting' || 
-       this.currentState === 'waitingForVehicle' || 
-       this.currentState === 'slowing' ||
-       this.currentState === 'autoFollowing') // 🚗 加入自動跟隨狀態
+      (this.currentState === 'waiting' ||
+        this.currentState === 'waitingForVehicle' ||
+        this.currentState === 'slowing' ||
+        this.currentState === 'autoFollowing') // 🚗 加入自動跟隨狀態
     ) {
       const collision = this.collisionController.checkSimpleCollision(allVehicles)
 
@@ -801,7 +801,7 @@ export default class Vehicle {
           this.currentState = 'autoFollowing'
           return
         }
-        
+
         // 有前車，根據距離調整速度（使用配置的閾值）
         const distance = collision.distance
         const requiredGap = collision.requiredGap || DISTANCE_CONFIG.BASE_DISTANCES.MIN_GAP
@@ -825,7 +825,7 @@ export default class Vehicle {
         } else {
           // 較遠：可以較快移動
           targetSpeed = speedConfig.FAR
-          
+
           // 💨 新增：較快移動時顯示加速效果
           if (targetSpeed >= 0.7 && this.currentState !== 'moving') {
             this.showAccelerationEffect(false)
@@ -958,11 +958,11 @@ export default class Vehicle {
 
       // 記錄移動開始時間和初始化數據
       this.movementStartTime = new Date().toISOString()
-      
+
       // 🌤️ 初始化速度時考慮天氣影響
       const weatherMultiplier = this.getWeatherSpeedMultiplier()
       const effectiveSpeed = Math.round(this.initialSpeed * weatherMultiplier)
-      
+
       this.currentSpeed = effectiveSpeed
       this.maxSpeed = effectiveSpeed
 
@@ -1054,11 +1054,11 @@ export default class Vehicle {
                 const pixelSpeed = deltaDistance / deltaTime
                 const meterSpeed = (pixelSpeed / 100) * 15
                 let kmhSpeed = meterSpeed * 3.6
-                
+
                 // 🌤️ 應用天氣影響到速度計算
                 const weatherMultiplier = this.getWeatherSpeedMultiplier()
                 kmhSpeed *= weatherMultiplier
-                
+
                 this.currentSpeed = Math.round(kmhSpeed)
                 this.maxSpeed = Math.max(this.maxSpeed, this.currentSpeed)
                 lastPosition = currentPos
@@ -1112,10 +1112,10 @@ export default class Vehicle {
                   // 🚨 綠燈跟車：根據距離調整速度（使用配置）
                   const isLane1 = this.laneNumber === 1
                   const thresholds = FOLLOWING_CONFIG.GREEN_LIGHT_FOLLOWING.DISTANCE_THRESHOLDS
-                  const speeds = isLane1 
-                    ? FOLLOWING_CONFIG.GREEN_LIGHT_FOLLOWING.LANE1 
+                  const speeds = isLane1
+                    ? FOLLOWING_CONFIG.GREEN_LIGHT_FOLLOWING.LANE1
                     : FOLLOWING_CONFIG.GREEN_LIGHT_FOLLOWING.OTHER_LANES
-                  
+
                   let targetSpeed
                   if (distance <= requiredGap * thresholds.VERY_CLOSE) {
                     targetSpeed = speeds.VERY_CLOSE
@@ -1325,11 +1325,11 @@ export default class Vehicle {
     return new Promise((resolve) => {
       // 記錄移動開始時間和初始化數據
       this.movementStartTime = new Date().toISOString()
-      
+
       // 🌤️ 初始化速度時考慮天氣影響
       const weatherMultiplier = this.getWeatherSpeedMultiplier()
       const effectiveSpeed = Math.round(this.initialSpeed * weatherMultiplier)
-      
+
       this.currentSpeed = effectiveSpeed
       this.maxSpeed = effectiveSpeed
 
@@ -1456,7 +1456,7 @@ export default class Vehicle {
               // 🚨 基於距離的漸進式停車（使用配置）
               const thresholds = FOLLOWING_CONFIG.RESUME_SPEED.DISTANCE_THRESHOLDS
               const speeds = FOLLOWING_CONFIG.RESUME_SPEED.NON_QUEUE_ZONE
-              
+
               let targetSpeed
               if (distance <= requiredGap * thresholds.VERY_CLOSE) {
                 targetSpeed = speeds.VERY_CLOSE // 完全停止
@@ -1495,7 +1495,10 @@ export default class Vehicle {
                 // 🚦 修復：左轉車道只有在停止線附近才停止等待左轉綠燈
                 const distanceToStopLine = this.getDistanceToStopLine()
 
-                if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= STOP_LINE_CONFIG.TRAFFIC_LIGHT.APPROACH_DISTANCE) {
+                if (
+                  distanceToStopLine !== null &&
+                  Math.abs(distanceToStopLine) <= STOP_LINE_CONFIG.TRAFFIC_LIGHT.APPROACH_DISTANCE
+                ) {
                   // 接近停止線，停車等待左轉綠燈（使用配置）
                   this.movementTimeline.timeScale(0)
                   this.currentState = 'waitingForLeftTurnGreen'
@@ -1513,7 +1516,10 @@ export default class Vehicle {
                 // 🚦 新增：直行車道在左轉綠燈時的處理
                 const distanceToStopLine = this.getDistanceToStopLine()
 
-                if (distanceToStopLine !== null && Math.abs(distanceToStopLine) <= TRAFFIC_LIGHT_CONFIG.WAITING_FOR_LIGHT.STOP_DISTANCE_THRESHOLD) {
+                if (
+                  distanceToStopLine !== null &&
+                  Math.abs(distanceToStopLine) <= TRAFFIC_LIGHT_CONFIG.WAITING_FOR_LIGHT.STOP_DISTANCE_THRESHOLD
+                ) {
                   // 接近停止線，停車等待直行綠燈（使用配置）
                   this.movementTimeline.timeScale(0)
                   this.currentState = 'waitingForStraightGreen'
