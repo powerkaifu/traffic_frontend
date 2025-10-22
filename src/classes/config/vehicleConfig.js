@@ -47,31 +47,7 @@ export const ANIMATION_CONFIG = {
 
 // ===== 交通燈響應設定 =====
 export const TRAFFIC_LIGHT_CONFIG = {
-  // 🟡 黃燈行為設定 (像素)
-  YELLOW_LIGHT: {
-    ACCELERATE_DISTANCE: 100, // 黃燈時加速通過的判斷距離
-    STOP_DISTANCE: 40, // 黃燈時停車的判斷距離
-    SPEED_THRESHOLD: 0.7, // 高速/低速車輛判斷閾值 (70%)
-    ACCELERATE_MULTIPLIER: {
-      CONSERVATIVE: 1.2, // 保守加速倍數 (120%)
-      AGGRESSIVE: 1.3, // 積極加速倍數 (130%)
-    },
-  },
-
-  // 🔴 紅燈減速設定 (像素)
-  RED_LIGHT: {
-    SLOW_DOWN_DISTANCE: 60, // 開始減速的距離
-    CRITICAL_DISTANCE: 15, // 緊急減速距離
-    MEDIUM_DISTANCE: 35, // 中等減速距離
-    SPEED_RATIOS: {
-      CRITICAL: 0.05, // 緊急減速時的最低速度比例
-      EMERGENCY: 0.15, // 緊急情況速度比例
-      MEDIUM: 0.6, // 中等距離速度比例
-      GRADUAL: 1.0, // 漸進減速比例
-    },
-  },
-
-  // 🚦 等待燈號變化時的減速設定
+  //  等待燈號變化時的減速設定
   WAITING_FOR_LIGHT: {
     SLOW_SPEED: 0.6, // 等待燈號時的減速速度（60%）
     STOP_DISTANCE_THRESHOLD: 5, // 接近停止線的距離閾值（5px內停止）
@@ -89,37 +65,7 @@ export const DISTANCE_CONFIG = {
     HYSTERESIS_BUFFER: 1, // 遲滯緩衝區
   },
 
-  // 📏 距離調整倍數
-  DISTANCE_MULTIPLIERS: {
-    // 一般情況調整
-    NORMAL_MIN_GAP: 0.9, // 一般最小間隙倍數
-    NORMAL_SAFE: 0.95, // 一般安全距離倍數
-
-    // 擁擠情況調整
-    CONGESTED_MIN_GAP: 0.5, // 擁擠時最小間隙倍數
-    CONGESTED_SAFE: 0.7, // 擁擠時安全距離倍數
-    CONGESTED_STOP: 0.5, // 擁擠時停車距離倍數
-
-    // 紅燈排隊調整
-    RED_LIGHT_MIN_GAP: 2.0, // 紅燈排隊最小間隙倍數
-    RED_LIGHT_SAFE: 2.5, // 紅燈排隊安全距離倍數
-    RED_LIGHT_STOP: 1.8, // 紅燈排隊停車距離倍數
-
-    // 等紅燈車輛調整
-    WAITING_ADJUSTMENT: 1.2, // 前方車輛等紅燈時的調整倍數
-  },
-
-  // 🎯 特殊距離設定
-  SPECIAL_DISTANCES: {
-    RED_LIGHT_WAIT: 25, // 前車等紅燈時需要的更大距離
-    STOP_LINE_TOLERANCE: 2, // 停止線容錯範圍
-    STOP_LINE_OFFSET: {
-      NORTH: 0, // 北向停車偏移
-      SOUTH: 0, // 南向停車偏移
-    },
-  },
-
-  // 🔧 系統設定項
+  //  系統設定項
   CRITICAL_ZONE_THRESHOLD: 50, // 危險區域閾值（像素）
   NEARBY_VEHICLE_RANGE: 100, // 附近車輛檢查範圍（像素）
   DEFAULT_CROSSING_DISTANCE: 800, // 預設路口通過距離（像素）
@@ -140,6 +86,7 @@ export const FOLLOWING_CONFIG = {
     // 最低速度限制
     MIN_SPEED_RATIO: 0.15, // 最低速度比例 (15%)
     MIN_ABSOLUTE_RATIO: 0.1, // 絕對最低速度比例 (10%)
+    CRAWL_SPEED_RATIO: 0.05, // 碰撞後爬行速度比例 (5%)
 
     // 溫和跟車設定
     GENTLE_THRESHOLD: 5, // 速度差異小於5時使用溫和跟車
@@ -277,34 +224,6 @@ export const COLLISION_CONFIG = {
   SIMPLE_CHECK_INTERVAL: 50, // 簡單碰撞檢查間隔（優化：更頻繁的檢查）
 }
 
-// ===== 動畫路徑設定 =====
-export const PATH_CONFIG = {
-  // 📐 路徑計算設定
-  DISTANCE_SCALE: {
-    PIXEL_TO_METER: 100 / 15, // 100像素 = 15米的比例尺
-    DEFAULT_DISTANCE: 800, // 預設路口通過距離（像素）
-    SPEED_BASE: 50, // 速度基準值 (km/h)
-  },
-
-  // ⏱️ 時間限制設定 (秒)
-  TIME_LIMITS: {
-    MIN_TIME: 3, // 最短通過時間
-    MAX_TIME: 15, // 最長通過時間
-  },
-}
-
-// ===== 除錯與日誌設定 =====
-export const DEBUG_CONFIG = {
-  // 🔍 日誌輸出機率
-  LOG_PROBABILITY: 0.1, // 10%機率輸出調試信息（避免控制台被淹沒）
-
-  // 📊 性能監控設定
-  PERFORMANCE: {
-    ENABLE_TIMING: false, // 是否啟用性能計時
-    ENABLE_MEMORY: false, // 是否啟用記憶體監控
-  },
-}
-
 // ===== 匯出所有設定 =====
 export default {
   ANIMATION_CONFIG,
@@ -312,6 +231,4 @@ export default {
   DISTANCE_CONFIG,
   FOLLOWING_CONFIG,
   COLLISION_CONFIG,
-  PATH_CONFIG,
-  DEBUG_CONFIG,
 }

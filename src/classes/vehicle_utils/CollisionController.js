@@ -862,30 +862,30 @@ export class CollisionController {
       return -1 // 不在同車道，無需檢測
     }
 
-    // 獲取車輛尺寸 - 統一使用較小的尺寸確保間距一致
-    const vehicleSize = this.getVehicleSize()
-    const uniformSize = Math.min(vehicleSize.width, vehicleSize.height) // 使用較小的尺寸
+    // 🚨 修復：使用統一的固定車輛尺寸來計算距離，確保所有車輛間距一致
+    // 不再使用實際車輛尺寸，避免不同類型車輛間距不同
+    const UNIFORM_VEHICLE_SIZE = 20 // 統一使用 20px 作為車輛基礎尺寸
 
     switch (this.vehicle.direction) {
       case 'east':
         // 東向：檢查右邊的車輛
         if (otherPos.x <= myPos.x) return -1 // 不在前方
-        return otherPos.x - myPos.x - uniformSize
+        return otherPos.x - myPos.x - UNIFORM_VEHICLE_SIZE
 
       case 'west':
         // 西向：檢查左邊的車輛
         if (otherPos.x >= myPos.x) return -1 // 不在前方
-        return myPos.x - otherPos.x - uniformSize
+        return myPos.x - otherPos.x - UNIFORM_VEHICLE_SIZE
 
       case 'north':
         // 北向：檢查上方的車輛
         if (otherPos.y >= myPos.y) return -1 // 不在前方
-        return myPos.y - otherPos.y - uniformSize
+        return myPos.y - otherPos.y - UNIFORM_VEHICLE_SIZE
 
       case 'south':
         // 南向：檢查下方的車輛
         if (otherPos.y <= myPos.y) return -1 // 不在前方
-        return otherPos.y - myPos.y - uniformSize
+        return otherPos.y - myPos.y - UNIFORM_VEHICLE_SIZE
 
       default:
         console.warn(`🚨 [${this.vehicle.id}] 未知的方向: ${this.vehicle.direction}`)
@@ -910,14 +910,9 @@ export class CollisionController {
    * 獲取車輛尺寸
    */
   getVehicleSize() {
-    // 根據車輛類型返回不同尺寸
-    const sizeMap = {
-      small: { width: 15, height: 30 },
-      medium: { width: 18, height: 35 },
-      large: { width: 20, height: 40 },
-    }
-
-    return sizeMap[this.vehicle.vehicleType] || sizeMap['large']
+    // 🚨 修復：統一使用固定尺寸來計算距離，確保所有車輛間距一致
+    // 不再根據車輛類型返回不同尺寸
+    return { width: 20, height: 40 } // 使用最大尺寸確保安全且一致的間距
   }
 
   /**

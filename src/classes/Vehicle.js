@@ -13,8 +13,6 @@ import VehicleConfig, {
   DISTANCE_CONFIG,
   FOLLOWING_CONFIG,
   COLLISION_CONFIG,
-  PATH_CONFIG,
-  DEBUG_CONFIG,
 } from './config/vehicleConfig.js' // 🚀 整合：車輛行為配置
 import { STOP_LINE_CONFIG } from './config/stopLineConfig.js' // 🚀 導入：停止線配置
 
