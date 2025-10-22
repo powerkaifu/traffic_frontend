@@ -290,7 +290,7 @@ export class CollisionController {
 
     // 🚦 使用配置文件的排隊參數
     const baseGap = DISTANCE_CONFIG.BASE_DISTANCES.MIN_GAP // 25px
-    
+
     // 🚦 根據車道和交通燈狀態動態調整排隊參數
     let QUEUE_GAP, MIN_FOLLOW_DISTANCE
 
@@ -405,7 +405,7 @@ export class CollisionController {
       }
     }
 
-    // 🚦 情況3：距離太近但前車已停止
+    // 🚦 情況3：距離太近但前車已停止 - 改進邏輯：始終允許慢速前進以保持安全距離
     if (minDistance < MIN_FOLLOW_DISTANCE) {
       // 檢查前車是否已停止
       const frontIsStopped =
@@ -415,28 +415,44 @@ export class CollisionController {
         closestFrontVehicle.waitingForGreen ||
         (closestFrontVehicle.movementTimeline && closestFrontVehicle.movementTimeline.timeScale() <= 0.01)
 
-      // ✅ 原始正確邏輯：前車停止時，如果距離略大於停止距離，允許慢速前進
-      if (frontIsStopped && minDistance > Math.max(4, QUEUE_GAP * 0.3)) {
+      // 🚦 改進邏輯：即使距離太近，也應該允許後車繼續緩慢前進
+      // 後車會自動調整速度以保持安全距離，而不是停止不動
+      if (frontIsStopped) {
+        // 🎯 根據距離動態計算目標速度
+        // 距離越小速度越慢，確保逐步靠近停止線而不是卡住
+        let targetSpeed = 0.08 // 基礎超慢速度 (8%)
+
+        // 如果有極少量空間，使用更慢的速度
+        if (minDistance <= 2) {
+          targetSpeed = 0.05 // 極慢速度 (5%) - 幾乎停止但仍然前進
+        } else if (minDistance <= 4) {
+          targetSpeed = 0.08 // 超慢速度 (8%)
+        } else if (minDistance <= QUEUE_GAP * 0.2) {
+          targetSpeed = 0.12 // 很慢速度 (12%)
+        } else if (minDistance <= QUEUE_GAP * 0.4) {
+          targetSpeed = 0.15 // 慢速度 (15%)
+        }
+
         return {
           shouldStop: false,
           shouldFollow: true,
           vehicle: closestFrontVehicle,
           distance: minDistance,
           requiredGap: QUEUE_GAP,
-          reason: `緩慢前進到排隊位置: 距離${minDistance.toFixed(1)}px`,
-          targetSpeed: 0.12,
+          reason: `保持安全距離緩慢前進: 距離${minDistance.toFixed(1)}px, 目標速度${(targetSpeed * 100).toFixed(0)}%`,
+          targetSpeed: targetSpeed,
         }
       }
 
-      // ✅ 距離太近：完全停止
+      // 🚦 如果前車仍在移動，使用標準跟隨邏輯
       return {
-        shouldStop: true,
-        shouldFollow: false,
+        shouldStop: false,
+        shouldFollow: true,
         vehicle: closestFrontVehicle,
         distance: minDistance,
         requiredGap: QUEUE_GAP,
-        reason: `距離太近停止等待: 距離${minDistance.toFixed(1)}px`,
-        targetSpeed: 0,
+        reason: `前車仍在移動，保持安全距離: 距離${minDistance.toFixed(1)}px`,
+        targetSpeed: 0.15,
       }
     }
 
@@ -566,16 +582,16 @@ export class CollisionController {
         }
 
         if (isFrontVehicle && distance >= 0) {
-          // 非常接近（瞬間重疊風險） -> 立即停止
+          // 非常接近（瞬間重疊風險） -> 極慢速前進而非停止
           if (distance < Math.max(4, relaxedGap * 0.4)) {
             return {
-              shouldStop: true,
-              shouldFollow: false,
+              shouldStop: false,
+              shouldFollow: true,
               vehicle: vehicle,
               distance: distance,
               requiredGap: relaxedGap,
-              reason: '新生成車輛：距離過近，立即停止',
-              targetSpeed: 0,
+              reason: '新生成車輛：距離過近，超慢速前進',
+              targetSpeed: 0.05, // 極慢速度而非停止
             }
           }
 
@@ -630,13 +646,27 @@ export class CollisionController {
         const isMoving =
           vehicle.movementTimeline && vehicle.movementTimeline.timeScale() > 0 && !vehicle.movementTimeline.paused()
 
+        // 🚦 改進邏輯：即使距離很近也允許緩慢跟隨而不是完全停止
+        let targetSpeed = 0.08 // 預設超慢速度
+
+        if (distance <= 3) {
+          targetSpeed = 0.03 // 極極慢 (3%)
+        } else if (distance <= 5) {
+          targetSpeed = 0.05 // 極慢 (5%)
+        } else if (distance <= LANE_1_ENHANCED_GAP * 0.5) {
+          targetSpeed = 0.08 // 超慢 (8%)
+        }
+
         return {
-          shouldStop: true,
+          shouldStop: false,
+          shouldFollow: true,
           vehicle: vehicle,
           distance: distance,
-          requiredGap: LANE_1_ENHANCED_GAP, // 使用對應的安全距離
+          requiredGap: LANE_1_ENHANCED_GAP,
           frontVehicleAtStopLine: isAtStopLine,
           frontVehicleIsMoving: isMoving,
+          targetSpeed: targetSpeed,
+          reason: `車距近但保持緩慢前進: ${distance.toFixed(1)}px, 前車狀態: ${isMoving ? '移動' : '停止'}`,
         }
       }
     }
@@ -724,58 +754,44 @@ export class CollisionController {
       : COLLISION_CONFIG.DETECTION_DISTANCES.SLOW_DISTANCE
 
     if (distance <= effectiveStopDistance) {
-      // 🚗 碰撞後自動跟隨功能
-      const autoFollowConfig = FOLLOWING_CONFIG.AUTO_FOLLOW_AFTER_COLLISION
-      
-      if (autoFollowConfig.ENABLED) {
-        // 檢查前車是否停止
-        const frontVehicleSpeed = threatVehicle.movementTimeline ? threatVehicle.movementTimeline.timeScale() : 0
-        const frontIsStopped = frontVehicleSpeed <= 0.1
-        
-        // 🎯 自動跟隨邏輯：根據距離動態調整跟隨速度
-        if (frontIsStopped && distance > autoFollowConfig.MIN_FOLLOW_DISTANCE) {
-          let followSpeed = 0
-          const thresholds = autoFollowConfig.DISTANCE_THRESHOLDS
-          const speeds = autoFollowConfig.FOLLOW_SPEEDS
-          
-          // 根據距離選擇跟隨速度
-          if (distance <= thresholds.VERY_CLOSE) {
-            followSpeed = speeds.VERY_CLOSE // 8-15px: 微調速度 0.05
-          } else if (distance <= thresholds.CLOSE) {
-            followSpeed = speeds.CLOSE // 15-25px: 慢速靠近 0.12
-          } else if (distance <= thresholds.NORMAL) {
-            followSpeed = speeds.NORMAL // 25-35px: 一般跟隨 0.18
-          } else if (distance <= autoFollowConfig.MAX_FOLLOW_DISTANCE) {
-            followSpeed = speeds.FAR // 35-50px: 快速跟隨 0.25
-          }
-          
-          if (followSpeed > 0) {
-            return {
-              action: 'follow',
-              vehicle: threatVehicle,
-              distance: distance,
-              shouldStop: false,
-              shouldFollow: true,
-              frontVehicleIsMoving: false,
-              targetSpeed: followSpeed,
-              requiredGap: autoFollowConfig.TARGET_FOLLOW_DISTANCE,
-              autoFollowing: true, // 標記為自動跟隨模式
-              reason: `自動跟隨前車: ${distance.toFixed(1)}px -> 目標${autoFollowConfig.TARGET_FOLLOW_DISTANCE}px (速度${(followSpeed*100).toFixed(0)}%)`,
-            }
-          }
+      // 🚗 改進邏輯：即使距離過近，也應允許緩慢前進以保持安全距離
+      const frontVehicleSpeed = threatVehicle.movementTimeline ? threatVehicle.movementTimeline.timeScale() : 0
+      const frontIsStopped = frontVehicleSpeed <= 0.1
+
+      // 🎯 動態計算跟隨速度，即使是最小距離也允許超慢速前進
+      let targetSpeed = 0.05 // 預設超慢速度 (5%)
+
+      if (frontIsStopped) {
+        // 前車已停止，計算適當的跟隨速度
+        if (distance <= 2) {
+          targetSpeed = 0.03 // 極極慢速度 (3%) - 最小化前進速度
+        } else if (distance <= 4) {
+          targetSpeed = 0.05 // 極慢速度 (5%)
+        } else if (distance <= 7) {
+          targetSpeed = 0.08 // 超慢速度 (8%)
+        } else if (distance <= effectiveStopDistance) {
+          targetSpeed = 0.12 // 慢速度 (12%)
+        }
+      } else {
+        // 前車正在移動，使用更快的跟隨速度
+        if (distance <= effectiveStopDistance * 0.5) {
+          targetSpeed = 0.2 // 20% 速度
+        } else {
+          targetSpeed = 0.4 // 40% 速度
         }
       }
-      
-      // 原始邏輯：距離太近或前車移動時完全停止
+
       return {
-        action: 'stop',
+        action: 'follow',
         vehicle: threatVehicle,
         distance: distance,
-        shouldStop: true,
-        shouldFollow: false,
-        targetSpeed: 0,
+        shouldStop: false, // 🚦 改為不停止，而是超慢速前進
+        shouldFollow: true,
+        frontVehicleIsMoving: frontVehicleSpeed > 0.1,
+        targetSpeed: targetSpeed,
         requiredGap: effectiveStopDistance,
-        reason: `距離過近需停止: ${distance.toFixed(1)}px (有效停止距離: ${effectiveStopDistance.toFixed(1)}px)`,
+        autoFollowing: true, // 標記為自動跟隨模式
+        reason: `距離過近但保持緩慢前進: ${distance.toFixed(1)}px, 前車速度${(frontVehicleSpeed * 100).toFixed(0)}%, 目標速度${(targetSpeed * 100).toFixed(0)}%`,
       }
     }
 
@@ -786,7 +802,7 @@ export class CollisionController {
 
       // 🧠 智能預測減速：根據相對速度提前減速
       const prediction = this.predictiveSlowdown(threatVehicle, distance)
-      
+
       // 如果前車較慢或停止，後車必須更大幅度減速
       let speedRatio
       if (frontVehicleSpeed <= 0.1) {
@@ -805,7 +821,10 @@ export class CollisionController {
         // 前車較慢，後車速度不能超過前車
         speedRatio = Math.min(
           frontVehicleSpeed * 0.8,
-          Math.max(FOLLOWING_CONFIG.SPEED_RATIOS.MIN_ABSOLUTE_RATIO, (distance - effectiveStopDistance) / (effectiveSlowDistance - effectiveStopDistance)),
+          Math.max(
+            FOLLOWING_CONFIG.SPEED_RATIOS.MIN_ABSOLUTE_RATIO,
+            (distance - effectiveStopDistance) / (effectiveSlowDistance - effectiveStopDistance),
+          ),
         )
       } else {
         // 正常跟車，1號車道左轉綠燈時允許較高速度
@@ -824,7 +843,7 @@ export class CollisionController {
         shouldFollow: true,
         targetSpeed: speedRatio,
         requiredGap: effectiveStopDistance,
-        reason: prediction.shouldSlowDown 
+        reason: prediction.shouldSlowDown
           ? prediction.reason
           : `跟車模式: ${distance.toFixed(1)}px, 速度: ${(speedRatio * 100).toFixed(0)}%, 前車速度: ${(frontVehicleSpeed * 100).toFixed(0)}% ${isLane1WithLeftGreen ? '(1號車道左轉綠燈)' : ''}`,
       }
@@ -929,7 +948,7 @@ export class CollisionController {
     }
 
     const relativeSpeed = this.calculateRelativeSpeed(frontVehicle)
-    
+
     // 如果後車速度不快於前車，不需要預測減速
     if (relativeSpeed <= FOLLOWING_CONFIG.PREDICTIVE_SLOWDOWN.RELATIVE_SPEED_THRESHOLD) {
       return { shouldSlowDown: false, recommendedSpeed: 1.0, reason: '相對速度安全' }
@@ -940,8 +959,8 @@ export class CollisionController {
       FOLLOWING_CONFIG.PREDICTIVE_SLOWDOWN.MAX_PREDICTION_DISTANCE,
       Math.max(
         FOLLOWING_CONFIG.PREDICTIVE_SLOWDOWN.MIN_PREDICTION_DISTANCE,
-        currentDistance * FOLLOWING_CONFIG.PREDICTIVE_SLOWDOWN.PREDICTION_DISTANCE_MULTIPLIER * relativeSpeed
-      )
+        currentDistance * FOLLOWING_CONFIG.PREDICTIVE_SLOWDOWN.PREDICTION_DISTANCE_MULTIPLIER * relativeSpeed,
+      ),
     )
 
     // 如果當前距離小於預測距離，需要減速
