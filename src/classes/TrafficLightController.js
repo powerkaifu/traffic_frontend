@@ -525,6 +525,10 @@ export default class TrafficLightController {
 
   // Strategy Pattern: 收集路口數據（VD 格式）- 數據收集策略
   collectIntersectionData() {
+    // 🎯【新增】增加 API 呼叫計數，用於第一/二次呼叫時的隨機化
+    this.apiCallCount = (this.apiCallCount || 0) + 1
+    console.log(`📞 [API 計數] 第 ${this.apiCallCount} 次呼叫`)
+
     const now = new Date()
     const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay() // 週日為7，週一為1
     const hour = now.getHours()
@@ -647,6 +651,18 @@ export default class TrafficLightController {
       speedFactor *= 0.9 // 正常情況下稍微降速（模擬路口減速）
     }
 
+    // 🎯【新增】第一次 API 呼叫時加入隨機波動，使速度不固定
+    // 這樣即使邏輯相同，每次呼叫也會產生不同的速度值
+    if (this.apiCallCount === 1 || this.apiCallCount === 2) {
+      const speedVariation = (Math.random() - 0.5) * 10 // -5 ~ +5 的隨機波動
+      const baseSpeed = Math.round(range.avg * speedFactor)
+      const variatedSpeed = Math.max(20, Math.min(60, baseSpeed + speedVariation)) // 限制在 20-60 km/h
+      console.log(
+        `🎲 [速度變化] ${direction}-${vehicleType}: 基礎 ${baseSpeed} + 波動 ${speedVariation.toFixed(1)} = ${variatedSpeed}`,
+      )
+      return variatedSpeed
+    }
+
     return Math.round(range.avg * speedFactor)
   }
 
@@ -656,7 +672,14 @@ export default class TrafficLightController {
     const totalVehicles = data.motor + data.small + data.large
     // 調整占有率計算：增加基礎占有率以模擬中等流量情況
     const maxCapacity = 60 // 降低最大容量以提高占有率敏感度，模擬較繁忙路段
-    const baseOccupancy = 15 // 基礎占有率，確保即使車輛較少時也有一定的占有率
+    let baseOccupancy = 15 // 基礎占有率，確保即使車輛較少時也有一定的占有率
+
+    // 🎯【新增】第一次 API 呼叫時加入隨機波動，使占有率不固定
+    if (this.apiCallCount === 1 || this.apiCallCount === 2) {
+      baseOccupancy = Math.floor(Math.random() * 15) + 10 // 10-24 的隨機基礎占有率
+      console.log(`🎲 [占有率波動] ${direction}: 隨機基礎占有率 = ${baseOccupancy}%`)
+    }
+
     const calculatedOccupancy = (totalVehicles / maxCapacity) * 100
     const finalOccupancy = Math.min(baseOccupancy + calculatedOccupancy, 100)
     return finalOccupancy.toFixed(1)
