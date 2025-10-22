@@ -806,13 +806,13 @@ export class CollisionController {
       // 如果前車較慢或停止，後車必須更大幅度減速
       let speedRatio
       if (frontVehicleSpeed <= 0.1) {
-        // 前車停止：使用標準的緩慢前進速度
+        // 前車停止：不要完全停止，而是繼續用極低速度前進
         if (distance > effectiveStopDistance + 2) {
-          // 使用配置的最小跟車速度
+          // 距離還夠：使用配置的最小跟車速度
           speedRatio = FOLLOWING_CONFIG.SPEED_RATIOS.MIN_SPEED_RATIO // 0.15
         } else {
-          // 距離太近仍需停止
-          speedRatio = 0
+          // 距離太近但仍允許極慢前進（而非完全停止）
+          speedRatio = FOLLOWING_CONFIG.SPEED_RATIOS.CRAWL_SPEED_RATIO || 0.05
         }
       } else if (prediction.shouldSlowDown) {
         // 🧠 使用智能預測的推薦速度
