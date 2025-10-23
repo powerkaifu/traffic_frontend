@@ -802,7 +802,7 @@ export default class Vehicle {
 
         // 有前車，根據距離調整速度（使用配置的閾值）
         const distance = collision.distance
-        const requiredGap = collision.requiredGap || DISTANCE_CONFIG.BASE_DISTANCES.MIN_GAP
+        const requiredGap = collision.requiredGap || DISTANCE_CONFIG.MIN_GAP
 
         // 🎯 使用配置的距離閾值來決定速度
         const thresholds = FOLLOWING_CONFIG.RESUME_SPEED.DISTANCE_THRESHOLDS
@@ -1449,7 +1449,7 @@ export default class Vehicle {
 
             if (collision && collision.shouldStop) {
               const distance = collision.distance
-              const requiredGap = collision.requiredGap || DISTANCE_CONFIG.BASE_DISTANCES.MIN_GAP
+              const requiredGap = collision.requiredGap || DISTANCE_CONFIG.MIN_GAP
 
               // 🚨 基於距離的漸進式停車（使用配置）
               const thresholds = FOLLOWING_CONFIG.RESUME_SPEED.DISTANCE_THRESHOLDS

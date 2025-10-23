@@ -11,7 +11,7 @@ export class CollisionController {
     this.vehicle = vehicle
     this.lastCollisionCheck = 0 // 上次碰撞檢查時間
     this.collisionCheckInterval = COLLISION_CONFIG.CHECK_INTERVAL // 碰撞檢查間隔（毫秒）
-    this.nearbyVehicleRange = DISTANCE_CONFIG.NEARBY_VEHICLE_RANGE // 附近車輛檢查範圍（使用配置）
+    this.nearbyVehicleRange = COLLISION_CONFIG.DETECTION_DISTANCES.NEARBY_VEHICLE_RANGE // 附近車輛檢查範圍（使用配置）
 
     // SimpleCollisionDetector 整合的屬性
     this.lastCheckTime = 0
@@ -289,7 +289,7 @@ export class CollisionController {
     const canProceedWithTrafficLight = this.canProceedWithCurrentLight()
 
     // 🚦 使用配置文件的排隊參數
-    const baseGap = DISTANCE_CONFIG.BASE_DISTANCES.MIN_GAP // 25px
+    const baseGap = DISTANCE_CONFIG.MIN_GAP // 25px
 
     // 🚦 根據車道和交通燈狀態動態調整排隊參數
     let QUEUE_GAP, MIN_FOLLOW_DISTANCE

@@ -56,22 +56,12 @@ export const TRAFFIC_LIGHT_CONFIG = {
 
 // ===== 車輛間距與安全距離設定 =====
 export const DISTANCE_CONFIG = {
-  // 🚗 基礎安全距離 (像素)
-  BASE_DISTANCES: {
-    MIN_GAP: 25, // 最小車輛間隙
-    SAFE_FOLLOWING: 35, // 安全跟車距離
-    EMERGENCY_STOP: 50, // 緊急停車距離
-    REQUIRED_SAFETY: 20, // 基礎安全距離
-    HYSTERESIS_BUFFER: 1, // 遲滯緩衝區
-  },
+  // 🚗 唯一需要調整的參數
+  MIN_GAP: 25, // 車輛停車時的間隔距離（像素）- 調整此值可改變排隊間距
 
-  //  系統設定項
-  CRITICAL_ZONE_THRESHOLD: 50, // 危險區域閾值（像素）
-  NEARBY_VEHICLE_RANGE: 100, // 附近車輛檢查範圍（像素）
-  DEFAULT_CROSSING_DISTANCE: 800, // 預設路口通過距離（像素）
-  DEFAULT_SPEED: 30, // 預設速度（km/h）
-  PIXELS_PER_METER: 100, // 像素轉換為米的比例（100像素）
-  METERS_PER_UNIT: 15, // 每單位的米數
+  // 🔧 碰撞檢測內部使用（不建議修改，會影響碰撞檢測功能）
+  SAFE_FOLLOWING: 35, // 跟車安全距離
+  EMERGENCY_STOP: 50, // 緊急停車距離
 }
 
 // ===== 跟車行為設定 =====
@@ -208,6 +198,7 @@ export const COLLISION_CONFIG = {
     STOP_DISTANCE: 12, // 停止距離（原 CollisionController.STOP_DISTANCE）
     SLOW_DISTANCE: 25, // 減速距離（原 CollisionController.SLOW_DISTANCE）
     LANE_TOLERANCE: 25, // 車道對齊容差（原 CollisionController.LANE_TOLERANCE）
+    NEARBY_VEHICLE_RANGE: 100, // 附近車輛檢查範圍
   },
 
   // ⚠️ 威脅等級設定
