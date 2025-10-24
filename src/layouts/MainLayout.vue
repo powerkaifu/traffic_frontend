@@ -405,19 +405,17 @@ function calculateScenarioMatch(currentMultiplier, currentInterval) {
   return closest.key
 }
 
-// 🎯 新增：判斷情境按鈕是否應該高亮
+// 🎯 判斷情境按鈕是否應該高亮
 // 自動模式：按當前時段情境高亮
-// 手動模式：按拉桿匹配的情境高亮，或者按用戶手動選擇的情景
+// 手動模式：拉桿變化時動態更新，始終高亮拉桿匹配的情景
 function isScenarioActive(scenarioKey) {
   if (isAutoMode.value) {
     // 自動模式：高亮當前時段對應的情境
     return currentTimeScenario.value === scenarioKey
   } else {
-    // 手動模式：優先檢查用戶手動選擇，如果沒有則檢查拉桿匹配的情景
-    if (currentTimeScenario.value) {
-      return currentTimeScenario.value === scenarioKey
-    }
-    return autoMatchedScenario.value === scenarioKey
+    // 手動模式：高亮由 updateGenerationConfig 更新的 currentTimeScenario
+    // （確保與拉桿匹配的情景實時同步）
+    return currentTimeScenario.value === scenarioKey
   }
 }
 
@@ -486,14 +484,32 @@ function setupListeners() {
 function updateGenerationConfig() {
   if (isAutoMode.value) return // 如果是自動模式，則不執行手動更新
   if (!window.autoTrafficGenerator) return
-  const s = timeScenarios.find((s) => s.key === currentTimeScenario.value)
-  if (!s) return
 
   const baseInterval = manualInterval.value
   const multiplier = manualPeakMultiplier.value
 
   // 🎯 新增：計算並更新自動匹配的情境
   autoMatchedScenario.value = calculateScenarioMatch(multiplier, baseInterval)
+
+  // 🎯 重要：當用戶調整拉桿時，優先使用自動匹配的情景（而不是之前手動選擇的）
+  // 這樣可以確保拉桿值改變時，UI 立即顯示匹配的情景
+  currentTimeScenario.value = autoMatchedScenario.value
+
+  const s = timeScenarios.find((s) => s.key === autoMatchedScenario.value)
+  if (!s) return
+
+  // 🚨 CRITICAL FIX: 確保 switchToScenarioMode 被調用，設置 currentScenarioMode
+  // 這是為了讓 _getDisplayMultiplierAdjustment() 能獲取正確的 displayMultiplier
+  if (window.autoTrafficGenerator.currentScenarioMode !== currentTimeScenario.value) {
+    console.log(
+      `🔄 [手動模式] 同步情景模式: ${window.autoTrafficGenerator.currentScenarioMode} → ${currentTimeScenario.value}`,
+    )
+    const success = window.autoTrafficGenerator.switchToScenarioMode(currentTimeScenario.value)
+    if (!success) {
+      console.error(`❌ 情景模式切換失敗: ${currentTimeScenario.value}`)
+      return
+    }
+  }
 
   let finalInterval = baseInterval
   if (multiplier > 0) {
@@ -521,10 +537,13 @@ function updateGenerationConfig() {
     finalInterval,
     minInterval,
     maxInterval,
+    currentScenario: currentTimeScenario.value,
+    displayMultiplier: s.config.displayMultiplier,
     autoMatchedScenario: autoMatchedScenario.value, // 🎯 新增：顯示匹配的情境
   })
   console.log('interval:', window.autoTrafficGenerator?.config?.interval)
   console.log('maxLiveVehicles:', window.autoTrafficGenerator?.maxLiveVehicles)
+  console.log('currentScenarioMode:', window.autoTrafficGenerator?.currentScenarioMode)
   console.log('isAutoMode:', window.autoTrafficGenerator?.isAutoMode)
 }
 

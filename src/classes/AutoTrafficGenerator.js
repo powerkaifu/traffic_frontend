@@ -3,7 +3,6 @@
  */
 import { getScenarioByTime, getScenarioByKey, defaultConfig } from './config/trafficScenarioConfig.js'
 import { FOLLOWING_CONFIG } from './config/vehicleConfig.js'
-import { getVDTimePeriodConfig } from './config/vdTimePeriodConfig.js'
 
 export default class AutoTrafficGenerator {
   constructor(trafficController) {
@@ -498,7 +497,9 @@ export default class AutoTrafficGenerator {
 
     // 手動模式下，直接使用來自UI的`normal`值，但加入密度調整
     if (!this.isAutoMode) {
-      let interval = Math.round(normal * (0.9 + Math.random() * 0.2) * densityMultiplier * displayMultiplierAdjustment)
+      let interval = Math.round(
+        (normal * (0.9 + Math.random() * 0.2) * densityMultiplier) / displayMultiplierAdjustment,
+      )
       return Math.max(min, Math.min(max * 2, interval)) // 允許最大間隔延長2倍
     }
 
@@ -523,34 +524,50 @@ export default class AutoTrafficGenerator {
 
   // 🎯 新增：獲取基於當前時段的 displayMultiplier 調整因子
   _getDisplayMultiplierAdjustment() {
-    // 自動模式：使用 VD 配置中的 displayMultiplier
+    // 自動模式：使用情景配置中的 displayMultiplier
     if (this.isAutoMode) {
       const hours = this.simulationTime.getHours()
-      const periodConfig = getVDTimePeriodConfig('VLRJX20', hours)
+      const scenario = getScenarioByTime(this.simulationTime)
 
-      if (!periodConfig || !periodConfig.displayMultiplier) {
+      if (!scenario || !scenario.config || !scenario.config.displayMultiplier) {
+        console.warn(`⚠️ 無法獲取時段 ${hours}:00 的 displayMultiplier，使用預設值 1`)
         return 1 // 若無配置，不調整
       }
 
-      return periodConfig.displayMultiplier
+      const displayMult = scenario.config.displayMultiplier
+      console.log(`🎭 [自動模式] 時段 ${hours}:00 -> displayMultiplier = ${displayMult}`)
+      return displayMult
     }
 
     // 手動情景模式：從當前情景配置中取得 displayMultiplier
     if (this.currentScenarioMode) {
       const scenario = getScenarioByKey(this.currentScenarioMode)
       if (scenario && scenario.config && scenario.config.displayMultiplier) {
-        return scenario.config.displayMultiplier
+        const displayMult = scenario.config.displayMultiplier
+        console.log(`🎭 [手動模式] 情景 ${this.currentScenarioMode} -> displayMultiplier = ${displayMult}`)
+        return displayMult
       }
     }
 
     // 預設：不調整
+    console.log(`🎭 [預設] displayMultiplier = 1`)
     return 1
   }
 
   // 排程下一次
   _scheduleNext() {
     if (!this.isRunning) return
-    if (window.liveVehicles && window.liveVehicles.length >= this.maxLiveVehicles) {
+
+    // 🎭 根據 displayMultiplier 動態調整 maxLiveVehicles
+    const displayMult = this._getDisplayMultiplierAdjustment()
+    const baseMaxLiveVehicles = this.config.maxLiveVehicles || this.maxLiveVehicles
+    const adjustedMaxLiveVehicles = Math.ceil(baseMaxLiveVehicles * displayMult)
+
+    // 檢查是否已達到當前時段的上限
+    if (window.liveVehicles && window.liveVehicles.length >= adjustedMaxLiveVehicles) {
+      console.log(
+        `🚦 車輛已達上限 (${window.liveVehicles.length}/${adjustedMaxLiveVehicles}，displayMult=${displayMult})，暫停生成`,
+      )
       this.timer = setTimeout(() => {
         this._scheduleNext()
       }, 500)
@@ -584,7 +601,12 @@ export default class AutoTrafficGenerator {
 
   // 隨機生成一輛車
   _generateVehicle() {
-    if (window.liveVehicles && window.liveVehicles.length >= this.maxLiveVehicles) return
+    // 🎭 根據 displayMultiplier 動態調整 maxLiveVehicles
+    const displayMult = this._getDisplayMultiplierAdjustment()
+    const baseMaxLiveVehicles = this.config.maxLiveVehicles || this.maxLiveVehicles
+    const adjustedMaxLiveVehicles = Math.ceil(baseMaxLiveVehicles * displayMult)
+
+    if (window.liveVehicles && window.liveVehicles.length >= adjustedMaxLiveVehicles) return
 
     // 檢查最近生成的車輛，但使用更短的檢查時間
     const now = Date.now()
