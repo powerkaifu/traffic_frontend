@@ -20,6 +20,8 @@ import {
   VehiclePositionSpeedUtils,
   RandomSpeedUtils,
   LaneLabelUtils,
+  SpeedLineUtils,
+  VehicleDOMUtils,
 } from './utils/VehicleUtilities.js' // 🚀 新增：車輛工具類
 
 // 註冊 GSAP 插件
@@ -291,125 +293,19 @@ export default class Vehicle {
     // Factory Pattern: 根據車輛配置創建對應的DOM元素
     const vehicleConfig = this.getVehicleConfig()
 
-    // 構建 transform 樣式
-    let transform = ''
-    if (vehicleConfig.rotation !== undefined) {
-      transform += `rotate(${vehicleConfig.rotation}deg) `
-    }
-    if (vehicleConfig.scaleX !== undefined) {
-      transform += `scaleX(${vehicleConfig.scaleX}) `
-    }
+    // 委託給 VehicleDOMUtils 創建元素
+    const div = VehicleDOMUtils.createVehicleElement(vehicleConfig, {
+      rotation: vehicleConfig.rotation,
+      scaleX: vehicleConfig.scaleX,
+      vehicleType: this.vehicleType,
+    })
 
-    const div = document.createElement('div')
-    div.className = 'vehicle' // 改為 vehicle 類名
     div.vehicleInstance = this // 保存車輛實例的引用
 
-    // 🌓 新增：計算陰影大小（根據車型）
-    const shadowSize = this.vehicleType === 'large' ? 10 : this.vehicleType === 'small' ? 8 : 6
-
-    div.style.cssText = `
-      position: absolute;
-      width: ${vehicleConfig.width}px;
-      height: ${vehicleConfig.height}px;
-      background-image: url('${vehicleConfig.image}');
-      background-size: contain;
-      background-repeat: no-repeat;
-      z-index: 10;
-      top: 0;
-      left: 0;
-      ${transform ? `transform: ${transform.trim()};` : ''}
-      transform-origin: center center;
-      filter: drop-shadow(3px 3px ${shadowSize}px rgba(0, 0, 0, 0.4));
-    `
-
-    // 💨 新增：創建速度線容器
-    this.createSpeedLines(div, vehicleConfig)
+    // 💨 新增：創建速度線容器，委託給 SpeedLineUtils
+    this.speedLines = SpeedLineUtils.createSpeedLines(div, vehicleConfig, this.direction)
 
     return div
-  }
-
-  // 💨 新增：創建速度線效果
-  createSpeedLines(container, vehicleConfig) {
-    this.speedLines = document.createElement('div')
-    this.speedLines.className = 'speed-lines'
-
-    // 根據方向決定速度線的位置和方向
-    const lineStyle = this.getSpeedLineStyle(vehicleConfig)
-
-    this.speedLines.style.cssText = `
-      position: absolute;
-      ${lineStyle.position}
-      width: ${lineStyle.width};
-      height: ${lineStyle.height};
-      opacity: 0;
-      pointer-events: none;
-      z-index: 5;
-    `
-
-    // 創建3條速度線
-    for (let i = 0; i < 3; i++) {
-      const line = document.createElement('div')
-      line.style.cssText = `
-        position: absolute;
-        ${lineStyle.linePosition}
-        ${lineStyle.lineSize}
-        background: linear-gradient(90deg, transparent, rgba(100, 150, 255, 0.6), transparent);
-        border-radius: 2px;
-        transform: translateX(${-i * 10}px);
-      `
-      this.speedLines.appendChild(line)
-    }
-
-    container.appendChild(this.speedLines)
-  }
-
-  // 💨 新增：根據方向獲取速度線樣式
-  getSpeedLineStyle(vehicleConfig) {
-    const width = vehicleConfig.width
-    const height = vehicleConfig.height
-
-    switch (this.direction) {
-      case 'east':
-        return {
-          position: 'left: -30px; top: 50%; transform: translateY(-50%);',
-          width: '30px',
-          height: `${height}px`,
-          linePosition: 'left: 0;',
-          lineSize: 'width: 15px; height: 2px; top: 30%;',
-        }
-      case 'west':
-        return {
-          position: 'right: -30px; top: 50%; transform: translateY(-50%);',
-          width: '30px',
-          height: `${height}px`,
-          linePosition: 'right: 0;',
-          lineSize: 'width: 15px; height: 2px; top: 30%;',
-        }
-      case 'north':
-        return {
-          position: 'top: -30px; left: 50%; transform: translateX(-50%);',
-          width: `${width}px`,
-          height: '30px',
-          linePosition: 'top: 0;',
-          lineSize: 'width: 2px; height: 15px; left: 50%;',
-        }
-      case 'south':
-        return {
-          position: 'bottom: -30px; left: 50%; transform: translateX(-50%);',
-          width: `${width}px`,
-          height: '30px',
-          linePosition: 'bottom: 0;',
-          lineSize: 'width: 2px; height: 15px; left: 50%;',
-        }
-      default:
-        return {
-          position: 'left: -30px; top: 50%;',
-          width: '30px',
-          height: `${height}px`,
-          linePosition: 'left: 0;',
-          lineSize: 'width: 15px; height: 2px;',
-        }
-    }
   }
 
   // 💨 新增：顯示加速效果
@@ -418,41 +314,24 @@ export default class Vehicle {
 
     this.isAccelerating = true
 
-    // 根據是否強烈加速調整效果
-    const opacity = isIntense ? 0.8 : 0.5
-    const duration = isIntense ? 0.8 : 0.5
+    // 委託給 SpeedLineUtils 顯示加速效果
+    SpeedLineUtils.showAccelerationEffect(this.speedLines, isIntense)
 
-    // 淡入速度線
-    gsap.to(this.speedLines, {
-      opacity: opacity,
-      duration: 0.2,
-      ease: 'power2.out',
-    })
-
-    // 自動淡出
-    gsap.to(this.speedLines, {
-      opacity: 0,
-      duration: 0.3,
-      delay: duration,
-      ease: 'power2.in',
-      onComplete: () => {
+    // 延遲後標記為非加速狀態
+    setTimeout(
+      () => {
         this.isAccelerating = false
       },
-    })
+      isIntense ? 1100 : 800,
+    )
   }
 
   // 💨 新增：隱藏加速效果
   hideAccelerationEffect() {
     if (!this.speedLines) return
 
-    gsap.to(this.speedLines, {
-      opacity: 0,
-      duration: 0.2,
-      ease: 'power2.in',
-      onComplete: () => {
-        this.isAccelerating = false
-      },
-    })
+    // 委託給 SpeedLineUtils 隱藏加速效果
+    SpeedLineUtils.hideAccelerationEffect(this.speedLines)
   }
 
   // Composite Pattern: 創建車道編號標籤組件

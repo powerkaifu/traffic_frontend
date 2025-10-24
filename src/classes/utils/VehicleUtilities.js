@@ -13,6 +13,7 @@
 import { gsap } from 'gsap'
 import { ANIMATION_CONFIG } from '../config/vehicleConfig.js'
 import { speedConfig } from '../config/trafficConfig.js'
+import VehicleConfig from '../config/vehicleConfig.js'
 
 /**
  * 車輛靜態屬性管理
@@ -330,6 +331,197 @@ export class LaneLabelUtils {
 }
 
 /**
+ * 速度線工具
+ * 創建和管理車輛加速效果的速度線
+ */
+export class SpeedLineUtils {
+  /**
+   * 創建速度線容器
+   * @param {HTMLElement} container - 父容器
+   * @param {Object} vehicleConfig - 車輛配置對象
+   * @param {string} direction - 車輛方向
+   * @returns {HTMLElement} 速度線容器
+   */
+  static createSpeedLines(container, vehicleConfig, direction) {
+    const speedLines = document.createElement('div')
+    speedLines.className = 'speed-lines'
+
+    // 根據方向決定速度線的位置和方向
+    const lineStyle = this.getSpeedLineStyle(vehicleConfig, direction)
+
+    speedLines.style.cssText = `
+      position: absolute;
+      ${lineStyle.position}
+      width: ${lineStyle.width};
+      height: ${lineStyle.height};
+      opacity: 0;
+      pointer-events: none;
+      z-index: 5;
+    `
+
+    // 創建 3 條速度線
+    for (let i = 0; i < 3; i++) {
+      const line = document.createElement('div')
+      line.style.cssText = `
+        position: absolute;
+        ${lineStyle.linePosition}
+        ${lineStyle.lineSize}
+        background: linear-gradient(90deg, transparent, rgba(100, 150, 255, 0.6), transparent);
+        border-radius: 2px;
+        transform: translateX(${-i * 10}px);
+      `
+      speedLines.appendChild(line)
+    }
+
+    container.appendChild(speedLines)
+    return speedLines
+  }
+
+  /**
+   * 根據方向和配置獲取速度線樣式
+   * @param {Object} vehicleConfig - 車輛配置
+   * @param {string} direction - 車輛方向
+   * @returns {Object} 樣式配置
+   */
+  static getSpeedLineStyle(vehicleConfig, direction) {
+    const width = vehicleConfig.width
+    const height = vehicleConfig.height
+
+    switch (direction) {
+      case 'east':
+        return {
+          position: 'left: -30px; top: 50%; transform: translateY(-50%);',
+          width: '30px',
+          height: `${height}px`,
+          linePosition: 'left: 0;',
+          lineSize: 'width: 15px; height: 2px; top: 30%;',
+        }
+      case 'west':
+        return {
+          position: 'right: -30px; top: 50%; transform: translateY(-50%);',
+          width: '30px',
+          height: `${height}px`,
+          linePosition: 'right: 0;',
+          lineSize: 'width: 15px; height: 2px; top: 30%;',
+        }
+      case 'north':
+        return {
+          position: 'top: -30px; left: 50%; transform: translateX(-50%);',
+          width: `${width}px`,
+          height: '30px',
+          linePosition: 'top: 0;',
+          lineSize: 'width: 2px; height: 15px; left: 50%;',
+        }
+      case 'south':
+        return {
+          position: 'bottom: -30px; left: 50%; transform: translateX(-50%);',
+          width: `${width}px`,
+          height: '30px',
+          linePosition: 'bottom: 0;',
+          lineSize: 'width: 2px; height: 15px; left: 50%;',
+        }
+      default:
+        return {
+          position: 'left: -30px; top: 50%;',
+          width: '30px',
+          height: `${height}px`,
+          linePosition: 'left: 0;',
+          lineSize: 'width: 15px; height: 2px;',
+        }
+    }
+  }
+
+  /**
+   * 顯示加速效果
+   * @param {HTMLElement} speedLines - 速度線元素
+   * @param {boolean} isIntense - 是否為強烈加速
+   */
+  static showAccelerationEffect(speedLines, isIntense = false) {
+    if (!speedLines) return
+
+    const opacity = isIntense ? 0.8 : 0.5
+    const duration = isIntense ? 0.8 : 0.5
+
+    // 淡入速度線
+    gsap.to(speedLines, {
+      opacity: opacity,
+      duration: 0.2,
+      ease: 'power2.out',
+    })
+
+    // 自動淡出
+    gsap.to(speedLines, {
+      opacity: 0,
+      duration: 0.3,
+      delay: duration,
+      ease: 'power2.in',
+    })
+  }
+
+  /**
+   * 隱藏加速效果
+   * @param {HTMLElement} speedLines - 速度線元素
+   */
+  static hideAccelerationEffect(speedLines) {
+    if (!speedLines) return
+
+    gsap.to(speedLines, {
+      opacity: 0,
+      duration: 0.2,
+      ease: 'power2.in',
+    })
+  }
+}
+
+/**
+ * DOM 創建工具
+ * 統一管理車輛 DOM 元素的創建和樣式
+ */
+export class VehicleDOMUtils {
+  /**
+   * 創建車輛 DOM 元素
+   * @param {Object} vehicleConfig - 車輛配置
+   * @param {Object} options - 選項 { rotation, scaleX, vehicleType }
+   * @returns {HTMLElement} 車輛 DOM 元素
+   */
+  static createVehicleElement(vehicleConfig, options = {}) {
+    const { rotation, scaleX, vehicleType } = options
+
+    // 構建 transform 樣式
+    let transform = ''
+    if (rotation !== undefined) {
+      transform += `rotate(${rotation}deg) `
+    }
+    if (scaleX !== undefined) {
+      transform += `scaleX(${scaleX}) `
+    }
+
+    const div = document.createElement('div')
+    div.className = 'vehicle'
+
+    // 計算陰影大小（根據車型）
+    const shadowSize = vehicleType === 'large' ? 10 : vehicleType === 'small' ? 8 : 6
+
+    div.style.cssText = `
+      position: absolute;
+      width: ${vehicleConfig.width}px;
+      height: ${vehicleConfig.height}px;
+      background-image: url('${vehicleConfig.image}');
+      background-size: contain;
+      background-repeat: no-repeat;
+      z-index: 10;
+      top: 0;
+      left: 0;
+      ${transform ? `transform: ${transform.trim()};` : ''}
+      transform-origin: center center;
+      filter: drop-shadow(3px 3px ${shadowSize}px rgba(0, 0, 0, 0.4));
+    `
+
+    return div
+  }
+}
+
+/**
  * 默認導出：包含所有工具類
  */
 export default {
@@ -339,4 +531,6 @@ export default {
   DebounceUtils,
   RandomSpeedUtils,
   LaneLabelUtils,
+  SpeedLineUtils,
+  VehicleDOMUtils,
 }
