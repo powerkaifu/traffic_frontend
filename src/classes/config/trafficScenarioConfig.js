@@ -76,10 +76,10 @@
  *   * updateGenerationConfig() 方法
  * - AutoTrafficGenerator.js: 暫時未直接使用，使用 getScenarioByTime() 函數替代
  *
- * 🎯 VD數據對應：
- * - 尖峰：基於 VLRJX20（東向，易壅塞）高峰時段數據
- * - 離峰：基於 VLRJM60（西向，中等流量）一般時段數據
- * - 凌晨：基於 VLRJX00（南北向，順暢）深夜時段數據
+ * 🎯 VD數據對應（基於 2024/02-03 訓練數據分析）：
+ * - 尖峰：早峰 07-09 (9輛/車道) 與 晚峰 17-19 (10-11輛/車道)
+ * - 離峰：中午 10-16 (3-4輛/車道) 與 晚間 20-23 (1-2輛/車道)
+ * - 凌晨：00-06 (0-1輛/車道)，車流極少
  */
 export const timeScenarios = [
   {
@@ -93,31 +93,32 @@ export const timeScenarios = [
       { start: 17, end: 19 },
     ],
 
-    // 🎯 目標特徵（傳送給後端的VD數據）
+    // 🎯 目標特徵（基於 VD 配置文檔統計數據）
+    // 早峰/晚峰：9-11輛/車道，占有率 12-15%，速度 38-45 km/h
     targetFeatures: {
-      totalVolumePer5Min: 12, // 總車流：12輛/5分鐘
-      occupancy: 50, // 佔有率：50%
-      speed: 28, // 平均速度：28 km/h
+      totalVolumePer5Min: 11, // 每輛道：9-11 輛/5分鐘
+      occupancy: 14, // 佔有率：12-15%（實際環境）
+      speed: 42, // 平均速度：42 km/h
       volumeByType: {
-        motor: 5, // 機車：5輛/5分鐘
-        small: 6, // 小客車：6輛/5分鐘
-        large: 1, // 大客車：1輛/5分鐘
+        motor: 4, // 機車：約 35-40%
+        small: 6, // 小客車：約 55-65%
+        large: 1, // 大客車：約 5-10%
       },
     },
 
     config: {
-      // 目標：12輛/5分鐘 → 300秒/12輛 = 25秒/輛 = 25000ms
-      // 實際：3000ms / 4.0 = 750ms → 約16輛/5分鐘（考慮動態調整）
-      interval: { min: 2000, max: 5000, normal: 3000 },
+      // 目標：11輛/5分鐘 → 300秒/11輛 ≈ 27秒/輛
+      // 實際：2700ms / 3.2 = 844ms → 約11.9輛/5分鐘（配合動態調整）
+      interval: { min: 2000, max: 5000, normal: 2700 },
       vehicleTypes: [
-        { type: 'motor', weight: 50 }, // 機車 50%（尖峰時段機車多）
-        { type: 'small', weight: 40 }, // 小客車 40%
-        { type: 'large', weight: 10 }, // 大客車 10%
+        { type: 'motor', weight: 38 }, // 機車 38%（根據 VD 實際比例調整）
+        { type: 'small', weight: 58 }, // 小客車 58%
+        { type: 'large', weight: 4 }, // 大客車 4%
       ],
-      peakMultiplier: 4.0, // 高強度，實際間隔 = 3000/4.0 = 750ms
-      maxLiveVehicles: 60, // 允許較多車輛同時在場
-      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
-      description: '尖峰時段 - 高流量高佔有率低速度',
+      peakMultiplier: 3.2, // 高強度，實際間隔 = 2700/3.2 = 844ms
+      maxLiveVehicles: 55, // 允許較多車輛同時在場
+      densityThresholds: { light: 15, moderate: 25, heavy: 35, congested: 45 },
+      description: '尖峰時段 - 高流量中等佔有率中速度 (早峰/晚峰)',
     },
   },
   {
@@ -125,37 +126,38 @@ export const timeScenarios = [
     name: '離峰時段',
     shortName: '離峰',
     icon: '🌞',
-    timeRange: '09:00-16:00,19:00-22:00',
+    timeRange: '09:00-17:00,19:00-23:00',
     hourRanges: [
-      { start: 9, end: 16 },
-      { start: 19, end: 22 },
+      { start: 9, end: 17 },
+      { start: 19, end: 23 },
     ],
 
-    // 🎯 目標特徵（傳送給後端的VD數據）
+    // 🎯 目標特徵（基於 VD 配置文檔統計數據）
+    // 中午/晚間：3-4輛/車道，占有率 6-8%，速度 50-55 km/h
     targetFeatures: {
-      totalVolumePer5Min: 6, // 總車流：6輛/5分鐘
-      occupancy: 22, // 佔有率：22%
-      speed: 35, // 平均速度：35 km/h
+      totalVolumePer5Min: 4, // 每車道：3-4 輛/5分鐘
+      occupancy: 7, // 佔有率：6-8%（實際環境）
+      speed: 52, // 平均速度：52 km/h
       volumeByType: {
-        motor: 2, // 機車：2輛/5分鐘
-        small: 3, // 小客車：3輛/5分鐘
-        large: 1, // 大客車：1輛/5分鐘
+        motor: 1, // 機車：約 25-35%
+        small: 3, // 小客車：約 65-75%
+        large: 0, // 大客車：很少
       },
     },
 
     config: {
-      // 目標：6輛/5分鐘 → 300秒/6輛 = 50秒/輛 = 50000ms
-      // 實際：6000ms / 2.5 = 2400ms → 約7-8輛/5分鐘
-      interval: { min: 4000, max: 10000, normal: 6000 },
+      // 目標：4輛/5分鐘 → 300秒/4輛 = 75秒/輛 = 75000ms
+      // 實際：5800ms / 2.0 = 2900ms → 約5.2輛/5分鐘（稍高於目標，留有餘裕）
+      interval: { min: 4500, max: 9000, normal: 5800 },
       vehicleTypes: [
-        { type: 'motor', weight: 30 }, // 機車 30%
-        { type: 'small', weight: 55 }, // 小客車 55%（離峰時段小客車較多）
-        { type: 'large', weight: 15 }, // 大客車 15%
+        { type: 'motor', weight: 30 }, // 機車 30%（離峰機車較少）
+        { type: 'small', weight: 65 }, // 小客車 65%（離峰小客車佔多數）
+        { type: 'large', weight: 5 }, // 大客車 5%
       ],
-      peakMultiplier: 2.5, // 中等強度，實際間隔 = 6000/2.5 = 2400ms
-      maxLiveVehicles: 40, // 中等車輛數
-      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
-      description: '離峰時段 - 中等流量正常佔有率正常速度',
+      peakMultiplier: 2.0, // 中等強度，實際間隔 = 5800/2.0 = 2900ms
+      maxLiveVehicles: 35, // 中等車輛數
+      densityThresholds: { light: 10, moderate: 18, heavy: 28, congested: 40 },
+      description: '離峰時段 - 中等流量低佔有率較高速度 (中午/晚間)',
     },
   },
   {
@@ -163,39 +165,40 @@ export const timeScenarios = [
     name: '凌晨時段',
     shortName: '凌晨',
     icon: '🌙',
-    timeRange: '23:00-06:00',
+    timeRange: '23:00-07:00',
     hourRanges: [
       { start: 23, end: 24 },
-      { start: 0, end: 6 },
+      { start: 0, end: 7 },
     ],
 
-    // 🎯 目標特徵（傳送給後端的VD數據）
+    // 🎯 目標特徵（基於 VD 配置文檔統計數據）
+    // 凌晨：0-1輛/車道，占有率 2%，速度 58-60 km/h
     targetFeatures: {
-      totalVolumePer5Min: 2, // 總車流：2輛/5分鐘
-      occupancy: 8, // 佔有率：8%
-      speed: 48, // 平均速度：48 km/h
+      totalVolumePer5Min: 1, // 每車道：0-1 輛/5分鐘
+      occupancy: 2, // 佔有率：2%（實際環境，極低）
+      speed: 59, // 平均速度：59 km/h（流量少，速度快）
       volumeByType: {
-        motor: 1, // 機車：1輛/5分鐘（凌晨主要是機車）
-        small: 1, // 小客車：1輛/5分鐘
-        large: 0, // 大客車：0輛/5分鐘
+        motor: 0.5, // 機車：主要是機車
+        small: 0.5, // 小客車：很少
+        large: 0, // 大客車：幾乎沒有
       },
     },
 
     config: {
-      // 目標：2輛/5分鐘 → 300秒/2輛 = 150秒/輛 = 150000ms
-      // 實際：25000ms / 1.0 = 25000ms → 約2.4輛/5分鐘
-      interval: { min: 15000, max: 40000, normal: 25000 },
+      // 目標：1輛/5分鐘 → 300秒/1輛 = 300秒/輛 = 300000ms
+      // 實際：24000ms / 0.95 = 25263ms → 約1.2輛/5分鐘（接近目標）
+      interval: { min: 18000, max: 35000, normal: 24000 },
 
       vehicleTypes: [
-        { type: 'motor', weight: 70 }, // 機車 70%（凌晨機車占多數）
+        { type: 'motor', weight: 70 }, // 機車 70%（凌晨主要是機車和計程車）
         { type: 'small', weight: 25 }, // 小客車 25%
-        { type: 'large', weight: 5 }, // 大客車 5%（很少）
+        { type: 'large', weight: 5 }, // 大客車 5%（幾乎沒有）
       ],
 
-      peakMultiplier: 1.0, // 正常強度，不加速
-      maxLiveVehicles: 15, // 少量車輛
-      densityThresholds: { light: 10, moderate: 20, heavy: 30, congested: 40 },
-      description: '凌晨時段 - 低流量低佔有率高速度',
+      peakMultiplier: 0.95, // 低強度，實際間隔 = 24000/0.95 = 25263ms
+      maxLiveVehicles: 12, // 少量車輛
+      densityThresholds: { light: 5, moderate: 10, heavy: 15, congested: 25 },
+      description: '凌晨時段 - 極低流量極低佔有率高速度 (00:00-07:00)',
     },
   },
 ]
