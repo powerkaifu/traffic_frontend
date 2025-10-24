@@ -95,9 +95,10 @@ export const timeScenarios = [
 
     // 🎯 目標特徵（基於 VD 配置文檔統計數據）
     // 早峰/晚峰：9-11輛/車道，占有率 12-15%，速度 38-45 km/h
+    // 🎭 API 層：後端接收的原始數據（不放大）
     targetFeatures: {
-      totalVolumePer5Min: 11, // 每輛道：9-11 輛/5分鐘
-      occupancy: 14, // 佔有率：12-15%（實際環境）
+      totalVolumePer5Min: 11, // 每輞道：9-11 輛/5分鐘（原始數據）
+      occupancy: 14, // 佔有率：12-15%（原始數據）
       speed: 42, // 平均速度：42 km/h
       volumeByType: {
         motor: 4, // 機車：約 35-40%
@@ -119,6 +120,7 @@ export const timeScenarios = [
       maxLiveVehicles: 55, // 允許較多車輛同時在場
       densityThresholds: { light: 15, moderate: 25, heavy: 35, congested: 45 },
       description: '尖峰時段 - 高流量中等佔有率中速度 (早峰/晚峰)',
+      displayMultiplier: 7, // 🎭 視覺層倍數：前端動畫放大 7 倍
     },
   },
   {
@@ -135,8 +137,8 @@ export const timeScenarios = [
     // 🎯 目標特徵（基於 VD 配置文檔統計數據）
     // 中午/晚間：3-4輛/車道，占有率 6-8%，速度 50-55 km/h
     targetFeatures: {
-      totalVolumePer5Min: 4, // 每車道：3-4 輛/5分鐘
-      occupancy: 7, // 佔有率：6-8%（實際環境）
+      totalVolumePer5Min: 4, // 每車道：3-4 輛/5分鐘（原始數據）
+      occupancy: 7, // 佔有率：6-8%（原始數據）
       speed: 52, // 平均速度：52 km/h
       volumeByType: {
         motor: 1, // 機車：約 25-35%
@@ -158,6 +160,7 @@ export const timeScenarios = [
       maxLiveVehicles: 35, // 中等車輛數
       densityThresholds: { light: 10, moderate: 18, heavy: 28, congested: 40 },
       description: '離峰時段 - 中等流量低佔有率較高速度 (中午/晚間)',
+      displayMultiplier: 3, // 🎭 視覺層倍數：前端動畫放大 3 倍
     },
   },
   {
@@ -174,8 +177,8 @@ export const timeScenarios = [
     // 🎯 目標特徵（基於 VD 配置文檔統計數據）
     // 凌晨：0-1輛/車道，占有率 2%，速度 58-60 km/h
     targetFeatures: {
-      totalVolumePer5Min: 1, // 每車道：0-1 輛/5分鐘
-      occupancy: 2, // 佔有率：2%（實際環境，極低）
+      totalVolumePer5Min: 1, // 每車道：0-1 輛/5分鐘（原始數據）
+      occupancy: 2, // 佔有率：2%（原始數據，極低）
       speed: 59, // 平均速度：59 km/h（流量少，速度快）
       volumeByType: {
         motor: 0.5, // 機車：主要是機車
@@ -199,6 +202,7 @@ export const timeScenarios = [
       maxLiveVehicles: 12, // 少量車輛
       densityThresholds: { light: 5, moderate: 10, heavy: 15, congested: 25 },
       description: '凌晨時段 - 極低流量極低佔有率高速度 (00:00-07:00)',
+      displayMultiplier: 1.5, // 🎭 視覺層倍數：前端動畫放大 1.5 倍
     },
   },
 ]

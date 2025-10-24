@@ -3,7 +3,7 @@
  */
 import { getScenarioByTime, getScenarioByKey, vehicleMixes, defaultConfig } from './config/trafficScenarioConfig.js'
 import { FOLLOWING_CONFIG } from './config/vehicleConfig.js'
-import { getVDTimePeriodConfig, generateVDDataInRange } from './config/vdTimePeriodConfig.js'
+import { getVDTimePeriodConfig } from './config/vdTimePeriodConfig.js'
 
 export default class AutoTrafficGenerator {
   constructor(trafficController) {
@@ -278,11 +278,15 @@ export default class AutoTrafficGenerator {
     const features = scenario.targetFeatures
     const hour = this._getScenarioHour(scenarioKey)
 
-    // 在目標特徵範圍內隨機生成 VD 數據
+    // 🎭 API 層數據：原始數據（不放大，用於後端）
     const volumeByType = features.volumeByType
-    const totalVolume = features.totalVolumePer5Min
 
-    return {
+    // 在目標值範圍內加入隨機波動 ±20%
+    const volumeVariance = 0.8 + Math.random() * 0.4
+    const occupancyVariance = 0.8 + Math.random() * 0.4
+    const speedVariance = 0.85 + Math.random() * 0.3
+
+    const apiVDData = {
       VD_ID: 'VLRJX20',
       DayOfWeek: new Date().getDay(),
       Hour: hour,
@@ -291,20 +295,39 @@ export default class AutoTrafficGenerator {
       IsPeakHour: scenarioKey === 'peak_hours' ? 1 : 0,
       LaneID: 0,
       LaneType: 1,
-      // 生成車輛數據（基於目標比例）
-      Volume_M: Math.round(volumeByType.motor * (0.8 + Math.random() * 0.4)),
-      Volume_S: Math.round(volumeByType.small * (0.8 + Math.random() * 0.4)),
-      Volume_L: Math.round(volumeByType.large * (0.8 + Math.random() * 0.4)),
+      // 🎯 API 層：原始車輛數據（不放大）
+      Volume_M: Math.round(volumeByType.motor * volumeVariance),
+      Volume_S: Math.round(volumeByType.small * volumeVariance),
+      Volume_L: Math.round(volumeByType.large * volumeVariance),
       Volume_T: 0,
-      // 生成速度數據（基於目標速度±10%）
-      Speed_M: Math.round(features.speed * (0.9 + Math.random() * 0.2) * (0.85 + Math.random() * 0.3)),
-      Speed_S: Math.round(features.speed * (0.9 + Math.random() * 0.2)),
-      Speed_L: Math.round(features.speed * (0.9 + Math.random() * 0.2) * (0.7 + Math.random() * 0.3)),
+      // 🎯 API 層：原始速度數據
+      Speed_M: Math.round(features.speed * speedVariance * (0.85 + Math.random() * 0.3)),
+      Speed_S: Math.round(features.speed * speedVariance),
+      Speed_L: Math.round(features.speed * speedVariance * (0.7 + Math.random() * 0.3)),
       Speed_T: 0,
-      // 佔有率（基於目標佔有率±20%）
-      Occupancy: Math.round(features.occupancy * (0.8 + Math.random() * 0.4) * 10) / 10,
-      totalVolumePer5Min: totalVolume,
+      // 🎯 API 層：原始佔有率（不放大）
+      Occupancy: Math.round(features.occupancy * occupancyVariance * 10) / 10,
     }
+
+    // 🎭 視覺層數據：應用 displayMultiplier 放大（用於前端動畫）
+    const displayMultiplier = scenario.config.displayMultiplier || 1
+    const visualVDData = {
+      ...apiVDData,
+      // 放大後的數據用於視覺顯示
+      Volume_M: Math.round(apiVDData.Volume_M * displayMultiplier),
+      Volume_S: Math.round(apiVDData.Volume_S * displayMultiplier),
+      Volume_L: Math.round(apiVDData.Volume_L * displayMultiplier),
+      Volume_T: 0,
+      // 佔有率也放大以匹配視覺流量
+      Occupancy: Math.round(apiVDData.Occupancy * displayMultiplier * 10) / 10,
+      // 標記這是視覺層數據
+      isVisualData: true,
+      displayMultiplier: displayMultiplier,
+      // 保留原始 API 數據備用
+      apiData: apiVDData,
+    }
+
+    return visualVDData
   }
 
   // 🎯 獲取情景對應的小時
@@ -346,6 +369,51 @@ export default class AutoTrafficGenerator {
     return Math.random() * (max - min) + min
   }
 
+  // 根據時間判斷情景 key
+  _getScenarioKeyByTime(date) {
+    const hour = date.getHours()
+
+    // 檢查 timeScenarios 中的 hourRanges
+    for (const scenario of [
+      {
+        key: 'peak_hours',
+        ranges: [
+          [7, 9],
+          [17, 19],
+        ],
+      },
+      {
+        key: 'off_peak',
+        ranges: [
+          [9, 17],
+          [19, 23],
+        ],
+      },
+      {
+        key: 'late_night',
+        ranges: [
+          [23, 24],
+          [0, 7],
+        ],
+      },
+    ]) {
+      for (const range of scenario.ranges) {
+        if (range[0] <= range[1]) {
+          if (hour >= range[0] && hour < range[1]) {
+            return scenario.key
+          }
+        } else {
+          // 跨越午夜的範圍
+          if (hour >= range[0] || hour < range[1]) {
+            return scenario.key
+          }
+        }
+      }
+    }
+
+    return 'off_peak' // 預設
+  }
+
   // 根據模擬時間套用交通設定檔，使用於自動模式
   // 🎯 每日自動模式的核心方法：生成 VD 數據 + 傳送 API 預測
   _applyTrafficProfile() {
@@ -363,44 +431,37 @@ export default class AutoTrafficGenerator {
     this.config.peakMultiplier = scenario.peakMultiplier
     this.config.vehicleTypes = scenario.vehicleTypes
 
-    // 🎯 新增：根據時段生成符合 VD 配置的真實數據
-    const hours = this.simulationTime.getHours()
-    const periodConfig = getVDTimePeriodConfig('VLRJX20', hours) // 使用 VLRJX20 作為示例
+    //  修正：使用新的方法判斷情景 key（不硬編碼時間範圍）
+    const scenarioKey = this._getScenarioKeyByTime(this.simulationTime)
+    const scenarioConfig = getScenarioByKey(scenarioKey)
 
-    // 🎭 新增：判斷當前的情景 key
-    let scenarioKey = 'off_peak'
-    if (hours >= 7 && hours < 9) scenarioKey = 'peak_hours'
-    else if (hours >= 17 && hours < 19) scenarioKey = 'peak_hours'
-    else if (hours >= 23 || hours < 7) scenarioKey = 'late_night'
-    else scenarioKey = 'off_peak'
-
-    if (periodConfig) {
-      // 在時段參數範圍內隨機生成 VD 數據
-      const apiVDData = generateVDDataInRange(periodConfig)
-
-      // 🎯 雙層架構：為前端視覺層創建放大的 VD 數據
-      const visualVDData = this._generateVisualVDData(apiVDData, periodConfig)
+    if (scenarioConfig) {
+      // 使用情景配置中的 targetFeatures 生成 VD 數據
+      const visualVDData = this._generateScenarioVDData(scenarioKey)
 
       // 回傳給 UI (使用視覺層數據用於前端顯示)
-      if (this.onTimeUpdate) {
+      if (this.onTimeUpdate && visualVDData) {
         this.onTimeUpdate({
           time: this.simulationTime.toLocaleTimeString('it-IT'),
           description: scenario.description,
-          vdData: visualVDData, // 傳送放大的視覺數據
-          apiVDData: apiVDData, // 保存原始 API 數據用於後端發送
-          scenarioMode: scenarioKey, // 🎭 新增：傳遞情景 key
+          vdData: visualVDData, // 傳送視覺層數據
+          apiVDData: visualVDData.apiData, // 傳送原始 API 數據
+          scenarioMode: scenarioKey, // 🎭 情景 key
+          targetFeatures: scenarioConfig.targetFeatures, // 傳遞目標特徵供 UI 參考
         })
       }
 
-      // 🎯 新增：異步傳送 API 預測（使用原始 API 數據）
-      // this._sendVDDataToBackendAsync(apiVDData) // 取消註解以啟用
+      // 🎯 異步傳送 API 預測（使用原始 API 數據）
+      // if (visualVDData && visualVDData.apiData) {
+      //   this._sendVDDataToBackendAsync(visualVDData.apiData)
+      // }
     } else {
       // 備用方案：如果沒有找到配置，使用原始邏輯
       if (this.onTimeUpdate) {
         this.onTimeUpdate({
           time: this.simulationTime.toLocaleTimeString('it-IT'),
           description: scenario.description,
-          scenarioMode: scenarioKey, // 🎭 新增：傳遞情景 key
+          scenarioMode: 'unknown',
         })
       }
     }
