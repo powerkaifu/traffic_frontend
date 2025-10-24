@@ -58,8 +58,6 @@ export default class AutoTrafficGenerator {
 
       // 設置最小間隔為通過安全距離所需時間的1.5倍（安全係數）
       this.minLaneInterval = Math.max(1000, Math.round(timeToPassSafeDistance * 1.5))
-
-      console.log(`🔧 根據配置安全距離(${safeDistance}px)計算車道生成間隔: ${this.minLaneInterval}ms`)
     }
   }
 
@@ -99,26 +97,22 @@ export default class AutoTrafficGenerator {
     // 🚨 新增：如果配置包含車道間隔設置，更新它（手動設定可覆蓋動態調整）
     if (typeof newConfig.minLaneInterval === 'number') {
       this.minLaneInterval = Math.max(500, newConfig.minLaneInterval) // 安全下限500ms
-      console.log(`🔧 車道最小生成間隔手動設置為: ${this.minLaneInterval}ms`)
     }
 
     // 🔧 CRITICAL FIX：清除情景模式計時器，防止它覆蓋手動設定
     if (this.scenarioModeTimer) {
       clearInterval(this.scenarioModeTimer)
       this.scenarioModeTimer = null
-      console.log(`🛑 [手動模式] 清除情景模式計時器，防止自動覆蓋`)
     }
 
     // 🔧 CRITICAL FIX：清除 currentScenarioMode，防止 _getDisplayMultiplierAdjustment() 讀取舊配置
     if (this.currentScenarioMode) {
-      console.log(`🛑 [手動模式] 清除 currentScenarioMode: ${this.currentScenarioMode}`)
       this.currentScenarioMode = null
     }
 
     // 如果在自動模式下進行了手動設定，則自動關閉自動模式
     if (this.isAutoMode) {
       this.toggleAutoMode(false)
-      console.log(`🛑 [手動模式] 停止自動模式，進入手動拉桿模式`)
     }
   }
 
