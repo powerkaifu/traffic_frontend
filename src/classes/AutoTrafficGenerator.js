@@ -165,7 +165,7 @@ export default class AutoTrafficGenerator {
       this.simulationTime.setMinutes(this.simulationTime.getMinutes() + 30)
 
       this._applyTrafficProfile()
-    }, 1800) // 真實世界的 30 分鐘(1800秒) = 模擬世界的 24 小時 (1800 / 48 = 37.5秒/次)
+    }, 37500) // 每 30 分鐘模擬一天，每 37.5 秒更新一次
   }
 
   // 停止自動模式循環
