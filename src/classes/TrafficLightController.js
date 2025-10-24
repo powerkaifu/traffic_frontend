@@ -701,28 +701,46 @@ export default class TrafficLightController {
         console.log('⚠️ 使用本地收集的數據（備用方案）:', dataToSend)
       }
 
-      // 🎯【重要】確保 dataToSend 是陣列格式（後端期望 4 筆路口特徵資料）
+      // 🎯【關鍵步驟 1】確保 dataToSend 是陣列格式（後端期望 4 筆路口特徵資料）
       let allIntersectionData = []
       if (Array.isArray(dataToSend)) {
-        // 已經是陣列格式
+        // 已經是陣列格式（來自 collectIntersectionData()）
         allIntersectionData = dataToSend
         console.log('✅ 數據已是陣列格式，包含 ' + allIntersectionData.length + ' 筆交叉路口數據')
       } else if (dataToSend && typeof dataToSend === 'object') {
-        // 單個物件，轉換成陣列
-        allIntersectionData = [dataToSend]
-        console.warn('⚠️ 數據是單個物件，已轉換為陣列格式')
+        // 單個物件（來自 AutoTrafficGenerator），需要複製為 4 筆（東、西、南、北）
+        console.log('📋 檢測到單筆 AutoTrafficGenerator 數據，準備擴展為 4 筆交叉路口...')
+
+        // 東、西、南、北的 VD_ID 和方向信息
+        const directions = [
+          { id: 'VLRJX20', name: '東向' },
+          { id: 'VLRJM60', name: '西向' },
+          { id: 'VLRJX00', name: '南向' },
+          { id: 'VLRJX00', name: '北向' },
+        ]
+
+        // 將單筆數據複製為 4 筆（每個方向一筆），保持相同的流量/速度數據
+        allIntersectionData = directions.map((direction, index) => ({
+          ...dataToSend,
+          VD_ID: direction.id,
+          LaneID: index,
+          Direction: direction.name,
+          // ✅ 保持原始的 Volume_M, Volume_S, Volume_L, Speed 等數據
+        }))
+
+        console.log('✅ 已將單筆數據擴展為 4 筆交叉路口數據（東、西、南、北）')
       } else {
         console.error('❌ 數據格式錯誤，無法發送到後端')
         throw new Error('Invalid data format: expected array or object with intersection data')
       }
 
-      // ✅ 新增：自動正規化轉換（對每一筆交叉路口數據）
+      // ✅ 進行正規化轉換：前端顯示數據 → API 發送數據
       const normalizedDataArray = allIntersectionData.map((singleData) => {
-        // 提取路口 ID（如果有）
+        // 提取路口 ID 和時段
         const intersectionId = singleData?.VD_ID || 'VLRJM60'
         const timePeriod = getCurrentTimePeriod()
 
-        // 準備正規化數據
+        // 準備前端生成的數據（視覺層 × displayMultiplier）
         const frontendData = {
           volume: singleData?.Volume_T || 0,
           speed: singleData?.Speed_T || 0,
@@ -732,38 +750,26 @@ export default class TrafficLightController {
           volume_l: singleData?.Volume_L || 0,
         }
 
-        // 執行正規化
+        // 【核心】執行正規化轉換：將前端顯示數據轉換為 API 層數據
         const normalizedData = VDNormalizationUtils.denormalizeToVDRange(frontendData, intersectionId, timePeriod)
 
         // 驗證正規化結果
         const validation = VDNormalizationUtils.validateNormalizedData(normalizedData, intersectionId, timePeriod)
 
-        // ✅ 正規化後的車型比例（基於原始 API 層數據）
-        // 尖峰：機車38%, 小客車58%, 大客車4%
-        // 離峰：機車30%, 小客車65%, 大客車5%
-        // 凌晨：機車70%, 小客車25%, 大客車5%
-        const volumeByTypeProportion = {
-          peak_hours: { motor: 0.38, small: 0.58, large: 0.04 },
-          off_peak: { motor: 0.3, small: 0.65, large: 0.05 },
-          late_night: { motor: 0.7, small: 0.25, large: 0.05 },
-        }
-        const proportion = volumeByTypeProportion[timePeriod] || { motor: 0.4, small: 0.5, large: 0.1 }
-
-        // 在原始數據中混入正規化數據
-        const normalizedItem = {
+        // 返回正規化後的交叉路口數據
+        return {
           ...singleData,
-          // 保留原始數據用於日誌
-          original_volume: singleData?.Volume_T || 0,
-          original_speed: singleData?.Speed_T || 0,
-          original_occupancy: singleData?.Occupancy || 0,
-          // ✅ 使用正規化數據發送給後端（回到 VD 原始範圍）
-          Volume_T: Math.round(normalizedData.volume), // ← 核心：正規化後的總流量
-          Volume_M: Math.round(normalizedData.volume * proportion.motor), // ← 機車
-          Volume_S: Math.round(normalizedData.volume * proportion.small), // ← 小客車
-          Volume_L: Math.round(normalizedData.volume * proportion.large), // ← 大客車
+          // 【重要】使用正規化後的數據發送給後端
+          Volume_T: Math.round(normalizedData.volume),
+          Volume_M: Math.round(normalizedData.volume_m),
+          Volume_S: Math.round(normalizedData.volume_s),
+          Volume_L: Math.round(normalizedData.volume_l),
           Speed_T: normalizedData.speed || singleData?.Speed_T || 0,
-          Occupancy: Math.round(normalizedData.occupancy * 10) / 10, // ← 正規化後的佔有率
-          // 添加正規化元數據（後端需要這些信息）
+          Speed_M: singleData?.Speed_M,
+          Speed_S: singleData?.Speed_S,
+          Speed_L: singleData?.Speed_L,
+          Occupancy: Math.round(normalizedData.occupancy * 10) / 10,
+          // 元數據
           normalization_applied: true,
           normalization_period: timePeriod,
           normalization_displayMultiplier: VDNormalizationUtils.getDisplayMultiplier(intersectionId),
@@ -771,14 +777,10 @@ export default class TrafficLightController {
           validation_warnings: validation.warnings,
           validation_errors: validation.errors,
         }
-
-        return normalizedItem
       })
 
-      // 🎯【重要】最終要發送給後端的格式：包含 4 筆路口特徵資料的物件
-      const finalDataToSend = {
-        intersections: normalizedDataArray,
-      }
+      // 🎯【重要】最終要發送給後端的格式：直接發送陣列（後端期望的格式）
+      const finalDataToSend = normalizedDataArray
 
       // ✅ 先處理第一筆數據用於日誌（如果有多筆）
       const firstData = normalizedDataArray[0] || {}
@@ -800,9 +802,7 @@ export default class TrafficLightController {
       console.log(`  - 請求體大小: ${JSON.stringify(finalDataToSend).length} 字節`)
       console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
       console.log(`  - 正規化流量: Volume_T=${firstData.Volume_T}`)
-      console.log(
-        `  - 車型分佈: M=${firstData.Volume_M}, S=${firstData.Volume_S}, L=${firstData.Volume_L}`,
-      )
+      console.log(`  - 車型分佈: M=${firstData.Volume_M}, S=${firstData.Volume_S}, L=${firstData.Volume_L}`)
       console.log(`  - 時段信息: ${firstData.normalization_period}`)
       console.log(`  - 驗證結果: ${firstData.validation_passed}`)
 
