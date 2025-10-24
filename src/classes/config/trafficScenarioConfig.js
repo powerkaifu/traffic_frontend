@@ -66,7 +66,7 @@ export const timeScenarios = [
     config: {
       // 目標：11輛/5分鐘 → 300秒/11輛 ≈ 27秒/輛
       // 實際：2700ms / 3.2 = 844ms → 約11.9輛/5分鐘（配合動態調整）
-      interval: { min: 1000, max: 5000, normal: 2700 },
+      interval: { min: 500, max: 5000, normal: 2700 },
       vehicleTypes: [
         { type: 'motor', weight: 38 }, // 機車 38%（根據 VD 實際比例調整）
         { type: 'small', weight: 58 }, // 小客車 58%
