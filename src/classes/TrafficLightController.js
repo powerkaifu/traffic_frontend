@@ -791,6 +791,28 @@ export default class TrafficLightController {
       console.log(`  - 第一筆車型: M=${firstData.Volume_M}, S=${firstData.Volume_S}, L=${firstData.Volume_L}`)
       console.log(`  - 時段信息: ${firstData.normalization_period}`)
 
+      // ✅ 【新增】打印完整的正規化數據
+      console.log('📊 【正規化數據詳情】以下是要發送給後端的 4 筆交叉路口正規化數據:')
+      normalizedDataArray.forEach((data, index) => {
+        console.log(`  [交叉路口 ${index + 1}] ${data.VD_ID} (${data.normalization_period}):`)
+        console.log(
+          `    - 流量: Volume_T=${data.Volume_T}, Volume_M=${data.Volume_M}, Volume_S=${data.Volume_S}, Volume_L=${data.Volume_L}`,
+        )
+        console.log(
+          `    - 速度: Speed_T=${data.Speed_T}, Speed_M=${data.Speed_M}, Speed_S=${data.Speed_S}, Speed_L=${data.Speed_L}`,
+        )
+        console.log(`    - 佔有率: ${data.Occupancy}%`)
+        console.log(`    - 正規化倍數: ${data.normalization_displayMultiplier}x`)
+        console.log(`    - 驗證: ${data.validation_passed ? '✅ 通過' : '❌ 失敗'}`)
+        if (data.validation_errors?.length > 0) {
+          console.log(`    - 錯誤: ${data.validation_errors.join(', ')}`)
+        }
+        if (data.validation_warnings?.length > 0) {
+          console.log(`    - 警告: ${data.validation_warnings.join(', ')}`)
+        }
+      })
+      console.log('✅ 正規化數據已準備完畢，即將發送到後端...')
+
       // 發送 API 開始事件
       window.dispatchEvent(new CustomEvent('trafficApiSending', { detail: { timestamp: new Date().toISOString() } }))
 
@@ -805,12 +827,19 @@ export default class TrafficLightController {
       console.log(`  - 車型分佈: M=${firstData.Volume_M}, S=${firstData.Volume_S}, L=${firstData.Volume_L}`)
       console.log(`  - 時段信息: ${firstData.normalization_period}`)
       console.log(`  - 驗證結果: ${firstData.validation_passed}`)
+      console.log('📨 【完整 JSON 請求體】:', JSON.stringify(finalDataToSend, null, 2))
 
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(finalDataToSend),
       })
+
+      // ✅ 【新增】發送成功確認訊息
+      console.log('✅ 【正規化數據已成功發送到後端】')
+      console.log(`✅ 已發送 ${normalizedDataArray.length} 筆交叉路口正規化數據`)
+      console.log(`✅ 正規化倍數: ${firstData.normalization_displayMultiplier}x`)
+      console.log(`✅ 時段: ${firstData.normalization_period}`)
 
       // 🔍 詳細日誌：顯示響應狀態
       console.log(`📥 [API 響應詳情]`)
