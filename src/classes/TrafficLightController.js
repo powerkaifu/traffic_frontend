@@ -57,7 +57,7 @@ export default class TrafficLightController {
       },
       // API 相關時間
       api: {
-        callInterval: 10, // API 調用間隔（秒）- 在直行綠燈期間每10秒調用一次
+        callInterval: 10, // API 調用間隔（秒）- 在綠燈倒數到 1 秒時調用一次
       },
     }
 
