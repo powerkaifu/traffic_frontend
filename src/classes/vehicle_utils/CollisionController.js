@@ -118,6 +118,33 @@ export class CollisionController {
   }
 
   /**
+   * 🚀 DRY 優化：計算車輛到停止線的距離（統一方法）
+   * 用於避免重複的 4 向距離計算代碼
+   * @param {Object} vehicle - 車輛對象
+   * @param {Object} stopLine - 停止線位置 {x, y}
+   * @returns {number} 距離，若無法計算則返回 Infinity
+   */
+  static getDistanceToStopLine(vehicle, stopLine) {
+    if (!vehicle || !stopLine) return Infinity
+
+    const pos = vehicle.getCurrentPosition()
+    if (!pos) return Infinity
+
+    switch (vehicle.direction) {
+      case 'east':
+        return Math.max(0, stopLine.x - pos.x)
+      case 'west':
+        return Math.max(0, pos.x - stopLine.x)
+      case 'north':
+        return Math.max(0, pos.y - stopLine.y)
+      case 'south':
+        return Math.max(0, stopLine.y - pos.y)
+      default:
+        return Infinity
+    }
+  }
+
+  /**
    * 判斷是否最接近停止線
    * @param {Array} allVehicles 所有車輛陣列
    * @returns {boolean} true表示是最接近停止線的車輛
@@ -126,19 +153,8 @@ export class CollisionController {
     const stopLine = this.vehicle.getStopLinePosition()
     if (!stopLine.x && !stopLine.y) return true
 
-    const currentPosition = this.vehicle.getCurrentPosition()
-    let myDistanceToStopLine = 0
-
-    // 計算當前車輛到停止線的距離
-    if (this.vehicle.direction === 'east') {
-      myDistanceToStopLine = Math.max(0, stopLine.x - currentPosition.x)
-    } else if (this.vehicle.direction === 'west') {
-      myDistanceToStopLine = Math.max(0, currentPosition.x - stopLine.x)
-    } else if (this.vehicle.direction === 'north') {
-      myDistanceToStopLine = Math.max(0, currentPosition.y - stopLine.y)
-    } else if (this.vehicle.direction === 'south') {
-      myDistanceToStopLine = Math.max(0, stopLine.y - currentPosition.y)
-    }
+    // 🚀 DRY 優化：使用統一方法計算自己到停止線的距離
+    const myDistanceToStopLine = CollisionController.getDistanceToStopLine(this.vehicle, stopLine)
 
     // 檢查同車道是否有更接近停止線的車輛
     for (let vehicle of allVehicles) {
@@ -149,18 +165,8 @@ export class CollisionController {
       )
         continue
 
-      const otherPosition = vehicle.getCurrentPosition()
-      let otherDistanceToStopLine = 0
-
-      if (this.vehicle.direction === 'east') {
-        otherDistanceToStopLine = Math.max(0, stopLine.x - otherPosition.x)
-      } else if (this.vehicle.direction === 'west') {
-        otherDistanceToStopLine = Math.max(0, otherPosition.x - stopLine.x)
-      } else if (this.vehicle.direction === 'north') {
-        otherDistanceToStopLine = Math.max(0, otherPosition.y - stopLine.y)
-      } else if (this.vehicle.direction === 'south') {
-        otherDistanceToStopLine = Math.max(0, stopLine.y - otherPosition.y)
-      }
+      // 🚀 DRY 優化：使用統一方法計算其他車輛的距離
+      const otherDistanceToStopLine = CollisionController.getDistanceToStopLine(vehicle, stopLine)
 
       // 如果有其他車輛更接近停止線，則當前車輛不是最前面的
       if (otherDistanceToStopLine < myDistanceToStopLine && otherDistanceToStopLine >= 0) {
@@ -169,6 +175,67 @@ export class CollisionController {
     }
 
     return true // 當前車輛是該車道最接近停止線的車
+  }
+
+  /**
+   * 🚀 DRY 優化：檢查目標車輛是否在前方範圍內
+   * 用於統一 getNearbyVehicles 和其他方向判斷
+   * @param {Object} myBox - 當前車輛的邊界框
+   * @param {Object} otherBox - 目標車輛的邊界框
+   * @param {string} direction - 車輛方向 (east|west|north|south)
+   * @param {number} rangeLimit - 檢查範圍限制（像素）
+   * @returns {number} 距離，若不在範圍內則返回 Infinity
+   */
+  static getForwardVehicleDistance(myBox, otherBox, direction, rangeLimit) {
+    if (!myBox || !otherBox) return Infinity
+
+    const lateralDiff = 30 // 橫向容差
+    const maxRange = rangeLimit || Infinity
+
+    switch (direction) {
+      case 'east':
+        if (
+          otherBox.centerX > myBox.centerX &&
+          Math.abs(otherBox.centerY - myBox.centerY) < lateralDiff
+        ) {
+          const distance = Math.abs(otherBox.centerX - myBox.centerX)
+          return distance <= maxRange ? distance : Infinity
+        }
+        return Infinity
+
+      case 'west':
+        if (
+          otherBox.centerX < myBox.centerX &&
+          Math.abs(otherBox.centerY - myBox.centerY) < lateralDiff
+        ) {
+          const distance = Math.abs(otherBox.centerX - myBox.centerX)
+          return distance <= maxRange ? distance : Infinity
+        }
+        return Infinity
+
+      case 'north':
+        if (
+          otherBox.centerY < myBox.centerY &&
+          Math.abs(otherBox.centerX - myBox.centerX) < lateralDiff
+        ) {
+          const distance = Math.abs(otherBox.centerY - myBox.centerY)
+          return distance <= maxRange ? distance : Infinity
+        }
+        return Infinity
+
+      case 'south':
+        if (
+          otherBox.centerY > myBox.centerY &&
+          Math.abs(otherBox.centerX - myBox.centerX) < lateralDiff
+        ) {
+          const distance = Math.abs(otherBox.centerY - myBox.centerY)
+          return distance <= maxRange ? distance : Infinity
+        }
+        return Infinity
+
+      default:
+        return Infinity
+    }
   }
 
   /**
@@ -184,42 +251,15 @@ export class CollisionController {
       if (vehicle.id === this.vehicle.id || vehicle.direction !== this.vehicle.direction) continue
 
       const otherBox = vehicle.getBoundingBox()
-      let distance = 0
-      let isInRange = false
+      // 🚀 DRY 優化：使用統一方法檢查前方範圍
+      const distance = CollisionController.getForwardVehicleDistance(
+        currentBox,
+        otherBox,
+        this.vehicle.direction,
+        this.nearbyVehicleRange
+      )
 
-      // 根據方向計算是否在檢查範圍內
-      switch (this.vehicle.direction) {
-        case 'east':
-          distance = Math.abs(otherBox.centerX - currentBox.centerX)
-          isInRange =
-            otherBox.centerX > currentBox.centerX &&
-            distance <= this.nearbyVehicleRange &&
-            Math.abs(otherBox.centerY - currentBox.centerY) < 30
-          break
-        case 'west':
-          distance = Math.abs(otherBox.centerX - currentBox.centerX)
-          isInRange =
-            otherBox.centerX < currentBox.centerX &&
-            distance <= this.nearbyVehicleRange &&
-            Math.abs(otherBox.centerY - currentBox.centerY) < 30
-          break
-        case 'north':
-          distance = Math.abs(otherBox.centerY - currentBox.centerY)
-          isInRange =
-            otherBox.centerY < currentBox.centerY &&
-            distance <= this.nearbyVehicleRange &&
-            Math.abs(otherBox.centerX - currentBox.centerX) < 30
-          break
-        case 'south':
-          distance = Math.abs(otherBox.centerY - currentBox.centerY)
-          isInRange =
-            otherBox.centerY > currentBox.centerY &&
-            distance <= this.nearbyVehicleRange &&
-            Math.abs(otherBox.centerX - currentBox.centerX) < 30
-          break
-      }
-
-      if (isInRange) {
+      if (distance !== Infinity) {
         nearbyVehicles.push(vehicle)
       }
     }
@@ -229,17 +269,20 @@ export class CollisionController {
 
   /**
    * 判斷是否在危險區域
+   * 危險區域包括：接近停止線 + 處於關鍵狀態
    * @returns {boolean} true表示在危險區域
    */
   isInCriticalZone() {
-    // 檢查是否接近停止線
-    const distanceToStopLine = this.vehicle.getDistanceToStopLine()
-    if (distanceToStopLine !== null && Math.abs(distanceToStopLine) < 20) {
-      return true
-    }
+    // 🚀 DRY 優化：提取危險狀態列表
+    const criticalStates = ['slowing', 'waitingForVehicle', 'stopped', 'autoFollowing']
+    const isInCriticalState = criticalStates.includes(this.vehicle.currentState)
 
-    // 檢查是否處於關鍵狀態
-    return this.vehicle.currentState === 'slowing' || this.vehicle.currentState === 'waitingForVehicle'
+    // 檢查是否接近停止線（< 20 像素）
+    const distanceToStopLine = this.vehicle.getDistanceToStopLine()
+    const isNearStopLine = distanceToStopLine !== null && Math.abs(distanceToStopLine) < 20
+
+    // 任一條件滿足即為危險區域
+    return isInCriticalState || isNearStopLine
   }
 
   /**
