@@ -3,6 +3,7 @@
  */
 import { getScenarioByTime, vehicleMixes, defaultConfig } from './config/trafficScenarioConfig.js'
 import { FOLLOWING_CONFIG } from './config/vehicleConfig.js'
+import { getVDTimePeriodConfig, generateVDDataInRange } from './config/vdTimePeriodConfig.js'
 
 export default class AutoTrafficGenerator {
   constructor(trafficController) {
@@ -154,18 +155,28 @@ export default class AutoTrafficGenerator {
   }
 
   // 啟動自動模式循環(每日自動模式)
+  // 🎯 30 分鐘模擬一天: 1800秒實際時間 ÷ 48次更新 = 37.5秒/次
   _startAutoModeLoop() {
     if (this.autoModeTimer) clearInterval(this.autoModeTimer)
+
+    this.isAutoMode = true
 
     // 立即套用一次當前時間的設定
     this._applyTrafficProfile()
 
-    // 每37.5秒鐘更新一次模擬時間和交通設定
+    // ✅ 每 37.5 秒更新一次 (共48次, 完整一天)
+    // 每次時間跳進 30 分鐘
+    // 總耗時: 37.5秒 × 48次 = 1800秒 = 30分鐘
     this.autoModeTimer = setInterval(() => {
       this.simulationTime.setMinutes(this.simulationTime.getMinutes() + 30)
 
+      // 模擬時間顯示
+      const hours = String(this.simulationTime.getHours()).padStart(2, '0')
+      const minutes = String(this.simulationTime.getMinutes()).padStart(2, '0')
+      console.log(`🕐 [自動模式] 模擬時間: ${hours}:${minutes}`)
+
       this._applyTrafficProfile()
-    }, 37500) // 每 30 分鐘模擬一天，每 37.5 秒更新一次
+    }, 37500) // ✅ 37500 毫秒 = 37.5 秒
   }
 
   // 停止自動模式循環
@@ -175,6 +186,7 @@ export default class AutoTrafficGenerator {
   }
 
   // 根據模擬時間套用交通設定檔，使用於自動模式
+  // 🎯 每日自動模式的核心方法：生成 VD 數據 + 傳送 API 預測
   _applyTrafficProfile() {
     // 使用統一配置取得當前時段情境
     const scenario = getScenarioByTime(this.simulationTime)
@@ -190,14 +202,85 @@ export default class AutoTrafficGenerator {
     this.config.peakMultiplier = scenario.peakMultiplier
     this.config.vehicleTypes = scenario.vehicleTypes
 
-    // 回傳給 UI
-    if (this.onTimeUpdate) {
-      this.onTimeUpdate({
-        time: this.simulationTime.toLocaleTimeString('it-IT'),
-        description: scenario.description,
-      })
+    // 🎯 新增：根據時段生成符合 VD 配置的真實數據
+    const hours = this.simulationTime.getHours()
+    const periodConfig = getVDTimePeriodConfig('VLRJX20', hours) // 使用 VLRJX20 作為示例
+
+    if (periodConfig) {
+      // 在時段參數範圍內隨機生成 VD 數據
+      const vdData = generateVDDataInRange(periodConfig)
+
+      // 回傳給 UI (包含 VD 數據和預期的綠燈秒數)
+      if (this.onTimeUpdate) {
+        this.onTimeUpdate({
+          time: this.simulationTime.toLocaleTimeString('it-IT'),
+          description: scenario.description,
+          vdData: vdData, // 傳送生成的 VD 數據
+        })
+      }
+
+      // 🎯 新增：異步傳送 API 預測
+      // this._sendVDDataToBackendAsync(vdData) // 取消註解以啟用
+    } else {
+      // 備用方案：如果沒有找到配置，使用原始邏輯
+      if (this.onTimeUpdate) {
+        this.onTimeUpdate({
+          time: this.simulationTime.toLocaleTimeString('it-IT'),
+          description: scenario.description,
+        })
+      }
     }
-    // console.log('[AutoMode] Scenario:', scenario.name, 'Interval:', this.config.interval);
+  }
+
+  // 🎯 新增：異步傳送 VD 數據給後端模型預測
+  async _sendVDDataToBackendAsync(vdData) {
+    try {
+      const hours = this.simulationTime.getHours()
+      const minutes = this.simulationTime.getMinutes()
+      const dayOfWeek = this.simulationTime.getDay()
+
+      const payload = {
+        VD_ID: 'VLRJX20',
+        DayOfWeek: dayOfWeek,
+        Hour: hours,
+        Minute: minutes,
+        Second: 0,
+        IsPeakHour: vdData.isPeakHour,
+        LaneID: 0,
+        LaneType: 1,
+        Speed: vdData.speedS, // 以小型車速度為主
+        Occupancy: vdData.occupancy,
+        Volume_M: vdData.volumeM,
+        Speed_M: vdData.speedM,
+        Volume_S: vdData.volumeS,
+        Speed_S: vdData.speedS,
+        Volume_L: vdData.volumeL,
+        Speed_L: vdData.speedL,
+        Volume_T: vdData.volumeT,
+        Speed_T: vdData.speedT,
+      }
+
+      // 發送 API 請求
+      const response = await fetch('http://localhost:5000/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        console.error(`❌ API 錯誤: ${response.status}`)
+        return
+      }
+
+      const result = await response.json()
+      console.log(
+        `🕐 時間: ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} | ` +
+          `占有率: ${vdData.occupancy.toFixed(1)}% | ` +
+          `預測綠燈: ${result.green_seconds} 秒`,
+      )
+    } catch (error) {
+      console.error('🚨 傳送 VD 數據失敗:', error)
+    }
   }
   // ==========================================
   //  генерирање возила (Vehicle Generation)
