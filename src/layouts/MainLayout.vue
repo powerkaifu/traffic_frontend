@@ -516,6 +516,17 @@ onMounted(() => {
             currentTimeScenario.value = status.scenarioMode
           }
 
+          // 🎯 新增：將 VD 數據保存到全局，供 TrafficLightController.sendDataToBackend() 使用
+          if (status.vdData || status.apiVDData) {
+            window.currentGeneratedVDData = {
+              vdData: status.vdData,
+              apiVDData: status.apiVDData,
+              targetFeatures: status.targetFeatures,
+              timestamp: new Date().toISOString(),
+            }
+            console.log('💾 [MainLayout] 已保存生成的 VD 數據:', window.currentGeneratedVDData)
+          }
+
           // 獲取當前間隔時間（毫秒轉秒）
           if (window.autoTrafficGenerator.config && window.autoTrafficGenerator.config.interval) {
             const intervalMs =
@@ -525,6 +536,8 @@ onMounted(() => {
         } else {
           simulationStatus.value = null
           currentAutoInterval.value = null
+          // 清空保存的 VD 數據
+          window.currentGeneratedVDData = null
         }
       })
     } else if (tries++ < 30) {

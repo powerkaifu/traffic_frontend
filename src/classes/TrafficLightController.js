@@ -684,7 +684,20 @@ export default class TrafficLightController {
   // Strategy Pattern: 發送數據到後端 API（提前 10 秒請求）
   async sendDataToBackend(vdData = null) {
     try {
-      const dataToSend = vdData || this.collectIntersectionData()
+      // 🎯 優先使用生成的 VD 數據（來自 AutoTrafficGenerator）
+      let dataToSend = null
+      if (vdData) {
+        dataToSend = vdData
+        console.log('✅ 使用傳入的 VD 數據:', dataToSend)
+      } else if (window.currentGeneratedVDData?.apiVDData) {
+        // 使用全局保存的生成 VD 數據
+        dataToSend = window.currentGeneratedVDData.apiVDData
+        console.log('✅ 使用全局保存的生成 VD 數據:', dataToSend)
+      } else {
+        // 備用方案：使用本地收集的數據
+        dataToSend = this.collectIntersectionData()
+        console.log('⚠️ 使用本地收集的數據（備用方案）:', dataToSend)
+      }
       console.log('🚦 發送真實交通數據到後端 AI 系統:', dataToSend)
 
       // 發送 API 開始事件
@@ -735,7 +748,15 @@ export default class TrafficLightController {
       console.log('🔄 啟用本地模擬 AI 作為備援方案...')
 
       // *** 備援方案：呼叫本地模擬 AI ***
-      const dataToSend = vdData || this.collectIntersectionData()
+      // 🎯 優先使用生成的 VD 數據，備用方案才用本地收集數據
+      let dataToSend = null
+      if (vdData) {
+        dataToSend = vdData
+      } else if (window.currentGeneratedVDData?.apiVDData) {
+        dataToSend = window.currentGeneratedVDData.apiVDData
+      } else {
+        dataToSend = this.collectIntersectionData()
+      }
       const result = this.getAISuggestion(dataToSend)
 
       // 發送 API 錯誤事件
