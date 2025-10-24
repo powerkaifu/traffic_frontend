@@ -803,6 +803,95 @@ export class CollisionQueryUtils {
 }
 
 /**
+ * 停止線對齊工具
+ * 處理車輛停止線對齊相關的邏輯
+ */
+export class StopLineAlignmentUtils {
+  /**
+   * 執行停止線對齊
+   * @param {Object} stopLineController - 停止線控制器實例
+   * @returns {boolean} 是否成功對齊
+   */
+  static performAlignment(stopLineController) {
+    // 防護：控制器檢查
+    if (!stopLineController || typeof stopLineController.alignToStopLine !== 'function') {
+      return false
+    }
+
+    try {
+      stopLineController.alignToStopLine()
+      return true
+    } catch (error) {
+      console.warn('Error aligning to stop line:', error)
+      return false
+    }
+  }
+}
+
+/**
+ * 停止移動工具
+ * 處理車輛停止移動相關的邏輯
+ */
+export class StopMovementUtils {
+  /**
+   * 暫停車輛動畫
+   * @param {Object} movementTimeline - GSAP 動畫時間軸
+   * @returns {boolean} 是否成功暫停
+   */
+  static pauseAnimation(movementTimeline) {
+    // 防護：時間軸檢查
+    if (!movementTimeline || typeof movementTimeline.pause !== 'function') {
+      return false
+    }
+
+    try {
+      movementTimeline.pause()
+      return true
+    } catch (error) {
+      console.warn('Error pausing animation:', error)
+      return false
+    }
+  }
+
+  /**
+   * 更新停止移動的相關狀態
+   * @param {Object} stateUpdate - 狀態更新物件 {currentState}
+   */
+  static updateStopState(stateUpdate = {}) {
+    const { currentState } = stateUpdate
+
+    // 更新狀態（如果不是等待狀態，設為等待）
+    if (currentState && currentState !== 'waitingForVehicle' && currentState !== 'waiting') {
+      return 'waiting'
+    }
+
+    return currentState
+  }
+
+  /**
+   * 重置停止線狀態
+   * @param {Object} stopLineController - 停止線控制器實例
+   * @returns {boolean} 是否成功重置
+   */
+  static resetStopLineState(stopLineController) {
+    // 防護：控制器檢查
+    if (!stopLineController) {
+      return false
+    }
+
+    try {
+      if (stopLineController.state !== undefined) {
+        stopLineController.state = 'approaching'
+      }
+      return true
+    } catch (error) {
+      console.warn('Error resetting stop line state:', error)
+      return false
+    }
+  }
+}
+
+/**
  * 默認導出：包含所有工具類
  */
 export default {
@@ -821,4 +910,6 @@ export default {
   BoundingBoxUtils,
   StopLineUtils,
   CollisionQueryUtils,
+  StopLineAlignmentUtils,
+  StopMovementUtils,
 }

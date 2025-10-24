@@ -29,6 +29,8 @@ import {
   BoundingBoxUtils,
   StopLineUtils,
   CollisionQueryUtils,
+  StopLineAlignmentUtils,
+  StopMovementUtils,
 } from './utils/VehicleUtilities.js' // 🚀 新增：車輛工具類
 
 // 註冊 GSAP 插件
@@ -531,17 +533,15 @@ export default class Vehicle {
   // State Pattern: 停止移動狀態控制方法
   // � 簡化：使用停止線控制器處理停車邏輯
   stopMovement() {
-    if (this.movementTimeline) {
-      // 暫停動畫
-      this.movementTimeline.pause()
-
+    // 🚀 DRY 優化：使用工具類處理停止移動
+    if (StopMovementUtils.pauseAnimation(this.movementTimeline)) {
       // 精確對齊到停止線位置
-      if (this.stopLineController) {
-        this.stopLineController.alignToStopLine()
-      }
+      StopLineAlignmentUtils.performAlignment(this.stopLineController)
 
-      if (this.currentState !== 'waitingForVehicle' && this.currentState !== 'waiting') {
-        this.currentState = 'waiting'
+      // 更新狀態
+      const newState = StopMovementUtils.updateStopState({ currentState: this.currentState })
+      if (newState) {
+        this.currentState = newState
       }
 
       // 標記已經到達停止線
