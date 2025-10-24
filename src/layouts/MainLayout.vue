@@ -113,9 +113,9 @@
                   <input
                     type="range"
                     v-model="manualInterval"
-                    min="1000"
+                    min="500"
                     max="30000"
-                    :step="1000"
+                    :step="100"
                     @input="updateGenerationConfig"
                     class="freq-slider"
                     style="flex: 1"
@@ -442,12 +442,12 @@ function updateGenerationConfig() {
   if (isAutoMode.value) return // 如果是自動模式，則不執行手動更新
   if (!window.autoTrafficGenerator) return
 
-  const finalInterval = manualInterval.value
+  const baseInterval = manualInterval.value
 
   // 🎯 根據拉桿值自動判斷最接近的情景，用於更新按鈕顯示
   const closestScenario = timeScenarios.reduce((closest, scenario) => {
     const { min, max } = scenario.config.interval
-    const sliderValue = finalInterval
+    const sliderValue = baseInterval
 
     // 計算拉桿值與該情景中點的距離
     const midpoint = (min + max) / 2
@@ -467,15 +467,17 @@ function updateGenerationConfig() {
   const s = closestScenario?.scenario || timeScenarios.find((s) => s.key === 'off_peak')
   if (!s) return
 
-  // 讓 min/max 也跟著拉桿動態調整（以拉桿值為中心，上下浮動 50%）
-  // 最小值不低於 1000ms（1秒）
-  const minInterval = Math.max(1000, Math.round(finalInterval * 0.5))
-  const maxInterval = Math.round(finalInterval * 1.5)
+  // 📊 新的邏輯：直接使用拉桿值作為基準間隔
+  // 不再固定在情景的 normal 值，而是允許拉桿在 0.5-30 秒範圍內自由調動
+  // 實際生成間隔 = baseInterval / peakMultiplier（由情景決定）
+  const actualInterval = Math.round(baseInterval / s.config.peakMultiplier)
+  const minInterval = Math.max(500, Math.round(actualInterval * 0.8))
+  const maxInterval = Math.round(actualInterval * 1.2)
 
-  currentInterval.value = finalInterval
+  currentInterval.value = baseInterval
 
   console.log(
-    `🎚️ [手動模式] 更新拉桿: ${finalInterval}ms，對應情景: ${s.name}，範圍: [${s.config.interval.min}-${s.config.interval.max}]ms`,
+    `🎚️ [手動模式] 拉桿: ${(baseInterval / 1000).toFixed(1)}s → 實際間隔: ${actualInterval}ms (基於 ${s.name} 的倍數 ${s.config.peakMultiplier})`,
   )
 
   // 🔧 CRITICAL FIX：先清除情景模式，確保手動設定不被覆蓋
@@ -486,7 +488,7 @@ function updateGenerationConfig() {
 
   window.autoTrafficGenerator.updateConfig({
     ...s.config,
-    interval: { min: minInterval, max: maxInterval, normal: finalInterval },
+    interval: { min: minInterval, max: maxInterval, normal: actualInterval },
     peakMultiplier: s.config.peakMultiplier, // 使用情景定義的 peakMultiplier
     maxLiveVehicles: s.config.maxLiveVehicles,
   })
