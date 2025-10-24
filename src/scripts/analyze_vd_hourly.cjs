@@ -47,7 +47,7 @@ function initHourlyStatsForVD(vdId) {
  */
 function updateStats(stats, key, value) {
   if (value === null || value === undefined || isNaN(value)) return
-  
+
   stats[key].min = Math.min(stats[key].min, value)
   stats[key].max = Math.max(stats[key].max, value)
   stats[key].sum += value
@@ -115,7 +115,7 @@ function analyzeJsonFile(vdId, filePath) {
  */
 function calculateSummary(stats) {
   const summary = {}
-  
+
   for (const [key, data] of Object.entries(stats)) {
     if (data.count === 0) {
       summary[key] = {
@@ -196,10 +196,10 @@ function generateMarkdownReport() {
     for (let hour = 0; hour < 24; hour++) {
       const periodName = getTimePeriodName(hour)
       const summary = calculateSummary(hourlyStats[vdId][hour])
-      
+
       report.push(`### ${hour}:00 時段 ${periodName}`)
       report.push('')
-      
+
       // 樣本數檢查
       if (summary.Speed.count === 0) {
         report.push('> ⚠️ 此時段無數據')
@@ -209,7 +209,7 @@ function generateMarkdownReport() {
 
       report.push('| 指標 | 最小值 | 最大值 | 平均值 | 中位數 | P95 | 樣本數 |')
       report.push('|------|--------|--------|--------|--------|-----|--------|')
-      
+
       const metrics = [
         { key: 'Speed', name: '平均速度 (km/h)', highlight: true },
         { key: 'Occupancy', name: '佔有率 (%)', highlight: true },
@@ -225,7 +225,9 @@ function generateMarkdownReport() {
       metrics.forEach(({ key, name, highlight }) => {
         const s = summary[key]
         const nameDisplay = highlight ? `**${name}**` : name
-        report.push(`| ${nameDisplay} | ${s.min} | ${s.max} | ${s.avg} | ${s.median} | ${s.p95} | ${s.count.toLocaleString()} |`)
+        report.push(
+          `| ${nameDisplay} | ${s.min} | ${s.max} | ${s.avg} | ${s.median} | ${s.p95} | ${s.count.toLocaleString()} |`,
+        )
       })
 
       report.push('')
@@ -248,7 +250,9 @@ function generateMarkdownReport() {
     peakHours.forEach((hour) => {
       const summary = calculateSummary(hourlyStats[vdId][hour])
       const periodName = getTimePeriodName(hour)
-      report.push(`| ${vdId} | ${hour}:00 ${periodName} | ${summary.TotalVolume.avg} | ${summary.Occupancy.avg}% | ${summary.Speed.avg} km/h | ${summary.Volume_M.avg} | ${summary.Volume_S.avg} | ${summary.Volume_L.avg} |`)
+      report.push(
+        `| ${vdId} | ${hour}:00 ${periodName} | ${summary.TotalVolume.avg} | ${summary.Occupancy.avg}% | ${summary.Speed.avg} km/h | ${summary.Volume_M.avg} | ${summary.Volume_S.avg} | ${summary.Volume_L.avg} |`,
+      )
     })
   })
 
@@ -265,7 +269,9 @@ function generateMarkdownReport() {
     representativeHours.forEach((hour) => {
       const summary = calculateSummary(hourlyStats[vdId][hour])
       const periodName = getTimePeriodName(hour)
-      report.push(`| ${vdId} | ${hour}:00 ${periodName} | ${summary.TotalVolume.avg} | ${summary.Occupancy.avg}% | ${summary.Speed.avg} km/h | ${summary.Volume_M.avg} | ${summary.Volume_S.avg} | ${summary.Volume_L.avg} |`)
+      report.push(
+        `| ${vdId} | ${hour}:00 ${periodName} | ${summary.TotalVolume.avg} | ${summary.Occupancy.avg}% | ${summary.Speed.avg} km/h | ${summary.Volume_M.avg} | ${summary.Volume_S.avg} | ${summary.Volume_L.avg} |`,
+      )
     })
   })
 
@@ -282,7 +288,9 @@ function generateMarkdownReport() {
     representativeHours.forEach((hour) => {
       const summary = calculateSummary(hourlyStats[vdId][hour])
       const periodName = getTimePeriodName(hour)
-      report.push(`| ${vdId} | ${hour}:00 ${periodName} | ${summary.TotalVolume.avg} | ${summary.Occupancy.avg}% | ${summary.Speed.avg} km/h | ${summary.Volume_M.avg} | ${summary.Volume_S.avg} | ${summary.Volume_L.avg} |`)
+      report.push(
+        `| ${vdId} | ${hour}:00 ${periodName} | ${summary.TotalVolume.avg} | ${summary.Occupancy.avg}% | ${summary.Speed.avg} km/h | ${summary.Volume_M.avg} | ${summary.Volume_S.avg} | ${summary.Volume_L.avg} |`,
+      )
     })
   })
 
@@ -303,84 +311,102 @@ function generateMarkdownReport() {
     report.push(`const ${vdId}_NORMALIZATION = {`)
     report.push('  // 尖峰時段 (07:00-09:00, 17:00-19:00)')
     report.push('  peak_hours: {')
-    
+
     // 計算尖峰時段平均值
-    const peakSummaries = peakHours.map(h => calculateSummary(hourlyStats[vdId][h]))
+    const peakSummaries = peakHours.map((h) => calculateSummary(hourlyStats[vdId][h]))
     const peakAvg = {
-      TotalVolume: { 
-        min: Math.min(...peakSummaries.map(s => s.TotalVolume.min)),
-        max: Math.max(...peakSummaries.map(s => s.TotalVolume.max)),
-        avg: peakSummaries.reduce((sum, s) => sum + s.TotalVolume.avg, 0) / peakSummaries.length
+      TotalVolume: {
+        min: Math.min(...peakSummaries.map((s) => s.TotalVolume.min)),
+        max: Math.max(...peakSummaries.map((s) => s.TotalVolume.max)),
+        avg: peakSummaries.reduce((sum, s) => sum + s.TotalVolume.avg, 0) / peakSummaries.length,
       },
       Occupancy: {
-        min: Math.min(...peakSummaries.map(s => s.Occupancy.min)),
-        max: Math.max(...peakSummaries.map(s => s.Occupancy.max)),
-        avg: peakSummaries.reduce((sum, s) => sum + s.Occupancy.avg, 0) / peakSummaries.length
+        min: Math.min(...peakSummaries.map((s) => s.Occupancy.min)),
+        max: Math.max(...peakSummaries.map((s) => s.Occupancy.max)),
+        avg: peakSummaries.reduce((sum, s) => sum + s.Occupancy.avg, 0) / peakSummaries.length,
       },
       Speed: {
-        min: Math.min(...peakSummaries.map(s => s.Speed.min)),
-        max: Math.max(...peakSummaries.map(s => s.Speed.max)),
-        avg: peakSummaries.reduce((sum, s) => sum + s.Speed.avg, 0) / peakSummaries.length
-      }
+        min: Math.min(...peakSummaries.map((s) => s.Speed.min)),
+        max: Math.max(...peakSummaries.map((s) => s.Speed.max)),
+        avg: peakSummaries.reduce((sum, s) => sum + s.Speed.avg, 0) / peakSummaries.length,
+      },
     }
 
-    report.push(`    volume: { min: ${peakAvg.TotalVolume.min.toFixed(2)}, max: ${peakAvg.TotalVolume.max.toFixed(2)}, avg: ${peakAvg.TotalVolume.avg.toFixed(2)} },`)
-    report.push(`    occupancy: { min: ${peakAvg.Occupancy.min.toFixed(2)}, max: ${peakAvg.Occupancy.max.toFixed(2)}, avg: ${peakAvg.Occupancy.avg.toFixed(2)} },`)
-    report.push(`    speed: { min: ${peakAvg.Speed.min.toFixed(2)}, max: ${peakAvg.Speed.max.toFixed(2)}, avg: ${peakAvg.Speed.avg.toFixed(2)} },`)
+    report.push(
+      `    volume: { min: ${peakAvg.TotalVolume.min.toFixed(2)}, max: ${peakAvg.TotalVolume.max.toFixed(2)}, avg: ${peakAvg.TotalVolume.avg.toFixed(2)} },`,
+    )
+    report.push(
+      `    occupancy: { min: ${peakAvg.Occupancy.min.toFixed(2)}, max: ${peakAvg.Occupancy.max.toFixed(2)}, avg: ${peakAvg.Occupancy.avg.toFixed(2)} },`,
+    )
+    report.push(
+      `    speed: { min: ${peakAvg.Speed.min.toFixed(2)}, max: ${peakAvg.Speed.max.toFixed(2)}, avg: ${peakAvg.Speed.avg.toFixed(2)} },`,
+    )
     report.push('  },')
 
     // 離峰時段
-    const offPeakSummaries = offPeakHours.map(h => calculateSummary(hourlyStats[vdId][h]))
+    const offPeakSummaries = offPeakHours.map((h) => calculateSummary(hourlyStats[vdId][h]))
     const offPeakAvg = {
-      TotalVolume: { 
-        min: Math.min(...offPeakSummaries.map(s => s.TotalVolume.min)),
-        max: Math.max(...offPeakSummaries.map(s => s.TotalVolume.max)),
-        avg: offPeakSummaries.reduce((sum, s) => sum + s.TotalVolume.avg, 0) / offPeakSummaries.length
+      TotalVolume: {
+        min: Math.min(...offPeakSummaries.map((s) => s.TotalVolume.min)),
+        max: Math.max(...offPeakSummaries.map((s) => s.TotalVolume.max)),
+        avg: offPeakSummaries.reduce((sum, s) => sum + s.TotalVolume.avg, 0) / offPeakSummaries.length,
       },
       Occupancy: {
-        min: Math.min(...offPeakSummaries.map(s => s.Occupancy.min)),
-        max: Math.max(...offPeakSummaries.map(s => s.Occupancy.max)),
-        avg: offPeakSummaries.reduce((sum, s) => sum + s.Occupancy.avg, 0) / offPeakSummaries.length
+        min: Math.min(...offPeakSummaries.map((s) => s.Occupancy.min)),
+        max: Math.max(...offPeakSummaries.map((s) => s.Occupancy.max)),
+        avg: offPeakSummaries.reduce((sum, s) => sum + s.Occupancy.avg, 0) / offPeakSummaries.length,
       },
       Speed: {
-        min: Math.min(...offPeakSummaries.map(s => s.Speed.min)),
-        max: Math.max(...offPeakSummaries.map(s => s.Speed.max)),
-        avg: offPeakSummaries.reduce((sum, s) => sum + s.Speed.avg, 0) / offPeakSummaries.length
-      }
+        min: Math.min(...offPeakSummaries.map((s) => s.Speed.min)),
+        max: Math.max(...offPeakSummaries.map((s) => s.Speed.max)),
+        avg: offPeakSummaries.reduce((sum, s) => sum + s.Speed.avg, 0) / offPeakSummaries.length,
+      },
     }
 
     report.push('  // 離峰時段 (09:00-17:00, 19:00-23:00)')
     report.push('  off_peak: {')
-    report.push(`    volume: { min: ${offPeakAvg.TotalVolume.min.toFixed(2)}, max: ${offPeakAvg.TotalVolume.max.toFixed(2)}, avg: ${offPeakAvg.TotalVolume.avg.toFixed(2)} },`)
-    report.push(`    occupancy: { min: ${offPeakAvg.Occupancy.min.toFixed(2)}, max: ${offPeakAvg.Occupancy.max.toFixed(2)}, avg: ${offPeakAvg.Occupancy.avg.toFixed(2)} },`)
-    report.push(`    speed: { min: ${offPeakAvg.Speed.min.toFixed(2)}, max: ${offPeakAvg.Speed.max.toFixed(2)}, avg: ${offPeakAvg.Speed.avg.toFixed(2)} },`)
+    report.push(
+      `    volume: { min: ${offPeakAvg.TotalVolume.min.toFixed(2)}, max: ${offPeakAvg.TotalVolume.max.toFixed(2)}, avg: ${offPeakAvg.TotalVolume.avg.toFixed(2)} },`,
+    )
+    report.push(
+      `    occupancy: { min: ${offPeakAvg.Occupancy.min.toFixed(2)}, max: ${offPeakAvg.Occupancy.max.toFixed(2)}, avg: ${offPeakAvg.Occupancy.avg.toFixed(2)} },`,
+    )
+    report.push(
+      `    speed: { min: ${offPeakAvg.Speed.min.toFixed(2)}, max: ${offPeakAvg.Speed.max.toFixed(2)}, avg: ${offPeakAvg.Speed.avg.toFixed(2)} },`,
+    )
     report.push('  },')
 
     // 凌晨時段
-    const lateNightSummaries = lateNightHours.map(h => calculateSummary(hourlyStats[vdId][h]))
+    const lateNightSummaries = lateNightHours.map((h) => calculateSummary(hourlyStats[vdId][h]))
     const lateNightAvg = {
-      TotalVolume: { 
-        min: Math.min(...lateNightSummaries.map(s => s.TotalVolume.min)),
-        max: Math.max(...lateNightSummaries.map(s => s.TotalVolume.max)),
-        avg: lateNightSummaries.reduce((sum, s) => sum + s.TotalVolume.avg, 0) / lateNightSummaries.length
+      TotalVolume: {
+        min: Math.min(...lateNightSummaries.map((s) => s.TotalVolume.min)),
+        max: Math.max(...lateNightSummaries.map((s) => s.TotalVolume.max)),
+        avg: lateNightSummaries.reduce((sum, s) => sum + s.TotalVolume.avg, 0) / lateNightSummaries.length,
       },
       Occupancy: {
-        min: Math.min(...lateNightSummaries.map(s => s.Occupancy.min)),
-        max: Math.max(...lateNightSummaries.map(s => s.Occupancy.max)),
-        avg: lateNightSummaries.reduce((sum, s) => sum + s.Occupancy.avg, 0) / lateNightSummaries.length
+        min: Math.min(...lateNightSummaries.map((s) => s.Occupancy.min)),
+        max: Math.max(...lateNightSummaries.map((s) => s.Occupancy.max)),
+        avg: lateNightSummaries.reduce((sum, s) => sum + s.Occupancy.avg, 0) / lateNightSummaries.length,
       },
       Speed: {
-        min: Math.min(...lateNightSummaries.map(s => s.Speed.min)),
-        max: Math.max(...lateNightSummaries.map(s => s.Speed.max)),
-        avg: lateNightSummaries.reduce((sum, s) => sum + s.Speed.avg, 0) / lateNightSummaries.length
-      }
+        min: Math.min(...lateNightSummaries.map((s) => s.Speed.min)),
+        max: Math.max(...lateNightSummaries.map((s) => s.Speed.max)),
+        avg: lateNightSummaries.reduce((sum, s) => sum + s.Speed.avg, 0) / lateNightSummaries.length,
+      },
     }
 
     report.push('  // 凌晨時段 (00:00-07:00)')
     report.push('  late_night: {')
-    report.push(`    volume: { min: ${lateNightAvg.TotalVolume.min.toFixed(2)}, max: ${lateNightAvg.TotalVolume.max.toFixed(2)}, avg: ${lateNightAvg.TotalVolume.avg.toFixed(2)} },`)
-    report.push(`    occupancy: { min: ${lateNightAvg.Occupancy.min.toFixed(2)}, max: ${lateNightAvg.Occupancy.max.toFixed(2)}, avg: ${lateNightAvg.Occupancy.avg.toFixed(2)} },`)
-    report.push(`    speed: { min: ${lateNightAvg.Speed.min.toFixed(2)}, max: ${lateNightAvg.Speed.max.toFixed(2)}, avg: ${lateNightAvg.Speed.avg.toFixed(2)} },`)
+    report.push(
+      `    volume: { min: ${lateNightAvg.TotalVolume.min.toFixed(2)}, max: ${lateNightAvg.TotalVolume.max.toFixed(2)}, avg: ${lateNightAvg.TotalVolume.avg.toFixed(2)} },`,
+    )
+    report.push(
+      `    occupancy: { min: ${lateNightAvg.Occupancy.min.toFixed(2)}, max: ${lateNightAvg.Occupancy.max.toFixed(2)}, avg: ${lateNightAvg.Occupancy.avg.toFixed(2)} },`,
+    )
+    report.push(
+      `    speed: { min: ${lateNightAvg.Speed.min.toFixed(2)}, max: ${lateNightAvg.Speed.max.toFixed(2)}, avg: ${lateNightAvg.Speed.avg.toFixed(2)} },`,
+    )
     report.push('  }')
     report.push('};')
     report.push('```')
