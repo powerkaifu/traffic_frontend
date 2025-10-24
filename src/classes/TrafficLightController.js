@@ -657,9 +657,6 @@ export default class TrafficLightController {
       const speedVariation = (Math.random() - 0.5) * 10 // -5 ~ +5 的隨機波動
       const baseSpeed = Math.round(range.avg * speedFactor)
       const variatedSpeed = Math.round(Math.max(20, Math.min(60, baseSpeed + speedVariation))) // 確保是整數
-      console.log(
-        `🎲 [速度變化] ${direction}-${vehicleType}: 基礎 ${baseSpeed} + 波動 ${speedVariation.toFixed(1)} = ${variatedSpeed}`,
-      )
       return variatedSpeed + 0.0 // 返回整數 + .0 的格式
     }
 
@@ -677,7 +674,6 @@ export default class TrafficLightController {
     // 🎯【新增】第一次 API 呼叫時加入隨機波動，使占有率不固定
     if (this.apiCallCount === 1 || this.apiCallCount === 2) {
       baseOccupancy = Math.floor(Math.random() * 15) + 10 // 10-24 的隨機基礎占有率
-      console.log(`🎲 [占有率波動] ${direction}: 隨機基礎占有率 = ${baseOccupancy}%`)
     }
 
     const calculatedOccupancy = (totalVehicles / maxCapacity) * 100

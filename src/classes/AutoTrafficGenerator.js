@@ -248,12 +248,7 @@ export default class AutoTrafficGenerator {
 
     // 🎯 根據情景的 displayMultiplier 調整車道冷卻間隔
     if (scenario.config.displayMultiplier) {
-      // displayMultiplier 越高，生成越頻繁，所以車道冷卻時間應該變短
-      // 例：displayMultiplier=7 表示7倍頻率，冷卻時間應為原來的 1/7
       this.minLaneInterval = Math.max(500, Math.round(2000 / scenario.config.displayMultiplier))
-      console.log(
-        `🚨 手動情景模式: ${scenarioKey}, displayMultiplier=${scenario.config.displayMultiplier}, minLaneInterval=${this.minLaneInterval}ms`,
-      )
     }
 
     // 🎯 生成該情景對應的 VD 數據
@@ -544,13 +539,10 @@ export default class AutoTrafficGenerator {
       const scenario = getScenarioByKey(this.currentScenarioMode)
       if (scenario && scenario.config && scenario.config.displayMultiplier) {
         const displayMult = scenario.config.displayMultiplier
-        console.log(`🎭 [手動模式] 情景 ${this.currentScenarioMode} -> displayMultiplier = ${displayMult}`)
         return displayMult
       }
     }
 
-    // 預設：不調整
-    console.log(`🎭 [預設] displayMultiplier = 1`)
     return 1
   }
 

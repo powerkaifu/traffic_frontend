@@ -464,20 +464,6 @@ function updateGenerationConfig() {
     peakMultiplier: s.config.peakMultiplier, // 使用情景定義的 peakMultiplier
     maxLiveVehicles: s.config.maxLiveVehicles,
   })
-
-  // 追蹤參數變化
-  console.log('🔧 間隔更新:', {
-    finalInterval,
-    minInterval,
-    maxInterval,
-    currentScenario: currentTimeScenario.value,
-    peakMultiplier: s.config.peakMultiplier,
-    displayMultiplier: s.config.displayMultiplier,
-  })
-  console.log('interval:', window.autoTrafficGenerator?.config?.interval)
-  console.log('maxLiveVehicles:', window.autoTrafficGenerator?.maxLiveVehicles)
-  console.log('currentScenarioMode:', window.autoTrafficGenerator?.currentScenarioMode)
-  console.log('isAutoMode:', window.autoTrafficGenerator?.isAutoMode)
 }
 
 function switchToTimeScenario(key) {
