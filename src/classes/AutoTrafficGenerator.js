@@ -1,7 +1,7 @@
 /**
  * AutoTrafficGenerator.js - 自動車流分派系統
  */
-import { getScenarioByTime, getScenarioByKey, vehicleMixes, defaultConfig } from './config/trafficScenarioConfig.js'
+import { getScenarioByTime, getScenarioByKey, defaultConfig } from './config/trafficScenarioConfig.js'
 import { FOLLOWING_CONFIG } from './config/vehicleConfig.js'
 import { getVDTimePeriodConfig } from './config/vdTimePeriodConfig.js'
 
@@ -41,17 +41,8 @@ export default class AutoTrafficGenerator {
     this.currentScenarioMode = null // 當前情景模式: 'peak_hours', 'off_peak', 'late_night'
     this.scenarioModeTimer = null // 情景模式定時器
 
-    // 模擬24小時交通設定檔 (基於 50 週 VD 數據分析 2024-02-26 至 2025-05-25, 728,473 筆紀錄)
-    // peakMultiplier 根據實際平均占有率計算 (基準: 中午時段 22.5%)
-    this.trafficProfiles = [
-      { from: 0, to: 6, description: '深夜', peakMultiplier: 0.28, vehicleMix: 'light' }, // 實測占有率 6.4% (車輛/紀錄: 2.4-2.9)
-      { from: 6, to: 9, description: '上午尖峰', peakMultiplier: 0.9, vehicleMix: 'heavy' }, // 實測占有率 20.3% (車輛/紀錄: 8.0-9.9)
-      { from: 9, to: 16, description: '日間離峰', peakMultiplier: 1.0, vehicleMix: 'normal' }, // 實測占有率 22.5% (車輛/紀錄: 7.1-8.8) 基準
-      { from: 16, to: 19, description: '傍晚尖峰', peakMultiplier: 1.1, vehicleMix: 'heavy' }, // 實測占有率 24.7% (車輛/紀錄: 7.6-10.1) ⭐最擁擠
-      { from: 19, to: 24, description: '夜晚', peakMultiplier: 0.66, vehicleMix: 'normal' }, // 實測占有率 14.8% (車輛/紀錄: 5.2-7.2)
-    ]
-
-    this.vehicleMixes = vehicleMixes
+    // 🚗 交通配置現在由 trafficScenarioConfig.js 的 timeScenarios 統一管理
+    // 移除了冗餘的硬編碼 trafficProfiles 和 vehicleMixes
   }
 
   // 🚗 新增：從配置文件更新生成間隔參數
@@ -199,6 +190,13 @@ export default class AutoTrafficGenerator {
   switchToScenarioMode(scenarioKey) {
     console.log(`🎭 [情景模式] 切換至: ${scenarioKey}`)
 
+    // 驗證情景配置是否存在
+    const scenario = getScenarioByKey(scenarioKey)
+    if (!scenario) {
+      console.error(`❌ [情景模式] 無效的情景鍵: ${scenarioKey}`)
+      return false
+    }
+
     // 停止自動模式
     if (this.isAutoMode) {
       this.toggleAutoMode(false)
@@ -222,7 +220,8 @@ export default class AutoTrafficGenerator {
     }, 2000)
 
     const scenarioName = this._getScenarioModeName(scenarioKey)
-    console.log(`🎭 [情景模式] 已切換至：${scenarioName}`)
+    console.log(`✅ [情景模式] 已成功切換至：${scenarioName}`)
+    return true
   }
 
   // 🎯 2. 套用情景模式配置
@@ -247,6 +246,16 @@ export default class AutoTrafficGenerator {
     this.config.vehicleTypes = scenario.config.vehicleTypes
     this.config.maxLiveVehicles = scenario.config.maxLiveVehicles
     this.maxLiveVehicles = scenario.config.maxLiveVehicles
+
+    // 🎯 根據情景的 displayMultiplier 調整車道冷卻間隔
+    if (scenario.config.displayMultiplier) {
+      // displayMultiplier 越高，生成越頻繁，所以車道冷卻時間應該變短
+      // 例：displayMultiplier=7 表示7倍頻率，冷卻時間應為原來的 1/7
+      this.minLaneInterval = Math.max(500, Math.round(2000 / scenario.config.displayMultiplier))
+      console.log(
+        `🚨 手動情景模式: ${scenarioKey}, displayMultiplier=${scenario.config.displayMultiplier}, minLaneInterval=${this.minLaneInterval}ms`,
+      )
+    }
 
     // 🎯 生成該情景對應的 VD 數據
     const vdData = this._generateScenarioVDData(scenarioKey)
@@ -276,7 +285,8 @@ export default class AutoTrafficGenerator {
     }
 
     const features = scenario.targetFeatures
-    const hour = this._getScenarioHour(scenarioKey)
+    // 🎯 在自動模式下使用模擬時間的小時，手動模式下使用隨機小時
+    const hour = this.isAutoMode ? this.simulationTime.getHours() : this._getScenarioHour(scenarioKey)
 
     // 🎭 API 層數據：原始數據（不放大，用於後端）
     const volumeByType = features.volumeByType
@@ -300,10 +310,10 @@ export default class AutoTrafficGenerator {
       Volume_S: Math.round(volumeByType.small * volumeVariance),
       Volume_L: Math.round(volumeByType.large * volumeVariance),
       Volume_T: 0,
-      // 🎯 API 層：原始速度數據
-      Speed_M: Math.round(features.speed * speedVariance * (0.85 + Math.random() * 0.3)),
-      Speed_S: Math.round(features.speed * speedVariance),
-      Speed_L: Math.round(features.speed * speedVariance * (0.7 + Math.random() * 0.3)),
+      // 🎯 API 層：原始速度數據（整數位 + .0 格式）
+      Speed_M: Math.round(features.speed * speedVariance * (0.85 + Math.random() * 0.3)) + 0.0,
+      Speed_S: Math.round(features.speed * speedVariance) + 0.0,
+      Speed_L: Math.round(features.speed * speedVariance * (0.7 + Math.random() * 0.3)) + 0.0,
       Speed_T: 0,
       // 🎯 API 層：原始佔有率（不放大）
       Occupancy: Math.round(features.occupancy * occupancyVariance * 10) / 10,
@@ -369,56 +379,13 @@ export default class AutoTrafficGenerator {
     return Math.random() * (max - min) + min
   }
 
-  // 根據時間判斷情景 key
-  _getScenarioKeyByTime(date) {
-    const hour = date.getHours()
-
-    // 檢查 timeScenarios 中的 hourRanges
-    for (const scenario of [
-      {
-        key: 'peak_hours',
-        ranges: [
-          [7, 9],
-          [17, 19],
-        ],
-      },
-      {
-        key: 'off_peak',
-        ranges: [
-          [9, 17],
-          [19, 23],
-        ],
-      },
-      {
-        key: 'late_night',
-        ranges: [
-          [23, 24],
-          [0, 7],
-        ],
-      },
-    ]) {
-      for (const range of scenario.ranges) {
-        if (range[0] <= range[1]) {
-          if (hour >= range[0] && hour < range[1]) {
-            return scenario.key
-          }
-        } else {
-          // 跨越午夜的範圍
-          if (hour >= range[0] || hour < range[1]) {
-            return scenario.key
-          }
-        }
-      }
-    }
-
-    return 'off_peak' // 預設
-  }
-
   // 根據模擬時間套用交通設定檔，使用於自動模式
   // 🎯 每日自動模式的核心方法：生成 VD 數據 + 傳送 API 預測
   _applyTrafficProfile() {
     // 使用統一配置取得當前時段情境
     const scenario = getScenarioByTime(this.simulationTime)
+    const scenarioKey = scenario.key
+    const scenarioConfig = getScenarioByKey(scenarioKey)
 
     // interval.normal 加入隨機波動 ±10%
     const rand = 0.9 + Math.random() * 0.2
@@ -430,10 +397,6 @@ export default class AutoTrafficGenerator {
     }
     this.config.peakMultiplier = scenario.peakMultiplier
     this.config.vehicleTypes = scenario.vehicleTypes
-
-    //  修正：使用新的方法判斷情景 key（不硬編碼時間範圍）
-    const scenarioKey = this._getScenarioKeyByTime(this.simulationTime)
-    const scenarioConfig = getScenarioByKey(scenarioKey)
 
     if (scenarioConfig) {
       // 使用情景配置中的 targetFeatures 生成 VD 數據
@@ -468,27 +431,6 @@ export default class AutoTrafficGenerator {
   }
 
   // 🎯 新增：根據 displayMultiplier 生成視覺層 VD 數據
-  _generateVisualVDData(apiVDData, periodConfig) {
-    const displayMultiplier = periodConfig.displayMultiplier || 1
-
-    return {
-      // 乘以 displayMultiplier 以增強視覺表現
-      occupancy: Math.round(apiVDData.occupancy * displayMultiplier * 10) / 10,
-      volumeM: Math.round(apiVDData.volumeM * displayMultiplier),
-      volumeS: Math.round(apiVDData.volumeS * displayMultiplier),
-      volumeL: Math.round(apiVDData.volumeL * displayMultiplier),
-      volumeT: Math.round(apiVDData.volumeT * displayMultiplier),
-      // 速度保持不變
-      speedM: apiVDData.speedM,
-      speedS: apiVDData.speedS,
-      speedL: apiVDData.speedL,
-      speedT: apiVDData.speedT,
-      expectedGreenSeconds: apiVDData.expectedGreenSeconds,
-      isPeakHour: apiVDData.isPeakHour,
-      displayMultiplier: displayMultiplier, // 🎯 記錄應用的倍數
-    }
-  }
-
   // 🎯 新增：異步傳送 VD 數據給後端模型預測
   async _sendVDDataToBackendAsync(vdData) {
     try {
@@ -581,18 +523,28 @@ export default class AutoTrafficGenerator {
 
   // 🎯 新增：獲取基於當前時段的 displayMultiplier 調整因子
   _getDisplayMultiplierAdjustment() {
-    if (!this.isAutoMode) return 1 // 手動模式不調整
+    // 自動模式：使用 VD 配置中的 displayMultiplier
+    if (this.isAutoMode) {
+      const hours = this.simulationTime.getHours()
+      const periodConfig = getVDTimePeriodConfig('VLRJX20', hours)
 
-    const hours = this.simulationTime.getHours()
-    const periodConfig = getVDTimePeriodConfig('VLRJX20', hours)
+      if (!periodConfig || !periodConfig.displayMultiplier) {
+        return 1 // 若無配置，不調整
+      }
 
-    if (!periodConfig || !periodConfig.displayMultiplier) {
-      return 1 // 若無配置，不調整
+      return periodConfig.displayMultiplier
     }
 
-    // displayMultiplier 越高，間隔應該越短（車輛生成越頻繁）
-    // 使用倒數：間隔 = 基礎間隔 / displayMultiplier
-    return periodConfig.displayMultiplier
+    // 手動情景模式：從當前情景配置中取得 displayMultiplier
+    if (this.currentScenarioMode) {
+      const scenario = getScenarioByKey(this.currentScenarioMode)
+      if (scenario && scenario.config && scenario.config.displayMultiplier) {
+        return scenario.config.displayMultiplier
+      }
+    }
+
+    // 預設：不調整
+    return 1
   }
 
   // 排程下一次

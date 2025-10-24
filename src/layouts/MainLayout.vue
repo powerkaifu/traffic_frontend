@@ -537,9 +537,13 @@ function switchToTimeScenario(key) {
   manualPeakMultiplier.value = s.config.peakMultiplier || 1.0
   manualInterval.value = s.config.interval.normal
 
-  // 🎭 新增：使用新的情景模式方法
+  // 🎭 新增：使用新的情景模式方法，並驗證切換成功
   if (window.autoTrafficGenerator) {
-    window.autoTrafficGenerator.switchToScenarioMode(key)
+    const success = window.autoTrafficGenerator.switchToScenarioMode(key)
+    if (!success) {
+      console.error(`❌ 情景模式切換失敗: ${key}`)
+      return
+    }
   }
 
   updateGenerationConfig()

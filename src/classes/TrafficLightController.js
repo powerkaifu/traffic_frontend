@@ -656,14 +656,14 @@ export default class TrafficLightController {
     if (this.apiCallCount === 1 || this.apiCallCount === 2) {
       const speedVariation = (Math.random() - 0.5) * 10 // -5 ~ +5 的隨機波動
       const baseSpeed = Math.round(range.avg * speedFactor)
-      const variatedSpeed = Math.max(20, Math.min(60, baseSpeed + speedVariation)) // 限制在 20-60 km/h
+      const variatedSpeed = Math.round(Math.max(20, Math.min(60, baseSpeed + speedVariation))) // 確保是整數
       console.log(
         `🎲 [速度變化] ${direction}-${vehicleType}: 基礎 ${baseSpeed} + 波動 ${speedVariation.toFixed(1)} = ${variatedSpeed}`,
       )
-      return variatedSpeed
+      return variatedSpeed + 0.0 // 返回整數 + .0 的格式
     }
 
-    return Math.round(range.avg * speedFactor)
+    return Math.round(range.avg * speedFactor) + 0.0
   }
 
   // Strategy Pattern: 計算路段占有率策略
