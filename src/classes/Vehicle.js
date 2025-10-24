@@ -15,17 +15,38 @@ import VehicleConfig, {
   COLLISION_CONFIG,
 } from './config/vehicleConfig.js' // 🚀 整合：車輛行為配置
 import { STOP_LINE_CONFIG } from './config/stopLineConfig.js' // 🚀 導入：停止線配置
+import {
+  VehicleStaticManager,
+  VehiclePositionSpeedUtils,
+  RandomSpeedUtils,
+  LaneLabelUtils,
+} from './utils/VehicleUtilities.js' // 🚀 新增：車輛工具類
 
 // 註冊 GSAP 插件
 gsap.registerPlugin(MotionPathPlugin)
 
 export default class Vehicle {
-  // 靜態屬性：統一控制動畫速度
-  static timeMultiplier = ANIMATION_CONFIG.TIME_MULTIPLIER // 從配置讀取動畫速度倍數
+  // 🚨 靜態屬性現已由 VehicleStaticManager 統一管理
+  // 為了向後兼容性，保留這些 getter
+  static get timeMultiplier() {
+    return VehicleStaticManager.getTimeMultiplier()
+  }
 
-  // 🚨 新增：全局抖動抑制機制
-  static antiShakeGlobalCooldown = ANIMATION_CONFIG.COOLDOWN_TIMES.GLOBAL_ANTI_SHAKE // 使用配置的冷卻時間
-  static lastGlobalAdjustTime = 0 // 上次全局調整時間
+  static set timeMultiplier(value) {
+    VehicleStaticManager.setTimeMultiplier(value)
+  }
+
+  static get antiShakeGlobalCooldown() {
+    return VehicleStaticManager.antiShakeGlobalCooldown
+  }
+
+  static get lastGlobalAdjustTime() {
+    return VehicleStaticManager.lastGlobalAdjustTime
+  }
+
+  static set lastGlobalAdjustTime(value) {
+    VehicleStaticManager.lastGlobalAdjustTime = value
+  }
 
   constructor(x, y, direction = 'east', vehicleType = 'large', laneNumber = 1) {
     // Factory Pattern: 根據不同參數創建不同類型的車輛實例
@@ -237,14 +258,8 @@ export default class Vehicle {
 
   // Strategy Pattern: 基於車輛類型的速度生成策略
   generateRandomSpeed() {
-    // Strategy Pattern: 不同車輛類型使用不同速度策略
-    const range = speedConfig[this.vehicleType] || speedConfig.small
-    if (!range) {
-      console.warn(`[Vehicle] 未找到車輛類型 '${this.vehicleType}' 的速度設定，使用預設值。`)
-      return DISTANCE_CONFIG.DEFAULT_SPEED // 返回一個安全預設值
-    }
-    const randomSpeed = range.min + Math.random() * (range.max - range.min)
-    return Math.round(randomSpeed)
+    // 委託給 RandomSpeedUtils 生成隨機速度
+    return RandomSpeedUtils.generateRandomSpeed(this.vehicleType)
   }
 
   // Template Method Pattern: 計算動畫持續時間的模板方法
@@ -442,53 +457,8 @@ export default class Vehicle {
 
   // Composite Pattern: 創建車道編號標籤組件
   createLaneLabel() {
-    // Composite Pattern: 創建車道編號標籤作為車輛的子組件
-    this.laneLabel = document.createElement('div')
-    this.laneLabel.className = 'lane-label'
-    this.laneLabel.textContent = this.laneNumber
-
-    // 根據車輛方向設置標籤位置和旋轉角度
-    let labelTransform = ''
-    switch (this.direction) {
-      case 'east':
-        labelTransform = 'top: -8px; left: 50%; transform: translateX(-50%);'
-        break
-      case 'west':
-        labelTransform = 'top: 5px; left: 50%; transform: translateX(-50%) rotate(180deg);'
-        break
-      case 'north':
-        labelTransform = 'top: 5px; left: 50%; transform: translateX(-50%) rotate(90deg);'
-        break
-      case 'south':
-        labelTransform = 'top: -8px; left: 50%; transform: translateX(-50%) rotate(-90deg);'
-        break
-      default:
-        labelTransform = 'top: -8px; left: 50%; transform: translateX(-50%);'
-    }
-
-    this.laneLabel.style.cssText = `
-      position: absolute;
-      ${labelTransform}
-      background: rgba(0, 0, 0, 0.8);
-      color: white;
-      font-size: 10px;
-      font-weight: bold;
-      padding: 2px;
-      border-radius: 50%;
-      border: 1px solid #ffcc00;
-      z-index: 15;
-      pointer-events: none;
-      width: 16px;
-      height: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-    `
-
-    // 將標籤添加到車輛元素中
-    // this.element.appendChild(this.laneLabel)
+    // 委託給 LaneLabelUtils 建立標籤
+    this.laneLabel = LaneLabelUtils.createLaneLabel(this.laneNumber, this.direction)
   }
 
   // Factory Pattern + Strategy Pattern: 獲取車輛配置的工廠策略方法
@@ -636,20 +606,14 @@ export default class Vehicle {
 
   // 🌤️ 獲取天氣對速度的影響倍數
   getWeatherSpeedMultiplier() {
-    // 從全域天氣控制器獲取速度倍數
-    if (window.weatherController && typeof window.weatherController.getSpeedMultiplier === 'function') {
-      return window.weatherController.getSpeedMultiplier()
-    }
-    return 1.0 // 預設無影響
+    // 🚀 DRY 優化：使用統一的工具類方法
+    return VehiclePositionSpeedUtils.getWeatherSpeedMultiplier()
   }
 
   // Adapter Pattern: 獲取當前位置的適配器方法
   getCurrentPosition() {
-    // Adapter Pattern: 將GSAP的座標系統適配為標準座標
-    return {
-      x: gsap.getProperty(this.element, 'x'),
-      y: gsap.getProperty(this.element, 'y'),
-    }
+    // 🚀 DRY 優化：使用統一的工具類方法
+    return VehiclePositionSpeedUtils.getCurrentPosition(this.element)
   }
 
   // Strategy Pattern: 根據方向計算車頭位置的策略方法
@@ -1678,8 +1642,8 @@ export default class Vehicle {
     }
 
     // 清理車道標籤
-    if (this.laneLabel && this.laneLabel.parentNode) {
-      this.laneLabel.parentNode.removeChild(this.laneLabel)
+    if (this.laneLabel) {
+      LaneLabelUtils.removeLaneLabel(this.laneLabel)
       this.laneLabel = null
     }
 
