@@ -76,6 +76,7 @@
                     'scenario-btn-compact',
                     {
                       active: isScenarioActive(scenario.key),
+                      'auto-matched': isAutoMode && currentTimeScenario === scenario.key,
                     },
                   ]"
                   :title="`${scenario.name} (${scenario.timeRange})`"
@@ -112,9 +113,9 @@
                   <input
                     type="range"
                     v-model="manualInterval"
-                    min="200"
+                    min="1000"
                     max="30000"
-                    :step="100"
+                    :step="1000"
                     @input="updateGenerationConfig"
                     class="freq-slider"
                     style="flex: 1"
@@ -353,17 +354,25 @@ const drawerWidth = computed(() => {
 })
 const lightPosition = computed(() => (rightDrawerOpen.value && $q.screen.gt.md ? '35% 50%' : '50% 50%'))
 
-// 🎯 判斷情境按鈕是否應該高亮
+// 🎯 判斷情境按鈕是否應該高亮 - 基於拉桿範圍映射
+// 功能：當拉桿值落在某個情景的間隔範圍內時，該按鈕發亮
 // 自動模式：按當前時段情境高亮
-// 手動模式：按用戶選擇的情景高亮
+// 手動模式：按拉桿範圍映射高亮
 function isScenarioActive(scenarioKey) {
   if (isAutoMode.value) {
-    // 自動模式：高亮當前時段對應的情境
+    // 自動模式：按當前時段對應的情景高亮
     return currentTimeScenario.value === scenarioKey
   } else {
-    // 手動模式：高亮由 updateGenerationConfig 更新的 currentTimeScenario
-    // （確保與拉桿匹配的情景實時同步）
-    return currentTimeScenario.value === scenarioKey
+    // 手動模式：檢查拉桿值是否落在該情景的間隔範圍內
+    const scenario = timeScenarios.find((s) => s.key === scenarioKey)
+    if (!scenario) return false
+
+    const sliderValue = manualInterval.value
+    const { min, max } = scenario.config.interval
+
+    // 💡 拉桿在 [min, max] 範圍內 → 該按鈕發亮
+    const isInRange = sliderValue >= min && sliderValue <= max
+    return isInRange
   }
 }
 
@@ -435,17 +444,39 @@ function updateGenerationConfig() {
 
   const finalInterval = manualInterval.value
 
-  // 🎯 使用當前情景（由用戶通過情景按鈕選擇或自動時間確定）
-  const s = timeScenarios.find((s) => s.key === currentTimeScenario.value)
+  // 🎯 根據拉桿值自動判斷最接近的情景，用於更新按鈕顯示
+  const closestScenario = timeScenarios.reduce((closest, scenario) => {
+    const { min, max } = scenario.config.interval
+    const sliderValue = finalInterval
+
+    // 計算拉桿值與該情景中點的距離
+    const midpoint = (min + max) / 2
+    const distance = Math.abs(sliderValue - midpoint)
+
+    // 選擇距離最近的情景
+    if (!closest) return { scenario, distance }
+    return distance < closest.distance ? { scenario, distance } : closest
+  }, null)
+
+  // 💡 更新 currentTimeScenario 標籤（用於顯示下方詳細資訊）
+  if (closestScenario) {
+    currentTimeScenario.value = closestScenario.scenario.key
+  }
+
+  // 使用該最接近情景的配置參數
+  const s = closestScenario?.scenario || timeScenarios.find((s) => s.key === 'off_peak')
   if (!s) return
 
   // 讓 min/max 也跟著拉桿動態調整（以拉桿值為中心，上下浮動 50%）
-  const minInterval = Math.max(100, Math.round(finalInterval * 0.5))
+  // 最小值不低於 1000ms（1秒）
+  const minInterval = Math.max(1000, Math.round(finalInterval * 0.5))
   const maxInterval = Math.round(finalInterval * 1.5)
 
   currentInterval.value = finalInterval
 
-  console.log(`🎚️ [手動模式] 更新生成間隔: ${finalInterval}ms (min=${minInterval}ms, max=${maxInterval}ms)`)
+  console.log(
+    `🎚️ [手動模式] 更新拉桿: ${finalInterval}ms，對應情景: ${s.name}，範圍: [${s.config.interval.min}-${s.config.interval.max}]ms`,
+  )
 
   // 🔧 CRITICAL FIX：先清除情景模式，確保手動設定不被覆蓋
   if (window.autoTrafficGenerator.currentScenarioMode) {
@@ -465,14 +496,17 @@ function switchToTimeScenario(key) {
   if (isAutoMode.value) return // 自動模式下禁用
   const s = timeScenarios.find((s) => s.key === key)
   if (!s) return
+
+  // 💡 更新當前情景 key
   currentTimeScenario.value = key
 
-  // 💡 簡化：只設置生成間隔，使用情景定義的 peakMultiplier
+  // 💡 同步拉桿到該情景的標準生成間隔
   manualInterval.value = s.config.interval.normal
 
-  // 🔧 CRITICAL FIX：不要調用 switchToScenarioMode()，直接更新手動配置
+  console.log(`🎭 [UI] 切換到情景: ${s.name}，拉桿設定為 ${s.config.interval.normal}ms`)
+
+  // 🔧 清除情景模式計時器，進入純手動模式
   if (window.autoTrafficGenerator) {
-    // 清除情景模式，進入純手動模式
     if (window.autoTrafficGenerator.currentScenarioMode) {
       console.log(`🛑 [UI] 清除 currentScenarioMode: ${window.autoTrafficGenerator.currentScenarioMode}`)
       window.autoTrafficGenerator.currentScenarioMode = null
@@ -484,6 +518,7 @@ function switchToTimeScenario(key) {
     }
   }
 
+  // 🎯 立即應用該情景配置
   updateGenerationConfig()
 }
 
