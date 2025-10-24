@@ -265,8 +265,10 @@ export default class AutoTrafficGenerator {
       })
     }
 
-    // 異步傳送 API 數據給後端（可選）
-    // this._sendVDDataToBackendAsync(vdData)
+    // ✅ 異步傳送 API 數據給後端
+    if (vdData && vdData.apiData) {
+      this._sendVDDataToBackendAsync(vdData.apiData)
+    }
   }
 
   // 🎯 3. 為情景生成 VD 數據
@@ -290,6 +292,20 @@ export default class AutoTrafficGenerator {
     const occupancyVariance = 0.8 + Math.random() * 0.4
     const speedVariance = 0.85 + Math.random() * 0.3
 
+    // ✅ 正確計算各車型數量
+    const volumeM = Math.round(volumeByType.motor * volumeVariance)
+    const volumeS = Math.round(volumeByType.small * volumeVariance)
+    const volumeL = Math.round(volumeByType.large * volumeVariance)
+    const volumeT = volumeM + volumeS + volumeL // ✅ 計算總數
+
+    // ✅ 正確計算各車型速度
+    const speedM = Math.round(features.speed * speedVariance * (0.85 + Math.random() * 0.3))
+    const speedS = Math.round(features.speed * speedVariance)
+    const speedL = Math.round(features.speed * speedVariance * (0.7 + Math.random() * 0.3))
+
+    // ✅ 正確計算加權平均速度
+    const speedT = volumeT > 0 ? (speedM * volumeM + speedS * volumeS + speedL * volumeL) / volumeT : 0.0
+
     const apiVDData = {
       VD_ID: 'VLRJX20',
       DayOfWeek: new Date().getDay(),
@@ -300,15 +316,15 @@ export default class AutoTrafficGenerator {
       LaneID: 0,
       LaneType: 1,
       // 🎯 API 層：原始車輛數據（不放大）
-      Volume_M: Math.round(volumeByType.motor * volumeVariance),
-      Volume_S: Math.round(volumeByType.small * volumeVariance),
-      Volume_L: Math.round(volumeByType.large * volumeVariance),
-      Volume_T: 0,
-      // 🎯 API 層：原始速度數據（整數位 + .0 格式）
-      Speed_M: Math.round(features.speed * speedVariance * (0.85 + Math.random() * 0.3)) + 0.0,
-      Speed_S: Math.round(features.speed * speedVariance) + 0.0,
-      Speed_L: Math.round(features.speed * speedVariance * (0.7 + Math.random() * 0.3)) + 0.0,
-      Speed_T: 0,
+      Volume_M: volumeM,
+      Volume_S: volumeS,
+      Volume_L: volumeL,
+      Volume_T: volumeT,
+      // 🎯 API 層：原始速度數據
+      Speed_M: speedM,
+      Speed_S: speedS,
+      Speed_L: speedL,
+      Speed_T: speedT,
       // 🎯 API 層：原始佔有率（不放大）
       Occupancy: Math.round(features.occupancy * occupancyVariance * 10) / 10,
     }
@@ -318,12 +334,12 @@ export default class AutoTrafficGenerator {
     const visualVDData = {
       ...apiVDData,
       // 放大後的數據用於視覺顯示
-      Volume_M: Math.round(apiVDData.Volume_M * displayMultiplier),
-      Volume_S: Math.round(apiVDData.Volume_S * displayMultiplier),
-      Volume_L: Math.round(apiVDData.Volume_L * displayMultiplier),
-      Volume_T: 0,
+      Volume_M: Math.round(volumeM * displayMultiplier),
+      Volume_S: Math.round(volumeS * displayMultiplier),
+      Volume_L: Math.round(volumeL * displayMultiplier),
+      Volume_T: volumeT * displayMultiplier,
       // 佔有率也放大以匹配視覺流量
-      Occupancy: Math.round(apiVDData.Occupancy * displayMultiplier * 10) / 10,
+      Occupancy: Math.round(features.occupancy * occupancyVariance * displayMultiplier * 10) / 10,
       // 標記這是視覺層數據
       isVisualData: true,
       displayMultiplier: displayMultiplier,
@@ -409,9 +425,9 @@ export default class AutoTrafficGenerator {
       }
 
       // 🎯 異步傳送 API 預測（使用原始 API 數據）
-      // if (visualVDData && visualVDData.apiData) {
-      //   this._sendVDDataToBackendAsync(visualVDData.apiData)
-      // }
+      if (visualVDData && visualVDData.apiData) {
+        this._sendVDDataToBackendAsync(visualVDData.apiData)
+      }
     } else {
       // 備用方案：如果沒有找到配置，使用原始邏輯
       if (this.onTimeUpdate) {
@@ -428,29 +444,43 @@ export default class AutoTrafficGenerator {
   // 🎯 新增：異步傳送 VD 數據給後端模型預測
   async _sendVDDataToBackendAsync(vdData) {
     try {
-      const hours = this.simulationTime.getHours()
-      const minutes = this.simulationTime.getMinutes()
-      const dayOfWeek = this.simulationTime.getDay()
+      // ✅ 直接使用 vdData 中的時間信息（已在 _generateScenarioVDData 中設置）
+      const hours = vdData.Hour || this.simulationTime.getHours()
+      const minutes = vdData.Minute || this.simulationTime.getMinutes()
+      const dayOfWeek = vdData.DayOfWeek || this.simulationTime.getDay()
 
       const payload = {
-        VD_ID: 'VLRJX20',
-        DayOfWeek: dayOfWeek,
-        Hour: hours,
-        Minute: minutes,
-        Second: 0,
-        IsPeakHour: vdData.isPeakHour,
-        LaneID: 0,
-        LaneType: 1,
-        Speed: vdData.speedS, // 以小型車速度為主
-        Occupancy: vdData.occupancy,
-        Volume_M: vdData.volumeM,
-        Speed_M: vdData.speedM,
-        Volume_S: vdData.volumeS,
-        Speed_S: vdData.speedS,
-        Volume_L: vdData.volumeL,
-        Speed_L: vdData.speedL,
-        Volume_T: vdData.volumeT,
-        Speed_T: vdData.speedT,
+        VD_ID: vdData.VD_ID || 'VLRJX20',
+        DayOfWeek: vdData.DayOfWeek || dayOfWeek,
+        Hour: vdData.Hour || hours,
+        Minute: vdData.Minute || minutes,
+        Second: vdData.Second || 0,
+        IsPeakHour: vdData.IsPeakHour || 0,
+        LaneID: vdData.LaneID || 0,
+        LaneType: vdData.LaneType || 1,
+        Speed: vdData.Speed_T || 0,
+        Occupancy: vdData.Occupancy || 0,
+        Volume_M: vdData.Volume_M || 0,
+        Speed_M: vdData.Speed_M || 0,
+        Volume_S: vdData.Volume_S || 0,
+        Speed_S: vdData.Speed_S || 0,
+        Volume_L: vdData.Volume_L || 0,
+        Speed_L: vdData.Speed_L || 0,
+        Volume_T: vdData.Volume_T || 0,
+        Speed_T: vdData.Speed_T || 0,
+      }
+
+      console.log('📤 [發送 API]', payload)
+
+      // 🚨 DEBUG: 暫時禁用 API 調用（後端未運行時）
+      const ENABLE_API_CALL = false
+
+      if (!ENABLE_API_CALL) {
+        console.log(
+          `⏭️ [API已禁用] 跳過發送 | 時間: ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} | ` +
+            `Volume_T=${payload.Volume_T} Speed_T=${payload.Speed_T.toFixed(2)}km/h Occupancy=${payload.Occupancy}%`,
+        )
+        return
       }
 
       // 發送 API 請求
@@ -467,12 +497,12 @@ export default class AutoTrafficGenerator {
 
       const result = await response.json()
       console.log(
-        `🕐 時間: ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} | ` +
-          `占有率: ${vdData.occupancy.toFixed(1)}% | ` +
+        `✅ [預測結果] 時間: ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} | ` +
+          `佔有率: ${vdData.Occupancy}% | 車流: ${vdData.Volume_T} 輛 | ` +
           `預測綠燈: ${result.green_seconds} 秒`,
       )
     } catch (error) {
-      console.error('🚨 傳送 VD 數據失敗:', error)
+      console.error('🚨 傳送 VD 數據失敗:', error.message)
     }
   }
   // ==========================================

@@ -1,85 +1,6 @@
 /**
  * 交通情境配置檔
  * 統一管理所有交通相關的參數設定，包括時段情境、車型組合、密度閾值等
- * 由 AutoTrafficGenerator 和 MainLayout 共同使用
- *
- * ========================================
- * 📊 基於VD真實數據範圍（2024/12-2025/05）
- * ========================================
- *
- * 數據來源：VLRJM60、VLRJX00、VLRJX20 三個VD偵測器
- *
- * 【速度範圍 (km/h)】
- *   - 整體：20-50 (平均 28-40)
- *   - 機車：30-60 (平均 38-49)
- *   - 小客車：20-50 (平均 30-41)
- *   - 大客車：15-45 (平均 19-39)
- *
- * 【佔有率範圍 (%)】
- *   - 順暢：5-15%
- *   - 一般：15-30%
- *   - 壅塞：30-60%
- *   - 嚴重：60-100%
- *
- * 【流量範圍 (輛/5分鐘)】
- *   - 機車：1-10 (平均 3-5)
- *   - 小客車：1-10 (平均 4-5)
- *   - 大客車：0-5 (平均 1.5-2.6)
- *
- * ========================================
- * 🚗 車輛生成速度與數量最相關的屬性：
- * ========================================
- *
- * 【手動模式】- 由 MainLayout.vue 的拉桿控制：
- * 1. manualInterval (生成間隔拉桿) - 直接決定基礎生成間隔
- * 2. manualPeakMultiplier (流量強度拉桿) - 倍率，數值越大車流越密集
- *
- * 【自動模式】- 由時段自動切換：
- * 1. interval.normal - 基礎生成間隔 (毫秒)
- * 2. peakMultiplier - 車流強度倍率，影響實際生成速度
- *
- * 【共同影響】：
- * 3. maxLiveVehicles - 同時場上最大車輛數，達到上限會暫停生成
- * 4. vehicleTypes - 各車型權重，影響生成的車型比例
- *
- * ========================================
- * 🔧 實際生成公式：
- * ========================================
- * 手動模式：finalInterval = manualInterval / manualPeakMultiplier
- * 自動模式：base = interval.normal / peakMultiplier (還會根據密度動態調整)
- * 最終延遲：Math.max(min, Math.min(max, calculated_interval))
- *
- * ⚠️  interval.min 和 interval.max 主要用於：
- *    - UI 顯示參考範圍
- *    - 限制最終計算結果的邊界值
- *    - 不直接參與生成，而是作為約束條件
- *
- * ========================================
- * 🎯 VD數據匹配原則：
- * ========================================
- * 1. 視覺車流量必須與傳送給後端的特徵數據匹配
- * 2. 所有特徵值必須在VD訓練數據範圍內
- * 3. 尖峰=高流量(12輛/5分)+高佔有率(40-60%)+低速(20-35km/h)
- * 4. 離峰=中流量(6輛/5分)+中佔有率(15-30%)+中速(30-45km/h)
- * 5. 凌晨=低流量(2輛/5分)+低佔有率(5-15%)+高速(40-60km/h)
- *
- */
-
-/**
- * 時段交通情境配置（基於VD真實數據）
- *
- * 使用檔案和方法：
- * - MainLayout.vue:
- *   * template 中的情境按鈕顯示 (timeScenarios)
- *   * currentScenarioDetails computed 屬性
- *   * switchToTimeScenario() 方法
- *   * updateGenerationConfig() 方法
- * - AutoTrafficGenerator.js: 暫時未直接使用，使用 getScenarioByTime() 函數替代
- *
- * 🎯 VD數據對應（基於 2024/02-03 訓練數據分析）：
- * - 尖峰：早峰 07-09 (9輛/車道) 與 晚峰 17-19 (10-11輛/車道)
- * - 離峰：中午 10-16 (3-4輛/車道) 與 晚間 20-23 (1-2輛/車道)
- * - 凌晨：00-06 (0-1輛/車道)，車流極少
  */
 export const timeScenarios = [
   {
@@ -209,12 +130,6 @@ export const timeScenarios = [
 
 /**
  * 車型組合配置
- *
- * 使用檔案和方法：
- * - AutoTrafficGenerator.js:
- *   * constructor 中的 this.vehicleMixes 屬性初始化
- *   * 原本的 trafficProfiles 陣列中 vehicleMix 屬性對應
- *   * 用於決定不同交通狀況下的車型產生比例
  */
 export const vehicleMixes = {
   light: {
@@ -239,12 +154,6 @@ export const vehicleMixes = {
 
 /**
  * 預設配置
- *
- * 使用檔案和方法：
- * - AutoTrafficGenerator.js:
- *   * constructor 中的 this.defaultConfig 屬性
- *   * this.config 的初始值來源
- *   * updateConfig() 方法的基礎設定
  */
 export const defaultConfig = {
   interval: { min: 3000, max: 8000, normal: 5000 },
@@ -267,21 +176,6 @@ export const defaultConfig = {
 
 /**
  * 根據當前時間取得對應的交通情境配置（基於VD真實數據）
- *
- * 使用檔案和方法：
- * - AutoTrafficGenerator.js:
- *   * _applyTrafficProfile() 方法中呼叫
- *   * 自動模式下根據模擬時間決定交通情境
- *   * 替代原本的硬編碼時段判斷邏輯
- *
- * @param {Date} currentTime - 當前時間
- * @returns {Object} 交通情境配置，包含 name, interval, peakMultiplier, vehicleTypes, description
- *
- * 🎯 VD數據範圍保證：
- * - 所有配置確保傳送給後端的數據在VD訓練範圍內
- * - 流量：1-15輛/5分鐘
- * - 佔有率：5-60%
- * - 速度：20-60 km/h
  */
 export function getScenarioByTime(currentTime) {
   const currentHour = currentTime.getHours()
@@ -498,14 +392,6 @@ export function getScenarioByTime(currentTime) {
 
 /**
  * 根據 key 取得時段情境配置
- *
- * 使用檔案和方法：
- * - MainLayout.vue:
- *   * switchToTimeScenario() 方法中可能使用
- *   * 未來擴展手動模式情境切換功能時使用
- *
- * @param {string} scenarioKey - 情境 key (peak_hours, off_peak, late_night)
- * @returns {Object|null} 情境配置物件，如果找不到則返回 null
  */
 export function getScenarioByKey(scenarioKey) {
   return timeScenarios.find((scenario) => scenario.key === scenarioKey) || null
