@@ -112,8 +112,8 @@
                   <input
                     type="range"
                     v-model="manualInterval"
-                    min="500"
-                    max="60000"
+                    min="200"
+                    max="30000"
                     :step="100"
                     @input="updateGenerationConfig"
                     class="freq-slider"
