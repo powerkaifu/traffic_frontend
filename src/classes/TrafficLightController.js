@@ -816,19 +816,6 @@ export default class TrafficLightController {
       // 發送 API 開始事件
       window.dispatchEvent(new CustomEvent('trafficApiSending', { detail: { timestamp: new Date().toISOString() } }))
 
-      // 🔍 詳細日誌：顯示實際發送的內容
-      console.log(`📤 [API 請求詳情]`)
-      console.log(`  - 端點: ${this.apiEndpoint}`)
-      console.log(`  - 方法: POST`)
-      console.log(`  - 內容類型: application/json`)
-      console.log(`  - 請求體大小: ${JSON.stringify(finalDataToSend).length} 字節`)
-      console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
-      console.log(`  - 正規化流量: Volume_T=${firstData.Volume_T}`)
-      console.log(`  - 車型分佈: M=${firstData.Volume_M}, S=${firstData.Volume_S}, L=${firstData.Volume_L}`)
-      console.log(`  - 時段信息: ${firstData.normalization_period}`)
-      console.log(`  - 驗證結果: ${firstData.validation_passed}`)
-      console.log('📨 【完整 JSON 請求體】:', JSON.stringify(finalDataToSend, null, 2))
-
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

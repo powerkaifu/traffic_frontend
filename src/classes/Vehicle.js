@@ -470,6 +470,11 @@ export default class Vehicle {
   // Adapter Pattern: 獲取當前位置的適配器方法
   getCurrentPosition() {
     // 🚀 DRY 優化：使用統一的工具類方法
+    if (!this.element) {
+      // ⚠️ 防護：如果 element 未定義，使用起始位置
+      // 這通常發生在車輛初始化的非常早期階段
+      return this.startPosition || { x: 0, y: 0 }
+    }
     return VehiclePositionSpeedUtils.getCurrentPosition(this.element)
   }
 

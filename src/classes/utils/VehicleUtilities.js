@@ -80,7 +80,7 @@ export class VehiclePositionSpeedUtils {
    */
   static getCurrentPosition(element) {
     if (!element) {
-      console.warn('❌ [VehicleUtilities] getCurrentPosition: element 未定義')
+      // 靜默返回預設位置，上層 Vehicle.getCurrentPosition() 已負責日誌和防護
       return { x: 0, y: 0 }
     }
 
