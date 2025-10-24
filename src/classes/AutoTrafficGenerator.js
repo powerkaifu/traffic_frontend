@@ -3,6 +3,8 @@
  */
 import { getScenarioByTime, getScenarioByKey, defaultConfig } from './config/trafficScenarioConfig.js'
 import { FOLLOWING_CONFIG } from './config/vehicleConfig.js'
+import VDNormalizationUtils from './utils/VDNormalizationUtils.js'
+import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
 
 export default class AutoTrafficGenerator {
   constructor(trafficController) {
@@ -290,14 +292,24 @@ export default class AutoTrafficGenerator {
     // 🎯 生成該情景對應的 VD 數據
     const vdData = this._generateScenarioVDData(scenarioKey)
 
+    // ✅ 新增：自動時段檢測（手動模式時使用當前實時時間）
+    const now = new Date()
+    const hour = now.getHours()
+    const timePeriod = getCurrentTimePeriod()
+    const normParams = VDNormalizationUtils.getTimePeriodAndParamsByHour('VLRJM60', hour)
+
     // 回傳給 UI
     if (this.onTimeUpdate) {
       this.onTimeUpdate({
-        time: new Date().toLocaleTimeString('it-IT'),
+        time: now.toLocaleTimeString('it-IT'),
         description: scenario.config.description,
         scenarioMode: scenarioKey,
         vdData: vdData,
         targetFeatures: scenario.targetFeatures,
+        // ✅ 新增：時段和正規化信息
+        timePeriod: timePeriod,
+        normalizationParams: normParams,
+        normalizationInfo: `[正規化] 時段=${timePeriod}, 小時=${hour}:00, displayMultiplier=${normParams.params.displayMultiplier}x`,
       })
     }
 
@@ -437,6 +449,11 @@ export default class AutoTrafficGenerator {
     const scenarioKey = scenario.key
     const scenarioConfig = getScenarioByKey(scenarioKey)
 
+    // ✅ 新增：自動時段檢測和正規化
+    const hour = this.simulationTime.getHours()
+    const timePeriod = getCurrentTimePeriod()
+    const normParams = VDNormalizationUtils.getTimePeriodAndParamsByHour('VLRJM60', hour)
+
     // interval.normal 加入隨機波動 ±10%
     const rand = 0.9 + Math.random() * 0.2
     const normalInterval = Math.round(scenario.interval.normal * rand)
@@ -461,6 +478,10 @@ export default class AutoTrafficGenerator {
           apiVDData: visualVDData.apiData, // 傳送原始 API 數據
           scenarioMode: scenarioKey, // 🎭 情景 key
           targetFeatures: scenarioConfig.targetFeatures, // 傳遞目標特徵供 UI 參考
+          // ✅ 新增：時段和正規化信息
+          timePeriod: timePeriod,
+          normalizationParams: normParams,
+          normalizationInfo: `[正規化] 時段=${timePeriod}, 小時=${hour}:00, displayMultiplier=${normParams.params.displayMultiplier}x`,
         })
       }
 
@@ -473,6 +494,8 @@ export default class AutoTrafficGenerator {
           time: this.simulationTime.toLocaleTimeString('it-IT'),
           description: scenario.description,
           scenarioMode: 'unknown',
+          timePeriod: timePeriod,
+          normalizationParams: normParams,
         })
       }
     }

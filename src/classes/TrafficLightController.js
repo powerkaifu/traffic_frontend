@@ -3,6 +3,8 @@
  */
 import TrafficLight from './TrafficLight.js'
 import { speedConfig } from './config/trafficConfig.js' // 引入統一的速度設定
+import VDNormalizationUtils from './utils/VDNormalizationUtils.js'
+import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
 
 export default class TrafficLightController {
   constructor() {
@@ -698,7 +700,56 @@ export default class TrafficLightController {
         dataToSend = this.collectIntersectionData()
         console.log('⚠️ 使用本地收集的數據（備用方案）:', dataToSend)
       }
-      console.log('🚦 發送真實交通數據到後端 AI 系統:', dataToSend)
+
+      // ✅ 新增：自動正規化轉換
+      // 提取路口 ID（如果有）
+      const intersectionId = dataToSend?.VD_ID || 'VLRJM60'
+      const timePeriod = getCurrentTimePeriod()
+
+      // 準備正規化數據
+      const frontendData = {
+        volume: dataToSend?.Volume_T || 0,
+        speed: dataToSend?.Speed_T || 0,
+        occupancy: dataToSend?.Occupancy || 0,
+        volume_m: dataToSend?.Volume_M || 0,
+        volume_s: dataToSend?.Volume_S || 0,
+        volume_l: dataToSend?.Volume_L || 0,
+      }
+
+      // 執行正規化
+      const normalizedData = VDNormalizationUtils.denormalizeToVDRange(frontendData, intersectionId, timePeriod)
+
+      // 驗證正規化結果
+      const validation = VDNormalizationUtils.validateNormalizedData(normalizedData, intersectionId, timePeriod)
+
+      // 在原始數據中混入正規化數據
+      const finalDataToSend = {
+        ...dataToSend,
+        // 保留原始數據用於日誌
+        original_volume: dataToSend?.Volume_T || 0,
+        original_speed: dataToSend?.Speed_T || 0,
+        original_occupancy: dataToSend?.Occupancy || 0,
+        // 使用正規化數據發送給後端
+        Volume_T: normalizedData.volume,
+        Volume_M: normalizedData.volume_m || Math.round(normalizedData.volume * 0.45),
+        Volume_S: normalizedData.volume_s || Math.round(normalizedData.volume * 0.35),
+        Volume_L: normalizedData.volume_l || Math.round(normalizedData.volume * 0.2),
+        Speed_T: normalizedData.speed || dataToSend?.Speed_T || 0,
+        Occupancy: normalizedData.occupancy || 0,
+        // 添加正規化元數據
+        normalization_applied: true,
+        normalization_period: timePeriod,
+        normalization_displayMultiplier: VDNormalizationUtils.getDisplayMultiplier(intersectionId),
+        validation_passed: validation.isValid,
+        validation_warnings: validation.warnings,
+        validation_errors: validation.errors,
+      }
+
+      console.log(`[正規化] 原始流量=${frontendData.volume}輛 → 正規化=${normalizedData.volume}輛 (時段=${timePeriod})`)
+      console.log(
+        `[驗證] 有效=${validation.isValid}, 警告=${validation.warnings.length}, 錯誤=${validation.errors.length}`,
+      )
+      console.log('🚦 發送正規化後的交通數據到後端 AI 系統:', finalDataToSend)
 
       // 發送 API 開始事件
       window.dispatchEvent(new CustomEvent('trafficApiSending', { detail: { timestamp: new Date().toISOString() } }))
@@ -706,7 +757,7 @@ export default class TrafficLightController {
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSend),
+        body: JSON.stringify(finalDataToSend),
       })
 
       if (!response.ok) {
