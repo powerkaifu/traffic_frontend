@@ -407,13 +407,16 @@ function calculateScenarioMatch(currentMultiplier, currentInterval) {
 
 // 🎯 新增：判斷情境按鈕是否應該高亮
 // 自動模式：按當前時段情境高亮
-// 手動模式：按拉桿匹配的情境高亮
+// 手動模式：按拉桿匹配的情境高亮，或者按用戶手動選擇的情景
 function isScenarioActive(scenarioKey) {
   if (isAutoMode.value) {
     // 自動模式：高亮當前時段對應的情境
     return currentTimeScenario.value === scenarioKey
   } else {
-    // 手動模式：高亮拉桿自動匹配的情境
+    // 手動模式：優先檢查用戶手動選擇，如果沒有則檢查拉桿匹配的情景
+    if (currentTimeScenario.value) {
+      return currentTimeScenario.value === scenarioKey
+    }
     return autoMatchedScenario.value === scenarioKey
   }
 }
@@ -534,6 +537,11 @@ function switchToTimeScenario(key) {
   manualPeakMultiplier.value = s.config.peakMultiplier || 1.0
   manualInterval.value = s.config.interval.normal
 
+  // 🎭 新增：使用新的情景模式方法
+  if (window.autoTrafficGenerator) {
+    window.autoTrafficGenerator.switchToScenarioMode(key)
+  }
+
   updateGenerationConfig()
 }
 
@@ -560,6 +568,12 @@ onMounted(() => {
       window.autoTrafficGenerator.setOnTimeUpdate((status) => {
         if (status) {
           simulationStatus.value = `${status.time} - ${status.description}`
+
+          // 🎭 新增：在自動模式下更新 currentTimeScenario
+          if (status.scenarioMode) {
+            currentTimeScenario.value = status.scenarioMode
+          }
+
           // 獲取當前間隔時間（毫秒轉秒）
           if (window.autoTrafficGenerator.config && window.autoTrafficGenerator.config.interval) {
             const intervalMs =

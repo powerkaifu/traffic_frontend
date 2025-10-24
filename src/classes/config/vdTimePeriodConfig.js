@@ -34,6 +34,7 @@ export const VD_TIME_PERIOD_CONFIG = {
         },
         expectedGreenLightSeconds: '32-42',
         peakMultiplier: 0.28, // 相對流量倍數
+        displayMultiplier: 1.5, // 🎯 視覺倍數：凌晨
       },
 
       // 早峰 (07:00-09:59) - 上班時段
@@ -53,6 +54,7 @@ export const VD_TIME_PERIOD_CONFIG = {
         },
         expectedGreenLightSeconds: '48-58',
         peakMultiplier: 0.9,
+        displayMultiplier: 6, // 🎯 視覺倍數：早峰 (明顯尖峰感)
       },
 
       // 中午離峰 (10:00-16:59) - 基準時段
@@ -72,6 +74,7 @@ export const VD_TIME_PERIOD_CONFIG = {
         },
         expectedGreenLightSeconds: '45-55',
         peakMultiplier: 1.0, // 基準
+        displayMultiplier: 3, // 🎯 視覺倍數：中午 (適中)
       },
 
       // 晚峰 (17:00-19:59) - 最擁擠時段 ⭐
@@ -91,6 +94,7 @@ export const VD_TIME_PERIOD_CONFIG = {
         },
         expectedGreenLightSeconds: '60-70',
         peakMultiplier: 1.1,
+        displayMultiplier: 7, // 🎯 視覺倍數：晚峰 (最擁擠感)
       },
 
       // 晚間離峰 (20:00-23:59) - 下班後
@@ -110,6 +114,7 @@ export const VD_TIME_PERIOD_CONFIG = {
         },
         expectedGreenLightSeconds: '40-50',
         peakMultiplier: 0.66,
+        displayMultiplier: 2.5, // 🎯 視覺倍數：晚間 (緩解感)
       },
     },
   },
@@ -142,6 +147,7 @@ export const VD_TIME_PERIOD_CONFIG = {
         },
         expectedGreenLightSeconds: '32-42',
         peakMultiplier: 0.28,
+        displayMultiplier: 1.5, // 🎯 視覺倍數：凌晨
       },
 
       // 早峰 (07:00-09:59)
@@ -161,6 +167,7 @@ export const VD_TIME_PERIOD_CONFIG = {
         },
         expectedGreenLightSeconds: '48-58',
         peakMultiplier: 0.9,
+        displayMultiplier: 6, // 🎯 視覺倍數：早峰 (明顯尖峰感)
       },
 
       // 中午離峰 (10:00-16:59)
@@ -180,6 +187,7 @@ export const VD_TIME_PERIOD_CONFIG = {
         },
         expectedGreenLightSeconds: '45-55',
         peakMultiplier: 1.0,
+        displayMultiplier: 3, // 🎯 視覺倍數：中午 (適中)
       },
 
       // 晚峰 (17:00-19:59)
@@ -199,6 +207,7 @@ export const VD_TIME_PERIOD_CONFIG = {
         },
         expectedGreenLightSeconds: '55-65',
         peakMultiplier: 1.1,
+        displayMultiplier: 7, // 🎯 視覺倍數：晚峰 (最擁擠感)
       },
 
       // 晚間離峰 (20:00-23:59)
@@ -218,6 +227,7 @@ export const VD_TIME_PERIOD_CONFIG = {
         },
         expectedGreenLightSeconds: '40-50',
         peakMultiplier: 0.66,
+        displayMultiplier: 2.5, // 🎯 視覺倍數：晚間 (緩解感)
       },
     },
   },
@@ -250,6 +260,7 @@ export const VD_TIME_PERIOD_CONFIG = {
         },
         expectedGreenLightSeconds: '32-42',
         peakMultiplier: 0.28,
+        displayMultiplier: 1.5, // 🎯 視覺倍數：凌晨
       },
 
       // 早峰 (07:00-09:59) - 轉彎車道超高流量 ⭐
@@ -269,6 +280,7 @@ export const VD_TIME_PERIOD_CONFIG = {
         },
         expectedGreenLightSeconds: '60-70',
         peakMultiplier: 0.9,
+        displayMultiplier: 6, // 🎯 視覺倍數：早峰 (明顯尖峰感)
       },
 
       // 中午離峰 (10:00-16:59)
@@ -288,6 +300,7 @@ export const VD_TIME_PERIOD_CONFIG = {
         },
         expectedGreenLightSeconds: '50-60',
         peakMultiplier: 1.0,
+        displayMultiplier: 3, // 🎯 視覺倍數：中午 (適中)
       },
 
       // 晚峰 (17:00-19:59)
@@ -307,6 +320,7 @@ export const VD_TIME_PERIOD_CONFIG = {
         },
         expectedGreenLightSeconds: '60-70',
         peakMultiplier: 1.1,
+        displayMultiplier: 7, // 🎯 視覺倍數：晚峰 (最擁擠感)
       },
 
       // 晚間離峰 (20:00-23:59)
@@ -326,6 +340,7 @@ export const VD_TIME_PERIOD_CONFIG = {
         },
         expectedGreenLightSeconds: '40-50',
         peakMultiplier: 0.66,
+        displayMultiplier: 2.5, // 🎯 視覺倍數：晚間 (緩解感)
       },
     },
   },
