@@ -2,6 +2,41 @@
  * 交通情境配置檔
  * 統一管理所有交通相關的參數設定，包括時段情境、車型組合、密度閾值等
  */
+
+// ============================================
+// 🌍 系統預設配置 - 初始化時使用
+// ============================================
+// 用途：AutoTrafficGenerator.js constructor 中初始化
+// 調用：this.config = { ...defaultConfig }
+// 作用：當沒有情景配置時的備用預設值
+// ============================================
+export const defaultConfig = {
+  interval: { min: 3000, max: 8000, normal: 5000 },
+  peakMultiplier: 1.5,
+  maxLiveVehicles: 100,
+  minInterval: 200,
+  minLaneInterval: 800,
+  vehicleTypes: [
+    { type: 'motor', weight: 40 },
+    { type: 'small', weight: 50 },
+    { type: 'large', weight: 10 },
+  ],
+  densityThresholds: {
+    light: 10,
+    moderate: 20,
+    heavy: 30,
+    congested: 40,
+  },
+}
+
+// ============================================
+// 📋 【手動情景模式】用 - 三個預設情景
+// ============================================
+// 用途：MainLayout.vue 中的【情景切換】按鈕使用
+// 調用：switchToScenarioMode('peak_hours' | 'off_peak' | 'late_night')
+// 特點：固定三個情景，用戶可手動切換
+// ============================================
+
 export const timeScenarios = [
   {
     key: 'peak_hours',
@@ -128,9 +163,12 @@ export const timeScenarios = [
   },
 ]
 
-/**
- * 車型組合配置
- */
+// ============================================
+// 🚗 車型組合配置
+// ============================================
+// 用途：全域使用，作為預設的車型比例參考
+// 特點：根據交通密度等級調整車型比例
+// ============================================
 export const vehicleMixes = {
   light: {
     // 輕度交通時的車型比例
@@ -152,33 +190,33 @@ export const vehicleMixes = {
   },
 }
 
-/**
- * 預設配置
- */
-export const defaultConfig = {
-  interval: { min: 3000, max: 8000, normal: 5000 },
-  peakMultiplier: 1.5,
-  maxLiveVehicles: 100,
-  minInterval: 200,
-  minLaneInterval: 800,
-  vehicleTypes: [
-    { type: 'motor', weight: 40 },
-    { type: 'small', weight: 50 },
-    { type: 'large', weight: 10 },
-  ],
-  densityThresholds: {
-    light: 10,
-    moderate: 20,
-    heavy: 30,
-    congested: 40,
-  },
-}
+// ============================================
+// 📅 每日自動模式用 - 小時級配置（24小時完整時段）
+// ============================================
+// 用途：AutoTrafficGenerator.js 中的 toggleAutoMode(true)
+// 調用：_startAutoModeLoop() → _applyTrafficProfile() → getScenarioByTime()
+// 作用：每 37.5 秒（模擬時間跳進 30 分鐘），根據當前模擬時間自動切換情景
+// 特點：包含 24 小時完整的時段細分（與上方 3 個手動情景不同）
+//      根據真實 VD 數據設置各小時段的流量和速度
+// ============================================
 
 /**
  * 根據當前時間取得對應的交通情境配置（基於VD真實數據）
+ * @param {Date} currentTime - 當前時間（Date 對象）
+ * @returns {Object} - 該小時對應的交通情境配置
+ *
+ * 說明：
+ * - 用於每日自動模式，每次時間變化自動返回對應時段配置
+ * - interval.normal：該時段的平均生成間隔（毫秒）
+ * - peakMultiplier：該時段的強度倍數（越大越密集）
+ * - 實際生成間隔 = interval.normal / peakMultiplier
  */
 export function getScenarioByTime(currentTime) {
   const currentHour = currentTime.getHours()
+
+  // ==========================================
+  // 🌙 午夜-清晨時段 (00:00-07:00)
+  // ==========================================
 
   // 00:00-06:00 深夜（凌晨低峰）
   // 參考：VD深夜數據，極低流量
@@ -218,6 +256,10 @@ export function getScenarioByTime(currentTime) {
     }
   }
 
+  // ==========================================
+  // 🌅 早晨尖峰時段 (07:00-11:00)
+  // ==========================================
+
   // 07:00-09:00 早尖峰（最高峰）
   // 參考：VLRJX20 尖峰時段數據
   else if (currentHour >= 7 && currentHour < 9) {
@@ -256,6 +298,10 @@ export function getScenarioByTime(currentTime) {
     }
   }
 
+  // ==========================================
+  // ☀️ 中午時段 (11:00-17:00)
+  // ==========================================
+
   // 11:00-14:00 午間（穩定）
   // 參考：VD午間時段數據
   else if (currentHour >= 11 && currentHour < 14) {
@@ -293,6 +339,10 @@ export function getScenarioByTime(currentTime) {
       targetSpeed: 33,
     }
   }
+
+  // ==========================================
+  // 🌆 傍晚尖峰時段 (16:00-21:00)
+  // ==========================================
 
   // 16:00-17:00 傍晚前（開始壅塞）
   // 參考：VD傍晚前時段數據
@@ -351,6 +401,10 @@ export function getScenarioByTime(currentTime) {
     }
   }
 
+  // ==========================================
+  // 🌃 夜間時段 (21:00-23:00)
+  // ==========================================
+
   // 21:00-23:00 深夜前（持續降低）
   // 參考：VD深夜前時段數據
   else if (currentHour >= 21 && currentHour < 23) {
@@ -390,8 +444,17 @@ export function getScenarioByTime(currentTime) {
   }
 }
 
+// ============================================
+// 🔄 根據 key 取得手動情景配置
+// ============================================
+// 用途：手動情景模式時從 timeScenarios 中查找配置
+// 調用：switchToScenarioMode(scenarioKey) → getScenarioByKey(scenarioKey)
+// 返回：匹配的情景對象或 null
+// ============================================
 /**
  * 根據 key 取得時段情境配置
+ * @param {string} scenarioKey - 情景鍵值 ('peak_hours' | 'off_peak' | 'late_night')
+ * @returns {Object|null} - 情景配置對象或 null
  */
 export function getScenarioByKey(scenarioKey) {
   return timeScenarios.find((scenario) => scenario.key === scenarioKey) || null

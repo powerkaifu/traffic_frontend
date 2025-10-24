@@ -265,10 +265,8 @@ export default class AutoTrafficGenerator {
       })
     }
 
-    // ✅ 異步傳送 API 數據給後端
-    if (vdData && vdData.apiData) {
-      this._sendVDDataToBackendAsync(vdData.apiData)
-    }
+    // 🎯 VD 數據已生成，交由 TrafficLightController.sendDataToBackend() 負責發送 API
+    // AutoTrafficGenerator 只負責生成車輛，不負責發送 API
   }
 
   // 🎯 3. 為情景生成 VD 數據
@@ -424,10 +422,8 @@ export default class AutoTrafficGenerator {
         })
       }
 
-      // 🎯 異步傳送 API 預測（使用原始 API 數據）
-      if (visualVDData && visualVDData.apiData) {
-        this._sendVDDataToBackendAsync(visualVDData.apiData)
-      }
+      // 🎯 VD 數據已生成，交由 TrafficLightController.sendDataToBackend() 負責發送 API
+      // AutoTrafficGenerator 只負責生成車輛，不負責發送 API
     } else {
       // 備用方案：如果沒有找到配置，使用原始邏輯
       if (this.onTimeUpdate) {
@@ -441,70 +437,8 @@ export default class AutoTrafficGenerator {
   }
 
   // 🎯 新增：根據 displayMultiplier 生成視覺層 VD 數據
-  // 🎯 新增：異步傳送 VD 數據給後端模型預測
-  async _sendVDDataToBackendAsync(vdData) {
-    try {
-      // ✅ 直接使用 vdData 中的時間信息（已在 _generateScenarioVDData 中設置）
-      const hours = vdData.Hour || this.simulationTime.getHours()
-      const minutes = vdData.Minute || this.simulationTime.getMinutes()
-      const dayOfWeek = vdData.DayOfWeek || this.simulationTime.getDay()
-
-      const payload = {
-        VD_ID: vdData.VD_ID || 'VLRJX20',
-        DayOfWeek: vdData.DayOfWeek || dayOfWeek,
-        Hour: vdData.Hour || hours,
-        Minute: vdData.Minute || minutes,
-        Second: vdData.Second || 0,
-        IsPeakHour: vdData.IsPeakHour || 0,
-        LaneID: vdData.LaneID || 0,
-        LaneType: vdData.LaneType || 1,
-        Speed: vdData.Speed_T || 0,
-        Occupancy: vdData.Occupancy || 0,
-        Volume_M: vdData.Volume_M || 0,
-        Speed_M: vdData.Speed_M || 0,
-        Volume_S: vdData.Volume_S || 0,
-        Speed_S: vdData.Speed_S || 0,
-        Volume_L: vdData.Volume_L || 0,
-        Speed_L: vdData.Speed_L || 0,
-        Volume_T: vdData.Volume_T || 0,
-        Speed_T: vdData.Speed_T || 0,
-      }
-
-      console.log('📤 [發送 API]', payload)
-
-      // 🚨 DEBUG: 暫時禁用 API 調用（後端未運行時）
-      const ENABLE_API_CALL = false
-
-      if (!ENABLE_API_CALL) {
-        console.log(
-          `⏭️ [API已禁用] 跳過發送 | 時間: ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} | ` +
-            `Volume_T=${payload.Volume_T} Speed_T=${payload.Speed_T.toFixed(2)}km/h Occupancy=${payload.Occupancy}%`,
-        )
-        return
-      }
-
-      // 發送 API 請求
-      const response = await fetch('http://localhost:5000/predict', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      if (!response.ok) {
-        console.error(`❌ API 錯誤: ${response.status}`)
-        return
-      }
-
-      const result = await response.json()
-      console.log(
-        `✅ [預測結果] 時間: ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} | ` +
-          `佔有率: ${vdData.Occupancy}% | 車流: ${vdData.Volume_T} 輛 | ` +
-          `預測綠燈: ${result.green_seconds} 秒`,
-      )
-    } catch (error) {
-      console.error('🚨 傳送 VD 數據失敗:', error.message)
-    }
-  }
+  // ==========================================
+  //  генерирање возила (Vehicle Generation)
   // ==========================================
   //  генерирање возила (Vehicle Generation)
   // ==========================================
