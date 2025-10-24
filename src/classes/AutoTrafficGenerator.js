@@ -34,13 +34,14 @@ export default class AutoTrafficGenerator {
     this.autoModeTimer = null
     this.onTimeUpdate = null // 時間更新回調
 
-    // 模擬24小時交通設定檔
+    // 模擬24小時交通設定檔 (基於 50 週 VD 數據分析 2024-02-26 至 2025-05-25, 728,473 筆紀錄)
+    // peakMultiplier 根據實際平均占有率計算 (基準: 中午時段 22.5%)
     this.trafficProfiles = [
-      { from: 0, to: 6, description: '深夜', peakMultiplier: 0.1, vehicleMix: 'light' }, // 更低
-      { from: 6, to: 9, description: '上午尖峰', peakMultiplier: 0.8, vehicleMix: 'heavy' }, // 降低
-      { from: 9, to: 16, description: '日間離峰', peakMultiplier: 0.4, vehicleMix: 'normal' }, // 降低
-      { from: 16, to: 19, description: '傍晚尖峰', peakMultiplier: 0.7, vehicleMix: 'heavy' }, // 降低
-      { from: 19, to: 24, description: '夜晚', peakMultiplier: 0.2, vehicleMix: 'normal' }, // 更低
+      { from: 0, to: 6, description: '深夜', peakMultiplier: 0.28, vehicleMix: 'light' }, // 實測占有率 6.4% (車輛/紀錄: 2.4-2.9)
+      { from: 6, to: 9, description: '上午尖峰', peakMultiplier: 0.9, vehicleMix: 'heavy' }, // 實測占有率 20.3% (車輛/紀錄: 8.0-9.9)
+      { from: 9, to: 16, description: '日間離峰', peakMultiplier: 1.0, vehicleMix: 'normal' }, // 實測占有率 22.5% (車輛/紀錄: 7.1-8.8) 基準
+      { from: 16, to: 19, description: '傍晚尖峰', peakMultiplier: 1.1, vehicleMix: 'heavy' }, // 實測占有率 24.7% (車輛/紀錄: 7.6-10.1) ⭐最擁擠
+      { from: 19, to: 24, description: '夜晚', peakMultiplier: 0.66, vehicleMix: 'normal' }, // 實測占有率 14.8% (車輛/紀錄: 5.2-7.2)
     ]
 
     this.vehicleMixes = vehicleMixes
