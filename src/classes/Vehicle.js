@@ -31,6 +31,8 @@ import {
   CollisionQueryUtils,
   StopLineAlignmentUtils,
   StopMovementUtils,
+  TrafficLightSlowDownUtils,
+  TrafficLightDirectResponseUtils,
 } from './utils/VehicleUtilities.js' // 🚀 新增：車輛工具類
 
 // 註冊 GSAP 插件
@@ -442,11 +444,14 @@ export default class Vehicle {
 
   // 🚀 簡化：使用停止線控制器處理交通燈邏輯
   checkTrafficLightSlowDown(trafficController) {
-    if (this.hasPassedStopLine || this.waitingForGreen || this.isAtStopLine) {
-      return null
-    }
-
-    return this.stopLineController.checkTrafficLightLogic(trafficController)
+    // 🚀 DRY 優化：使用工具類檢查交通燈減速
+    return TrafficLightSlowDownUtils.checkSlowDown({
+      hasPassedStopLine: this.hasPassedStopLine,
+      waitingForGreen: this.waitingForGreen,
+      isAtStopLine: this.isAtStopLine,
+      stopLineController: this.stopLineController,
+      trafficController: trafficController,
+    })
   }
 
   // 🚨 新增：獲取當前速度比例的輔助方法
@@ -1499,60 +1504,7 @@ export default class Vehicle {
   directTrafficLightResponse(trafficController) {
     if (!this.direction || !trafficController || !this.movementTimeline) return
 
-    const currentLightState = trafficController.getCurrentLightState(this.direction)
-
-    // � 重要：已通過停止線的車輛不再受燈號約束，繼續完成動畫
-    if (this.hasPassedStopLine) {
-      // 確保已通過停止線的車輛保持移動狀態
-      if (this.currentState !== 'moving' || this.movementTimeline.timeScale() === 0) {
-        this.currentState = 'moving'
-        this.movementTimeline.timeScale(1)
-        this.movementTimeline.resume()
-      }
-      return // 已通過停止線，不再檢查燈號
-    }
-
-    // �🔴 紅燈：不在此處直接停車，讓移動邏輯中的停止線檢查來處理紅燈停車
-    // 這樣可確保車輛會前進到停止線才停，而不是立即原地停車
-
-    // 🟢 綠燈響應：根據車道類型決定是否可以移動
-    if (currentLightState === 'green' || currentLightState === 'leftGreen') {
-      // 🚦 嚴格的車道燈號匹配檢查
-      const canProceed =
-        (currentLightState === 'green' && this.laneNumber !== 1) || // 直行綠燈且非左轉車道
-        (currentLightState === 'leftGreen' && this.laneNumber === 1) // 左轉綠燈且為左轉車道
-
-      if (canProceed) {
-        // 🚨 修復：檢查所有可能需要啟動的狀態
-        const needsToStart =
-          this.waitingForGreen || // 等待綠燈狀態
-          this.movementTimeline.timeScale() === 0 || // 時間軸停止
-          this.currentState === 'waiting' || // 等待狀態
-          this.currentState === 'stopped' || // 停止狀態
-          this.currentState === 'waitingForVehicle' || // 等待前車狀態
-          this.currentState === 'waitingForLeftTurnGreen' || // 等待左轉綠燈狀態
-          this.currentState === 'waitingForStraightGreen' || // 等待直行綠燈狀態
-          this.movementTimeline.paused() // 時間軸暫停
-
-        if (needsToStart) {
-          // 🚨 綠燈時強制啟動，不受碰撞檢查影響
-          this.movementTimeline.timeScale(1)
-          this.movementTimeline.resume()
-          this.waitingForGreen = false
-          this.isAtStopLine = false
-          this.currentState = 'moving'
-
-          const lightType = currentLightState === 'leftGreen' ? '左轉綠燈' : '直行綠燈'
-        }
-      } else {
-        // 🚨 修正：移除1號車道在途中的燈號限制
-        // 1號車道車輛應該先移動到停止線進行排隊
-        // 燈號限制將在停止線處處理，而不是在移動途中
-      }
-    } else {
-      // 🚨 修正：移除1號車道在途中的燈號限制
-      // 讓所有車輛都能先到達停止線排隊
-      // 燈號限制將在停止線檢查邏輯中處理
-    }
+    // 🚀 DRY 優化：委託給交通燈響應工具類
+    TrafficLightDirectResponseUtils.handleDirectResponse(this, trafficController)
   }
 }

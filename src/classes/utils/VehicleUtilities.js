@@ -892,6 +892,192 @@ export class StopMovementUtils {
 }
 
 /**
+ * 交通燈減速工具
+ * 處理交通燈相關的減速邏輯
+ */
+export class TrafficLightSlowDownUtils {
+  /**
+   * 檢查交通燈減速
+   * @param {Object} params - 參數物件
+   * @returns {Object|null} 減速信息或null
+   */
+  static checkSlowDown(params = {}) {
+    const { hasPassedStopLine, waitingForGreen, isAtStopLine, stopLineController, trafficController } = params
+
+    // 防護：檢查是否應該返回 null
+    if (hasPassedStopLine || waitingForGreen || isAtStopLine) {
+      return null
+    }
+
+    // 防護：檢查停止線控制器
+    if (!stopLineController || typeof stopLineController.checkTrafficLightLogic !== 'function') {
+      return null
+    }
+
+    try {
+      return stopLineController.checkTrafficLightLogic(trafficController)
+    } catch (error) {
+      console.warn('Error checking traffic light slow down:', error)
+      return null
+    }
+  }
+}
+
+/**
+ * 交通燈直接響應工具
+ * 處理交通燈的直接響應邏輯（複雜的狀態機）
+ */
+export class TrafficLightDirectResponseUtils {
+  /**
+   * 檢查是否已通過停止線
+   * @param {Object} params - 參數物件 {hasPassedStopLine, movementTimeline, currentState}
+   * @returns {boolean} 是否需要提前返回
+   */
+  static checkPassedStopLine(params = {}) {
+    const { hasPassedStopLine, movementTimeline, currentState } = params
+
+    if (!hasPassedStopLine) {
+      return false
+    }
+
+    // 已通過停止線的車輛保持移動狀態
+    if (movementTimeline && (currentState !== 'moving' || movementTimeline.timeScale() === 0)) {
+      if (typeof movementTimeline.timeScale === 'function') {
+        movementTimeline.timeScale(1)
+      }
+      if (typeof movementTimeline.resume === 'function') {
+        movementTimeline.resume()
+      }
+    }
+
+    return true // 提早返回
+  }
+
+  /**
+   * 判斷車輛是否可以通行
+   * @param {string} currentLightState - 當前燈號狀態
+   * @param {number} laneNumber - 車道號
+   * @returns {boolean} 是否可以通行
+   */
+  static canProceed(currentLightState, laneNumber) {
+    if (!currentLightState) {
+      return false
+    }
+
+    // 直行綠燈且非左轉車道
+    if (currentLightState === 'green' && laneNumber !== 1) {
+      return true
+    }
+
+    // 左轉綠燈且為左轉車道
+    if (currentLightState === 'leftGreen' && laneNumber === 1) {
+      return true
+    }
+
+    return false
+  }
+
+  /**
+   * 檢查是否需要啟動移動
+   * @param {Object} params - 參數物件
+   * @returns {boolean} 是否需要啟動
+   */
+  static needsToStart(params = {}) {
+    const { waitingForGreen, movementTimeline, currentState } = params
+
+    if (waitingForGreen) return true
+    if (movementTimeline && movementTimeline.timeScale() === 0) return true
+
+    const statesRequiringStart = [
+      'waiting',
+      'stopped',
+      'waitingForVehicle',
+      'waitingForLeftTurnGreen',
+      'waitingForStraightGreen',
+    ]
+
+    if (statesRequiringStart.includes(currentState)) return true
+    if (movementTimeline && typeof movementTimeline.paused === 'function' && movementTimeline.paused()) return true
+
+    return false
+  }
+
+  /**
+   * 執行綠燈啟動
+   * @param {Object} params - 參數物件
+   * @returns {Object} 更新的狀態
+   */
+  static executeGreenStart(params = {}) {
+    const { movementTimeline } = params
+
+    if (!movementTimeline) {
+      return {}
+    }
+
+    try {
+      if (typeof movementTimeline.timeScale === 'function') {
+        movementTimeline.timeScale(1)
+      }
+      if (typeof movementTimeline.resume === 'function') {
+        movementTimeline.resume()
+      }
+
+      return {
+        waitingForGreen: false,
+        isAtStopLine: false,
+        currentState: 'moving',
+      }
+    } catch (error) {
+      console.warn('Error executing green light start:', error)
+      return {}
+    }
+  }
+
+  /**
+   * 完整的交通燈響應處理（委託模式）
+   * @param {Object} vehicleInstance - Vehicle 實例
+   * @param {Object} trafficController - 交通控制器
+   */
+  static handleDirectResponse(vehicleInstance, trafficController) {
+    // 基本防護
+    if (!vehicleInstance.direction || !trafficController || !vehicleInstance.movementTimeline) {
+      return
+    }
+
+    const currentLightState = trafficController.getCurrentLightState(vehicleInstance.direction)
+
+    // 檢查是否已通過停止線
+    if (
+      this.checkPassedStopLine({
+        hasPassedStopLine: vehicleInstance.hasPassedStopLine,
+        movementTimeline: vehicleInstance.movementTimeline,
+        currentState: vehicleInstance.currentState,
+      })
+    ) {
+      return
+    }
+
+    // 綠燈響應
+    if (currentLightState === 'green' || currentLightState === 'leftGreen') {
+      if (this.canProceed(currentLightState, vehicleInstance.laneNumber)) {
+        if (
+          this.needsToStart({
+            waitingForGreen: vehicleInstance.waitingForGreen,
+            movementTimeline: vehicleInstance.movementTimeline,
+            currentState: vehicleInstance.currentState,
+          })
+        ) {
+          const stateUpdates = this.executeGreenStart({
+            movementTimeline: vehicleInstance.movementTimeline,
+          })
+          Object.assign(vehicleInstance, stateUpdates)
+        }
+      }
+    }
+  }
+}
+
+/**
  * 默認導出：包含所有工具類
  */
 export default {
@@ -912,4 +1098,6 @@ export default {
   CollisionQueryUtils,
   StopLineAlignmentUtils,
   StopMovementUtils,
+  TrafficLightSlowDownUtils,
+  TrafficLightDirectResponseUtils,
 }
