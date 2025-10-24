@@ -76,7 +76,6 @@
                     'scenario-btn-compact',
                     {
                       active: isScenarioActive(scenario.key),
-                      'auto-matched': !isAutoMode && autoMatchedScenario === scenario.key,
                     },
                   ]"
                   :title="`${scenario.name} (${scenario.timeRange})`"
@@ -109,20 +108,6 @@
               <!-- 控制與統計 -->
               <div class="control-stats-row">
                 <div class="frequency-control">
-                  <span class="freq-label">流量強度</span>
-                  <input
-                    type="range"
-                    v-model="manualPeakMultiplier"
-                    min="0.5"
-                    max="5.0"
-                    :step="0.1"
-                    @input="updateGenerationConfig"
-                    class="freq-slider"
-                    :disabled="isAutoMode"
-                  />
-                  <span class="freq-value">{{ manualPeakMultiplier }}</span>
-                </div>
-                <div class="frequency-control">
                   <span class="freq-label">生成間隔</span>
                   <input
                     type="range"
@@ -135,7 +120,7 @@
                     style="flex: 1"
                     :disabled="isAutoMode"
                   />
-                  <span class="freq-value">{{ (manualInterval / 1000).toFixed(1) }}</span>
+                  <span class="freq-value">{{ (manualInterval / 1000).toFixed(1) }}s</span>
                 </div>
               </div>
             </div>
@@ -346,12 +331,8 @@ const rightDrawerOpen = ref(false)
 const $q = useQuasar()
 
 const currentTimeScenario = ref('peak_hours')
-const manualPeakMultiplier = ref(1.0)
 const manualInterval = ref(1000)
 const currentInterval = ref(7.0)
-
-// 🎯 新增：拉桿自動匹配的情境（用於高亮顯示）
-const autoMatchedScenario = ref(null)
 
 // timeScenarios 已從 trafficScenarioConfig.js 匯入
 const currentScenarioDetails = computed(() => {
@@ -372,42 +353,9 @@ const drawerWidth = computed(() => {
 })
 const lightPosition = computed(() => (rightDrawerOpen.value && $q.screen.gt.md ? '35% 50%' : '50% 50%'))
 
-// 🎯 新增：計算拉桿值與情境的匹配度
-// 基於配置文件 timeScenarios，完全配置驅動
-function calculateScenarioMatch(currentMultiplier, currentInterval) {
-  // 從配置讀取各情境的參數
-  const scenarios = timeScenarios.map((scenario) => ({
-    key: scenario.key,
-    name: scenario.name,
-    multiplier: scenario.config.peakMultiplier,
-    interval: scenario.config.interval.normal,
-  }))
-
-  // 計算每個情境與當前值的距離（歐幾里得距離）
-  const scores = scenarios.map((scenario) => {
-    // 歸一化：將不同量綱的參數標準化到同一尺度
-    const multiplierDiff = Math.abs(currentMultiplier - scenario.multiplier) / 4.0 // peakMultiplier 最大約 4.0
-    const intervalDiff = Math.abs(currentInterval - scenario.interval) / 25000 // interval 最大約 25000ms
-
-    // 計算歐幾里得距離
-    const distance = Math.sqrt(multiplierDiff ** 2 + intervalDiff ** 2)
-
-    return {
-      key: scenario.key,
-      name: scenario.name,
-      distance: distance,
-    }
-  })
-
-  // 找出距離最小的情境（最接近的）
-  const closest = scores.reduce((min, curr) => (curr.distance < min.distance ? curr : min))
-
-  return closest.key
-}
-
 // 🎯 判斷情境按鈕是否應該高亮
 // 自動模式：按當前時段情境高亮
-// 手動模式：拉桿變化時動態更新，始終高亮拉桿匹配的情景
+// 手動模式：按用戶選擇的情景高亮
 function isScenarioActive(scenarioKey) {
   if (isAutoMode.value) {
     // 自動模式：高亮當前時段對應的情境
@@ -485,17 +433,10 @@ function updateGenerationConfig() {
   if (isAutoMode.value) return // 如果是自動模式，則不執行手動更新
   if (!window.autoTrafficGenerator) return
 
-  const baseInterval = manualInterval.value
-  const multiplier = manualPeakMultiplier.value
+  const finalInterval = manualInterval.value
 
-  // 🎯 新增：計算並更新自動匹配的情境
-  autoMatchedScenario.value = calculateScenarioMatch(multiplier, baseInterval)
-
-  // 🎯 重要：當用戶調整拉桿時，優先使用自動匹配的情景（而不是之前手動選擇的）
-  // 這樣可以確保拉桿值改變時，UI 立即顯示匹配的情景
-  currentTimeScenario.value = autoMatchedScenario.value
-
-  const s = timeScenarios.find((s) => s.key === autoMatchedScenario.value)
+  // 🎯 使用當前情景（由用戶通過情景按鈕選擇或自動時間確定）
+  const s = timeScenarios.find((s) => s.key === currentTimeScenario.value)
   if (!s) return
 
   // 🚨 CRITICAL FIX: 確保 switchToScenarioMode 被調用，設置 currentScenarioMode
@@ -511,12 +452,6 @@ function updateGenerationConfig() {
     }
   }
 
-  let finalInterval = baseInterval
-  if (multiplier > 0) {
-    // 🚨 修正：multiplier 越大，間隔應該越短（生成越頻繁）
-    finalInterval = Math.round(baseInterval / Math.max(0.1, multiplier))
-  }
-
   // 讓 min/max 也跟著拉桿動態調整（以拉桿值為中心，上下浮動 50%）
   const minInterval = Math.max(100, Math.round(finalInterval * 0.5))
   const maxInterval = Math.round(finalInterval * 1.5)
@@ -526,20 +461,18 @@ function updateGenerationConfig() {
   window.autoTrafficGenerator.updateConfig({
     ...s.config,
     interval: { min: minInterval, max: maxInterval, normal: finalInterval },
-    peakMultiplier: multiplier,
+    peakMultiplier: s.config.peakMultiplier, // 使用情景定義的 peakMultiplier
     maxLiveVehicles: s.config.maxLiveVehicles,
   })
 
   // 追蹤參數變化
   console.log('🔧 間隔更新:', {
-    baseInterval,
-    multiplier,
     finalInterval,
     minInterval,
     maxInterval,
     currentScenario: currentTimeScenario.value,
+    peakMultiplier: s.config.peakMultiplier,
     displayMultiplier: s.config.displayMultiplier,
-    autoMatchedScenario: autoMatchedScenario.value, // 🎯 新增：顯示匹配的情境
   })
   console.log('interval:', window.autoTrafficGenerator?.config?.interval)
   console.log('maxLiveVehicles:', window.autoTrafficGenerator?.maxLiveVehicles)
@@ -553,7 +486,7 @@ function switchToTimeScenario(key) {
   if (!s) return
   currentTimeScenario.value = key
 
-  manualPeakMultiplier.value = s.config.peakMultiplier || 1.0
+  // 💡 簡化：只設置生成間隔，使用情景定義的 peakMultiplier
   manualInterval.value = s.config.interval.normal
 
   // 🎭 新增：使用新的情景模式方法，並驗證切換成功
