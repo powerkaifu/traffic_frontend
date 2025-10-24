@@ -690,6 +690,119 @@ export class HeadPositionUtils {
 }
 
 /**
+ * 邊界框工具
+ * 計算和管理車輛的邊界框
+ */
+export class BoundingBoxUtils {
+  /**
+   * 計算邊界框
+   * @param {Object} position - 當前位置 {x, y}
+   * @param {Object} vehicleSize - 車輛尺寸 {width, height}
+   * @returns {Object} 邊界框 {left, right, top, bottom, centerX, centerY}
+   */
+  static getBoundingBox(position, vehicleSize) {
+    // 防護：參數檢查
+    if (!position || !vehicleSize) {
+      return {
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+        centerX: 0,
+        centerY: 0,
+      }
+    }
+
+    const { x, y } = position
+    const { width, height } = vehicleSize
+
+    return {
+      left: x,
+      right: x + width,
+      top: y,
+      bottom: y + height,
+      centerX: x + width / 2,
+      centerY: y + height / 2,
+    }
+  }
+}
+
+/**
+ * 停止線工具
+ * 統一管理停止線相關的邏輯查詢
+ */
+export class StopLineUtils {
+  /**
+   * 檢查是否應該停在停止線
+   * @param {Object} stopLineController - 停止線控制器實例
+   * @returns {boolean} 是否應該停止
+   */
+  static shouldStop(stopLineController) {
+    // 防護：控制器檢查
+    if (!stopLineController || typeof stopLineController.shouldStopAtLine !== 'function') {
+      return false
+    }
+
+    try {
+      return stopLineController.shouldStopAtLine()
+    } catch (error) {
+      console.warn('Error checking stop line:', error)
+      return false
+    }
+  }
+
+  /**
+   * 獲取到停止線的距離
+   * @param {Object} stopLineController - 停止線控制器實例
+   * @returns {number} 距離（像素）
+   */
+  static getDistance(stopLineController) {
+    // 防護：控制器檢查
+    if (!stopLineController || typeof stopLineController.getDistanceToStopLine !== 'function') {
+      return Infinity
+    }
+
+    try {
+      const distance = stopLineController.getDistanceToStopLine()
+      return isFinite(distance) ? distance : Infinity
+    } catch (error) {
+      console.warn('Error getting distance to stop line:', error)
+      return Infinity
+    }
+  }
+}
+
+/**
+ * 碰撞檢測查詢工具
+ * 統一管理碰撞控制器相關的邏輯查詢
+ */
+export class CollisionQueryUtils {
+  /**
+   * 檢查是否是最接近停止線的車輛
+   * @param {Object} collisionController - 碰撞控制器實例
+   * @param {Array} allVehicles - 所有車輛陣列
+   * @returns {boolean} 是否是最接近的
+   */
+  static isClosestToStopLine(collisionController, allVehicles) {
+    // 防護：控制器和陣列檢查
+    if (
+      !collisionController ||
+      typeof collisionController.isClosestToStopLine !== 'function' ||
+      !Array.isArray(allVehicles)
+    ) {
+      return false
+    }
+
+    try {
+      return collisionController.isClosestToStopLine(allVehicles)
+    } catch (error) {
+      console.warn('Error checking if closest to stop line:', error)
+      return false
+    }
+  }
+}
+
+/**
  * 默認導出：包含所有工具類
  */
 export default {
@@ -705,4 +818,7 @@ export default {
   CurrentSpeedUtils,
   BoundaryCheckUtils,
   HeadPositionUtils,
+  BoundingBoxUtils,
+  StopLineUtils,
+  CollisionQueryUtils,
 }

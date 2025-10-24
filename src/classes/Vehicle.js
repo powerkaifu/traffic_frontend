@@ -26,6 +26,9 @@ import {
   CurrentSpeedUtils,
   BoundaryCheckUtils,
   HeadPositionUtils,
+  BoundingBoxUtils,
+  StopLineUtils,
+  CollisionQueryUtils,
 } from './utils/VehicleUtilities.js' // 🚀 新增：車輛工具類
 
 // 註冊 GSAP 插件
@@ -424,13 +427,15 @@ export default class Vehicle {
   // Template Method Pattern: 檢查是否到達停止線的模板方法
   // � 簡化：委託給停止線控制器
   checkStopLine() {
-    return this.stopLineController.shouldStopAtLine()
+    // 🚀 DRY 優化：使用工具類檢查停止線
+    return StopLineUtils.shouldStop(this.stopLineController)
   }
 
   // Template Method Pattern: 計算車輛到停止線距離的模板方法
   // 🚀 簡化：委託給停止線控制器
   getDistanceToStopLine() {
-    return this.stopLineController.getDistanceToStopLine()
+    // 🚀 DRY 優化：使用工具類獲取距離
+    return StopLineUtils.getDistance(this.stopLineController)
   }
 
   // 🚀 簡化：使用停止線控制器處理交通燈邏輯
@@ -471,26 +476,19 @@ export default class Vehicle {
 
   // Factory Pattern: 獲取車輛邊界框的工廠方法
   getBoundingBox() {
-    // Factory Pattern: 根據當前位置和車輛配置創建邊界框對象
+    // 🚀 DRY 優化：使用工具類計算邊界框
     const pos = this.getCurrentPosition()
     const vehicleConfig = this.getVehicleConfig()
-    const size = { width: vehicleConfig.width, height: vehicleConfig.height }
-
-    return {
-      left: pos.x,
-      right: pos.x + size.width,
-      top: pos.y,
-      bottom: pos.y + size.height,
-      centerX: pos.x + size.width / 2,
-      centerY: pos.y + size.height / 2,
-    }
+    const vehicleSize = { width: vehicleConfig.width, height: vehicleConfig.height }
+    return BoundingBoxUtils.getBoundingBox(pos, vehicleSize)
   }
 
   // 🚨 極簡化碰撞檢測：只檢測 5px 間距，停止或繼續
   // 🚨 新增：檢查是否是同車道最接近停止線的車輛
   // 🚀 簡化：委託給碰撞控制器
   isClosestToStopLine(allVehicles) {
-    return this.collisionController.isClosestToStopLine(allVehicles)
+    // 🚀 DRY 優化：使用工具類檢查
+    return CollisionQueryUtils.isClosestToStopLine(this.collisionController, allVehicles)
   }
 
   // 🎯 新增：獲取附近車輛，優化檢查範圍
