@@ -48,8 +48,8 @@ export default class TrafficLightController {
       },
       // 黃燈時間
       yellow: {
-        straight: 3, // 直行黃燈時間（秒）
-        leftTurn: 3, // 左轉黃燈時間（秒）
+        straight: 2, // 直行黃燈時間（秒）
+        leftTurn: 2, // 左轉黃燈時間（秒）
       },
       // 全紅時間
       allRed: {
