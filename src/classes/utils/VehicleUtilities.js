@@ -1078,6 +1078,140 @@ export class TrafficLightDirectResponseUtils {
 }
 
 /**
+ * 恢復移動工具
+ * 處理車輛從停止或減速狀態恢復到移動的邏輯
+ */
+export class ResumeMovementUtils {
+  /**
+   * 檢查是否可以恢復移動
+   * @param {Object} params - 參數對象
+   * @param {Object} params.vehicle - 車輛實例
+   * @param {Array} params.allVehicles - 所有車輛陣列
+   * @returns {boolean} 是否可以恢復
+   */
+  static canResume(params = {}) {
+    const { vehicle, allVehicles } = params
+    if (!vehicle || !vehicle.movementTimeline) return false
+
+    // 檢查是否處於可恢復狀態
+    const resumableStates = ['waiting', 'waitingForVehicle', 'slowing', 'autoFollowing']
+    if (!resumableStates.includes(vehicle.currentState)) {
+      return false
+    }
+
+    // 進行碰撞檢查
+    if (!vehicle.collisionController) return false
+
+    try {
+      const collision = vehicle.collisionController.checkSimpleCollision(allVehicles)
+      return !collision // 無碰撞 = 可恢復
+    } catch (error) {
+      console.warn('[ResumeMovementUtils] Collision check error:', error)
+      return false
+    }
+  }
+
+  /**
+   * 計算恢復速度（根據碰撞距離調整）
+   * @param {Object} params - 參數對象
+   * @param {Object} params.collision - 碰撞結果對象
+   * @returns {number} 目標速度 (0-1 之間)
+   */
+  static calculateResumeSpeed(params = {}) {
+    const { collision } = params
+    if (!collision) return 1.0 // 無碰撞：全速
+
+    // 自動跟隨模式
+    if (collision.autoFollowing && collision.targetSpeed > 0) {
+      return collision.targetSpeed
+    }
+
+    // 根據距離計算速度
+    const distance = collision.distance || 0
+    const requiredGap = collision.requiredGap || 50
+
+    const distanceRatio = distance / requiredGap
+
+    // 從配置導入閾值（這裡使用硬編碼，實際應從 vehicleConfig 導入）
+    const THRESHOLDS = {
+      VERY_CLOSE: 0.3,
+      CLOSE: 0.6,
+      NORMAL: 0.9,
+    }
+
+    const SPEEDS = {
+      VERY_CLOSE: 0.1,
+      CLOSE: 0.3,
+      NORMAL: 0.6,
+      FAR: 0.9,
+    }
+
+    if (distanceRatio <= THRESHOLDS.VERY_CLOSE) {
+      return SPEEDS.VERY_CLOSE
+    } else if (distanceRatio <= THRESHOLDS.CLOSE) {
+      return SPEEDS.CLOSE
+    } else if (distanceRatio <= THRESHOLDS.NORMAL) {
+      return SPEEDS.NORMAL
+    } else {
+      return SPEEDS.FAR
+    }
+  }
+
+  /**
+   * 執行恢復移動（完整委託方法）
+   * @param {Object} vehicle - 車輛實例
+   * @param {Array} allVehicles - 所有車輛陣列
+   * @param {Object} animationConfig - 動畫配置
+   */
+  static executeResume(vehicle, allVehicles, animationConfig = {}) {
+    if (!vehicle || !vehicle.movementTimeline) return
+
+    const { duration = 0.5, ease = 'power2.out' } = animationConfig
+
+    // 進行碰撞檢查
+    const collision = vehicle.collisionController.checkSimpleCollision(allVehicles)
+
+    if (!collision) {
+      // 無碰撞：平滑恢復到正常速度
+      gsap.to(vehicle.movementTimeline, {
+        timeScale: 1,
+        duration,
+        ease,
+      })
+      vehicle.currentState = 'moving'
+      vehicle.isAtStopLine = false
+
+      if (vehicle.stopLineController) {
+        vehicle.stopLineController.state = 'approaching'
+      }
+
+      if (vehicle.showAccelerationEffect) {
+        vehicle.showAccelerationEffect(false)
+      }
+    } else {
+      // 有碰撞：根據距離調整速度
+      const targetSpeed = this.calculateResumeSpeed({ collision })
+
+      gsap.to(vehicle.movementTimeline, {
+        timeScale: targetSpeed,
+        duration,
+        ease,
+      })
+
+      // 更新狀態
+      if (collision.autoFollowing && collision.targetSpeed > 0) {
+        vehicle.currentState = 'autoFollowing'
+      }
+
+      // 顯示加速效果
+      if (targetSpeed >= 0.7 && vehicle.currentState !== 'moving' && vehicle.showAccelerationEffect) {
+        vehicle.showAccelerationEffect(false)
+      }
+    }
+  }
+}
+
+/**
  * 默認導出：包含所有工具類
  */
 export default {
@@ -1100,4 +1234,5 @@ export default {
   StopMovementUtils,
   TrafficLightSlowDownUtils,
   TrafficLightDirectResponseUtils,
+  ResumeMovementUtils,
 }

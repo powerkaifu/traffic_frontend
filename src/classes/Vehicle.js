@@ -33,6 +33,7 @@ import {
   StopMovementUtils,
   TrafficLightSlowDownUtils,
   TrafficLightDirectResponseUtils,
+  ResumeMovementUtils,
 } from './utils/VehicleUtilities.js' // 🚀 新增：車輛工具類
 
 // 註冊 GSAP 插件
@@ -555,83 +556,16 @@ export default class Vehicle {
   }
 
   // 🚨 極簡化恢復移動方法
-  // 🚨 基於距離的平滑恢復移動 - 使用配置參數
+  // � DRY 優化：委託給恢復移動工具類
   resumeMovement(allVehicles = []) {
-    if (
-      this.movementTimeline &&
-      (this.currentState === 'waiting' ||
-        this.currentState === 'waitingForVehicle' ||
-        this.currentState === 'slowing' ||
-        this.currentState === 'autoFollowing') // 🚗 加入自動跟隨狀態
-    ) {
-      const collision = this.collisionController.checkSimpleCollision(allVehicles)
-
-      if (!collision) {
-        // 沒有前車，平滑恢復到正常速度
-        gsap.to(this.movementTimeline, {
-          timeScale: 1,
-          duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH, // 使用配置的平滑速度變化時間
-          ease: 'power2.out',
-        })
-        this.currentState = 'moving'
-
-        // 💨 新增：顯示加速效果（綠燈啟動）
-        this.showAccelerationEffect(false)
-
-        // 重置停止線狀態，準備識別下一個停止線
-        this.isAtStopLine = false
-        if (this.stopLineController) {
-          this.stopLineController.state = 'approaching'
-        }
-      } else {
-        // 🚗 檢查是否為自動跟隨模式
-        if (collision.autoFollowing && collision.targetSpeed > 0) {
-          gsap.to(this.movementTimeline, {
-            timeScale: collision.targetSpeed,
-            duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL,
-            ease: 'power2.out',
-          })
-          this.currentState = 'autoFollowing'
-          return
-        }
-
-        // 有前車，根據距離調整速度（使用配置的閾值）
-        const distance = collision.distance
-        const requiredGap = collision.requiredGap || DISTANCE_CONFIG.MIN_GAP
-
-        // 🎯 使用配置的距離閾值來決定速度
-        const thresholds = FOLLOWING_CONFIG.RESUME_SPEED.DISTANCE_THRESHOLDS
-        const speedConfig = FOLLOWING_CONFIG.RESUME_SPEED.NON_QUEUE_ZONE
-
-        let targetSpeed
-        const distanceRatio = distance / requiredGap
-
-        if (distanceRatio <= thresholds.VERY_CLOSE) {
-          // 非常接近：完全停止
-          targetSpeed = speedConfig.VERY_CLOSE
-        } else if (distanceRatio <= thresholds.CLOSE) {
-          // 接近：大幅減速
-          targetSpeed = speedConfig.CLOSE
-        } else if (distanceRatio <= thresholds.NORMAL) {
-          // 正常：適度減速
-          targetSpeed = speedConfig.NORMAL
-        } else {
-          // 較遠：可以較快移動
-          targetSpeed = speedConfig.FAR
-
-          // 💨 新增：較快移動時顯示加速效果
-          if (targetSpeed >= 0.7 && this.currentState !== 'moving') {
-            this.showAccelerationEffect(false)
-          }
-        }
-
-        gsap.to(this.movementTimeline, {
-          timeScale: targetSpeed,
-          duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL, // 使用配置的一般速度變化時間
-          ease: 'power2.out',
-        })
+    ResumeMovementUtils.executeResume(
+      this,
+      allVehicles,
+      {
+        duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH,
+        ease: 'power2.out',
       }
-    }
+    )
   }
 
   // Command Pattern + State Pattern: 強制恢復移動命令
