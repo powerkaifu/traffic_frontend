@@ -701,58 +701,110 @@ export default class TrafficLightController {
         console.log('⚠️ 使用本地收集的數據（備用方案）:', dataToSend)
       }
 
-      // ✅ 新增：自動正規化轉換
-      // 提取路口 ID（如果有）
-      const intersectionId = dataToSend?.VD_ID || 'VLRJM60'
-      const timePeriod = getCurrentTimePeriod()
-
-      // 準備正規化數據
-      const frontendData = {
-        volume: dataToSend?.Volume_T || 0,
-        speed: dataToSend?.Speed_T || 0,
-        occupancy: dataToSend?.Occupancy || 0,
-        volume_m: dataToSend?.Volume_M || 0,
-        volume_s: dataToSend?.Volume_S || 0,
-        volume_l: dataToSend?.Volume_L || 0,
+      // 🎯【重要】確保 dataToSend 是陣列格式（後端期望 4 筆路口特徵資料）
+      let allIntersectionData = []
+      if (Array.isArray(dataToSend)) {
+        // 已經是陣列格式
+        allIntersectionData = dataToSend
+        console.log('✅ 數據已是陣列格式，包含 ' + allIntersectionData.length + ' 筆交叉路口數據')
+      } else if (dataToSend && typeof dataToSend === 'object') {
+        // 單個物件，轉換成陣列
+        allIntersectionData = [dataToSend]
+        console.warn('⚠️ 數據是單個物件，已轉換為陣列格式')
+      } else {
+        console.error('❌ 數據格式錯誤，無法發送到後端')
+        throw new Error('Invalid data format: expected array or object with intersection data')
       }
 
-      // 執行正規化
-      const normalizedData = VDNormalizationUtils.denormalizeToVDRange(frontendData, intersectionId, timePeriod)
+      // ✅ 新增：自動正規化轉換（對每一筆交叉路口數據）
+      const normalizedDataArray = allIntersectionData.map((singleData) => {
+        // 提取路口 ID（如果有）
+        const intersectionId = singleData?.VD_ID || 'VLRJM60'
+        const timePeriod = getCurrentTimePeriod()
 
-      // 驗證正規化結果
-      const validation = VDNormalizationUtils.validateNormalizedData(normalizedData, intersectionId, timePeriod)
+        // 準備正規化數據
+        const frontendData = {
+          volume: singleData?.Volume_T || 0,
+          speed: singleData?.Speed_T || 0,
+          occupancy: singleData?.Occupancy || 0,
+          volume_m: singleData?.Volume_M || 0,
+          volume_s: singleData?.Volume_S || 0,
+          volume_l: singleData?.Volume_L || 0,
+        }
 
-      // 在原始數據中混入正規化數據
+        // 執行正規化
+        const normalizedData = VDNormalizationUtils.denormalizeToVDRange(frontendData, intersectionId, timePeriod)
+
+        // 驗證正規化結果
+        const validation = VDNormalizationUtils.validateNormalizedData(normalizedData, intersectionId, timePeriod)
+
+        // ✅ 正規化後的車型比例（基於原始 API 層數據）
+        // 尖峰：機車38%, 小客車58%, 大客車4%
+        // 離峰：機車30%, 小客車65%, 大客車5%
+        // 凌晨：機車70%, 小客車25%, 大客車5%
+        const volumeByTypeProportion = {
+          peak_hours: { motor: 0.38, small: 0.58, large: 0.04 },
+          off_peak: { motor: 0.3, small: 0.65, large: 0.05 },
+          late_night: { motor: 0.7, small: 0.25, large: 0.05 },
+        }
+        const proportion = volumeByTypeProportion[timePeriod] || { motor: 0.4, small: 0.5, large: 0.1 }
+
+        // 在原始數據中混入正規化數據
+        const normalizedItem = {
+          ...singleData,
+          // 保留原始數據用於日誌
+          original_volume: singleData?.Volume_T || 0,
+          original_speed: singleData?.Speed_T || 0,
+          original_occupancy: singleData?.Occupancy || 0,
+          // ✅ 使用正規化數據發送給後端（回到 VD 原始範圍）
+          Volume_T: Math.round(normalizedData.volume), // ← 核心：正規化後的總流量
+          Volume_M: Math.round(normalizedData.volume * proportion.motor), // ← 機車
+          Volume_S: Math.round(normalizedData.volume * proportion.small), // ← 小客車
+          Volume_L: Math.round(normalizedData.volume * proportion.large), // ← 大客車
+          Speed_T: normalizedData.speed || singleData?.Speed_T || 0,
+          Occupancy: Math.round(normalizedData.occupancy * 10) / 10, // ← 正規化後的佔有率
+          // 添加正規化元數據（後端需要這些信息）
+          normalization_applied: true,
+          normalization_period: timePeriod,
+          normalization_displayMultiplier: VDNormalizationUtils.getDisplayMultiplier(intersectionId),
+          validation_passed: validation.isValid,
+          validation_warnings: validation.warnings,
+          validation_errors: validation.errors,
+        }
+
+        return normalizedItem
+      })
+
+      // 🎯【重要】最終要發送給後端的格式：包含 4 筆路口特徵資料的物件
       const finalDataToSend = {
-        ...dataToSend,
-        // 保留原始數據用於日誌
-        original_volume: dataToSend?.Volume_T || 0,
-        original_speed: dataToSend?.Speed_T || 0,
-        original_occupancy: dataToSend?.Occupancy || 0,
-        // 使用正規化數據發送給後端
-        Volume_T: normalizedData.volume,
-        Volume_M: normalizedData.volume_m || Math.round(normalizedData.volume * 0.45),
-        Volume_S: normalizedData.volume_s || Math.round(normalizedData.volume * 0.35),
-        Volume_L: normalizedData.volume_l || Math.round(normalizedData.volume * 0.2),
-        Speed_T: normalizedData.speed || dataToSend?.Speed_T || 0,
-        Occupancy: normalizedData.occupancy || 0,
-        // 添加正規化元數據
-        normalization_applied: true,
-        normalization_period: timePeriod,
-        normalization_displayMultiplier: VDNormalizationUtils.getDisplayMultiplier(intersectionId),
-        validation_passed: validation.isValid,
-        validation_warnings: validation.warnings,
-        validation_errors: validation.errors,
+        intersections: normalizedDataArray,
       }
 
-      console.log(`[正規化] 原始流量=${frontendData.volume}輛 → 正規化=${normalizedData.volume}輛 (時段=${timePeriod})`)
-      console.log(
-        `[驗證] 有效=${validation.isValid}, 警告=${validation.warnings.length}, 錯誤=${validation.errors.length}`,
-      )
-      console.log('🚦 發送正規化後的交通數據到後端 AI 系統:', finalDataToSend)
+      // ✅ 先處理第一筆數據用於日誌（如果有多筆）
+      const firstData = normalizedDataArray[0] || {}
+
+      console.log('🚦 發送正規化後的交通數據到後端 AI 系統:')
+      console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
+      console.log(`  - 第一筆流量: Volume_T=${firstData.Volume_T}`)
+      console.log(`  - 第一筆車型: M=${firstData.Volume_M}, S=${firstData.Volume_S}, L=${firstData.Volume_L}`)
+      console.log(`  - 時段信息: ${firstData.normalization_period}`)
 
       // 發送 API 開始事件
       window.dispatchEvent(new CustomEvent('trafficApiSending', { detail: { timestamp: new Date().toISOString() } }))
+
+      // 🔍 詳細日誌：顯示實際發送的內容
+      console.log(`📤 [API 請求詳情]`)
+      console.log(`  - 端點: ${this.apiEndpoint}`)
+      console.log(`  - 方法: POST`)
+      console.log(`  - 內容類型: application/json`)
+      console.log(`  - 請求體大小: ${JSON.stringify(finalDataToSend).length} 字節`)
+      console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
+      console.log(`  - 正規化流量: Volume_T=${firstData.Volume_T}`)
+      console.log(
+        `  - 車型分佈: M=${firstData.Volume_M}, S=${firstData.Volume_S}, L=${firstData.Volume_L}`,
+      )
+      console.log(`  - 時段信息: ${firstData.normalization_period}`)
+      console.log(`  - 驗證結果: ${firstData.validation_passed}`)
 
       const response = await fetch(this.apiEndpoint, {
         method: 'POST',
@@ -760,8 +812,29 @@ export default class TrafficLightController {
         body: JSON.stringify(finalDataToSend),
       })
 
+      // 🔍 詳細日誌：顯示響應狀態
+      console.log(`📥 [API 響應詳情]`)
+      console.log(`  - 狀態碼: ${response.status}`)
+      console.log(`  - 狀態文字: ${response.statusText}`)
+      console.log(`  - 是否成功: ${response.ok}`)
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        // 嘗試獲取錯誤信息
+        let errorBody = '無法解析錯誤信息'
+        try {
+          const errorData = await response.clone().json()
+          errorBody = JSON.stringify(errorData)
+        } catch {
+          try {
+            errorBody = await response.clone().text()
+          } catch {
+            errorBody = '無法讀取響應體'
+          }
+        }
+        console.error(`❌ [API 錯誤詳情]`)
+        console.error(`  - 狀態碼: ${response.status}`)
+        console.error(`  - 錯誤信息: ${errorBody}`)
+        throw new Error(`HTTP error! status: ${response.status}, body: ${errorBody}`)
       }
 
       const result = await response.json()

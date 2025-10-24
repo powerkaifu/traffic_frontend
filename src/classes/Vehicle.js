@@ -558,14 +558,10 @@ export default class Vehicle {
   // 🚨 極簡化恢復移動方法
   // � DRY 優化：委託給恢復移動工具類
   resumeMovement(allVehicles = []) {
-    ResumeMovementUtils.executeResume(
-      this,
-      allVehicles,
-      {
-        duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH,
-        ease: 'power2.out',
-      }
-    )
+    ResumeMovementUtils.executeResume(this, allVehicles, {
+      duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH,
+      ease: 'power2.out',
+    })
   }
 
   // Command Pattern + State Pattern: 強制恢復移動命令
@@ -766,6 +762,11 @@ export default class Vehicle {
               this.lastMovementTime = Date.now()
             },
             onUpdate: () => {
+              // 🚨 防守：車輛已銷毀時，不執行更新邏輯（車輛可能已被移除，但GSAP動畫仍繼續執行）
+              if (!this.element) {
+                return
+              }
+
               // 🚨 移動中持續更新時間
               this.lastMovementTime = Date.now()
 
@@ -1121,6 +1122,11 @@ export default class Vehicle {
         }, 50) // 改為每0.05秒檢查一次，更快速回應        // Template Method Pattern: 創建移動時間線模板
         this.movementTimeline = gsap.timeline({
           onUpdate: () => {
+            // 🚨 防守：車輛已銷毀時，不執行更新邏輯（車輛可能已被移除，但GSAP動畫仍繼續執行）
+            if (!this.element) {
+              return
+            }
+
             // 計算當前速度
             const currentPos = this.getCurrentPosition()
             const currentTime = Date.now()
