@@ -118,6 +118,7 @@ export default class AutoTrafficGenerator {
     // 如果在自動模式下進行了手動設定，則自動關閉自動模式
     if (this.isAutoMode) {
       this.toggleAutoMode(false)
+      console.log(`🛑 [手動模式] 停止自動模式，進入手動拉桿模式`)
     }
   }
 
@@ -133,6 +134,16 @@ export default class AutoTrafficGenerator {
     } else {
       this.laneGenerationCooldown = {}
     }
+  }
+
+  // 🔧 新增：統一清除情景模式計時器和狀態（避免重複造輪子）
+  _stopScenarioModeLoop() {
+    if (this.scenarioModeTimer) {
+      clearInterval(this.scenarioModeTimer)
+      this.scenarioModeTimer = null
+    }
+    this.currentScenarioMode = null
+    console.log(`🛑 [情景模式] 已停止 - 清除計時器和狀態`)
   }
 
   // ==========================================
@@ -168,6 +179,9 @@ export default class AutoTrafficGenerator {
   _startAutoModeLoop() {
     if (this.autoModeTimer) clearInterval(this.autoModeTimer)
 
+    // 🔧 CRITICAL FIX：進入自動模式時，清除所有情景模式狀態（避免互相干擾）
+    this._stopScenarioModeLoop()
+
     this.isAutoMode = true
 
     // 立即套用一次當前時間的設定
@@ -199,6 +213,7 @@ export default class AutoTrafficGenerator {
   // ==========================================
 
   // 🎯 1. 切換到手動情景模式
+  // 🎯 1. 切換到手動情景模式
   switchToScenarioMode(scenarioKey) {
     console.log(`🎭 [情景模式] 切換至: ${scenarioKey}`)
 
@@ -209,15 +224,15 @@ export default class AutoTrafficGenerator {
       return false
     }
 
-    // 停止自動模式
+    // 🔧 CRITICAL FIX：停止自動模式（避免互相干擾）
     if (this.isAutoMode) {
       this.toggleAutoMode(false)
+      console.log(`🛑 [情景模式] 已停止自動模式，進入手動模式`)
     }
 
-    // 清除舊的情景定時器
-    if (this.scenarioModeTimer) {
-      clearInterval(this.scenarioModeTimer)
-      this.scenarioModeTimer = null
+    // 🔧 CRITICAL FIX：使用統一方法清除舊的情景模式（避免重複造輪子）
+    if (this.scenarioModeTimer || this.currentScenarioMode) {
+      this._stopScenarioModeLoop()
     }
 
     // 設定新的情景模式
@@ -491,9 +506,6 @@ export default class AutoTrafficGenerator {
     // 🔧 修正：手動模式不應除以 displayMultiplierAdjustment，確保拉桿值直接生效
     if (!this.isAutoMode) {
       let interval = Math.round(normal * (0.9 + Math.random() * 0.2) * densityMultiplier)
-      console.log(
-        `📊 [手動模式] 計算生成間隔: normal=${normal}ms, min=${min}ms, max=${max}ms, density=${densityMultiplier.toFixed(2)}, 結果=${interval}ms`,
-      )
       return Math.max(min, Math.min(max * 2, interval)) // 允許最大間隔延長2倍
     }
 
