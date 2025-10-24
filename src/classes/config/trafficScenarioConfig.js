@@ -106,7 +106,8 @@ export const timeScenarios = [
     config: {
       // 目標：4輛/5分鐘 → 300秒/4輛 = 75秒/輛 = 75000ms
       // 實際：5800ms / 2.0 = 2900ms → 約5.2輛/5分鐘（稍高於目標，留有餘裕）
-      interval: { min: 4500, max: 9000, normal: 5800 },
+      // 擴展範圍以覆蓋拉桿中間段
+      interval: { min: 4500, max: 17000, normal: 5800 },
       vehicleTypes: [
         { type: 'motor', weight: 30 }, // 機車 30%（離峰機車較少）
         { type: 'small', weight: 65 }, // 小客車 65%（離峰小客車佔多數）
@@ -146,7 +147,8 @@ export const timeScenarios = [
     config: {
       // 目標：1輛/5分鐘 → 300秒/1輛 = 300秒/輛 = 300000ms
       // 實際：24000ms / 0.95 = 25263ms → 約1.2輛/5分鐘（接近目標）
-      interval: { min: 18000, max: 35000, normal: 24000 },
+      // 調整最小值以銜接離峰範圍
+      interval: { min: 17000, max: 35000, normal: 24000 },
 
       vehicleTypes: [
         { type: 'motor', weight: 70 }, // 機車 70%（凌晨主要是機車和計程車）
