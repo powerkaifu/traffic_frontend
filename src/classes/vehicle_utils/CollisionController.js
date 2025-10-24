@@ -194,40 +194,28 @@ export class CollisionController {
 
     switch (direction) {
       case 'east':
-        if (
-          otherBox.centerX > myBox.centerX &&
-          Math.abs(otherBox.centerY - myBox.centerY) < lateralDiff
-        ) {
+        if (otherBox.centerX > myBox.centerX && Math.abs(otherBox.centerY - myBox.centerY) < lateralDiff) {
           const distance = Math.abs(otherBox.centerX - myBox.centerX)
           return distance <= maxRange ? distance : Infinity
         }
         return Infinity
 
       case 'west':
-        if (
-          otherBox.centerX < myBox.centerX &&
-          Math.abs(otherBox.centerY - myBox.centerY) < lateralDiff
-        ) {
+        if (otherBox.centerX < myBox.centerX && Math.abs(otherBox.centerY - myBox.centerY) < lateralDiff) {
           const distance = Math.abs(otherBox.centerX - myBox.centerX)
           return distance <= maxRange ? distance : Infinity
         }
         return Infinity
 
       case 'north':
-        if (
-          otherBox.centerY < myBox.centerY &&
-          Math.abs(otherBox.centerX - myBox.centerX) < lateralDiff
-        ) {
+        if (otherBox.centerY < myBox.centerY && Math.abs(otherBox.centerX - myBox.centerX) < lateralDiff) {
           const distance = Math.abs(otherBox.centerY - myBox.centerY)
           return distance <= maxRange ? distance : Infinity
         }
         return Infinity
 
       case 'south':
-        if (
-          otherBox.centerY > myBox.centerY &&
-          Math.abs(otherBox.centerX - myBox.centerX) < lateralDiff
-        ) {
+        if (otherBox.centerY > myBox.centerY && Math.abs(otherBox.centerX - myBox.centerX) < lateralDiff) {
           const distance = Math.abs(otherBox.centerY - myBox.centerY)
           return distance <= maxRange ? distance : Infinity
         }
@@ -256,7 +244,7 @@ export class CollisionController {
         currentBox,
         otherBox,
         this.vehicle.direction,
-        this.nearbyVehicleRange
+        this.nearbyVehicleRange,
       )
 
       if (distance !== Infinity) {
