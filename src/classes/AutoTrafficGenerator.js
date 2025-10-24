@@ -96,10 +96,23 @@ export default class AutoTrafficGenerator {
       )
     }
 
-    // �🚨 新增：如果配置包含車道間隔設置，更新它（手動設定可覆蓋動態調整）
+    // 🚨 新增：如果配置包含車道間隔設置，更新它（手動設定可覆蓋動態調整）
     if (typeof newConfig.minLaneInterval === 'number') {
       this.minLaneInterval = Math.max(500, newConfig.minLaneInterval) // 安全下限500ms
       console.log(`🔧 車道最小生成間隔手動設置為: ${this.minLaneInterval}ms`)
+    }
+
+    // 🔧 CRITICAL FIX：清除情景模式計時器，防止它覆蓋手動設定
+    if (this.scenarioModeTimer) {
+      clearInterval(this.scenarioModeTimer)
+      this.scenarioModeTimer = null
+      console.log(`🛑 [手動模式] 清除情景模式計時器，防止自動覆蓋`)
+    }
+
+    // 🔧 CRITICAL FIX：清除 currentScenarioMode，防止 _getDisplayMultiplierAdjustment() 讀取舊配置
+    if (this.currentScenarioMode) {
+      console.log(`🛑 [手動模式] 清除 currentScenarioMode: ${this.currentScenarioMode}`)
+      this.currentScenarioMode = null
     }
 
     // 如果在自動模式下進行了手動設定，則自動關閉自動模式
@@ -225,6 +238,20 @@ export default class AutoTrafficGenerator {
 
   // 🎯 2. 套用情景模式配置
   _applyScenarioMode(scenarioKey) {
+    // 🔧 CRITICAL FIX：多層防護 - 檢查計時器 + 情景模式狀態
+    if (!this.scenarioModeTimer || !this.currentScenarioMode) {
+      console.log(
+        `⏸️ [情景模式] 已停止或未激活 (計時器=${!!this.scenarioModeTimer}, 模式=${this.currentScenarioMode})，跳過本次應用`,
+      )
+      return
+    }
+
+    // 🔧 CRITICAL FIX：確認 currentScenarioMode 與參數一致（防止舊回調）
+    if (scenarioKey !== this.currentScenarioMode) {
+      console.log(`⏸️ [情景模式] 場景不匹配 (${scenarioKey} ≠ ${this.currentScenarioMode})，跳過本次應用`)
+      return
+    }
+
     const scenario = getScenarioByKey(scenarioKey)
 
     if (!scenario) {
@@ -390,6 +417,12 @@ export default class AutoTrafficGenerator {
   // 根據模擬時間套用交通設定檔，使用於自動模式
   // 🎯 每日自動模式的核心方法：生成 VD 數據 + 傳送 API 預測
   _applyTrafficProfile() {
+    // 🔧 CRITICAL FIX：如果已離開自動模式，則不執行
+    if (!this.isAutoMode) {
+      console.log(`⏸️ [自動模式] 已停止，跳過本次應用`)
+      return
+    }
+
     // 使用統一配置取得當前時段情境
     const scenario = getScenarioByTime(this.simulationTime)
     const scenarioKey = scenario.key
@@ -455,9 +488,11 @@ export default class AutoTrafficGenerator {
     const displayMultiplierAdjustment = this._getDisplayMultiplierAdjustment()
 
     // 手動模式下，直接使用來自UI的`normal`值，但加入密度調整
+    // 🔧 修正：手動模式不應除以 displayMultiplierAdjustment，確保拉桿值直接生效
     if (!this.isAutoMode) {
-      let interval = Math.round(
-        (normal * (0.9 + Math.random() * 0.2) * densityMultiplier) / displayMultiplierAdjustment,
+      let interval = Math.round(normal * (0.9 + Math.random() * 0.2) * densityMultiplier)
+      console.log(
+        `📊 [手動模式] 計算生成間隔: normal=${normal}ms, min=${min}ms, max=${max}ms, density=${densityMultiplier.toFixed(2)}, 結果=${interval}ms`,
       )
       return Math.max(min, Math.min(max * 2, interval)) // 允許最大間隔延長2倍
     }

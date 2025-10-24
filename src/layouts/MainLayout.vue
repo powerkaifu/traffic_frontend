@@ -439,24 +439,19 @@ function updateGenerationConfig() {
   const s = timeScenarios.find((s) => s.key === currentTimeScenario.value)
   if (!s) return
 
-  // 🚨 CRITICAL FIX: 確保 switchToScenarioMode 被調用，設置 currentScenarioMode
-  // 這是為了讓 _getDisplayMultiplierAdjustment() 能獲取正確的 displayMultiplier
-  if (window.autoTrafficGenerator.currentScenarioMode !== currentTimeScenario.value) {
-    console.log(
-      `🔄 [手動模式] 同步情景模式: ${window.autoTrafficGenerator.currentScenarioMode} → ${currentTimeScenario.value}`,
-    )
-    const success = window.autoTrafficGenerator.switchToScenarioMode(currentTimeScenario.value)
-    if (!success) {
-      console.error(`❌ 情景模式切換失敗: ${currentTimeScenario.value}`)
-      return
-    }
-  }
-
   // 讓 min/max 也跟著拉桿動態調整（以拉桿值為中心，上下浮動 50%）
   const minInterval = Math.max(100, Math.round(finalInterval * 0.5))
   const maxInterval = Math.round(finalInterval * 1.5)
 
   currentInterval.value = finalInterval
+
+  console.log(`🎚️ [手動模式] 更新生成間隔: ${finalInterval}ms (min=${minInterval}ms, max=${maxInterval}ms)`)
+
+  // 🔧 CRITICAL FIX：先清除情景模式，確保手動設定不被覆蓋
+  if (window.autoTrafficGenerator.currentScenarioMode) {
+    console.log(`🛑 [UI] 清除 currentScenarioMode: ${window.autoTrafficGenerator.currentScenarioMode}`)
+    window.autoTrafficGenerator.currentScenarioMode = null
+  }
 
   window.autoTrafficGenerator.updateConfig({
     ...s.config,
@@ -475,12 +470,17 @@ function switchToTimeScenario(key) {
   // 💡 簡化：只設置生成間隔，使用情景定義的 peakMultiplier
   manualInterval.value = s.config.interval.normal
 
-  // 🎭 新增：使用新的情景模式方法，並驗證切換成功
+  // 🔧 CRITICAL FIX：不要調用 switchToScenarioMode()，直接更新手動配置
   if (window.autoTrafficGenerator) {
-    const success = window.autoTrafficGenerator.switchToScenarioMode(key)
-    if (!success) {
-      console.error(`❌ 情景模式切換失敗: ${key}`)
-      return
+    // 清除情景模式，進入純手動模式
+    if (window.autoTrafficGenerator.currentScenarioMode) {
+      console.log(`🛑 [UI] 清除 currentScenarioMode: ${window.autoTrafficGenerator.currentScenarioMode}`)
+      window.autoTrafficGenerator.currentScenarioMode = null
+    }
+    if (window.autoTrafficGenerator.scenarioModeTimer) {
+      clearInterval(window.autoTrafficGenerator.scenarioModeTimer)
+      window.autoTrafficGenerator.scenarioModeTimer = null
+      console.log(`🛑 [UI] 清除 scenarioModeTimer`)
     }
   }
 
