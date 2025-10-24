@@ -13,7 +13,6 @@
 import { gsap } from 'gsap'
 import { ANIMATION_CONFIG } from '../config/vehicleConfig.js'
 import { speedConfig } from '../config/trafficConfig.js'
-import VehicleConfig from '../config/vehicleConfig.js'
 
 /**
  * 車輛靜態屬性管理
@@ -522,6 +521,175 @@ export class VehicleDOMUtils {
 }
 
 /**
+ * 動畫時間計算工具
+ * 處理動畫時間的計算，帶有 NaN 防護
+ */
+export class AnimationDurationUtils {
+  /**
+   * 計算動畫持續時間
+   * @param {number} initialSpeed - 車輛初始速度 (km/h)
+   * @param {number} distance - 距離（像素）
+   * @returns {number} 動畫持續時間（秒）
+   */
+  static calculateDuration(initialSpeed, distance = 800) {
+    // 轉換速度：km/h → m/s
+    const speedMs = (initialSpeed * 1000) / 3600
+
+    // 防護：避免除以零
+    if (speedMs <= 0) {
+      return ANIMATION_CONFIG.MIN_ANIMATION_TIME
+    }
+
+    // 距離轉換：100 像素 = 15 米
+    const pixelsPerMeter = 100 / 15
+    const realDistance = distance / pixelsPerMeter
+
+    // 計算理論時間
+    let theoreticalTime = realDistance / speedMs
+
+    // 防護：NaN 檢查
+    if (!isFinite(theoreticalTime) || theoreticalTime < 0) {
+      theoreticalTime = ANIMATION_CONFIG.MIN_ANIMATION_TIME
+    }
+
+    // 應用時間倍數
+    const adjustedTheoretical = theoreticalTime * VehicleStaticManager.getTimeMultiplier()
+
+    // 在允許範圍內夾緊
+    const minTime = ANIMATION_CONFIG.MIN_ANIMATION_TIME
+    const maxTime = ANIMATION_CONFIG.MAX_ANIMATION_TIME
+    const adjustedTime = Math.max(minTime, Math.min(maxTime, adjustedTheoretical))
+
+    return adjustedTime
+  }
+}
+
+/**
+ * 當前速度工具
+ * 計算車輛當前速度比例，帶有 Infinity 防護
+ */
+export class CurrentSpeedUtils {
+  /**
+   * 計算當前速度比例
+   * @param {Object} movementTimeline - GSAP 動畫時間軸
+   * @param {number} originalTimeScale - 原始時間縮放
+   * @returns {number} 速度比例
+   */
+  static getSpeedRatio(movementTimeline, originalTimeScale = 1.0) {
+    // 沒有時間軸時返回預設速度比
+    if (!movementTimeline) {
+      return 1.0
+    }
+
+    try {
+      // 獲取當前時間軸的速度縮放
+      const currentTimeScale = movementTimeline.timeScale()
+
+      // 防護：Infinity 檢查
+      if (!isFinite(currentTimeScale)) {
+        return 1.0
+      }
+
+      const baseTimeScale = originalTimeScale || 1.0
+
+      // 防護：避免除以零
+      if (baseTimeScale <= 0) {
+        return 1.0
+      }
+
+      const ratio = currentTimeScale / baseTimeScale
+
+      // 防護：確保返回有效的數值
+      return isFinite(ratio) ? ratio : 1.0
+    } catch (error) {
+      // 異常防護
+      console.warn('Error calculating speed ratio:', error)
+      return 1.0
+    }
+  }
+}
+
+/**
+ * 邊界檢測工具
+ * 根據方向檢查是否超出邊界
+ */
+export class BoundaryCheckUtils {
+  /**
+   * 檢查位置是否超出邊界（根據方向）
+   * @param {Object} position - 當前位置 {x, y}
+   * @param {Object} bounds - 邊界 {left, right, top, bottom}
+   * @param {string} direction - 車輛方向 (east|west|north|south)
+   * @returns {boolean} 是否已超出邊界
+   */
+  static checkBounds(position, bounds, direction) {
+    // 防護：位置檢查
+    if (!position || typeof position.x !== 'number' || typeof position.y !== 'number') {
+      return false
+    }
+
+    // 防護：邊界檢查
+    if (!bounds || typeof bounds.right !== 'number') {
+      return false
+    }
+
+    // 根據方向檢查邊界
+    switch (direction) {
+      case 'east':
+        return position.x >= bounds.right
+      case 'west':
+        return position.x <= bounds.left
+      case 'north':
+        return position.y <= bounds.top
+      case 'south':
+        return position.y >= bounds.bottom
+      default:
+        return false
+    }
+  }
+}
+
+/**
+ * 車頭位置工具
+ * 根據方向計算車輛車頭位置
+ */
+export class HeadPositionUtils {
+  /**
+   * 計算車頭位置
+   * @param {Object} currentPos - 當前車位置 {x, y}
+   * @param {Object} vehicleSize - 車輛尺寸 {width, height}
+   * @param {string} direction - 車輛方向 (east|west|north|south)
+   * @returns {Object} 車頭位置 {x, y}
+   */
+  static getHeadPosition(currentPos, vehicleSize, direction) {
+    // 防護：參數檢查
+    if (!currentPos || !vehicleSize || !direction) {
+      return currentPos || { x: 0, y: 0 }
+    }
+
+    const { width, height } = vehicleSize
+
+    // 根據方向決定車頭位置
+    switch (direction) {
+      case 'east':
+        // 東向車頭在右側
+        return { x: currentPos.x + width, y: currentPos.y + height / 2 }
+      case 'west':
+        // 西向車頭在左側
+        return { x: currentPos.x, y: currentPos.y + height / 2 }
+      case 'north':
+        // 北向車頭在上方
+        return { x: currentPos.x + width / 2, y: currentPos.y }
+      case 'south':
+        // 南向車頭在下方
+        return { x: currentPos.x + width / 2, y: currentPos.y + height }
+      default:
+        // 預設返回左上角位置
+        return currentPos
+    }
+  }
+}
+
+/**
  * 默認導出：包含所有工具類
  */
 export default {
@@ -533,4 +701,8 @@ export default {
   LaneLabelUtils,
   SpeedLineUtils,
   VehicleDOMUtils,
+  AnimationDurationUtils,
+  CurrentSpeedUtils,
+  BoundaryCheckUtils,
+  HeadPositionUtils,
 }

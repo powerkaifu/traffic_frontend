@@ -22,6 +22,10 @@ import {
   LaneLabelUtils,
   SpeedLineUtils,
   VehicleDOMUtils,
+  AnimationDurationUtils,
+  CurrentSpeedUtils,
+  BoundaryCheckUtils,
+  HeadPositionUtils,
 } from './utils/VehicleUtilities.js' // 🚀 新增：車輛工具類
 
 // 註冊 GSAP 插件
@@ -266,26 +270,8 @@ export default class Vehicle {
 
   // Template Method Pattern: 計算動畫持續時間的模板方法
   calculateAnimationDuration(distance = DISTANCE_CONFIG.DEFAULT_CROSSING_DISTANCE) {
-    // Template Method Pattern: 定義計算動畫時間的標準流程
-    // 假設路口通過距離約 800 像素
-    const speed = this.initialSpeed // km/h
-    const speedMs = (speed * 1000) / 3600 // 轉換為 m/s
-
-    // 假設 100 像素 = 15 米（調整比例尺，讓距離感更真實）
-    const realDistance = (distance / DISTANCE_CONFIG.PIXELS_PER_METER) * DISTANCE_CONFIG.METERS_PER_UNIT // 轉換為實際距離（米）
-
-    // 計算理論時間（秒）
-    const theoreticalTime = realDistance / speedMs
-
-    // 🎬 動畫速度控制：TIME_MULTIPLIER 越小越快，越大越慢
-    const adjustedTheoretical = theoreticalTime * Vehicle.timeMultiplier
-
-    // 調整時間範圍以支援更大的速度變化範圍
-    const minTime = ANIMATION_CONFIG.MIN_ANIMATION_TIME // 最短1秒
-    const maxTime = ANIMATION_CONFIG.MAX_ANIMATION_TIME // 最長30秒
-    const adjustedTime = Math.max(minTime, Math.min(maxTime, adjustedTheoretical))
-
-    return adjustedTime
+    // 🚀 DRY 優化：使用工具類計算動畫時間
+    return AnimationDurationUtils.calculateDuration(this.initialSpeed, distance)
   }
 
   // Factory Pattern: 創建車輛DOM元素的工廠方法
@@ -431,19 +417,8 @@ export default class Vehicle {
 
   // 輔助方法：根據方向檢查邊界
   checkBoundsForDirection(position, bounds) {
-    // 根據方向檢查是否已完全離開對應邊界
-    switch (this.direction) {
-      case 'east':
-        return position.x >= bounds.right
-      case 'west':
-        return position.x <= bounds.left
-      case 'north':
-        return position.y <= bounds.top
-      case 'south':
-        return position.y >= bounds.bottom
-      default:
-        return false
-    }
+    // 🚀 DRY 優化：使用工具類檢查邊界
+    return BoundaryCheckUtils.checkBounds(position, bounds, this.direction)
   }
 
   // Template Method Pattern: 檢查是否到達停止線的模板方法
@@ -469,18 +444,8 @@ export default class Vehicle {
 
   // 🚨 新增：獲取當前速度比例的輔助方法
   getCurrentSpeedRatio() {
-    if (!this.movementTimeline) {
-      return 1.0 // 預設速度比例
-    }
-
-    // 獲取當前時間軸的速度縮放
-    const currentTimeScale = this.movementTimeline.timeScale()
-
-    // 如果有原始時間縮放，使用它作為基準
-    const baseTimeScale = this.originalTimeScale || 1.0
-
-    // 計算相對於基準速度的比例
-    return currentTimeScale / baseTimeScale
+    // 🚀 DRY 優化：使用工具類計算當前速度比例
+    return CurrentSpeedUtils.getSpeedRatio(this.movementTimeline, this.originalTimeScale)
   }
 
   // 🌤️ 獲取天氣對速度的影響倍數
@@ -497,27 +462,11 @@ export default class Vehicle {
 
   // Strategy Pattern: 根據方向計算車頭位置的策略方法
   getVehicleHeadPosition() {
-    // Strategy Pattern: 每個方向都有不同的車頭位置計算策略
+    // 🚀 DRY 優化：使用工具類計算車頭位置
     const currentPos = this.getCurrentPosition()
     const vehicleConfig = this.getVehicleConfig()
-    const size = { width: vehicleConfig.width, height: vehicleConfig.height }
-
-    // Strategy Pattern: 根據車輛行駛方向決定車頭位置
-    if (this.direction === 'east') {
-      // 東向車頭在右側
-      return { x: currentPos.x + size.width, y: currentPos.y + size.height / 2 }
-    } else if (this.direction === 'west') {
-      // 西向車頭在左側
-      return { x: currentPos.x, y: currentPos.y + size.height / 2 }
-    } else if (this.direction === 'north') {
-      // 北向車頭在上方
-      return { x: currentPos.x + size.width / 2, y: currentPos.y }
-    } else if (this.direction === 'south') {
-      // 南向車頭在下方
-      return { x: currentPos.x + size.width / 2, y: currentPos.y + size.height }
-    }
-
-    return currentPos // 預設返回左上角位置
+    const vehicleSize = { width: vehicleConfig.width, height: vehicleConfig.height }
+    return HeadPositionUtils.getHeadPosition(currentPos, vehicleSize, this.direction)
   }
 
   // Factory Pattern: 獲取車輛邊界框的工廠方法
