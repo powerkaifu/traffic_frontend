@@ -152,7 +152,7 @@ export default class AutoTrafficGenerator {
     }
   }
 
-  // 啟動自動模式循環
+  // 啟動自動模式循環(每日自動模式)
   _startAutoModeLoop() {
     if (this.autoModeTimer) clearInterval(this.autoModeTimer)
 
@@ -161,11 +161,10 @@ export default class AutoTrafficGenerator {
 
     // 每37.5秒鐘更新一次模擬時間和交通設定
     this.autoModeTimer = setInterval(() => {
-      // 模擬時間每次推進30分鐘
       this.simulationTime.setMinutes(this.simulationTime.getMinutes() + 30)
 
       this._applyTrafficProfile()
-    }, 6250) // 真實世界的30分鐘(1800秒) = 模擬世界的24小時 (1800 / 48 = 37.5秒/次)
+    }, 1800) // 真實世界的 30 分鐘(1800秒) = 模擬世界的 24 小時 (1800 / 48 = 37.5秒/次)
   }
 
   // 停止自動模式循環
