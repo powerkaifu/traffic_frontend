@@ -46,7 +46,7 @@ export default class TrafficLightController {
       },
       // 左轉綠燈時間
       leftTurnGreen: {
-        duration: 12, // 左轉綠燈持續時間（秒）- 從8秒增加到12秒
+        duration: 10, // 左轉綠燈持續時間（秒）- 從8秒增加到12秒
       },
       // 黃燈時間
       yellow: {
@@ -827,12 +827,6 @@ export default class TrafficLightController {
       console.log(`✅ 已發送 ${normalizedDataArray.length} 筆交叉路口正規化數據`)
       console.log(`✅ 正規化倍數: ${firstData.normalization_displayMultiplier}x`)
       console.log(`✅ 時段: ${firstData.normalization_period}`)
-
-      // 🔍 詳細日誌：顯示響應狀態
-      console.log(`📥 [API 響應詳情]`)
-      console.log(`  - 狀態碼: ${response.status}`)
-      console.log(`  - 狀態文字: ${response.statusText}`)
-      console.log(`  - 是否成功: ${response.ok}`)
 
       if (!response.ok) {
         // 嘗試獲取錯誤信息
