@@ -64,54 +64,88 @@ class VDNormalizationUtils {
    * // Result: { volume: 8.33, speed: 45, occupancy: 0.35 }
    */
   static denormalizeToVDRange(frontendData, intersectionId, period = null) {
-    // 如果沒有指定時段，自動識別
-    if (!period) {
-      period = getCurrentTimePeriod()
-    }
+    try {
+      // 容錯 1: 驗證路口 ID
+      const validIntersectionIds = ['VLRJM60', 'VLRJX00', 'VLRJX20']
+      if (!validIntersectionIds.includes(intersectionId)) {
+        console.warn(`⚠️ [正規化容錯] 無效的路口 ID: ${intersectionId}，使用 VLRJM60`)
+        intersectionId = 'VLRJM60'
+      }
 
-    // 獲取正規化參數
-    const config = getNormalizationConfig(intersectionId)
-    const params = config[period]
+      // 如果沒有指定時段，自動識別
+      if (!period) {
+        period = getCurrentTimePeriod()
+      }
 
-    if (!params) {
-      console.error(`[VD正規化] 無效的時段: ${period}`)
+      // 容錯 2: 驗證時段
+      const validPeriods = ['peak_hours', 'off_peak', 'late_night']
+      if (!validPeriods.includes(period)) {
+        console.warn(`⚠️ [正規化容錯] 無效的時段: ${period}，使用離峰時段`)
+        period = 'off_peak'
+      }
+
+      // 獲取正規化參數
+      const config = getNormalizationConfig(intersectionId)
+      const params = config[period]
+
+      // 容錯 3: 檢查參數是否存在
+      if (!params) {
+        console.error(`❌ [正規化容錯失敗] 無法獲取 ${intersectionId} 在 ${period} 的參數，返回原始數據`)
+        return frontendData
+      }
+
+      // 執行正規化轉換
+      const normalizedData = {}
+      let displayMultiplier = params.displayMultiplier
+
+      // 容錯 4: 驗證 displayMultiplier
+      if (!displayMultiplier || displayMultiplier <= 0) {
+        console.warn(`⚠️ [正規化容錯] 無效的 displayMultiplier: ${displayMultiplier}，使用 1.0`)
+        displayMultiplier = 1.0
+      }
+
+      // 流量正規化 (輛/5分鐘)
+      if (frontendData.volume !== undefined && frontendData.volume !== null) {
+        normalizedData.volume = Math.round((frontendData.volume / displayMultiplier) * 100) / 100
+        // 確保在有效範圍內
+        normalizedData.volume = Math.max(params.volume.min, Math.min(params.volume.max, normalizedData.volume))
+      } else {
+        normalizedData.volume = 0
+      }
+
+      // 速度不需要正規化，直接保留
+      if (frontendData.speed !== undefined && frontendData.speed !== null) {
+        normalizedData.speed = frontendData.speed
+      } else {
+        normalizedData.speed = 0
+      }
+
+      // 佔有率正規化
+      if (frontendData.occupancy !== undefined && frontendData.occupancy !== null) {
+        normalizedData.occupancy = Math.round((frontendData.occupancy / displayMultiplier) * 100) / 100
+        normalizedData.occupancy = Math.max(
+          params.occupancy.min / 100,
+          Math.min(params.occupancy.max / 100, normalizedData.occupancy),
+        )
+      } else {
+        normalizedData.occupancy = 0
+      }
+
+      // 車型流量正規化
+      const vehicleTypes = ['volume_m', 'volume_s', 'volume_l', 'volume_t']
+      vehicleTypes.forEach((type) => {
+        if (frontendData[type] !== undefined && frontendData[type] !== null) {
+          normalizedData[type] = Math.round((frontendData[type] / displayMultiplier) * 100) / 100
+        } else {
+          normalizedData[type] = 0
+        }
+      })
+
+      return normalizedData
+    } catch (error) {
+      console.error(`❌ [正規化異常] ${error.message}，路口: ${intersectionId}，時段: ${period}，返回原始數據`)
       return frontendData
     }
-
-    // 執行正規化轉換
-    const normalizedData = {}
-    const displayMultiplier = params.displayMultiplier
-
-    // 流量正規化 (輛/5分鐘)
-    if (frontendData.volume !== undefined) {
-      normalizedData.volume = Math.round((frontendData.volume / displayMultiplier) * 100) / 100
-      // 確保在有效範圍內
-      normalizedData.volume = Math.max(params.volume.min, Math.min(params.volume.max, normalizedData.volume))
-    }
-
-    // 速度不需要正規化，直接保留
-    if (frontendData.speed !== undefined) {
-      normalizedData.speed = frontendData.speed
-    }
-
-    // 佔有率正規化
-    if (frontendData.occupancy !== undefined) {
-      normalizedData.occupancy = Math.round((frontendData.occupancy / displayMultiplier) * 100) / 100
-      normalizedData.occupancy = Math.max(
-        params.occupancy.min / 100,
-        Math.min(params.occupancy.max / 100, normalizedData.occupancy),
-      )
-    }
-
-    // 車型流量正規化
-    const vehicleTypes = ['volume_m', 'volume_s', 'volume_l', 'volume_t']
-    vehicleTypes.forEach((type) => {
-      if (frontendData[type] !== undefined) {
-        normalizedData[type] = Math.round((frontendData[type] / displayMultiplier) * 100) / 100
-      }
-    })
-
-    return normalizedData
   }
 
   /**
@@ -120,55 +154,75 @@ class VDNormalizationUtils {
    * @param {object} normalizedData - 正規化後的數據
    * @param {string} intersectionId - 路口 ID
    * @param {string} [period] - 時段 (可選)
-   * @returns {object} { isValid, errors, warnings }
+   * @returns {object} { isValid, errors, warnings, period, displayMultiplier }
    */
   static validateNormalizedData(normalizedData, intersectionId, period = null) {
-    if (!period) {
-      period = getCurrentTimePeriod()
-    }
-
-    const config = getNormalizationConfig(intersectionId)
-    const params = config[period]
-    const result = {
-      isValid: true,
-      errors: [],
-      warnings: [],
-    }
-
-    // 驗證流量
-    if (normalizedData.volume !== undefined) {
-      if (normalizedData.volume < params.volume.min) {
-        result.warnings.push(`流量 ${normalizedData.volume} 輛低於最小值 ${params.volume.min} 輛`)
+    try {
+      if (!period) {
+        period = getCurrentTimePeriod()
       }
-      if (normalizedData.volume > params.volume.max) {
-        result.errors.push(`流量 ${normalizedData.volume} 輛超過最大值 ${params.volume.max} 輛`)
+
+      const config = getNormalizationConfig(intersectionId)
+      const params = config[period]
+      const result = {
+        isValid: true,
+        errors: [],
+        warnings: [],
+        period: period,
+        displayMultiplier: params?.displayMultiplier || 1,
+      }
+
+      // 容錯: 檢查參數
+      if (!params) {
+        result.errors.push(`無效的時段: ${period}`)
         result.isValid = false
+        return result
+      }
+
+      // 驗證流量
+      if (normalizedData.volume !== undefined && normalizedData.volume !== null) {
+        if (normalizedData.volume < params.volume.min) {
+          result.warnings.push(`流量 ${normalizedData.volume} 輛低於最小值 ${params.volume.min} 輛`)
+        }
+        if (normalizedData.volume > params.volume.max) {
+          result.errors.push(`流量 ${normalizedData.volume} 輛超過最大值 ${params.volume.max} 輛`)
+          result.isValid = false
+        }
+      }
+
+      // 驗證佔有率
+      if (normalizedData.occupancy !== undefined && normalizedData.occupancy !== null) {
+        const occupancyPercent = normalizedData.occupancy * 100
+        if (occupancyPercent < params.occupancy.min) {
+          result.warnings.push(`佔有率 ${occupancyPercent}% 低於最小值 ${params.occupancy.min}%`)
+        }
+        if (occupancyPercent > params.occupancy.max) {
+          result.errors.push(`佔有率 ${occupancyPercent}% 超過最大值 ${params.occupancy.max}%`)
+          result.isValid = false
+        }
+      }
+
+      // 驗證速度
+      if (normalizedData.speed !== undefined && normalizedData.speed !== null) {
+        if (normalizedData.speed < params.speed.min) {
+          result.warnings.push(`速度 ${normalizedData.speed} km/h 低於最小值 ${params.speed.min} km/h`)
+        }
+        if (normalizedData.speed > params.speed.max) {
+          result.warnings.push(`速度 ${normalizedData.speed} km/h 超過最大值 ${params.speed.max} km/h`)
+        }
+      }
+
+      return result
+    } catch (error) {
+      console.error(`❌ [驗證異常] ${error.message}`)
+      return {
+        isValid: false,
+        errors: [error.message],
+        warnings: [],
+        period: period,
+        displayMultiplier: 1,
       }
     }
-
-    // 驗證佔有率
-    if (normalizedData.occupancy !== undefined) {
-      const occupancyPercent = normalizedData.occupancy * 100
-      if (occupancyPercent < params.occupancy.min) {
-        result.warnings.push(`佔有率 ${occupancyPercent}% 低於最小值 ${params.occupancy.min}%`)
-      }
-      if (occupancyPercent > params.occupancy.max) {
-        result.errors.push(`佔有率 ${occupancyPercent}% 超過最大值 ${params.occupancy.max}%`)
-        result.isValid = false
-      }
-    }
-
-    // 驗證速度
-    if (normalizedData.speed !== undefined) {
-      if (normalizedData.speed < params.speed.min) {
-        result.warnings.push(`速度 ${normalizedData.speed} km/h 低於最小值 ${params.speed.min} km/h`)
-      }
-      if (normalizedData.speed > params.speed.max) {
-        result.warnings.push(`速度 ${normalizedData.speed} km/h 超過最大值 ${params.speed.max} km/h`)
-      }
-    }
-
-    return result
   }
 
   /**

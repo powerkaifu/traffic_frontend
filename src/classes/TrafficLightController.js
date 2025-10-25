@@ -31,6 +31,10 @@ export default class TrafficLightController {
       south: 'red',
     }
 
+    // 🎯【新增】時段轉換追蹤 (用於偵測時段邊界)
+    this.lastTimePeriod = getCurrentTimePeriod()
+    this.timePeriodChangeCount = 0
+
     // 🎯【新增】左轉綠燈時間配置
     this.leftTurnTiming = {
       duration: 8, // 左轉綠燈持續時間（秒）
@@ -737,17 +741,31 @@ export default class TrafficLightController {
       // ✅ 進行正規化轉換：前端顯示數據 → API 發送數據
       const normalizedDataArray = allIntersectionData.map((singleData) => {
         // 提取路口 ID 和時段
-        const intersectionId = singleData?.VD_ID || 'VLRJM60'
+        let intersectionId = singleData?.VD_ID || 'VLRJM60'
         const timePeriod = getCurrentTimePeriod()
+
+        // 容錯：檢查時段轉換
+        if (timePeriod !== this.lastTimePeriod) {
+          console.warn(`⚠️ [時段轉換] ${this.lastTimePeriod} → ${timePeriod} 於 ${new Date().toLocaleTimeString()}`)
+          this.timePeriodChangeCount++
+          this.lastTimePeriod = timePeriod
+        }
+
+        // 容錯：驗證路口 ID
+        const validIds = ['VLRJM60', 'VLRJX00', 'VLRJX20']
+        if (!validIds.includes(intersectionId)) {
+          console.warn(`⚠️ [路口容錯] 無效的路口 ID: ${intersectionId}，使用 VLRJM60`)
+          intersectionId = 'VLRJM60'
+        }
 
         // 準備前端生成的數據（視覺層 × displayMultiplier）
         const frontendData = {
-          volume: singleData?.Volume_T || 0,
-          speed: singleData?.Speed_T || 0,
-          occupancy: singleData?.Occupancy || 0,
-          volume_m: singleData?.Volume_M || 0,
-          volume_s: singleData?.Volume_S || 0,
-          volume_l: singleData?.Volume_L || 0,
+          volume: singleData?.Volume_T ?? 0,
+          speed: singleData?.Speed_T ?? 0,
+          occupancy: singleData?.Occupancy ?? 0,
+          volume_m: singleData?.Volume_M ?? 0,
+          volume_s: singleData?.Volume_S ?? 0,
+          volume_l: singleData?.Volume_L ?? 0,
         }
 
         // 【核心】執行正規化轉換：將前端顯示數據轉換為 API 層數據
@@ -756,26 +774,31 @@ export default class TrafficLightController {
         // 驗證正規化結果
         const validation = VDNormalizationUtils.validateNormalizedData(normalizedData, intersectionId, timePeriod)
 
+        // 容錯：檢查驗證是否失敗
+        if (!validation.isValid && validation.errors?.length > 0) {
+          console.warn(`⚠️ [驗證警告] ${intersectionId} ${timePeriod}: ${validation.errors.join(', ')}`)
+        }
+
         // 返回正規化後的交叉路口數據
         return {
           ...singleData,
           // 【重要】使用正規化後的數據發送給後端
-          Volume_T: Math.round(normalizedData.volume),
-          Volume_M: Math.round(normalizedData.volume_m),
-          Volume_S: Math.round(normalizedData.volume_s),
-          Volume_L: Math.round(normalizedData.volume_l),
+          Volume_T: Math.round(normalizedData.volume || 0),
+          Volume_M: Math.round(normalizedData.volume_m || 0),
+          Volume_S: Math.round(normalizedData.volume_s || 0),
+          Volume_L: Math.round(normalizedData.volume_l || 0),
           Speed_T: normalizedData.speed || singleData?.Speed_T || 0,
           Speed_M: singleData?.Speed_M,
           Speed_S: singleData?.Speed_S,
           Speed_L: singleData?.Speed_L,
-          Occupancy: Math.round(normalizedData.occupancy * 10) / 10,
+          Occupancy: Math.round((normalizedData.occupancy || 0) * 10) / 10,
           // 元數據
           normalization_applied: true,
           normalization_period: timePeriod,
           normalization_displayMultiplier: VDNormalizationUtils.getDisplayMultiplier(intersectionId),
           validation_passed: validation.isValid,
-          validation_warnings: validation.warnings,
-          validation_errors: validation.errors,
+          validation_warnings: validation.warnings || [],
+          validation_errors: validation.errors || [],
         }
       })
 

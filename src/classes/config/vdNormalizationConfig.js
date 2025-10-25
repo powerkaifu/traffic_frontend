@@ -30,24 +30,64 @@ export const TIME_PERIODS = {
 }
 
 /**
- * 獲取當前時段
+ * 獲取當前時段 (精確到分鐘)
+ *
+ * 時段定義:
+ * - 凌晨: 00:00-06:59
+ * - 尖峰(早): 07:00-09:59
+ * - 離峰(午): 10:00-16:59
+ * - 尖峰(晚): 17:00-19:59
+ * - 離峰(晚): 20:00-23:59
  */
 export function getCurrentTimePeriod() {
-  const hour = new Date().getHours()
+  const now = new Date()
+  const hour = now.getHours()
+  const minute = now.getMinutes()
+  const totalMinutes = hour * 60 + minute
 
-  if (TIME_PERIODS.peak_hours.hours.includes(hour)) {
-    return 'peak_hours'
-  } else if (TIME_PERIODS.late_night.hours.includes(hour)) {
+  // 時段邊界定義（分鐘）
+  const LATE_NIGHT_START = 0 * 60 // 00:00
+  const LATE_NIGHT_END = 6 * 60 + 59 // 06:59
+  const PEAK_MORNING_START = 7 * 60 // 07:00
+  const PEAK_MORNING_END = 9 * 60 + 59 // 09:59
+  const OFF_PEAK_NOON_START = 10 * 60 // 10:00
+  const OFF_PEAK_NOON_END = 16 * 60 + 59 // 16:59
+  const PEAK_EVENING_START = 17 * 60 // 17:00
+  const PEAK_EVENING_END = 19 * 60 + 59 // 19:59
+  const OFF_PEAK_EVENING_START = 20 * 60 // 20:00
+  const OFF_PEAK_EVENING_END = 23 * 60 + 59 // 23:59
+
+  // 判斷時段
+  if (totalMinutes >= LATE_NIGHT_START && totalMinutes <= LATE_NIGHT_END) {
     return 'late_night'
+  } else if (
+    (totalMinutes >= PEAK_MORNING_START && totalMinutes <= PEAK_MORNING_END) ||
+    (totalMinutes >= PEAK_EVENING_START && totalMinutes <= PEAK_EVENING_END)
+  ) {
+    return 'peak_hours'
+  } else if (
+    (totalMinutes >= OFF_PEAK_NOON_START && totalMinutes <= OFF_PEAK_NOON_END) ||
+    (totalMinutes >= OFF_PEAK_EVENING_START && totalMinutes <= OFF_PEAK_EVENING_END)
+  ) {
+    return 'off_peak'
   } else {
+    // 容錯：如果時段判斷失敗，返回離峰
+    console.warn(`⚠️ [時段判斷容錯] 無法判斷時段 (${hour}:${minute})，使用離峰時段`)
     return 'off_peak'
   }
 }
 
 /**
- * 獲取指定小時的時段
+ * 獲取指定小時的時段 (基於小時)
+ * @param {number} hour - 小時 (0-23)
+ * @returns {string} 時段 ('peak_hours', 'off_peak', 'late_night')
  */
 export function getTimePeriodByHour(hour) {
+  if (hour < 0 || hour > 23) {
+    console.warn(`⚠️ [時段判斷容錯] 無效的小時 (${hour})，使用離峰時段`)
+    return 'off_peak'
+  }
+
   if (TIME_PERIODS.peak_hours.hours.includes(hour)) {
     return 'peak_hours'
   } else if (TIME_PERIODS.late_night.hours.includes(hour)) {
@@ -294,13 +334,13 @@ export const VLRJX20_NORMALIZATION = {
       small: 0.57,
       large: 0.05,
     },
-    displayMultiplier: 3.5,
+    displayMultiplier: 3.0, // 修正: 與其他路口一致
   },
 
   late_night: {
     volume: {
       min: 0,
-      max: 17,
+      max: 22,
       avg: 0.97,
       p95: 16,
     },
@@ -321,7 +361,7 @@ export const VLRJX20_NORMALIZATION = {
       small: 0.53,
       large: 0.05,
     },
-    displayMultiplier: 1.8,
+    displayMultiplier: 1.5, // 修正: 從 1.8 改為 1.5
   },
 }
 
