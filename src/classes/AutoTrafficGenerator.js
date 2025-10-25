@@ -342,15 +342,14 @@ export default class AutoTrafficGenerator {
     const volumeM = Math.round(volumeByType.motor * volumeVariance)
     const volumeS = Math.round(volumeByType.small * volumeVariance)
     const volumeL = Math.round(volumeByType.large * volumeVariance)
-    const volumeT = volumeM + volumeS + volumeL // ✅ 計算總數
+    // ✅ 聯結車禁止進入，必定為 0
 
     // ✅ 正確計算各車型速度
     const speedM = Math.round(features.speed * speedVariance * (0.85 + Math.random() * 0.3))
     const speedS = Math.round(features.speed * speedVariance)
     const speedL = Math.round(features.speed * speedVariance * (0.7 + Math.random() * 0.3))
 
-    // ✅ 正確計算加權平均速度
-    const speedT = volumeT > 0 ? (speedM * volumeM + speedS * volumeS + speedL * volumeL) / volumeT : 0.0
+    // ✅ 聯結車禁止進入，不需計算 speedT
 
     const apiVDData = {
       VD_ID: 'VLRJX20',
@@ -365,12 +364,12 @@ export default class AutoTrafficGenerator {
       Volume_M: volumeM,
       Volume_S: volumeS,
       Volume_L: volumeL,
-      Volume_T: volumeT,
+      Volume_T: 0, // ✅ 聯結車禁止進入，必定為 0
       // 🎯 API 層：原始速度數據
       Speed_M: speedM,
       Speed_S: speedS,
       Speed_L: speedL,
-      Speed_T: speedT,
+      Speed_T: 0, // ✅ 聯結車禁止進入，必定為 0
       // 🎯 API 層：原始佔有率（不放大）
       Occupancy: Math.round(features.occupancy * occupancyVariance * 10) / 10,
     }
@@ -383,7 +382,7 @@ export default class AutoTrafficGenerator {
       Volume_M: Math.round(volumeM * displayMultiplier),
       Volume_S: Math.round(volumeS * displayMultiplier),
       Volume_L: Math.round(volumeL * displayMultiplier),
-      Volume_T: volumeT * displayMultiplier,
+      Volume_T: 0, // ✅ 聯結車禁止進入，必定為 0
       // 佔有率也放大以匹配視覺流量
       Occupancy: Math.round(features.occupancy * occupancyVariance * displayMultiplier * 10) / 10,
       // 標記這是視覺層數據

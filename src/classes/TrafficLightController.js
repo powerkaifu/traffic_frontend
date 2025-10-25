@@ -623,8 +623,8 @@ export default class TrafficLightController {
         Speed_S: speeds.small, // 小客車平均車速
         Volume_L: scaledLarge, // 大客車數量
         Speed_L: speeds.large, // 大客車平均車速
-        Volume_T: 0, // 聯結車數量（目前設為 0）
-        Speed_T: 0, // 聯結車平均車速（目前設為 0）
+        Volume_T: 0, // ✅ 聯結車數量（該縣市禁止聯結車進入）
+        Speed_T: 0, // ✅ 聯結車平均車速（該縣市禁止聯結車進入）
       })
     })
 

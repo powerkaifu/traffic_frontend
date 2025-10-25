@@ -217,8 +217,8 @@ export const mockDataGenerator = {
           Speed_S: Math.random() * 20 + 45,
           Volume_L: Math.floor(Math.random() * 50) + 10,
           Speed_L: Math.random() * 15 + 30,
-          Volume_T: Math.floor(Math.random() * 20) + 2,
-          Speed_T: Math.random() * 10 + 25,
+          Volume_T: 0, // ✅ 聯結車禁止進入，必定為 0
+          Speed_T: 0, // ✅ 聯結車禁止進入，必定為 0
           total_volume: 0, // 將在下面計算
           created_at: timestamp.toISOString(),
         })),
