@@ -168,6 +168,7 @@ WEATHER_SPEED_MULTIPLIERS: {
 **文件**: `src/classes/WeatherController.js`
 
 **方法**: `changeWeather()` (行 62)
+
 ```javascript
 changeWeather(weatherType) {
   this.currentWeather = weatherType
@@ -178,6 +179,7 @@ changeWeather(weatherType) {
 ```
 
 **廣播實現** (行 110-120):
+
 ```javascript
 broadcastWeatherChange(weather, multiplier) {
   window.dispatchEvent(
@@ -201,6 +203,7 @@ broadcastWeatherChange(weather, multiplier) {
 **文件**: `src/classes/Vehicle.js`
 
 **註冊監聽** (行 165-168):
+
 ```javascript
 const weatherChangeHandler = (event) => {
   this.onWeatherChanged(event.detail)
@@ -209,14 +212,15 @@ window.addEventListener('weatherChanged', weatherChangeHandler)
 ```
 
 **響應處理** (行 283-313):
+
 ```javascript
 onWeatherChanged(weatherData) {
   const { weather, multiplier } = weatherData
-  
+
   if (this.movementTimeline && !this.movementTimeline.paused()) {
     const currentTimeScale = this.movementTimeline.timeScale()
     const newTimeScale = currentTimeScale * (multiplier / (this.weatherMultiplier || 1.0))
-    
+
     this.weatherMultiplier = multiplier
     this.movementTimeline.timeScale(newTimeScale)  // 更新 GSAP 動畫速度
   }
@@ -232,6 +236,7 @@ onWeatherChanged(weatherData) {
 **文件**: `src/classes/Vehicle.js`
 
 **初始化** (行 731):
+
 ```javascript
 const weatherMultiplier = this.getWeatherSpeedMultiplier()
 const effectiveSpeed = Math.round(this.initialSpeed * weatherMultiplier)
@@ -239,6 +244,7 @@ this.currentSpeed = effectiveSpeed
 ```
 
 **getWeatherSpeedMultiplier() 方法** (行 505-507):
+
 ```javascript
 getWeatherSpeedMultiplier() {
   return VehiclePositionSpeedUtils.getWeatherSpeedMultiplier()
@@ -265,7 +271,7 @@ notifyDataCollector(action, additionalData = {}) {
     position: this.getCurrentPosition(),
     ...additionalData,
   }
-  
+
   window.dispatchEvent(
     new CustomEvent('vehicleAdded', {
       detail: eventData,
@@ -285,14 +291,14 @@ notifyDataCollector(action, additionalData = {}) {
 ```javascript
 this.vehicleAddedListener = (event) => {
   const { direction, type, vehicleId, speed, timestamp } = event.detail
-  
+
   this.recordVehicleData(direction, type, {
     vehicleId: vehicleId || `vehicle_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    speed: speed || 0,  // ✅ 從事件中取得已調整的速度
+    speed: speed || 0, // ✅ 從事件中取得已調整的速度
     timestamp: timestamp || new Date().toISOString(),
     action: 'added',
   })
-  
+
   this.calculateAverageSpeeds()
   this.calculateOccupancy()
 }
@@ -310,16 +316,16 @@ this.vehicleAddedListener = (event) => {
 calculateAverageSpeeds() {
   const directions = ['east', 'west', 'south', 'north']
   const vehicleTypes = ['motor', 'small', 'large']
-  
+
   directions.forEach((direction) => {
     let totalSpeed = 0
     let totalVehicles = 0
-    
+
     vehicleTypes.forEach((type) => {
       const vehicles = this.currentPeriodData.vehicles[direction][type]
       // ✅ 提取所有速度 (已包含天氣調整)
       const speeds = vehicles.filter((v) => v.speed && v.speed > 0).map((v) => v.speed)
-      
+
       if (speeds.length > 0) {
         const avgSpeed = speeds.reduce((sum, speed) => sum + speed, 0) / speeds.length
         this.currentPeriodData.averageSpeed[direction][type] = Math.round(avgSpeed)
@@ -327,9 +333,9 @@ calculateAverageSpeeds() {
         totalVehicles += speeds.length
       }
     })
-    
+
     // 計算整體平均速度
-    this.currentPeriodData.averageSpeed[direction].overall = 
+    this.currentPeriodData.averageSpeed[direction].overall =
       totalVehicles > 0 ? Math.round(totalSpeed / totalVehicles) : 0
   })
 }
@@ -349,7 +355,7 @@ collectIntersectionData() {
   const vdData = []
   const directions = ['east', 'west', 'south', 'north']
   const vehicleTypes = ['motor', 'small', 'large']
-  
+
   // ... 構建 vdData 數組，其中包含的所有速度都已含天氣調整
 }
 ```
@@ -388,6 +394,7 @@ const apiData = {
 ### 場景：晴天 (CLEAR) → 下雨 (RAIN)
 
 #### 時間 T=0 (晴天狀態)
+
 ```
 天氣: CLEAR
 倍數: 1.0x
@@ -397,6 +404,7 @@ GSAP timeScale: 1.0
 ```
 
 #### 時間 T=10s (用戶點擊 RAIN 按鈕)
+
 ```
 事件: weatherChanged { weather: "RAIN", multiplier: 0.8 }
 所有車輛監聽到事件
@@ -405,6 +413,7 @@ GSAP timeScale: 1.0
 ```
 
 #### 時間 T=11s (數據收集)
+
 ```
 車輛 1 - currentSpeed: 50 × 0.8 = 40 km/h
 車輛 2 - currentSpeed: 50 × 0.8 = 40 km/h
@@ -414,6 +423,7 @@ GSAP timeScale: 1.0
 ```
 
 #### 時間 T=12s (API 發送)
+
 ```
 POST /api/traffic/vd
 {
@@ -480,16 +490,23 @@ const speed = Math.round(baseSpeed * weatherMultiplier)
       "large_car_speed": 28,
       "occupancy": 22.0
     },
-    "south": { /* ... */ },
-    "north": { /* ... */ }
+    "south": {
+      /* ... */
+    },
+    "north": {
+      /* ... */
+    }
   },
   "weather": "RAIN",
   "weather_multiplier": 0.8,
-  "normalized_data": { /* 正規化後的數據 */ }
+  "normalized_data": {
+    /* 正規化後的數據 */
+  }
 }
 ```
 
 **關鍵點**:
+
 - ✅ 所有速度字段已包含天氣調整
 - ✅ `weather` 字段標識當前天氣類型
 - ✅ `weather_multiplier` 字段提供精確倍數
@@ -499,18 +516,18 @@ const speed = Math.round(baseSpeed * weatherMultiplier)
 
 ## ✅ 驗證結論
 
-| 驗證點 | 狀態 | 說明 |
-|--------|------|------|
-| 天氣倍數配置 | ✅ | weatherConfig.js 正確定義 0.6-1.0x 倍數 |
-| 事件廣播機制 | ✅ | WeatherController 正確廣播 weatherChanged 事件 |
-| Vehicle 監聽 | ✅ | 所有車輛監聽並响應天氣變化 |
-| timeScale 更新 | ✅ | GSAP 動畫速度立即改變 |
-| currentSpeed 計算 | ✅ | currentSpeed = initialSpeed × weatherMultiplier |
-| 數據通知 | ✅ | Vehicle 發送包含調整速度的 vehicleAdded 事件 |
-| 數據收集 | ✅ | TrafficDataCollector 正確接收天氣調整的速度 |
-| 數據聚合 | ✅ | calculateAverageSpeeds() 使用所有調整的速度 |
-| API 包含天氣字段 | ✅ | 發送 weather 和 weather_multiplier 字段 |
-| 後端接收 | ✅ | 完整數據包含天氣信息用於 AI 訓練 |
+| 驗證點            | 狀態 | 說明                                            |
+| ----------------- | ---- | ----------------------------------------------- |
+| 天氣倍數配置      | ✅   | weatherConfig.js 正確定義 0.6-1.0x 倍數         |
+| 事件廣播機制      | ✅   | WeatherController 正確廣播 weatherChanged 事件  |
+| Vehicle 監聽      | ✅   | 所有車輛監聽並响應天氣變化                      |
+| timeScale 更新    | ✅   | GSAP 動畫速度立即改變                           |
+| currentSpeed 計算 | ✅   | currentSpeed = initialSpeed × weatherMultiplier |
+| 數據通知          | ✅   | Vehicle 發送包含調整速度的 vehicleAdded 事件    |
+| 數據收集          | ✅   | TrafficDataCollector 正確接收天氣調整的速度     |
+| 數據聚合          | ✅   | calculateAverageSpeeds() 使用所有調整的速度     |
+| API 包含天氣字段  | ✅   | 發送 weather 和 weather_multiplier 字段         |
+| 後端接收          | ✅   | 完整數據包含天氣信息用於 AI 訓練                |
 
 ---
 
@@ -519,6 +536,7 @@ const speed = Math.round(baseSpeed * weatherMultiplier)
 ### 如何使用天氣數據進行 AI 訓練
 
 1. **特徵工程**:
+
    ```
    輸入特徵 = [車道數量, 車型分布, 速度, 天氣, 時間]
    輸出目標 = 預測下一個周期的流量

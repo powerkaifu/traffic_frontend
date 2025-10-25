@@ -11,6 +11,7 @@
 ### 初始狀態 (T=0s, 晴天)
 
 **配置**:
+
 ```
 天氣: CLEAR
 倍數: 1.0x
@@ -20,26 +21,28 @@
 **預期行為**:
 
 1. **車輛生成** (0-5s):
+
    ```
    東向:
    - 摩托車: 初速 60 km/h × 1.0 = 60 km/h
    - 小車:  初速 50 km/h × 1.0 = 50 km/h
    - 大車:  初速 40 km/h × 1.0 = 40 km/h
-   
+
    西向:
    - 摩托車: 60 km/h
    - 小車:  50 km/h
    - 大車:  40 km/h
-   
+
    (以此類推...)
    ```
 
 2. **數據收集** (5s):
+
    ```
    東向平均速度:
    = (60 + 50 + 40) / 3
    = 50 km/h (晴天基線)
-   
+
    API 負載:
    {
      "traffic_flow": {
@@ -59,6 +62,7 @@
 ### 天氣轉換 (T=5s, 用戶點擊 RAIN 按鈕)
 
 **事件觸發**:
+
 ```
 WeatherController.changeWeather('RAIN')
   ↓
@@ -71,6 +75,7 @@ WeatherController.changeWeather('RAIN')
 ```
 
 **實時響應** (T=5-6s):
+
 ```
 所有活動車輛監聽到事件
   ↓
@@ -90,6 +95,7 @@ currentSpeed 自動更新:
 ### 調整後狀態 (T=6-10s, 下雨)
 
 **數據收集** (T=10s):
+
 ```
 東向新平均速度:
 = (48 + 40 + 32) / 3
@@ -122,6 +128,7 @@ API 負載:
 ### 所有天氣類型轉換序列
 
 **初始設定**:
+
 - 基準速度: 50 km/h
 - 持續時間: 每個天氣 10 秒
 
@@ -138,6 +145,7 @@ T=40-50s:  SNOW     → avgSpeed = 30.0 km/h (0.6 × 50)
 ### 預期 API 負載序列
 
 **請求 1 (T=10s)**:
+
 ```json
 {
   "timestamp": "2024-01-15T10:30:10Z",
@@ -150,11 +158,12 @@ T=40-50s:  SNOW     → avgSpeed = 30.0 km/h (0.6 × 50)
 ```
 
 **請求 2 (T=20s)**:
+
 ```json
 {
   "timestamp": "2024-01-15T10:30:20Z",
   "traffic_flow": {
-    "east": { "average_speed": 40 }  // ✅ = 50 × 0.8
+    "east": { "average_speed": 40 } // ✅ = 50 × 0.8
   },
   "weather": "RAIN",
   "weather_multiplier": 0.8
@@ -162,11 +171,12 @@ T=40-50s:  SNOW     → avgSpeed = 30.0 km/h (0.6 × 50)
 ```
 
 **請求 3 (T=30s)**:
+
 ```json
 {
   "timestamp": "2024-01-15T10:30:30Z",
   "traffic_flow": {
-    "east": { "average_speed": 35 }  // ✅ = 50 × 0.7
+    "east": { "average_speed": 35 } // ✅ = 50 × 0.7
   },
   "weather": "HEAVY_RAIN",
   "weather_multiplier": 0.7
@@ -174,11 +184,12 @@ T=40-50s:  SNOW     → avgSpeed = 30.0 km/h (0.6 × 50)
 ```
 
 **請求 4 (T=40s)**:
+
 ```json
 {
   "timestamp": "2024-01-15T10:30:40Z",
   "traffic_flow": {
-    "east": { "average_speed": 37 }  // ✅ ≈ 50 × 0.75
+    "east": { "average_speed": 37 } // ✅ ≈ 50 × 0.75
   },
   "weather": "FOG",
   "weather_multiplier": 0.75
@@ -186,11 +197,12 @@ T=40-50s:  SNOW     → avgSpeed = 30.0 km/h (0.6 × 50)
 ```
 
 **請求 5 (T=50s)**:
+
 ```json
 {
   "timestamp": "2024-01-15T10:30:50Z",
   "traffic_flow": {
-    "east": { "average_speed": 30 }  // ✅ = 50 × 0.6
+    "east": { "average_speed": 30 } // ✅ = 50 × 0.6
   },
   "weather": "SNOW",
   "weather_multiplier": 0.6
@@ -199,13 +211,13 @@ T=40-50s:  SNOW     → avgSpeed = 30.0 km/h (0.6 × 50)
 
 ### 驗證指標
 
-| 天氣 | 倍數 | 基準速度 | 預期平均 | 實際平均 | 差異 | 狀態 |
-|------|------|---------|---------|---------|------|------|
-| CLEAR | 1.0x | 50 | 50.0 | 50.0 | ±0 | ✅ |
-| RAIN | 0.8x | 50 | 40.0 | 40.0 | ±0 | ✅ |
-| HEAVY_RAIN | 0.7x | 50 | 35.0 | 35.0 | ±0 | ✅ |
-| FOG | 0.75x | 50 | 37.5 | 37.5 | ±0 | ✅ |
-| SNOW | 0.6x | 50 | 30.0 | 30.0 | ±0 | ✅ |
+| 天氣       | 倍數  | 基準速度 | 預期平均 | 實際平均 | 差異 | 狀態 |
+| ---------- | ----- | -------- | -------- | -------- | ---- | ---- |
+| CLEAR      | 1.0x  | 50       | 50.0     | 50.0     | ±0   | ✅   |
+| RAIN       | 0.8x  | 50       | 40.0     | 40.0     | ±0   | ✅   |
+| HEAVY_RAIN | 0.7x  | 50       | 35.0     | 35.0     | ±0   | ✅   |
+| FOG        | 0.75x | 50       | 37.5     | 37.5     | ±0   | ✅   |
+| SNOW       | 0.6x  | 50       | 30.0     | 30.0     | ±0   | ✅   |
 
 ---
 
@@ -214,6 +226,7 @@ T=40-50s:  SNOW     → avgSpeed = 30.0 km/h (0.6 × 50)
 ### 複雜路況模擬
 
 **設定**:
+
 ```
 東向道路:
 - 摩托車 (初速 60 km/h) × 3 輛
@@ -256,6 +269,7 @@ T=40-50s:  SNOW     → avgSpeed = 30.0 km/h (0.6 × 50)
 ### 按車型的平均速度
 
 **晴天**:
+
 ```
 摩托車平均: 60 km/h
 小車平均:   50 km/h
@@ -264,6 +278,7 @@ T=40-50s:  SNOW     → avgSpeed = 30.0 km/h (0.6 × 50)
 ```
 
 **下雨**:
+
 ```
 摩托車平均: 48 km/h (60 × 0.8)
 小車平均:   40 km/h (50 × 0.8)
@@ -274,6 +289,7 @@ T=40-50s:  SNOW     → avgSpeed = 30.0 km/h (0.6 × 50)
 ### API 負載對比
 
 **晴天 API**:
+
 ```json
 {
   "traffic_flow": {
@@ -294,6 +310,7 @@ T=40-50s:  SNOW     → avgSpeed = 30.0 km/h (0.6 × 50)
 ```
 
 **下雨 API**:
+
 ```json
 {
   "traffic_flow": {
@@ -302,10 +319,10 @@ T=40-50s:  SNOW     → avgSpeed = 30.0 km/h (0.6 × 50)
       "small_car_count": 2,
       "large_car_count": 1,
       "total_count": 6,
-      "motor_speed": 48,        // ✅ 60 × 0.8
-      "small_car_speed": 40,    // ✅ 50 × 0.8
-      "large_car_speed": 32,    // ✅ 40 × 0.8
-      "average_speed": 43       // ✅ 53 × 0.8 (四捨五入)
+      "motor_speed": 48, // ✅ 60 × 0.8
+      "small_car_speed": 40, // ✅ 50 × 0.8
+      "large_car_speed": 32, // ✅ 40 × 0.8
+      "average_speed": 43 // ✅ 53 × 0.8 (四捨五入)
     }
   },
   "weather": "RAIN",
@@ -320,6 +337,7 @@ T=40-50s:  SNOW     → avgSpeed = 30.0 km/h (0.6 × 50)
 ### 測試新生成的車輛是否正確應用天氣倍數
 
 **設定**:
+
 ```
 時間: T=0-5s
 天氣: RAIN (multiplier = 0.8)
@@ -350,6 +368,7 @@ T=3s: 摩托車3 生成
 ### 數據收集
 
 **T=5s 收集**:
+
 ```
 摩托車生成數: 5
 平均速度: (48 + 48 + 48 + 48 + 48) / 5 = 48 km/h
@@ -364,7 +383,7 @@ T=3s: 摩托車3 生成
   "traffic_flow": {
     "east": {
       "motor_count": 5,
-      "motor_speed": 48,        // ✅ 60 × 0.8
+      "motor_speed": 48, // ✅ 60 × 0.8
       "average_speed": 48
     }
   },
@@ -427,12 +446,14 @@ T=3s: 摩托車3 生成
 ### 如果平均速度不正確
 
 1. **檢查 currentSpeed 計算**:
+
    ```javascript
    // 檢查 Vehicle.js line 734
    const effectiveSpeed = Math.round(this.initialSpeed * weatherMultiplier)
    ```
 
 2. **檢查天氣倍數**:
+
    ```javascript
    // 檢查 weatherConfig.js line 131-177
    // 確保倍數值正確
@@ -447,6 +468,7 @@ T=3s: 摩托車3 生成
 ### 如果 API 沒有天氣字段
 
 1. **檢查天氣字段是否添加**:
+
    ```javascript
    // 檢查 TrafficLightController.js line 803-804
    // weather: currentWeather
@@ -463,6 +485,7 @@ T=3s: 摩托車3 生成
 ## 結論
 
 透過這些測試場景，可以完整驗證:
+
 1. ✅ 天氣系統正確改變車輛速度
 2. ✅ 速度改變正確反映在數據收集中
 3. ✅ API 包含天氣相關信息

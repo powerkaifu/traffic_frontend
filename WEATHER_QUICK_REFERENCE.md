@@ -9,34 +9,38 @@
 ## 🎯 快速答案
 
 ### Q: 天氣是否會影響被收集的車輛數據?
+
 **A: 是的，完全影響。✅**
 
 ### Q: 速度是如何受到影響的?
+
 **A: 通過 GSAP timeScale 改變運動速度，從而改變 currentSpeed 值**
 
 ### Q: 後端是否會接收到天氣信息?
+
 **A: 是的，包括 weather 和 weather_multiplier 字段**
 
 ### Q: 50週訓練數據是否能利用天氣特性?
+
 **A: 是的，所有數據都包含天氣倍數信息可用於特徵工程**
 
 ---
 
 ## 📍 關鍵代碼位置
 
-| 功能 | 文件 | 行號 | 說明 |
-|------|------|------|------|
-| 天氣切換 | WeatherController.js | 62 | changeWeather() 方法 |
-| 事件廣播 | WeatherController.js | 110-120 | broadcastWeatherChange() |
-| 監聽註冊 | Vehicle.js | 165-168 | 構造時註冊監聽器 |
-| 速度更新 | Vehicle.js | 283-313 | onWeatherChanged() 更新 timeScale |
-| 速度計算 | Vehicle.js | 731-734 | currentSpeed = initialSpeed × multiplier |
-| 數據通知 | Vehicle.js | 266 | 發送 currentSpeed 在事件中 |
-| 數據接收 | TrafficDataCollector.js | 149-156 | vehicleAddedListener 提取速度 |
-| 速度聚合 | TrafficDataCollector.js | 267-290 | calculateAverageSpeeds() |
-| 數據收集 | TrafficLightController.js | 533 | collectIntersectionData() |
-| API 字段 | TrafficLightController.js | 803-804 | 添加 weather 和 weather_multiplier |
-| 配置 | weatherConfig.js | 131-177 | WEATHER_SPEED_MULTIPLIERS |
+| 功能     | 文件                      | 行號    | 說明                                     |
+| -------- | ------------------------- | ------- | ---------------------------------------- |
+| 天氣切換 | WeatherController.js      | 62      | changeWeather() 方法                     |
+| 事件廣播 | WeatherController.js      | 110-120 | broadcastWeatherChange()                 |
+| 監聽註冊 | Vehicle.js                | 165-168 | 構造時註冊監聽器                         |
+| 速度更新 | Vehicle.js                | 283-313 | onWeatherChanged() 更新 timeScale        |
+| 速度計算 | Vehicle.js                | 731-734 | currentSpeed = initialSpeed × multiplier |
+| 數據通知 | Vehicle.js                | 266     | 發送 currentSpeed 在事件中               |
+| 數據接收 | TrafficDataCollector.js   | 149-156 | vehicleAddedListener 提取速度            |
+| 速度聚合 | TrafficDataCollector.js   | 267-290 | calculateAverageSpeeds()                 |
+| 數據收集 | TrafficLightController.js | 533     | collectIntersectionData()                |
+| API 字段 | TrafficLightController.js | 803-804 | 添加 weather 和 weather_multiplier       |
+| 配置     | weatherConfig.js          | 131-177 | WEATHER_SPEED_MULTIPLIERS                |
 
 ---
 
@@ -70,13 +74,13 @@ API payload 包含 speed (已調整) + weather 字段
 
 ## 🎬 天氣倍數表
 
-| 天氣類型 | 倍數 | 舊速度 | 新速度 |
-|---------|------|--------|--------|
-| CLEAR | 1.0x | 50 km/h | 50 km/h |
-| RAIN | 0.8x | 50 km/h | 40 km/h |
-| HEAVY_RAIN | 0.7x | 50 km/h | 35 km/h |
-| FOG | 0.75x | 50 km/h | 37.5 km/h |
-| SNOW | 0.6x | 50 km/h | 30 km/h |
+| 天氣類型   | 倍數  | 舊速度  | 新速度    |
+| ---------- | ----- | ------- | --------- |
+| CLEAR      | 1.0x  | 50 km/h | 50 km/h   |
+| RAIN       | 0.8x  | 50 km/h | 40 km/h   |
+| HEAVY_RAIN | 0.7x  | 50 km/h | 35 km/h   |
+| FOG        | 0.75x | 50 km/h | 37.5 km/h |
+| SNOW       | 0.6x  | 50 km/h | 30 km/h   |
 
 ---
 
@@ -117,7 +121,7 @@ API payload 包含 speed (已調整) + weather 字段
      "weather_multiplier": 0.8,
      "traffic_flow": {
        "east": {
-         "average_speed": 40  // 已調整的速度
+         "average_speed": 40 // 已調整的速度
        }
      }
    }
@@ -155,6 +159,7 @@ features = {
 ### 數據集覆蓋
 
 50 週的數據現在已包含:
+
 - 晴天數據 (CLEAR, multiplier = 1.0x)
 - 下雨數據 (RAIN, multiplier = 0.8x)
 - 大雨數據 (HEAVY_RAIN, multiplier = 0.7x)
