@@ -18,14 +18,14 @@ export const TIME_PERIODS = {
   off_peak: {
     name: '離峰時段',
     icon: '🌞',
-    hours: [9, 10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23],
-    description: '午間離峰(09:00-19:00)和晚間離峰(19:00-23:00)',
+    hours: [10, 11, 12, 13, 14, 15, 16, 20, 21, 22, 23],
+    description: '午間離峰(10:00-16:00)和晚間離峰(20:00-23:00)',
   },
   late_night: {
     name: '凌晨時段',
     icon: '🌙',
     hours: [0, 1, 2, 3, 4, 5, 6],
-    description: '凌晨離峰(00:00-07:00)',
+    description: '凌晨離峰(00:00-06:00)',
   },
 }
 
@@ -124,7 +124,7 @@ export const VLRJM60_NORMALIZATION = {
     displayMultiplier: 3.0, // 離峰倍數較低
   },
 
-  // 凌晨時段 (00:00-07:00)
+  // 凌晨時段 (00:00-06:00)
   late_night: {
     volume: {
       min: 0,
@@ -149,7 +149,7 @@ export const VLRJM60_NORMALIZATION = {
       small: 0.56,
       large: 0.04,
     },
-    displayMultiplier: 1.5, // 凌晨倍數最低
+    displayMultiplier: 1.3, // 凌晨倍數 1.3x
   },
 }
 
@@ -208,7 +208,7 @@ export const VLRJX00_NORMALIZATION = {
       small: 0.63,
       large: 0.05,
     },
-    displayMultiplier: 2.8,
+    displayMultiplier: 2.9,
   },
 
   late_night: {
