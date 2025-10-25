@@ -2,7 +2,7 @@
  * AutoTrafficGenerator.js - 自動車流分派系統
  */
 import { getScenarioByTime, getScenarioByKey, defaultConfig } from './config/trafficScenarioConfig.js'
-import { FOLLOWING_CONFIG } from './config/vehicleConfig.js'
+import { FOLLOWING_CONFIG, GENERATION_CONFIG } from './config/vehicleConfig.js'
 import VDNormalizationUtils from './utils/VDNormalizationUtils.js'
 import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
 
@@ -132,7 +132,31 @@ export default class AutoTrafficGenerator {
     }
   }
 
-  // 🔧 新增：統一清除情景模式計時器和狀態（避免重複造輪子）
+  // � 新增：根據當前時間段獲取生成間隔（秒）
+  getGenerationIntervalForCurrentTime() {
+    // 獲取當前時間（若在自動模式則使用模擬時間，否則使用實際時間）
+    const timeToUse = this.isAutoMode ? this.simulationTime : new Date()
+    const hour = timeToUse.getHours()
+
+    // 根據時間段判斷
+    if (hour >= 0 && hour < 7) {
+      // 午夜段 (00:00-06:59)
+      return GENERATION_CONFIG.GENERATION_INTERVALS.MIDNIGHT
+    } else if ((hour >= 7 && hour < 10) || (hour >= 17 && hour < 20)) {
+      // 尖峰時段 (07:00-09:59, 17:00-19:59)
+      return GENERATION_CONFIG.GENERATION_INTERVALS.PEAK
+    } else {
+      // 離峰時段 (10:00-16:59, 20:00-23:59)
+      return GENERATION_CONFIG.GENERATION_INTERVALS.OFF_PEAK
+    }
+  }
+
+  // 🚗 新增：根據時間段獲取最大車輛數
+  getMaxVehiclesForCurrentTime() {
+    return GENERATION_CONFIG.MAX_VEHICLES_PER_LANE
+  }
+
+  // �🔧 新增：統一清除情景模式計時器和狀態（避免重複造輪子）
   _stopScenarioModeLoop() {
     if (this.scenarioModeTimer) {
       clearInterval(this.scenarioModeTimer)

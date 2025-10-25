@@ -13,6 +13,8 @@ import VehicleConfig, {
   DISTANCE_CONFIG,
   FOLLOWING_CONFIG,
   COLLISION_CONFIG,
+  GENERATION_CONFIG,
+  VEHICLE_EXIT_CONFIG,
 } from './config/vehicleConfig.js' // 🚀 整合：車輛行為配置
 import { STOP_LINE_CONFIG } from './config/stopLineConfig.js' // 🚀 導入：停止線配置
 import {
@@ -1416,6 +1418,26 @@ export default class Vehicle {
         }
       }, 100) // 延遲100毫秒開始移動，讓車輛有時間初始化
     })
+  }
+
+  // 🚗 新增：檢查車輛是否已超出容器邊界
+  isVehicleExited() {
+    if (!this.element) {
+      return false
+    }
+
+    const currentPos = this.getCurrentPosition()
+    const containerWidth = window.innerWidth || document.body.clientWidth
+    const containerHeight = window.innerHeight || document.body.clientHeight
+    const margin = VEHICLE_EXIT_CONFIG.BOUNDARY_MARGIN
+
+    // 檢查車輛是否超出邊界
+    const exitedLeft = currentPos.x < -margin
+    const exitedRight = currentPos.x > containerWidth + margin
+    const exitedTop = currentPos.y < -margin
+    const exitedBottom = currentPos.y > containerHeight + margin
+
+    return exitedLeft || exitedRight || exitedTop || exitedBottom
   }
 
   // Template Method Pattern: 移除車輛的清理模板方法

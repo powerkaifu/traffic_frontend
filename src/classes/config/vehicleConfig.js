@@ -215,6 +215,31 @@ export const COLLISION_CONFIG = {
   SIMPLE_CHECK_INTERVAL: 50, // 簡單碰撞檢查間隔（優化：更頻繁的檢查）
 }
 
+// ===== 生成間隔設定 =====
+export const GENERATION_CONFIG = {
+  // 🚗 每個車道的最大車輛數
+  MAX_VEHICLES_PER_LANE: 25,
+
+  // 🚗 車道入口最小間距
+  LANE_ENTRANCE_MIN_SPACING: 20,
+
+  // ⏰ 時間段生成間隔設定（秒）
+  GENERATION_INTERVALS: {
+    MIDNIGHT: 3.0, // 午夜段 (00:00-06:59)
+    PEAK: 0.5, // 尖峰時段 (07:00-09:59, 17:00-19:59)
+    OFF_PEAK: 1.5, // 離峰時段 (10:00-16:59, 20:00-23:59)
+  },
+}
+
+// ===== 車輛退出檢測設定 =====
+export const VEHICLE_EXIT_CONFIG = {
+  // 🚗 車輛超出邊界的檢測範圍（像素）
+  BOUNDARY_MARGIN: 50,
+
+  // 🔄 檢測間隔（毫秒）
+  CHECK_INTERVAL: 100,
+}
+
 // ===== 匯出所有設定 =====
 export default {
   ANIMATION_CONFIG,
@@ -222,4 +247,6 @@ export default {
   DISTANCE_CONFIG,
   FOLLOWING_CONFIG,
   COLLISION_CONFIG,
+  GENERATION_CONFIG,
+  VEHICLE_EXIT_CONFIG,
 }
