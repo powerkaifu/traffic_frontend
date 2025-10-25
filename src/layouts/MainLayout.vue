@@ -128,7 +128,7 @@
           </div>
         </div>
 
-        <!-- 數據展示區域 -->
+        <!-- 特徵模擬數據 -->
         <div class="data-section">
           <div class="data-section-buttons">
             <div class="top-buttons">
@@ -139,152 +139,360 @@
             <div class="traffic-data-grid">
               <!-- Data cells... -->
               <div class="traffic-zone east-zone">
+                <div class="zone-title">東向 (VLRJX20)</div>
                 <div class="zone-data">
                   <div class="data-row main-stats">
                     <span class="data-label">平均車速</span>
-                    <span class="data-value">{{ eastData.averageSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${eastData.before.averageSpeed} km/h`">
+                      {{ eastData.after.averageSpeed }}
+                      <span v-if="eastData.isNormalized" class="normalized-badge"
+                        >({{ eastData.before.averageSpeed }})</span
+                      >
+                    </span>
                   </div>
                   <div class="data-row main-stats">
                     <span class="data-label">占用率</span>
-                    <span class="data-value">{{ eastData.occupancy }} %</span>
+                    <span class="data-value" :title="`正規化前: ${eastData.before.occupancy}%`">
+                      {{ eastData.after.occupancy.toFixed(1) }}%
+                      <span v-if="eastData.isNormalized" class="normalized-badge"
+                        >({{ eastData.before.occupancy.toFixed(1) }}%)</span
+                      >
+                    </span>
                   </div>
+                  <!-- 機車流量 -->
                   <div class="data-row">
                     <span class="data-label">機車流量</span>
-                    <span class="data-value">{{ eastData.motorFlow }} 輛</span>
+                    <span class="data-value" :title="`正規化前: ${eastData.before.motorFlow} 輛`">
+                      {{ eastData.after.motorFlow
+                      }}<span v-if="eastData.isNormalized" class="normalized-badge"
+                        >({{ eastData.before.motorFlow }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 小型車流量 -->
                   <div class="data-row">
                     <span class="data-label">小型車流量</span>
-                    <span class="data-value">{{ eastData.smallCarFlow }} 輛</span>
+                    <span class="data-value" :title="`正規化前: ${eastData.before.smallCarFlow} 輛`">
+                      {{ eastData.after.smallCarFlow
+                      }}<span v-if="eastData.isNormalized" class="normalized-badge"
+                        >({{ eastData.before.smallCarFlow }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 大型車流量 -->
                   <div class="data-row">
                     <span class="data-label">大型車流量</span>
-                    <span class="data-value">{{ eastData.largeCarFlow }} 輛</span>
+                    <span class="data-value" :title="`正規化前: ${eastData.before.largeCarFlow} 輛`">
+                      {{ eastData.after.largeCarFlow
+                      }}<span v-if="eastData.isNormalized" class="normalized-badge"
+                        >({{ eastData.before.largeCarFlow }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 機車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">機車平均速率</span>
-                    <span class="data-value">{{ eastData.motorSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${eastData.before.motorSpeed} km/h`">
+                      {{ eastData.after.motorSpeed
+                      }}<span v-if="eastData.isNormalized" class="normalized-badge"
+                        >({{ eastData.before.motorSpeed }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 小型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">小型車平均速率</span>
-                    <span class="data-value">{{ eastData.smallCarSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${eastData.before.smallCarSpeed} km/h`">
+                      {{ eastData.after.smallCarSpeed
+                      }}<span v-if="eastData.isNormalized" class="normalized-badge"
+                        >({{ eastData.before.smallCarSpeed }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 大型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">大型車平均速率</span>
-                    <span class="data-value">{{ eastData.largeCarSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${eastData.before.largeCarSpeed} km/h`">
+                      {{ eastData.after.largeCarSpeed
+                      }}<span v-if="eastData.isNormalized" class="normalized-badge"
+                        >({{ eastData.before.largeCarSpeed }})</span
+                      >
+                    </span>
+                  </div>
+                  <!-- 正規化信息 -->
+                  <div v-if="eastData.isNormalized" class="normalization-info">
+                    <span class="time-period">📍 {{ eastData.period }}</span>
+                    <span class="multiplier">倍數 {{ eastData.multiplier }}x</span>
                   </div>
                 </div>
               </div>
 
               <!-- 右上：往西 -->
               <div class="traffic-zone west-zone">
+                <div class="zone-title">西向 (VLRJM60)</div>
                 <div class="zone-data">
                   <div class="data-row main-stats">
                     <span class="data-label">平均車速</span>
-                    <span class="data-value">{{ westData.averageSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${westData.before.averageSpeed} km/h`">
+                      {{ westData.after.averageSpeed }}
+                      <span v-if="westData.isNormalized" class="normalized-badge"
+                        >({{ westData.before.averageSpeed }})</span
+                      >
+                    </span>
                   </div>
                   <div class="data-row main-stats">
                     <span class="data-label">占用率</span>
-                    <span class="data-value">{{ westData.occupancy }} %</span>
+                    <span class="data-value" :title="`正規化前: ${westData.before.occupancy}%`">
+                      {{ westData.after.occupancy.toFixed(1) }}%
+                      <span v-if="westData.isNormalized" class="normalized-badge"
+                        >({{ westData.before.occupancy.toFixed(1) }}%)</span
+                      >
+                    </span>
                   </div>
+                  <!-- 機車流量 -->
                   <div class="data-row">
                     <span class="data-label">機車流量</span>
-                    <span class="data-value">{{ westData.motorFlow }} 輛</span>
+                    <span class="data-value" :title="`正規化前: ${westData.before.motorFlow} 輛`">
+                      {{ westData.after.motorFlow
+                      }}<span v-if="westData.isNormalized" class="normalized-badge"
+                        >({{ westData.before.motorFlow }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 小型車流量 -->
                   <div class="data-row">
                     <span class="data-label">小型車流量</span>
-                    <span class="data-value">{{ westData.smallCarFlow }} 輛</span>
+                    <span class="data-value" :title="`正規化前: ${westData.before.smallCarFlow} 輛`">
+                      {{ westData.after.smallCarFlow
+                      }}<span v-if="westData.isNormalized" class="normalized-badge"
+                        >({{ westData.before.smallCarFlow }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 大型車流量 -->
                   <div class="data-row">
                     <span class="data-label">大型車流量</span>
-                    <span class="data-value">{{ westData.largeCarFlow }} 輛</span>
+                    <span class="data-value" :title="`正規化前: ${westData.before.largeCarFlow} 輛`">
+                      {{ westData.after.largeCarFlow
+                      }}<span v-if="westData.isNormalized" class="normalized-badge"
+                        >({{ westData.before.largeCarFlow }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 機車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">機車平均速率</span>
-                    <span class="data-value">{{ westData.motorSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${westData.before.motorSpeed} km/h`">
+                      {{ westData.after.motorSpeed
+                      }}<span v-if="westData.isNormalized" class="normalized-badge"
+                        >({{ westData.before.motorSpeed }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 小型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">小型車平均速率</span>
-                    <span class="data-value">{{ westData.smallCarSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${westData.before.smallCarSpeed} km/h`">
+                      {{ westData.after.smallCarSpeed
+                      }}<span v-if="westData.isNormalized" class="normalized-badge"
+                        >({{ westData.before.smallCarSpeed }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 大型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">大型車平均速率</span>
-                    <span class="data-value">{{ westData.largeCarSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${westData.before.largeCarSpeed} km/h`">
+                      {{ westData.after.largeCarSpeed
+                      }}<span v-if="westData.isNormalized" class="normalized-badge"
+                        >({{ westData.before.largeCarSpeed }})</span
+                      >
+                    </span>
+                  </div>
+                  <!-- 正規化信息 -->
+                  <div v-if="westData.isNormalized" class="normalization-info">
+                    <span class="time-period">📍 {{ westData.period }}</span>
+                    <span class="multiplier">倍數 {{ westData.multiplier }}x</span>
                   </div>
                 </div>
               </div>
 
               <!-- 左下：往南 -->
               <div class="traffic-zone south-zone">
+                <div class="zone-title">南向 (VLRJX00)</div>
                 <div class="zone-data">
                   <div class="data-row main-stats">
                     <span class="data-label">平均車速</span>
-                    <span class="data-value">{{ southData.averageSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${southData.before.averageSpeed} km/h`">
+                      {{ southData.after.averageSpeed }}
+                      <span v-if="southData.isNormalized" class="normalized-badge"
+                        >({{ southData.before.averageSpeed }})</span
+                      >
+                    </span>
                   </div>
                   <div class="data-row main-stats">
                     <span class="data-label">占用率</span>
-                    <span class="data-value">{{ southData.occupancy }} %</span>
+                    <span class="data-value" :title="`正規化前: ${southData.before.occupancy}%`">
+                      {{ southData.after.occupancy.toFixed(1) }}%
+                      <span v-if="southData.isNormalized" class="normalized-badge"
+                        >({{ southData.before.occupancy.toFixed(1) }}%)</span
+                      >
+                    </span>
                   </div>
+                  <!-- 機車流量 -->
                   <div class="data-row">
                     <span class="data-label">機車流量</span>
-                    <span class="data-value">{{ southData.motorFlow }} 輛</span>
+                    <span class="data-value" :title="`正規化前: ${southData.before.motorFlow} 輛`">
+                      {{ southData.after.motorFlow
+                      }}<span v-if="southData.isNormalized" class="normalized-badge"
+                        >({{ southData.before.motorFlow }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 小型車流量 -->
                   <div class="data-row">
                     <span class="data-label">小型車流量</span>
-                    <span class="data-value">{{ southData.smallCarFlow }} 輛</span>
+                    <span class="data-value" :title="`正規化前: ${southData.before.smallCarFlow} 輛`">
+                      {{ southData.after.smallCarFlow
+                      }}<span v-if="southData.isNormalized" class="normalized-badge"
+                        >({{ southData.before.smallCarFlow }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 大型車流量 -->
                   <div class="data-row">
                     <span class="data-label">大型車流量</span>
-                    <span class="data-value">{{ southData.largeCarFlow }} 輛</span>
+                    <span class="data-value" :title="`正規化前: ${southData.before.largeCarFlow} 輛`">
+                      {{ southData.after.largeCarFlow
+                      }}<span v-if="southData.isNormalized" class="normalized-badge"
+                        >({{ southData.before.largeCarFlow }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 機車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">機車平均速率</span>
-                    <span class="data-value">{{ southData.motorSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${southData.before.motorSpeed} km/h`">
+                      {{ southData.after.motorSpeed
+                      }}<span v-if="southData.isNormalized" class="normalized-badge"
+                        >({{ southData.before.motorSpeed }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 小型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">小型車平均速率</span>
-                    <span class="data-value">{{ southData.smallCarSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${southData.before.smallCarSpeed} km/h`">
+                      {{ southData.after.smallCarSpeed
+                      }}<span v-if="southData.isNormalized" class="normalized-badge"
+                        >({{ southData.before.smallCarSpeed }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 大型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">大型車平均速率</span>
-                    <span class="data-value">{{ southData.largeCarSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${southData.before.largeCarSpeed} km/h`">
+                      {{ southData.after.largeCarSpeed
+                      }}<span v-if="southData.isNormalized" class="normalized-badge"
+                        >({{ southData.before.largeCarSpeed }})</span
+                      >
+                    </span>
+                  </div>
+                  <!-- 正規化信息 -->
+                  <div v-if="southData.isNormalized" class="normalization-info">
+                    <span class="time-period">📍 {{ southData.period }}</span>
+                    <span class="multiplier">倍數 {{ southData.multiplier }}x</span>
                   </div>
                 </div>
               </div>
 
               <!-- 右下：往北 -->
               <div class="traffic-zone north-zone">
+                <div class="zone-title">北向 (VLRJX00)</div>
                 <div class="zone-data">
                   <div class="data-row main-stats">
                     <span class="data-label">平均車速</span>
-                    <span class="data-value">{{ northData.averageSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${northData.before.averageSpeed} km/h`">
+                      {{ northData.after.averageSpeed }}
+                      <span v-if="northData.isNormalized" class="normalized-badge"
+                        >({{ northData.before.averageSpeed }})</span
+                      >
+                    </span>
                   </div>
                   <div class="data-row main-stats">
                     <span class="data-label">占用率</span>
-                    <span class="data-value">{{ northData.occupancy }} %</span>
+                    <span class="data-value" :title="`正規化前: ${northData.before.occupancy}%`">
+                      {{ northData.after.occupancy.toFixed(1) }}%
+                      <span v-if="northData.isNormalized" class="normalized-badge"
+                        >({{ northData.before.occupancy.toFixed(1) }}%)</span
+                      >
+                    </span>
                   </div>
+                  <!-- 機車流量 -->
                   <div class="data-row">
                     <span class="data-label">機車流量</span>
-                    <span class="data-value">{{ northData.motorFlow }} 輛</span>
+                    <span class="data-value" :title="`正規化前: ${northData.before.motorFlow} 輛`">
+                      {{ northData.after.motorFlow
+                      }}<span v-if="northData.isNormalized" class="normalized-badge"
+                        >({{ northData.before.motorFlow }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 小型車流量 -->
                   <div class="data-row">
                     <span class="data-label">小型車流量</span>
-                    <span class="data-value">{{ northData.smallCarFlow }} 輛</span>
+                    <span class="data-value" :title="`正規化前: ${northData.before.smallCarFlow} 輛`">
+                      {{ northData.after.smallCarFlow
+                      }}<span v-if="northData.isNormalized" class="normalized-badge"
+                        >({{ northData.before.smallCarFlow }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 大型車流量 -->
                   <div class="data-row">
                     <span class="data-label">大型車流量</span>
-                    <span class="data-value">{{ northData.largeCarFlow }} 輛</span>
+                    <span class="data-value" :title="`正規化前: ${northData.before.largeCarFlow} 輛`">
+                      {{ northData.after.largeCarFlow
+                      }}<span v-if="northData.isNormalized" class="normalized-badge"
+                        >({{ northData.before.largeCarFlow }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 機車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">機車平均速率</span>
-                    <span class="data-value">{{ northData.motorSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${northData.before.motorSpeed} km/h`">
+                      {{ northData.after.motorSpeed
+                      }}<span v-if="northData.isNormalized" class="normalized-badge"
+                        >({{ northData.before.motorSpeed }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 小型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">小型車平均速率</span>
-                    <span class="data-value">{{ northData.smallCarSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${northData.before.smallCarSpeed} km/h`">
+                      {{ northData.after.smallCarSpeed
+                      }}<span v-if="northData.isNormalized" class="normalized-badge"
+                        >({{ northData.before.smallCarSpeed }})</span
+                      >
+                    </span>
                   </div>
+                  <!-- 大型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">大型車平均速率</span>
-                    <span class="data-value">{{ northData.largeCarSpeed }} km/h</span>
+                    <span class="data-value" :title="`正規化前: ${northData.before.largeCarSpeed} km/h`">
+                      {{ northData.after.largeCarSpeed
+                      }}<span v-if="northData.isNormalized" class="normalized-badge"
+                        >({{ northData.before.largeCarSpeed }})</span
+                      >
+                    </span>
+                  </div>
+                  <!-- 正規化信息 -->
+                  <div v-if="northData.isNormalized" class="normalization-info">
+                    <span class="time-period">📍 {{ northData.period }}</span>
+                    <span class="multiplier">倍數 {{ northData.multiplier }}x</span>
                   </div>
                 </div>
               </div>
@@ -425,10 +633,91 @@ function getTrafficData(dir) {
     largeCarSpeed: 0,
   }
 }
-const eastData = computed(() => getTrafficData('east'))
-const westData = computed(() => getTrafficData('west'))
-const southData = computed(() => getTrafficData('south'))
-const northData = computed(() => getTrafficData('north'))
+
+/**
+ * 🎯【新增】獲取正規化對比數據
+ * 返回格式: { before: 前端數據, after: 正規化後數據, period: 時段, multiplier: 倍數 }
+ */
+function getNormalizedTrafficData(dir) {
+  // 獲取前端原始數據 (正規化前)
+  const frontendData = getTrafficData(dir)
+
+  // 如果沒有正規化函數，直接返回
+  if (!window.VDNormalizationUtils) {
+    return {
+      before: frontendData,
+      after: frontendData,
+      period: 'unknown',
+      multiplier: 1,
+      isNormalized: false,
+    }
+  }
+
+  try {
+    // 取得當前時段
+    const { getCurrentTimePeriod } = window
+    const period = getCurrentTimePeriod?.() || 'unknown'
+
+    // 準備前端數據結構
+    const frontendDataForNormalization = {
+      volume: frontendData.motorFlow + frontendData.smallCarFlow + frontendData.largeCarFlow,
+      speed: frontendData.averageSpeed,
+      occupancy: frontendData.occupancy,
+      volume_m: frontendData.motorFlow,
+      volume_s: frontendData.smallCarFlow,
+      volume_l: frontendData.largeCarFlow,
+    }
+
+    // 根據方向確定路口 ID
+    let intersectionId = 'VLRJM60'
+    if (dir === 'east') intersectionId = 'VLRJX20'
+    else if (dir === 'west') intersectionId = 'VLRJM60'
+    else if (dir === 'south' || dir === 'north') intersectionId = 'VLRJX00'
+
+    // 獲取倍數
+    const multiplier = window.VDNormalizationUtils?.getDisplayMultiplier?.(intersectionId) || 1
+
+    // 執行正規化轉換
+    const normalizedData =
+      window.VDNormalizationUtils.denormalizeToVDRange?.(frontendDataForNormalization, intersectionId, period) ||
+      frontendDataForNormalization
+
+    // 返回正規化前後的對比數據
+    return {
+      before: {
+        ...frontendData,
+        totalFlow: frontendDataForNormalization.volume,
+      },
+      after: {
+        averageSpeed: normalizedData.speed || 0,
+        occupancy: normalizedData.occupancy * 100 || 0,
+        motorFlow: Math.round(normalizedData.volume_m || 0),
+        smallCarFlow: Math.round(normalizedData.volume_s || 0),
+        largeCarFlow: Math.round(normalizedData.volume_l || 0),
+        motorSpeed: frontendData.motorSpeed,
+        smallCarSpeed: frontendData.smallCarSpeed,
+        largeCarSpeed: frontendData.largeCarSpeed,
+        totalFlow: Math.round(normalizedData.volume || 0),
+      },
+      period,
+      multiplier,
+      isNormalized: true,
+    }
+  } catch (error) {
+    console.warn(`⚠️ [正規化數據] 無法取得正規化數據: ${error.message}`)
+    return {
+      before: frontendData,
+      after: frontendData,
+      period: 'error',
+      multiplier: 1,
+      isNormalized: false,
+    }
+  }
+}
+const eastData = computed(() => getNormalizedTrafficData('east'))
+const westData = computed(() => getNormalizedTrafficData('west'))
+const southData = computed(() => getNormalizedTrafficData('south'))
+const northData = computed(() => getNormalizedTrafficData('north'))
 
 function setupListeners() {
   const upd = () => forceUpdateTrigger.value++
@@ -1046,6 +1335,18 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
+  position: relative;
+}
+
+.zone-title {
+  position: absolute;
+  top: -18px;
+  right: 10px;
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  opacity: 0.9;
+  text-align: right;
 }
 
 .east-zone {
@@ -1073,6 +1374,7 @@ onUnmounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
+  padding-top: 5px;
 }
 
 .data-row {
@@ -1349,6 +1651,44 @@ onUnmounted(() => {
 
   .main-stats .data-value {
     font-size: 15px;
+  }
+
+  /* 正規化標記樣式 */
+  .normalized-badge {
+    color: #ffd700;
+    font-size: 0.85em;
+    margin-left: 2px;
+    opacity: 0.9;
+    font-weight: 500;
+  }
+
+  .data-value[title] {
+    cursor: help;
+    border-bottom: 1px dotted rgba(255, 255, 255, 0.3);
+  }
+
+  /* 正規化信息區塊 */
+  .normalization-info {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 12px;
+    color: #aaa;
+  }
+
+  .normalization-info .time-period,
+  .normalization-info .multiplier {
+    display: inline-block;
+  }
+
+  .normalization-info .time-period {
+    color: #87ceeb;
+  }
+
+  .normalization-info .multiplier {
+    color: #ffd700;
   }
 }
 </style>
