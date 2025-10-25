@@ -126,6 +126,93 @@ export const PERFORMANCE_CONFIG = {
   UPDATE_INTERVAL: 16, // 更新間隔（毫秒，約60fps）
 }
 
+// ===== 🌤️ 天氣速度倍數設定（可調參數）=====
+// 【重要】調整這些值來改變天氣對車速的影響
+export const WEATHER_SPEED_MULTIPLIERS = {
+  // 晴天
+  [WEATHER_TYPES.CLEAR]: {
+    name: '晴天',
+    multiplier: 1.0, // 100% 正常速度
+    description: '晴朗無雲，交通流暢',
+  },
+
+  // 雨天 - 三個等級
+  [WEATHER_TYPES.RAIN]: {
+    name: '雨天',
+    multiplier: 0.8, // 80% 速度（建議值）
+    description: '中等雨量，降速 20%',
+    // 詳細設定（可選）
+    detailed: {
+      LIGHT: 0.9, // 輕雨：90% 速度
+      NORMAL: 0.8, // 中雨：80% 速度
+      HEAVY: 0.7, // 大雨：70% 速度
+    },
+  },
+
+  // 大雨 + 閃電
+  [WEATHER_TYPES.HEAVY_RAIN]: {
+    name: '大雨',
+    multiplier: 0.6, // 70% 速度
+    description: '大雨伴隨閃電，降速 30%',
+  },
+
+  // 霧天
+  [WEATHER_TYPES.FOG]: {
+    name: '霧天',
+    multiplier: 0.4, // 75% 速度
+    description: '濃霧，能見度低，降速 25%',
+  },
+
+  // 雪天
+  [WEATHER_TYPES.SNOW]: {
+    name: '雪天',
+    multiplier: 0.2, // 60% 速度
+    description: '下雪，路面濕滑，降速 40%',
+  },
+}
+
+// ===== 🎛️ 全局天氣系統設定 =====
+export const WEATHER_SYSTEM_CONFIG = {
+  // 天氣改變行為
+  BEHAVIOR: {
+    // 是否啟用天氣系統
+    ENABLED: true,
+
+    // 天氣改變時是否平滑過渡（暫時保留為未來擴展）
+    SMOOTH_TRANSITION: false,
+
+    // 天氣改變延遲時間（毫秒）
+    CHANGE_DELAY: 0,
+
+    // 是否在控制台輸出調試信息
+    DEBUG_LOG: true,
+  },
+
+  // 天氣影響範圍
+  IMPACT: {
+    // 是否影響車輛速度
+    AFFECTS_VEHICLE_SPEED: true,
+
+    // 是否影響車流量
+    AFFECTS_TRAFFIC_VOLUME: false, // 暫時未實現
+
+    // 是否影響駕駛行為（例如跟車距離）
+    AFFECTS_DRIVING_BEHAVIOR: false, // 暫時未實現
+  },
+
+  // 預設天氣
+  DEFAULT_WEATHER: WEATHER_TYPES.CLEAR,
+
+  // 天氣列表順序（用於 UI 顯示）
+  WEATHER_ORDER: [
+    WEATHER_TYPES.CLEAR,
+    WEATHER_TYPES.RAIN,
+    WEATHER_TYPES.HEAVY_RAIN,
+    WEATHER_TYPES.FOG,
+    WEATHER_TYPES.SNOW,
+  ],
+}
+
 // ===== 匯出所有設定 =====
 export default {
   WEATHER_TYPES,
@@ -134,4 +221,6 @@ export default {
   SNOW_CONFIG,
   TRANSITION_CONFIG,
   PERFORMANCE_CONFIG,
+  WEATHER_SPEED_MULTIPLIERS,
+  WEATHER_SYSTEM_CONFIG,
 }

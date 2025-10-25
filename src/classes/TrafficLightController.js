@@ -758,6 +758,14 @@ export default class TrafficLightController {
           intersectionId = 'VLRJM60'
         }
 
+        // 🌤️ 【新增】獲取當前天氣信息
+        let currentWeather = 'CLEAR'
+        let weatherMultiplier = 1.0
+        if (this.weatherController) {
+          currentWeather = this.weatherController.getCurrentWeather()
+          weatherMultiplier = this.weatherController.getSpeedMultiplier()
+        }
+
         // 準備前端生成的數據（視覺層 × displayMultiplier）
         const frontendData = {
           volume: singleData?.Volume_T ?? 0,
@@ -792,6 +800,9 @@ export default class TrafficLightController {
           Speed_S: singleData?.Speed_S,
           Speed_L: singleData?.Speed_L,
           Occupancy: Math.round((normalizedData.occupancy || 0) * 10) / 10,
+          // 🌤️ 【新增】天氣信息
+          weather: currentWeather,
+          weather_multiplier: weatherMultiplier,
           // 元數據
           normalization_applied: true,
           normalization_period: timePeriod,
@@ -826,6 +837,8 @@ export default class TrafficLightController {
         )
         console.log(`    - 佔有率: ${data.Occupancy}%`)
         console.log(`    - 正規化倍數: ${data.normalization_displayMultiplier}x`)
+        // 🌤️ 【新增】顯示天氣信息
+        console.log(`    - 天氣: ${data.weather} (倍數: ${data.weather_multiplier?.toFixed(2)}x)`)
         console.log(`    - 驗證: ${data.validation_passed ? '✅ 通過' : '❌ 失敗'}`)
         if (data.validation_errors?.length > 0) {
           console.log(`    - 錯誤: ${data.validation_errors.join(', ')}`)

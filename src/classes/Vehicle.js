@@ -108,6 +108,9 @@ export default class Vehicle {
     this.totalDistance = 0
     this.movementStartTime = null
     this.movementEndTime = null
+
+    // 🌤️ 【新增】天氣相關屬性
+    this.weatherMultiplier = 1.0 // 初始天氣倍數為 1.0 (晴天)
     // 嘗試從 window.liveVehicles 或 vehicleAdded 事件取得 speed
     let externalSpeed = null
     if (window.liveVehicles && Array.isArray(window.liveVehicles)) {
@@ -157,6 +160,12 @@ export default class Vehicle {
 
     // 🚀 新增：碰撞控制器（整合 SimpleCollisionDetector 功能）
     this.collisionController = CollisionController.createForLane(this, laneNumber)
+
+    // 🌤️ 【新增】監聽天氣改變事件
+    this.weatherChangeHandler = (event) => {
+      this.onWeatherChanged(event.detail)
+    }
+    window.addEventListener('weatherChanged', this.weatherChangeHandler)
   }
 
   // 🚨 新增：防停滯機制
@@ -268,6 +277,37 @@ export default class Vehicle {
         detail: eventData,
       }),
     )
+  }
+
+  // 🌤️ 【新增】天氣改變事件處理器
+  onWeatherChanged(weatherData) {
+    const { weather, multiplier } = weatherData
+    console.log(`🌤️ [車輛 ${this.id}] 天氣改變: ${weather} (倍數: ${multiplier.toFixed(2)}x)`)
+
+    // 如果車輛還有活動的動畫時間軸，更新時間縮放
+    if (this.movementTimeline && !this.movementTimeline.paused()) {
+      // 獲取當前的時間縮放（可能因紅綠燈被改變）
+      const currentTimeScale = this.movementTimeline.timeScale()
+
+      // 計算新的時間縮放 = 當前時間縮放 / 舊的天氣倍數 × 新的天氣倍數
+      // 由於我們不知道舊的天氣倍數，我們使用簡化方式：
+      // 直接設定新的倍數（假設上次是 1.0）
+      const newTimeScale = currentTimeScale * (multiplier / (this.weatherMultiplier || 1.0))
+
+      // 更新天氣倍數
+      this.weatherMultiplier = multiplier
+
+      // 應用新的時間縮放
+      this.movementTimeline.timeScale(newTimeScale)
+
+      console.log(
+        `🌤️ [車輛 ${this.id}] 速度已更新: 時間縮放 ${currentTimeScale.toFixed(2)}x -> ${newTimeScale.toFixed(2)}x`,
+      )
+    } else {
+      // 車輛還沒開始移動，只記錄天氣倍數
+      this.weatherMultiplier = multiplier
+      console.log(`🌤️ [車輛 ${this.id}] 天氣倍數已設置 (車輛尚未移動): ${multiplier.toFixed(2)}x`)
+    }
   }
 
   // Strategy Pattern: 基於車輛類型的速度生成策略
@@ -1433,6 +1473,12 @@ export default class Vehicle {
     if (this.collisionController) {
       this.collisionController.dispose()
       this.collisionController = null
+    }
+
+    // 🌤️ 【新增】移除天氣改變事件監聽器
+    if (this.weatherChangeHandler) {
+      window.removeEventListener('weatherChanged', this.weatherChangeHandler)
+      this.weatherChangeHandler = null
     }
 
     // 移除DOM元素

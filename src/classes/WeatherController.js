@@ -13,6 +13,8 @@ import {
   SNOW_CONFIG,
   TRANSITION_CONFIG,
   PERFORMANCE_CONFIG,
+  WEATHER_SPEED_MULTIPLIERS,
+  WEATHER_SYSTEM_CONFIG,
 } from './config/weatherConfig.js'
 
 export class WeatherController {
@@ -102,6 +104,19 @@ export class WeatherController {
     }
 
     this.isActive = weatherType !== WEATHER_TYPES.CLEAR
+
+    // 🌤️ 【新增】廣播天氣改變事件，讓已在路上的車輛受影響
+    const weatherMultiplier = this.getSpeedMultiplier()
+    window.dispatchEvent(
+      new CustomEvent('weatherChanged', {
+        detail: {
+          weather: weatherType,
+          multiplier: weatherMultiplier,
+          timestamp: Date.now(),
+        },
+      }),
+    )
+    console.log(`🌤️ 廣播天氣改變事件: ${weatherType} (倍數: ${weatherMultiplier.toFixed(2)}x)`)
   }
 
   /**
@@ -138,9 +153,12 @@ export class WeatherController {
       this.particles.push(raindrop)
 
       // 延遲啟動動畫，創造更自然的效果
-      setTimeout(() => {
-        this.animateRaindrop(raindrop)
-      }, i * TRANSITION_CONFIG.PARTICLE_SPAWN_DELAY * 1000)
+      setTimeout(
+        () => {
+          this.animateRaindrop(raindrop)
+        },
+        i * TRANSITION_CONFIG.PARTICLE_SPAWN_DELAY * 1000,
+      )
     }
 
     // 淡入效果
@@ -307,9 +325,12 @@ export class WeatherController {
       this.particles.push(snowflake)
 
       // 延遲啟動動畫
-      setTimeout(() => {
-        this.animateSnowflake(snowflake)
-      }, i * TRANSITION_CONFIG.PARTICLE_SPAWN_DELAY * 1000)
+      setTimeout(
+        () => {
+          this.animateSnowflake(snowflake)
+        },
+        i * TRANSITION_CONFIG.PARTICLE_SPAWN_DELAY * 1000,
+      )
     }
 
     // 淡入效果
@@ -418,8 +439,7 @@ export class WeatherController {
     }
 
     // 隨機間隔時間
-    const interval =
-      (config.MIN_INTERVAL + Math.random() * (config.MAX_INTERVAL - config.MIN_INTERVAL)) * 1000
+    const interval = (config.MIN_INTERVAL + Math.random() * (config.MAX_INTERVAL - config.MIN_INTERVAL)) * 1000
 
     this.lightningInterval = setTimeout(() => {
       this.triggerLightning()
@@ -523,20 +543,37 @@ export class WeatherController {
   /**
    * 獲取當前天氣對速度的影響係數
    */
+  /**
+   * 獲取速度倍數
+   * 根據當前天氣返回相應的速度倍數
+   * 【重要】所有倍數都在 weatherConfig.js 中定義，可以輕鬆調整
+   */
   getSpeedMultiplier() {
-    switch (this.currentWeather) {
-      case WEATHER_TYPES.RAIN:
-        return RAIN_CONFIG.SPEED_REDUCTION.NORMAL
-      case WEATHER_TYPES.HEAVY_RAIN:
-        return RAIN_CONFIG.SPEED_REDUCTION.HEAVY
-      case WEATHER_TYPES.FOG:
-        return FOG_CONFIG.SPEED_REDUCTION
-      case WEATHER_TYPES.SNOW:
-        return SNOW_CONFIG.SPEED_REDUCTION
-      case WEATHER_TYPES.CLEAR:
-      default:
-        return 1.0 // 無影響
+    // 檢查配置中是否禁用了天氣系統
+    if (!WEATHER_SYSTEM_CONFIG.BEHAVIOR.ENABLED) {
+      return 1.0
     }
+
+    // 檢查天氣是否應該影響速度
+    if (!WEATHER_SYSTEM_CONFIG.IMPACT.AFFECTS_VEHICLE_SPEED) {
+      return 1.0
+    }
+
+    // 從配置中獲取天氣倍數
+    const weatherConfig = WEATHER_SPEED_MULTIPLIERS[this.currentWeather]
+
+    if (weatherConfig) {
+      if (WEATHER_SYSTEM_CONFIG.BEHAVIOR.DEBUG_LOG) {
+        console.log(
+          `🌤️ [WeatherController] 獲取速度倍數: ${this.currentWeather} = ${weatherConfig.multiplier.toFixed(2)}x (${weatherConfig.description})`,
+        )
+      }
+      return weatherConfig.multiplier
+    }
+
+    // 如果找不到配置，回退到晴天
+    console.warn(`⚠️ [WeatherController] 找不到天氣配置: ${this.currentWeather}，使用晴天倍數`)
+    return 1.0
   }
 
   /**

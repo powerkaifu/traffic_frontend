@@ -310,15 +310,15 @@
         <!-- 分隔線 -->
         <div class="toolbar-divider"></div>
 
-        <button @click="clearAllVehicles" class="toolbar-btn clear-btn" title="清空車輛">
-          <span class="btn-icon">🧹</span>
+        <button @click="toggleWeatherMenu" :class="['toolbar-btn', { active: showWeatherMenu }]" title="天氣效果">
+          <span class="btn-icon">{{ getWeatherIcon() }}</span>
         </button>
 
         <!-- 分隔線 -->
         <div class="toolbar-divider"></div>
 
-        <button @click="toggleWeatherMenu" :class="['toolbar-btn', { active: showWeatherMenu }]" title="天氣效果">
-          <span class="btn-icon">{{ getWeatherIcon() }}</span>
+        <button @click="clearAllVehicles" class="toolbar-btn clear-btn" title="清空車輛">
+          <span class="btn-icon">🧹</span>
         </button>
       </div>
 
@@ -627,8 +627,8 @@ const weatherOptions = ref([
   { type: WEATHER_TYPES.CLEAR, icon: '☀️', label: '晴天' },
   { type: WEATHER_TYPES.RAIN, icon: '🌧️', label: '雨天' },
   { type: WEATHER_TYPES.HEAVY_RAIN, icon: '⛈️', label: '大雨' },
-  { type: WEATHER_TYPES.FOG, icon: '🌫️', label: '霧天' },
-  { type: WEATHER_TYPES.SNOW, icon: '❄️', label: '雪天' },
+  { type: WEATHER_TYPES.FOG, icon: '🌫️', label: '起霧' },
+  { type: WEATHER_TYPES.SNOW, icon: '❄️', label: '下雪' },
 ])
 
 // 切換天氣選單
