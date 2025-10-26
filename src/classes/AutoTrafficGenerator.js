@@ -84,6 +84,16 @@ export default class AutoTrafficGenerator {
     this._stopAutoModeLoop() // 停止時也要確保自動模式循環停止
   }
 
+  // 🎯【新增】設置 VD 情景
+  setVDScenario(scenario) {
+    this.currentVDScenario = scenario
+    console.log(`🎯 [AutoTrafficGenerator] VD 情景已設置: ${scenario}`)
+
+    // 將情景保存到全局
+    window.selectedTrafficScenario = scenario
+    window.selectedTrafficTimePeriod = scenario
+  }
+
   // 切換場景：完全覆蓋（手動模式）
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig }

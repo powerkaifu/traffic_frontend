@@ -2,8 +2,11 @@
  * VD 正規化工具類
  * 負責將前端模擬數據轉換為後端模型訓練的真實範圍
  *
- * 核心邏輯：
- * 前端數據 (displayMultiplier × VD真實值) → 正規化轉換 → VD真實範圍
+ * 核心邏輯（新）：
+ * 1. 基準值 = VD_PATTERN_RANGES[timePeriod][vdId].baseline
+ * 2. 變動值 = 基準值 × flowVariation.multiplier（根據生成間隔）
+ * 3. 最終值 = 基準值 + (變動值 - 基準值) × 隨機因子
+ * 4. 確保範圍內：clamp(finalValue, range)
  */
 
 import {
@@ -13,6 +16,7 @@ import {
   getCurrentNormalizationParams,
   getNormalizationParamsByHour,
 } from '../config/vdNormalizationConfig.js'
+import { VD_PATTERN_RANGES, getIntervalMultiplier, getDisplayMultiplier } from '../config/vdPatternConfig.js'
 
 class VDNormalizationUtils {
   /**
@@ -39,31 +43,46 @@ class VDNormalizationUtils {
   }
 
   /**
-   * 核心正規化函數：將前端數據轉換為VD真實範圍
+   * 核心正規化函數（改進版）：將前端數據轉換為VD真實範圍
    *
-   * 公式：
-   * normalizedValue = frontendValue / displayMultiplier
+   * 邏輯：
+   * 1. 獲取時段對應的基準值配置
+   * 2. 根據生成速度計算調整倍數
+   * 3. 計算動態變動值
+   * 4. 確保所有數據在歷史統計範圍內
    *
    * @param {object} frontendData - 前端生成的數據
-   * @param {string} intersectionId - 路口 ID
-   * @param {string} [period] - 時段 (可選，不提供時自動識別)
+   *   - volume_m: 機車流量
+   *   - volume_s: 小車流量
+   *   - volume_l: 大車流量
+   *   - volume / volume_t: 總流量
+   *   - speed: 平均速度
+   *   - occupancy: 佔有率 (0-1 或百分比)
+   *
+   * @param {string} intersectionId - 路口 ID ('VLRJM60', 'VLRJX00', 'VLRJX20')
+   * @param {string} [timePeriod] - 時段 ('peak_hours', 'off_peak', 'late_night')
+   * @param {object} [flowVariation] - 流量變動配置 { intensity, multiplier, currentInterval }
+   *
    * @returns {object} 正規化後的數據
    *
    * @example
-   * // 前端生成 60 輛車，VLRJM60 尖峰時段
    * const frontendData = {
-   *   volume: 60,
+   *   volume_m: 20,
+   *   volume_s: 25,
+   *   volume_l: 5,
+   *   volume: 50,
    *   speed: 45,
    *   occupancy: 0.35
    * }
+   * const flowVar = { multiplier: 1.2, intensity: 0.8 }
    * const normalized = VDNormalizationUtils.denormalizeToVDRange(
    *   frontendData,
    *   'VLRJM60',
-   *   'peak_hours'
+   *   'peak_hours',
+   *   flowVar
    * )
-   * // Result: { volume: 8.33, speed: 45, occupancy: 0.35 }
    */
-  static denormalizeToVDRange(frontendData, intersectionId, period = null) {
+  static denormalizeToVDRange(frontendData, intersectionId, timePeriod = null, flowVariation = null) {
     try {
       // 容錯 1: 驗證路口 ID
       const validIntersectionIds = ['VLRJM60', 'VLRJX00', 'VLRJX20']
@@ -72,80 +91,162 @@ class VDNormalizationUtils {
         intersectionId = 'VLRJM60'
       }
 
-      // 如果沒有指定時段，自動識別
-      if (!period) {
-        period = getCurrentTimePeriod()
+      // 如果沒有指定時段，從全局獲取
+      if (!timePeriod) {
+        timePeriod = window.selectedTrafficTimePeriod || getCurrentTimePeriod() || 'off_peak'
       }
 
       // 容錯 2: 驗證時段
       const validPeriods = ['peak_hours', 'off_peak', 'late_night']
-      if (!validPeriods.includes(period)) {
-        console.warn(`⚠️ [正規化容錯] 無效的時段: ${period}，使用離峰時段`)
-        period = 'off_peak'
+      if (!validPeriods.includes(timePeriod)) {
+        console.warn(`⚠️ [正規化容錯] 無效的時段: ${timePeriod}，使用離峰時段`)
+        timePeriod = 'off_peak'
       }
 
-      // 獲取正規化參數
-      const config = getNormalizationConfig(intersectionId)
-      const params = config[period]
+      // 🎯 新增：嘗試從 VD_PATTERN_RANGES 獲取配置
+      const patternConfig = VD_PATTERN_RANGES[timePeriod]?.[intersectionId]
 
-      // 容錯 3: 檢查參數是否存在
-      if (!params) {
-        console.error(`❌ [正規化容錯失敗] 無法獲取 ${intersectionId} 在 ${period} 的參數，返回原始數據`)
-        return frontendData
+      if (!patternConfig) {
+        console.warn(`⚠️ [正規化] 未找到 ${intersectionId} 的 ${timePeriod} 配置，使用基礎正規化`)
+        // 回退到舊方法
+        return this._denormalizeWithLegacyMethod(frontendData, intersectionId, timePeriod)
       }
 
-      // 執行正規化轉換
-      const normalizedData = {}
-      let displayMultiplier = params.displayMultiplier
+      const { baseline, range } = patternConfig
 
-      // 容錯 4: 驗證 displayMultiplier
-      if (!displayMultiplier || displayMultiplier <= 0) {
-        console.warn(`⚠️ [正規化容錯] 無效的 displayMultiplier: ${displayMultiplier}，使用 1.0`)
-        displayMultiplier = 1.0
+      // 計算流量倍數
+      let multiplier = 1.0
+      if (flowVariation && flowVariation.multiplier) {
+        multiplier = flowVariation.multiplier
+      } else if (flowVariation && flowVariation.currentInterval) {
+        multiplier = getIntervalMultiplier(flowVariation.currentInterval, timePeriod, intersectionId)
       }
 
-      // 流量正規化 (輛/5分鐘)
-      if (frontendData.volume !== undefined && frontendData.volume !== null) {
-        normalizedData.volume = Math.round((frontendData.volume / displayMultiplier) * 100) / 100
-        // 確保在有效範圍內
-        normalizedData.volume = Math.max(params.volume.min, Math.min(params.volume.max, normalizedData.volume))
-      } else {
-        normalizedData.volume = 0
+      console.log(
+        `📊 [VD正規化] ${intersectionId} ${timePeriod} - 流量倍數: ${multiplier.toFixed(2)}, 基準值: ${baseline.Volume_T.toFixed(2)} 輛`,
+      )
+
+      // 🎯 新邏輯：基準值 + 變動值
+      // 變動值 = (基準值 × 倍數 - 基準值) × 隨機因子
+      const targetVolume = baseline.Volume_T * multiplier
+      const variation = targetVolume - baseline.Volume_T
+      const randomFactor = 0.8 + Math.random() * 0.4 // 0.8 - 1.2
+
+      // 計算最終流量（確保在範圍內）
+      let finalVolume = baseline.Volume_T + variation * randomFactor
+      finalVolume = Math.max(range.Volume_T[0], Math.min(range.Volume_T[1], finalVolume))
+
+      // 車型流量按比例分配
+      const volumeRatio = finalVolume / baseline.Volume_T
+      const volume_m = Math.round(baseline.Volume_M * volumeRatio)
+      const volume_s = Math.round(baseline.Volume_S * volumeRatio)
+      const volume_l = Math.round(baseline.Volume_L * volumeRatio)
+
+      // 確保車型流量在範圍內
+      const finalVolumeM = Math.max(range.Volume_M[0], Math.min(range.Volume_M[1], volume_m))
+      const finalVolumeS = Math.max(range.Volume_S[0], Math.min(range.Volume_S[1], volume_s))
+      const finalVolumeL = Math.max(range.Volume_L[0], Math.min(range.Volume_L[1], volume_l))
+
+      // 總流量 = 三種車型之和
+      const totalFlow = finalVolumeM + finalVolumeS + finalVolumeL
+
+      // 佔有率：基準值 + 隨機波動
+      let occupancy = baseline.Occupancy + (Math.random() - 0.5) * 4
+      occupancy = Math.max(range.Occupancy[0], Math.min(range.Occupancy[1], occupancy))
+
+      // 速度：基準值 + 隨機波動
+      let speed = baseline.Speed + (Math.random() - 0.5) * 5
+      speed = Math.max(range.Speed[0], Math.min(range.Speed[1], speed))
+
+      // 車型平均速度（使用基準值，因為前端無法提供）
+      const speedM = baseline.Speed + (Math.random() - 0.5) * 3
+      const speedS = baseline.Speed + (Math.random() - 0.5) * 3
+      const speedL = baseline.Speed + (Math.random() - 0.5) * 3
+
+      const normalizedData = {
+        volume_m: finalVolumeM,
+        volume_s: finalVolumeS,
+        volume_l: finalVolumeL,
+        volume: totalFlow,
+        volume_t: totalFlow,
+        occupancy: occupancy / 100, // 轉換為小數
+        speed: Math.round(speed * 10) / 10,
+        speed_m: Math.round(speedM * 10) / 10,
+        speed_s: Math.round(speedS * 10) / 10,
+        speed_l: Math.round(speedL * 10) / 10,
+        // 添加調試信息
+        _debugInfo: {
+          baseline: baseline.Volume_T,
+          multiplier: multiplier,
+          targetVolume: targetVolume,
+          variation: variation,
+          randomFactor: randomFactor,
+        },
       }
 
-      // 速度不需要正規化，直接保留
-      if (frontendData.speed !== undefined && frontendData.speed !== null) {
-        normalizedData.speed = frontendData.speed
-      } else {
-        normalizedData.speed = 0
-      }
-
-      // 佔有率正規化
-      if (frontendData.occupancy !== undefined && frontendData.occupancy !== null) {
-        normalizedData.occupancy = Math.round((frontendData.occupancy / displayMultiplier) * 100) / 100
-        normalizedData.occupancy = Math.max(
-          params.occupancy.min / 100,
-          Math.min(params.occupancy.max / 100, normalizedData.occupancy),
-        )
-      } else {
-        normalizedData.occupancy = 0
-      }
-
-      // 車型流量正規化
-      const vehicleTypes = ['volume_m', 'volume_s', 'volume_l', 'volume_t']
-      vehicleTypes.forEach((type) => {
-        if (frontendData[type] !== undefined && frontendData[type] !== null) {
-          normalizedData[type] = Math.round((frontendData[type] / displayMultiplier) * 100) / 100
-        } else {
-          normalizedData[type] = 0
-        }
-      })
+      console.log(
+        `✅ [VD正規化完成] ${intersectionId}: 前端${(frontendData.volume || 0).toFixed(1)} → VD${totalFlow} 輛 (占用率${occupancy.toFixed(1)}%, 速度${speed.toFixed(1)}km/h)`,
+      )
 
       return normalizedData
     } catch (error) {
-      console.error(`❌ [正規化異常] ${error.message}，路口: ${intersectionId}，時段: ${period}，返回原始數據`)
+      console.error(`❌ [正規化異常] ${error.message}，路口: ${intersectionId}，時段: ${timePeriod}`)
+      return frontendData || {}
+    }
+  }
+
+  /**
+   * 舊方法：使用遺留的正規化邏輯（回退方案）
+   * @private
+   */
+  static _denormalizeWithLegacyMethod(frontendData, intersectionId, period) {
+    const config = getNormalizationConfig(intersectionId)
+    const params = config?.[period]
+
+    if (!params) {
+      console.warn(`⚠️ [正規化容錯失敗] 無法獲取參數，返回原始數據`)
       return frontendData
     }
+
+    const normalizedData = {}
+    let displayMultiplier = params.displayMultiplier || 1.0
+
+    if (displayMultiplier <= 0) {
+      displayMultiplier = 1.0
+    }
+
+    // 流量正規化
+    if (frontendData.volume !== undefined && frontendData.volume !== null) {
+      normalizedData.volume = Math.round((frontendData.volume / displayMultiplier) * 100) / 100
+      normalizedData.volume = Math.max(
+        params.volume?.min || 0,
+        Math.min(params.volume?.max || 45, normalizedData.volume),
+      )
+    }
+
+    // 速度
+    if (frontendData.speed !== undefined && frontendData.speed !== null) {
+      normalizedData.speed = frontendData.speed
+    }
+
+    // 佔有率
+    if (frontendData.occupancy !== undefined && frontendData.occupancy !== null) {
+      normalizedData.occupancy = Math.round((frontendData.occupancy / displayMultiplier) * 100) / 100
+      normalizedData.occupancy = Math.max(
+        (params.occupancy?.min || 0) / 100,
+        Math.min((params.occupancy?.max || 100) / 100, normalizedData.occupancy),
+      )
+    }
+
+    // 車型流量
+    const vehicleTypes = ['volume_m', 'volume_s', 'volume_l', 'volume_t']
+    vehicleTypes.forEach((type) => {
+      if (frontendData[type] !== undefined && frontendData[type] !== null) {
+        normalizedData[type] = Math.round((frontendData[type] / displayMultiplier) * 100) / 100
+      }
+    })
+
+    return normalizedData
   }
 
   /**
@@ -154,62 +255,44 @@ class VDNormalizationUtils {
    * @param {object} normalizedData - 正規化後的數據
    * @param {string} intersectionId - 路口 ID
    * @param {string} [period] - 時段 (可選)
-   * @returns {object} { isValid, errors, warnings, period, displayMultiplier }
+   * @returns {object} { isValid, errors, warnings, period }
    */
   static validateNormalizedData(normalizedData, intersectionId, period = null) {
     try {
       if (!period) {
-        period = getCurrentTimePeriod()
+        period = window.selectedTrafficTimePeriod || getCurrentTimePeriod()
       }
 
-      const config = getNormalizationConfig(intersectionId)
-      const params = config[period]
+      const patternConfig = VD_PATTERN_RANGES[period]?.[intersectionId]
       const result = {
         isValid: true,
         errors: [],
         warnings: [],
         period: period,
-        displayMultiplier: params?.displayMultiplier || 1,
       }
 
-      // 容錯: 檢查參數
-      if (!params) {
-        result.errors.push(`無效的時段: ${period}`)
+      if (!patternConfig) {
+        result.errors.push(`無效的配置: ${period} - ${intersectionId}`)
         result.isValid = false
         return result
       }
 
-      // 驗證流量
-      if (normalizedData.volume !== undefined && normalizedData.volume !== null) {
-        if (normalizedData.volume < params.volume.min) {
-          result.warnings.push(`流量 ${normalizedData.volume} 輛低於最小值 ${params.volume.min} 輛`)
-        }
-        if (normalizedData.volume > params.volume.max) {
-          result.errors.push(`流量 ${normalizedData.volume} 輛超過最大值 ${params.volume.max} 輛`)
-          result.isValid = false
-        }
-      }
+      const { range } = patternConfig
 
-      // 驗證佔有率
-      if (normalizedData.occupancy !== undefined && normalizedData.occupancy !== null) {
-        const occupancyPercent = normalizedData.occupancy * 100
-        if (occupancyPercent < params.occupancy.min) {
-          result.warnings.push(`佔有率 ${occupancyPercent}% 低於最小值 ${params.occupancy.min}%`)
-        }
-        if (occupancyPercent > params.occupancy.max) {
-          result.errors.push(`佔有率 ${occupancyPercent}% 超過最大值 ${params.occupancy.max}%`)
-          result.isValid = false
-        }
+      // 驗證流量
+      const volume = normalizedData.volume || normalizedData.volume_t || 0
+      if (volume < range.Volume_T[0]) {
+        result.warnings.push(`流量 ${volume} 輛低於最小值 ${range.Volume_T[0]} 輛`)
+      }
+      if (volume > range.Volume_T[1]) {
+        result.errors.push(`流量 ${volume} 輛超過最大值 ${range.Volume_T[1]} 輛`)
+        result.isValid = false
       }
 
       // 驗證速度
-      if (normalizedData.speed !== undefined && normalizedData.speed !== null) {
-        if (normalizedData.speed < params.speed.min) {
-          result.warnings.push(`速度 ${normalizedData.speed} km/h 低於最小值 ${params.speed.min} km/h`)
-        }
-        if (normalizedData.speed > params.speed.max) {
-          result.warnings.push(`速度 ${normalizedData.speed} km/h 超過最大值 ${params.speed.max} km/h`)
-        }
+      const speed = normalizedData.speed || 0
+      if (speed < range.Speed[0] || speed > range.Speed[1]) {
+        result.warnings.push(`速度 ${speed} km/h 超出範圍 [${range.Speed[0]}, ${range.Speed[1]}]`)
       }
 
       return result
@@ -220,46 +303,15 @@ class VDNormalizationUtils {
         errors: [error.message],
         warnings: [],
         period: period,
-        displayMultiplier: 1,
       }
     }
   }
 
   /**
-   * 批量正規化數據
-   * 用於同時處理多個車道的數據
-   *
-   * @param {object} frontendDataMap - 多個車道的前端數據
-   * @param {string} intersectionId - 路口 ID
-   * @param {string} [period] - 時段 (可選)
-   * @returns {object} 正規化後的數據集
-   *
-   * @example
-   * const frontendDataMap = {
-   *   'VD-M60-0112': { volume: 60, speed: 45, occupancy: 0.35 },
-   *   'VD-M60-0113': { volume: 62, speed: 47, occupancy: 0.38 }
-   * }
-   * const normalized = VDNormalizationUtils.normalizeMultipleLanes(
-   *   frontendDataMap,
-   *   'VLRJM60'
-   * )
-   */
-  static normalizeMultipleLanes(frontendDataMap, intersectionId, period = null) {
-    const normalizedMap = {}
-
-    for (const [laneId, laneData] of Object.entries(frontendDataMap)) {
-      normalizedMap[laneId] = this.denormalizeToVDRange(laneData, intersectionId, period)
-    }
-
-    return normalizedMap
-  }
-
-  /**
    * 獲取當前時段的顯示倍數
-   * 用於視覺層與API層之間的轉換
    *
    * @param {string} intersectionId - 路口 ID
-   * @param {number} [hour] - 小時 (可選，不提供時使用當前時間)
+   * @param {number} [hour] - 小時 (可選)
    * @returns {number} displayMultiplier
    */
   static getDisplayMultiplier(intersectionId, hour = null) {
@@ -267,52 +319,21 @@ class VDNormalizationUtils {
     if (hour !== null && hour !== undefined) {
       period = getTimePeriodByHour(hour)
     } else {
-      period = getCurrentTimePeriod()
+      period = window.selectedTrafficTimePeriod || getCurrentTimePeriod() || 'off_peak'
     }
 
-    const config = getNormalizationConfig(intersectionId)
-    return config[period]?.displayMultiplier || 1
+    return getDisplayMultiplier(period, intersectionId)
   }
 
   /**
-   * 計算所需的前端視覺車輛數
-   * 基於目標VD真實值和displayMultiplier
-   *
-   * @param {number} targetVDVolume - 目標VD真實流量 (輛/5分鐘)
-   * @param {string} intersectionId - 路口 ID
-   * @param {string} [period] - 時段 (可選)
-   * @returns {number} 前端應生成的車輛數
-   *
-   * @example
-   * // VLRJM60 尖峰時段，目標7輛
-   * const frontendVolume = VDNormalizationUtils.calculateFrontendVolume(7, 'VLRJM60', 'peak_hours')
-   * // Result: 50.4 輛 (7 × 7.2)
-   */
-  static calculateFrontendVolume(targetVDVolume, intersectionId, period = null) {
-    if (!period) {
-      period = getCurrentTimePeriod()
-    }
-
-    const config = getNormalizationConfig(intersectionId)
-    const params = config[period]
-    return Math.round(targetVDVolume * params.displayMultiplier * 100) / 100
-  }
-
-  /**
-   * 生成日誌信息，用於調試
-   *
-   * @param {object} frontendData - 前端數據
-   * @param {object} normalizedData - 正規化後的數據
-   * @param {string} intersectionId - 路口 ID
-   * @param {string} period - 時段
-   * @returns {string} 日誌信息
+   * 生成日誌信息
    */
   static generateDebugLog(frontendData, normalizedData, intersectionId, period) {
     const multiplier = this.getDisplayMultiplier(intersectionId)
     return `[VD正規化] ${intersectionId} ${period}
-    前端: Volume=${frontendData.volume} Speed=${frontendData.speed} Occupancy=${frontendData.occupancy}
+    前端: Volume=${frontendData.volume} Speed=${frontendData.speed}
     倍數: ${multiplier}x
-    正規化: Volume=${normalizedData.volume} Speed=${normalizedData.speed} Occupancy=${normalizedData.occupancy}`
+    正規化: Volume=${normalizedData.volume} Speed=${normalizedData.speed}`
   }
 }
 

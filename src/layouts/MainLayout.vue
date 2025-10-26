@@ -66,24 +66,31 @@
                 <span v-if="currentAutoInterval" class="interval-status">生成間隔: {{ currentAutoInterval }}s</span>
               </div>
 
-              <!-- 時段場景快速切換 -->
-              <div class="time-scenarios-compact">
+              <!-- 🎯【新增】VD 情景選擇 - 3 個時段按鈕 -->
+              <div class="vd-scenario-selector">
                 <button
-                  v-for="scenario in timeScenarios"
-                  :key="scenario.key"
-                  @click="switchToTimeScenario(scenario.key)"
-                  :class="[
-                    'scenario-btn-compact',
-                    {
-                      active: isScenarioActive(scenario.key),
-                      'auto-matched': isAutoMode && currentTimeScenario === scenario.key,
-                    },
-                  ]"
-                  :title="`${scenario.name} (${scenario.timeRange})`"
-                  :disabled="isAutoMode"
+                  @click="selectVDScenario('peak_hours')"
+                  :class="['vd-scenario-btn', { active: selectedVDScenario === 'peak_hours' }]"
+                  title="尖峰時段 (07-09, 17-19)"
                 >
-                  <div class="scenario-icon">{{ scenario.icon }}</div>
-                  <div class="scenario-name">{{ scenario.shortName }}</div>
+                  <div class="vd-scenario-icon">🚀</div>
+                  <div class="vd-scenario-label">尖峰</div>
+                </button>
+                <button
+                  @click="selectVDScenario('off_peak')"
+                  :class="['vd-scenario-btn', { active: selectedVDScenario === 'off_peak' }]"
+                  title="離峰時段 (10-16, 20-23)"
+                >
+                  <div class="vd-scenario-icon">🌞</div>
+                  <div class="vd-scenario-label">離峰</div>
+                </button>
+                <button
+                  @click="selectVDScenario('late_night')"
+                  :class="['vd-scenario-btn', { active: selectedVDScenario === 'late_night' }]"
+                  title="凌晨時段 (00-06)"
+                >
+                  <div class="vd-scenario-icon">🌙</div>
+                  <div class="vd-scenario-label">凌晨</div>
                 </button>
               </div>
 
@@ -539,6 +546,25 @@ function toggleRightDrawer() {
 const rightDrawerOpen = ref(false)
 const $q = useQuasar()
 
+// 🎯【新增】VD 情景選擇狀態
+const selectedVDScenario = ref('peak_hours')
+
+// 🎯【新增】VD 情景選擇函數
+function selectVDScenario(scenario) {
+  selectedVDScenario.value = scenario
+  console.log(`🚀 [MainLayout] 選擇 VD 情景: ${scenario}`)
+
+  // 將選擇存儲到全局，供 TrafficLightController 使用
+  window.selectedTrafficScenario = scenario
+  window.selectedTrafficTimePeriod = scenario
+
+  // 如果有 AutoTrafficGenerator，通知它
+  if (window.autoTrafficGenerator) {
+    window.autoTrafficGenerator.setVDScenario(scenario)
+    console.log(`✅ [MainLayout] AutoTrafficGenerator 已設置 VD 情景: ${scenario}`)
+  }
+}
+
 const currentTimeScenario = ref('peak_hours')
 const manualInterval = ref(1000)
 const currentInterval = ref(7.0)
@@ -562,29 +588,7 @@ const drawerWidth = computed(() => {
 })
 const lightPosition = computed(() => (rightDrawerOpen.value && $q.screen.gt.md ? '35% 50%' : '50% 50%'))
 
-// 🎯 判斷情境按鈕是否應該高亮 - 基於拉桿範圍映射
-// 功能：當拉桿值落在某個情景的間隔範圍內時，該按鈕發亮
-// 自動模式：按當前時段情境高亮
-// 手動模式：按拉桿範圍映射高亮
-function isScenarioActive(scenarioKey) {
-  if (isAutoMode.value) {
-    // 自動模式：按當前時段對應的情景高亮
-    return currentTimeScenario.value === scenarioKey
-  } else {
-    // 手動模式：檢查拉桿值是否落在該情景的間隔範圍內
-    const scenario = timeScenarios.find((s) => s.key === scenarioKey)
-    if (!scenario) return false
-
-    const sliderValue = manualInterval.value
-    const { min, max } = scenario.config.interval
-
-    // 💡 拉桿在 [min, max] 範圍內 → 該按鈕發亮
-    const isInRange = sliderValue >= min && sliderValue <= max
-    return isInRange
-  }
-}
-
-// 🎯【改進】只在 API 完成時更新，不再每 3 秒定時更新
+// 🎯 判斷時間段的快照數據管理
 const normalizedDataSnapshot = ref(null)
 const lastNormalizedTimestamp = ref(null)
 
@@ -822,36 +826,6 @@ function updateGenerationConfig() {
   })
 }
 
-function switchToTimeScenario(key) {
-  if (isAutoMode.value) return // 自動模式下禁用
-  const s = timeScenarios.find((s) => s.key === key)
-  if (!s) return
-
-  // 💡 更新當前情景 key
-  currentTimeScenario.value = key
-
-  // 💡 同步拉桿到該情景的標準生成間隔
-  manualInterval.value = s.config.interval.normal
-
-  console.log(`🎭 [UI] 切換到情景: ${s.name}，拉桿設定為 ${s.config.interval.normal}ms`)
-
-  // 🔧 清除情景模式計時器，進入純手動模式
-  if (window.autoTrafficGenerator) {
-    if (window.autoTrafficGenerator.currentScenarioMode) {
-      console.log(`🛑 [UI] 清除 currentScenarioMode: ${window.autoTrafficGenerator.currentScenarioMode}`)
-      window.autoTrafficGenerator.currentScenarioMode = null
-    }
-    if (window.autoTrafficGenerator.scenarioModeTimer) {
-      clearInterval(window.autoTrafficGenerator.scenarioModeTimer)
-      window.autoTrafficGenerator.scenarioModeTimer = null
-      console.log(`🛑 [UI] 清除 scenarioModeTimer`)
-    }
-  }
-
-  // 🎯 立即應用該情景配置
-  updateGenerationConfig()
-}
-
 // 新增：自動模式切換功能
 function toggleAutoMode() {
   isAutoMode.value = !isAutoMode.value
@@ -909,8 +883,6 @@ onMounted(() => {
     }
   }
   tryInit()
-
-  setTimeout(() => switchToTimeScenario('peak_hours'), 500)
 
   window.mainLayoutCleanup = () => {
     cleanup()
@@ -993,6 +965,100 @@ onUnmounted(() => {
   min-height: 150px;
 }
 
+/* 🎯【新增】VD 情景選擇按鈕組 */
+.vd-scenario-selector {
+  display: flex;
+  gap: 6px;
+  height: 55px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.vd-scenario-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+  font-weight: 600;
+  padding: 30px 0;
+}
+
+.vd-scenario-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%);
+  transform: scale(1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.vd-scenario-btn.active {
+  background: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
+  border-color: #00d4ff;
+  box-shadow:
+    0 0 20px rgba(0, 212, 255, 0.6),
+    inset 0 0 10px rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.vd-scenario-btn.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shine 2s infinite;
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.vd-scenario-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.vd-scenario-label {
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: 0.5px;
+}
+
+/* 2560x1440 解析度優化 */
+@media (min-width: 2560px) {
+  .vd-scenario-selector {
+    height: 65px;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .vd-scenario-btn {
+    border-radius: 10px;
+  }
+
+  .vd-scenario-icon {
+    font-size: 26px;
+  }
+
+  .vd-scenario-label {
+    font-size: 16px;
+  }
+}
+
 /* 2560x1440 解析度的基礎優化 */
 @media (min-width: 2560px) and (min-height: 1440px) {
   .set-window-section {
@@ -1064,100 +1130,6 @@ onUnmounted(() => {
   font-size: 12px !important;
   box-shadow: none !important;
   min-height: auto;
-}
-
-/* 時段場景快速切換 - 緊湊版 */
-.time-scenarios-compact {
-  display: flex;
-  gap: 4px;
-  height: 60px;
-  flex-shrink: 0;
-}
-
-.scenario-btn-compact {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s;
-  position: relative;
-}
-
-.scenario-btn-compact:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
-  transform: translateY(-1px);
-}
-
-.scenario-btn-compact.active:not(:disabled) {
-  background: #007bff;
-  border-color: #80bdff;
-  color: #ffffff;
-  box-shadow: 0 0 12px rgba(0, 123, 255, 0.8);
-  transform: translateY(-2px) scale(1.05);
-}
-
-/* 🎯 新增：自動匹配時的脈動動畫效果 */
-.scenario-btn-compact.auto-matched:not(:disabled) {
-  animation: pulse-glow 2s ease-in-out infinite;
-  position: relative;
-}
-
-/* 🎯 新增：自動匹配指示點 */
-.scenario-btn-compact.auto-matched:not(:disabled)::after {
-  content: '●';
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  color: #00ff00;
-  font-size: 8px;
-  animation: blink 1.5s ease-in-out infinite;
-}
-
-/* 脈動動畫 */
-@keyframes pulse-glow {
-  0%,
-  100% {
-    box-shadow: 0 0 10px rgba(0, 123, 255, 0.8);
-  }
-  50% {
-    box-shadow:
-      0 0 10px rgba(0, 123, 255, 1),
-      0 0 15px rgba(0, 255, 255, 0.6);
-  }
-}
-
-/* 閃爍動畫 */
-@keyframes blink {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
-}
-
-.scenario-btn-compact:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.scenario-icon {
-  font-size: 18px;
-  line-height: 1;
-}
-
-.scenario-name {
-  font-weight: bold;
-  font-size: 16px;
-  line-height: 1;
-  text-align: center;
 }
 
 /* 控制與統計行 - 緊湊版 */
@@ -1261,21 +1233,22 @@ onUnmounted(() => {
     padding: 6px 8px;
   }
 
-  .time-scenarios-compact {
+  .vd-scenario-selector {
     gap: 3px;
     height: 45px;
+    margin-bottom: 6px;
   }
 
-  .scenario-btn-compact {
-    font-size: 8px;
+  .vd-scenario-btn {
+    border-radius: 6px;
   }
 
-  .scenario-icon {
+  .vd-scenario-icon {
+    font-size: 18px;
+  }
+
+  .vd-scenario-label {
     font-size: 12px;
-  }
-
-  .scenario-name {
-    font-size: 8px;
   }
 
   .control-stats-row {
@@ -1303,22 +1276,21 @@ onUnmounted(() => {
     font-size: 11px;
   }
 
-  .current-time {
-    font-size: 10px;
-    padding: 2px 6px;
-  }
-
-  .time-scenarios-compact {
+  .vd-scenario-selector {
     gap: 2px;
     height: 40px;
+    margin-bottom: 4px;
   }
 
-  .scenario-btn-compact {
-    font-size: 7px;
-    padding: 2px 1px;
+  .vd-scenario-btn {
+    border-radius: 5px;
   }
 
-  .scenario-icon {
+  .vd-scenario-icon {
+    font-size: 16px;
+  }
+
+  .vd-scenario-label {
     font-size: 10px;
   }
 
@@ -1620,21 +1592,22 @@ onUnmounted(() => {
     font-size: 15px;
   }
 
-  .time-scenarios-compact {
+  .vd-scenario-selector {
     height: 70px;
     gap: 6px;
+    margin-bottom: 10px;
   }
 
-  .scenario-btn-compact {
+  .vd-scenario-btn {
     border-radius: 8px;
   }
 
-  .scenario-icon {
-    font-size: 22px;
+  .vd-scenario-icon {
+    font-size: 26px;
   }
 
-  .scenario-name {
-    font-size: 18px;
+  .vd-scenario-label {
+    font-size: 16px;
   }
 
   /* 優化數據展示區域 */
