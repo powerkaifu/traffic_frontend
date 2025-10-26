@@ -443,7 +443,14 @@ const handleAutoGenerate = (event) => {
   }
 
   // 創建車輛，傳入 initialProgress
-  createVehicleWithPosition(pathStartPosition.x, pathStartPosition.y, direction, vehicleType, laneNumber, initialProgress)
+  createVehicleWithPosition(
+    pathStartPosition.x,
+    pathStartPosition.y,
+    direction,
+    vehicleType,
+    laneNumber,
+    initialProgress,
+  )
 }
 
 // 🎯 處理自動左轉車輛生成事件
@@ -466,23 +473,23 @@ const handleAutoGenerateLeftTurn = (event) => {
 const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, initialProgress = 0) => {
   // 使用指定位置創建車輛
   const vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, trafficController)
-  
+
   // 🚨 設置初始 progress（如果提供的話）
   if (typeof initialProgress === 'number' && initialProgress !== 0) {
     vehicle.progress = initialProgress
     console.log(`🚗 [${vehicle.id}] 設置初始 progress: ${initialProgress.toFixed(3)}`)
   }
-  
+
   // 將車輛添加到車輛容器中，而不是直接添加到 crossroadContainer
   vehicle.addTo(vehicleContainer.value || crossroadContainer.value)
   activeCars.value.push(vehicle)
-  
+
   // 🚨 將車輛添加到 window.liveVehicles（用於自動生成系統計算 progress）
   if (!window.liveVehicles) {
     window.liveVehicles = []
   }
   window.liveVehicles.push(vehicle)
-  
+
   window.dispatchEvent(
     new CustomEvent('vehicleAdded', {
       detail: {

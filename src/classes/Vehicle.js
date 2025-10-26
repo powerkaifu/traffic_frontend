@@ -1099,8 +1099,8 @@ export default class Vehicle {
               autoRotate: true, // 啟用自動旋轉，車輛會跟隨路徑方向
             },
             progress: {
-              from: this.progress || 0,  // 🚨 從初始 progress 開始（支援負 progress）
-              to: 1  // 到達終點
+              from: this.progress || 0, // 🚨 從初始 progress 開始（支援負 progress）
+              to: 1, // 到達終點
             },
             ease: 'none',
             // 🚨 移除重複的 onUpdate，統一在時間線級別處理
