@@ -11,6 +11,7 @@ import {
 } from './config/vehicleConfig.js'
 import VDNormalizationUtils from './utils/VDNormalizationUtils.js'
 import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
+import { getTimeConfigForScenario } from './config/vdPatternConfig.js'
 
 export default class AutoTrafficGenerator {
   constructor(trafficController) {
@@ -376,8 +377,28 @@ export default class AutoTrafficGenerator {
     }
 
     const features = scenario.targetFeatures
-    // 🎯 在自動模式下使用模擬時間的小時，手動模式下使用隨機小時
-    const hour = this.isAutoMode ? this.simulationTime.getHours() : this._getScenarioHour(scenarioKey)
+
+    // 🎯 根據是否在自動模式決定時間生成方式
+    let hour, minute, second
+    if (this.isAutoMode) {
+      // 自動模式：使用模擬時間作為基準，但生成該時段的隨機時間
+      const timeConfig = getTimeConfigForScenario(scenarioKey)
+      hour = timeConfig.hour
+      minute = timeConfig.minute
+      second = timeConfig.second
+      console.log(
+        `🕐 [自動模式] 情景=${scenarioKey}, 生成隨機時間=${hour}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}, IsPeakHour=${timeConfig.isPeakHour}`,
+      )
+    } else {
+      // 手動模式：使用隨機時間配置
+      const timeConfig = getTimeConfigForScenario(scenarioKey)
+      hour = timeConfig.hour
+      minute = timeConfig.minute
+      second = timeConfig.second
+      console.log(
+        `🎭 [手動模式] 情景=${scenarioKey}, 生成隨機時間=${hour}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}, IsPeakHour=${timeConfig.isPeakHour}`,
+      )
+    }
 
     // 🎭 API 層數據：原始數據（不放大，用於後端）
     const volumeByType = features.volumeByType
@@ -404,8 +425,8 @@ export default class AutoTrafficGenerator {
       VD_ID: 'VLRJX20',
       DayOfWeek: new Date().getDay(),
       Hour: hour,
-      Minute: Math.floor(Math.random() * 60),
-      Second: 0,
+      Minute: minute,
+      Second: second,
       IsPeakHour: scenarioKey === 'peak_hours' ? 1 : 0,
       LaneID: 0,
       LaneType: 1,
