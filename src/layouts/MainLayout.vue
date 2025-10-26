@@ -1712,7 +1712,6 @@ onUnmounted(() => {
 
   .data-value[title] {
     cursor: help;
-    border-bottom: 1px dotted rgba(255, 255, 255, 0.3);
   }
 
   /* 正規化信息區塊 */
