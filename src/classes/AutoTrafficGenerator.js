@@ -675,12 +675,12 @@ export default class AutoTrafficGenerator {
       const hours = this.simulationTime.getHours()
       const scenario = getScenarioByTime(this.simulationTime)
 
-      if (!scenario || !scenario.config || !scenario.config.displayMultiplier) {
+      if (!scenario || !scenario.displayMultiplier) {
         console.warn(`⚠️ 無法獲取時段 ${hours}:00 的 displayMultiplier，使用預設值 1`)
         return 1 // 若無配置，不調整
       }
 
-      const displayMult = scenario.config.displayMultiplier
+      const displayMult = scenario.displayMultiplier
       console.log(`🎭 [自動模式] 時段 ${hours}:00 -> displayMultiplier = ${displayMult}`)
       return displayMult
     }

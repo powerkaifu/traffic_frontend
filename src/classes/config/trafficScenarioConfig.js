@@ -227,6 +227,7 @@ export function getScenarioByTime(currentTime) {
       name: '深夜',
       interval: { min: 20000, max: 45000, normal: 30000 },
       peakMultiplier: 0.8, // 實際間隔 = 30000/0.8 = 37500ms → 約1.6輛/5分鐘
+      displayMultiplier: 1.5, // 🎭 視覺層倍數：對應 late_night
       vehicleTypes: [
         { type: 'motor', weight: 75 }, // 凌晨機車最多
         { type: 'small', weight: 20 },
@@ -246,6 +247,7 @@ export function getScenarioByTime(currentTime) {
       name: '清晨',
       interval: { min: 8000, max: 15000, normal: 10000 },
       peakMultiplier: 1.5, // 實際間隔 = 10000/1.5 = 6667ms → 約4.5輛/5分鐘
+      displayMultiplier: 1.5, // 🎭 視覺層倍數：對應 late_night
       vehicleTypes: [
         { type: 'motor', weight: 55 },
         { type: 'small', weight: 35 },
@@ -269,6 +271,7 @@ export function getScenarioByTime(currentTime) {
       name: '早尖峰',
       interval: { min: 2000, max: 4500, normal: 2800 },
       peakMultiplier: 4.2, // 實際間隔 = 2800/4.2 = 667ms → 約14輛/5分鐘
+      displayMultiplier: 7, // 🎭 視覺層倍數：對應 peak_hours
       vehicleTypes: [
         { type: 'motor', weight: 55 }, // 尖峰時段機車多
         { type: 'small', weight: 38 },
@@ -288,6 +291,7 @@ export function getScenarioByTime(currentTime) {
       name: '上午',
       interval: { min: 4000, max: 8000, normal: 5500 },
       peakMultiplier: 2.8, // 實際間隔 = 5500/2.8 = 1964ms → 約7輛/5分鐘
+      displayMultiplier: 3, // 🎭 視覺層倍數：對應 off_peak
       vehicleTypes: [
         { type: 'motor', weight: 35 },
         { type: 'small', weight: 50 },
@@ -311,6 +315,7 @@ export function getScenarioByTime(currentTime) {
       name: '午間',
       interval: { min: 3500, max: 7000, normal: 5000 },
       peakMultiplier: 3.0, // 實際間隔 = 5000/3.0 = 1667ms → 約8輛/5分鐘
+      displayMultiplier: 3, // 🎭 視覺層倍數：對應 off_peak
       vehicleTypes: [
         { type: 'motor', weight: 38 },
         { type: 'small', weight: 47 },
@@ -330,6 +335,7 @@ export function getScenarioByTime(currentTime) {
       name: '下午',
       interval: { min: 3000, max: 6500, normal: 4500 },
       peakMultiplier: 3.2, // 實際間隔 = 4500/3.2 = 1406ms → 約9輛/5分鐘
+      displayMultiplier: 3, // 🎭 視覺層倍數：對應 off_peak
       vehicleTypes: [
         { type: 'motor', weight: 42 },
         { type: 'small', weight: 45 },
@@ -353,6 +359,7 @@ export function getScenarioByTime(currentTime) {
       name: '傍晚前',
       interval: { min: 2500, max: 5000, normal: 3500 },
       peakMultiplier: 3.8, // 實際間隔 = 3500/3.8 = 921ms → 約11輛/5分鐘
+      displayMultiplier: 7, // 🎭 視覺層倍數：對應 peak_hours (即將進入晚尖峰)
       vehicleTypes: [
         { type: 'motor', weight: 48 },
         { type: 'small', weight: 42 },
@@ -372,6 +379,7 @@ export function getScenarioByTime(currentTime) {
       name: '晚尖峰',
       interval: { min: 2200, max: 4800, normal: 3000 },
       peakMultiplier: 4.0, // 實際間隔 = 3000/4.0 = 750ms → 約13輛/5分鐘
+      displayMultiplier: 7, // 🎭 視覺層倍數：對應 peak_hours
       vehicleTypes: [
         { type: 'motor', weight: 52 },
         { type: 'small', weight: 40 },
@@ -391,6 +399,7 @@ export function getScenarioByTime(currentTime) {
       name: '晚間',
       interval: { min: 4500, max: 9000, normal: 6500 },
       peakMultiplier: 2.4, // 實際間隔 = 6500/2.4 = 2708ms → 約6輛/5分鐘
+      displayMultiplier: 3, // 🎭 視覺層倍數：對應 off_peak
       vehicleTypes: [
         { type: 'motor', weight: 45 },
         { type: 'small', weight: 45 },
@@ -414,6 +423,7 @@ export function getScenarioByTime(currentTime) {
       name: '深夜前',
       interval: { min: 8000, max: 16000, normal: 11000 },
       peakMultiplier: 1.8, // 實際間隔 = 11000/1.8 = 6111ms → 約3.5輛/5分鐘
+      displayMultiplier: 1.5, // 🎭 視覺層倍數：對應 late_night
       vehicleTypes: [
         { type: 'motor', weight: 60 },
         { type: 'small', weight: 32 },
@@ -433,6 +443,7 @@ export function getScenarioByTime(currentTime) {
       name: '深夜',
       interval: { min: 15000, max: 35000, normal: 22000 },
       peakMultiplier: 1.2, // 實際間隔 = 22000/1.2 = 18333ms → 約2輛/5分鐘
+      displayMultiplier: 1.5, // 🎭 視覺層倍數：對應 late_night
       vehicleTypes: [
         { type: 'motor', weight: 70 },
         { type: 'small', weight: 25 },
