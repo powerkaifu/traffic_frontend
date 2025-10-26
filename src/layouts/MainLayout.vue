@@ -584,53 +584,62 @@ function isScenarioActive(scenarioKey) {
   }
 }
 
-const forceUpdateTrigger = ref(0)
-const startDataUpdate = () => {
-  const id = setInterval(() => forceUpdateTrigger.value++, 3000)
-  return () => clearInterval(id)
-}
+// 🎯【改進】只在 API 完成時更新，不再每 3 秒定時更新
+const normalizedDataSnapshot = ref(null)
+const lastNormalizedTimestamp = ref(null)
 
 function getTrafficData(dir) {
-  forceUpdateTrigger.value
-  if (window.trafficDataCollector) {
-    const rt = window.trafficDataCollector.getRealTimeData()
-    const d = rt.totalCount[dir] || {}
-    const sp = rt.averageSpeed[dir] || {}
+  // 🎯【改進】不再依賴 forceUpdateTrigger，而是使用快照數據
+  // 只在 API 完成時會被更新（見下方 trafficApiComplete 監聽器）
+
+  // 如果沒有快照數據，返回 0
+  if (!normalizedDataSnapshot.value) {
     return {
-      averageSpeed: sp.overall || 0,
-      occupancy: rt.occupancy[dir] || 0,
-      motorFlow: d.motor || 0,
-      smallCarFlow: d.small || 0,
-      largeCarFlow: d.large || 0,
-      motorSpeed: sp.motor || 0,
-      smallCarSpeed: sp.small || 0,
-      largeCarSpeed: sp.large || 0,
+      averageSpeed: 0,
+      occupancy: 0,
+      motorFlow: 0,
+      smallCarFlow: 0,
+      largeCarFlow: 0,
+      motorSpeed: 0,
+      smallCarSpeed: 0,
+      largeCarSpeed: 0,
     }
   }
-  if (window.trafficController && typeof window.trafficController.getDirectionVehicleData === 'function') {
-    const vd = window.trafficController.getDirectionVehicleData(dir) || {}
-    const avg = window.trafficController.getAverageSpeed?.(dir, 'small') || 0
-    const occ = parseFloat(window.trafficController.calculateOccupancy?.(dir) || '0')
+
+  // 從快照中提取對應方向的數據
+  const directionMap = {
+    east: 'VLRJX20',
+    west: 'VLRJM60',
+    south: 'VLRJX00_south',
+    north: 'VLRJX00_north',
+  }
+
+  const vdId = directionMap[dir]
+  const snapshotData = normalizedDataSnapshot.value[vdId]
+
+  if (!snapshotData) {
     return {
-      averageSpeed: Math.round(avg),
-      occupancy: Math.round(occ * 10) / 10,
-      motorFlow: vd.motor || 0,
-      smallCarFlow: vd.small || 0,
-      largeCarFlow: vd.large || 0,
-      motorSpeed: window.trafficController.getAverageSpeed?.(dir, 'motor') || 0,
-      smallCarSpeed: window.trafficController.getAverageSpeed?.(dir, 'small') || 0,
-      largeCarSpeed: window.trafficController.getAverageSpeed?.(dir, 'large') || 0,
+      averageSpeed: 0,
+      occupancy: 0,
+      motorFlow: 0,
+      smallCarFlow: 0,
+      largeCarFlow: 0,
+      motorSpeed: 0,
+      smallCarSpeed: 0,
+      largeCarSpeed: 0,
     }
   }
+
+  // 從快照返回正規化後的數據
   return {
-    averageSpeed: 0,
-    occupancy: 0,
-    motorFlow: 0,
-    smallCarFlow: 0,
-    largeCarFlow: 0,
-    motorSpeed: 0,
-    smallCarSpeed: 0,
-    largeCarSpeed: 0,
+    averageSpeed: snapshotData.Speed_T || 0,
+    occupancy: snapshotData.Occupancy || 0,
+    motorFlow: snapshotData.Volume_M || 0,
+    smallCarFlow: snapshotData.Volume_S || 0,
+    largeCarFlow: snapshotData.Volume_L || 0,
+    motorSpeed: snapshotData.Speed_M || 0,
+    smallCarSpeed: snapshotData.Speed_S || 0,
+    largeCarSpeed: snapshotData.Speed_L || 0,
   }
 }
 
@@ -720,10 +729,40 @@ const southData = computed(() => getNormalizedTrafficData('south'))
 const northData = computed(() => getNormalizedTrafficData('north'))
 
 function setupListeners() {
-  const upd = () => forceUpdateTrigger.value++
-  window.addEventListener('trafficDataUpdated', upd)
+  // 🎯【改進】監聽 API 完成事件，只在此時更新數據
+  const handleApiComplete = (event) => {
+    const detail = event.detail
+    console.log('📊 [MainLayout] API 完成，收到正規化數據快照')
+    console.log('  - 時間戳: ', detail.timestamp)
+
+    // 保存快照時間
+    lastNormalizedTimestamp.value = detail.timestamp
+
+    // 此時 TrafficLightController 已打印了 normalizedDataArray
+    // 我們從全局變量中讀取快照
+    if (window.lastNormalizedDataArray) {
+      // 建立方便查詢的快照結構
+      const snapshot = {}
+      window.lastNormalizedDataArray.forEach((data) => {
+        snapshot[data.VD_ID] = data
+      })
+
+      // 特殊處理南北向（都是 VLRJX00，但不同方向）
+      // 假設陣列順序：[東, 西, 南, 北]
+      if (window.lastNormalizedDataArray.length >= 4) {
+        snapshot['VLRJX00_south'] = window.lastNormalizedDataArray[2]
+        snapshot['VLRJX00_north'] = window.lastNormalizedDataArray[3]
+      }
+
+      normalizedDataSnapshot.value = snapshot
+      console.log('✅ [MainLayout] 快照已更新，特徵表將重新渲染')
+    }
+  }
+
+  window.addEventListener('trafficApiComplete', handleApiComplete)
+
   return () => {
-    window.removeEventListener('trafficDataUpdated', upd)
+    window.removeEventListener('trafficApiComplete', handleApiComplete)
   }
 }
 
@@ -822,7 +861,6 @@ function toggleAutoMode() {
 }
 
 onMounted(() => {
-  const stopUpdate = startDataUpdate()
   const cleanup = setupListeners()
 
   let tries = 0
@@ -875,7 +913,6 @@ onMounted(() => {
   setTimeout(() => switchToTimeScenario('peak_hours'), 500)
 
   window.mainLayoutCleanup = () => {
-    stopUpdate()
     cleanup()
   }
 })

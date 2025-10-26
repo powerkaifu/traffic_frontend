@@ -960,6 +960,10 @@ export default class TrafficLightController {
       console.log(`✅ 正規化倍數: ${firstData.normalization_displayMultiplier}x`)
       console.log(`✅ 時段: ${firstData.normalization_period}`)
 
+      // 🎯【新增】保存快照供 MainLayout.vue 使用
+      window.lastNormalizedDataArray = normalizedDataArray
+      console.log('💾 [TrafficLightController] 已保存正規化數據快照到 window.lastNormalizedDataArray')
+
       if (!response.ok) {
         // 嘗試獲取錯誤信息
         let errorBody = '無法解析錯誤信息'
