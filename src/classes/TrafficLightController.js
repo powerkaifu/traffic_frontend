@@ -6,6 +6,7 @@ import { speedConfig } from './config/trafficConfig.js' // 引入統一的速度
 import VDNormalizationUtils from './utils/VDNormalizationUtils.js'
 import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
 import { VOLUME_LIMITS_CONFIG } from './config/vehicleConfig.js'
+import { getTimeConfigForScenario } from './config/vdPatternConfig.js' // 新增：情景時間配置
 
 export default class TrafficLightController {
   constructor() {
@@ -536,14 +537,20 @@ export default class TrafficLightController {
     this.apiCallCount = (this.apiCallCount || 0) + 1
     console.log(`📞 [API 計數] 第 ${this.apiCallCount} 次呼叫`)
 
-    const now = new Date()
-    const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay() // 週日為7，週一為1
-    const hour = now.getHours()
-    const minute = now.getMinutes()
-    const second = now.getSeconds()
+    // 🎯【改進】使用情景時間配置而不是系統時間
+    // 根據當前選擇的時段來定義時間，不依賴電腦系統時間
+    const selectedTimePeriod = window.selectedTrafficTimePeriod || 'off_peak'
+    const timeConfig = getTimeConfigForScenario(selectedTimePeriod)
 
-    // 判斷是否為尖峰時段 (7-9AM, 5-7PM)
-    const isPeakHour = (hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19) ? 1 : 0
+    const dayOfWeek = timeConfig.dayOfWeek // 使用配置中的工作日 (2 = 週二)
+    const hour = timeConfig.hour // 使用配置中的小時
+    const minute = timeConfig.minute // 使用配置中的分鐘
+    const second = timeConfig.second // 使用配置中的秒
+    const isPeakHour = timeConfig.isPeakHour // 使用配置中的尖峰標記
+
+    console.log(
+      `📅 [時間配置] 情景: ${selectedTimePeriod} → 時間: ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')} (尖峰=${isPeakHour})`,
+    )
 
     const vdData = []
 

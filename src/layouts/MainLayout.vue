@@ -837,6 +837,10 @@ function toggleAutoMode() {
 onMounted(() => {
   const cleanup = setupListeners()
 
+  // 🚨 初始化：預設設定為尖峰時段
+  window.selectedTrafficTimePeriod = 'peak_hours'
+  console.log('🚀 [MainLayout] 初始化時段配置：預設為尖峰時段 (peak_hours)')
+
   let tries = 0
   const tryInit = async () => {
     if (window.trafficController && !window.autoTrafficGenerator) {

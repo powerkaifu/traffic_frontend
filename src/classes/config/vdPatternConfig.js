@@ -352,6 +352,90 @@ export function generateVDDataByPattern(timePeriod, vdId, currentInterval) {
 }
 
 /**
+ * 🎯【新增】時間配置 - 根據情景定義對應的時間
+ * 用於 API 傳送時使用，不依賴電腦系統時間
+ *
+ * 每個情景定義時間範圍，隨機生成該範圍內的時、分、秒
+ */
+export const SCENARIO_TIME_CONFIG = {
+  // 🚀 尖峰時段：隨機生成 07:00-09:00 或 17:00-19:00
+  peak_hours: {
+    // 尖峰時段有兩個時間區間（上班尖峰和下班尖峰）
+    ranges: [
+      { startHour: 7, endHour: 9, startMinute: 0, endMinute: 59, startSecond: 0, endSecond: 59 },
+      { startHour: 17, endHour: 19, startMinute: 0, endMinute: 59, startSecond: 0, endSecond: 59 },
+    ],
+    isPeakHour: 1,
+    description: '尖峰時段 (07:00-09:00 或 17:00-19:00)',
+    dayOfWeek: 2, // 週二（工作日）
+  },
+
+  // 🌞 離峰時段：隨機生成 09:00-17:00 或 19:00-23:00
+  off_peak: {
+    // 離峰時段有兩個時間區間
+    ranges: [
+      { startHour: 9, endHour: 17, startMinute: 0, endMinute: 59, startSecond: 0, endSecond: 59 },
+      { startHour: 19, endHour: 23, startMinute: 0, endMinute: 59, startSecond: 0, endSecond: 59 },
+    ],
+    isPeakHour: 0,
+    description: '離峰時段 (09:00-17:00 或 19:00-23:00)',
+    dayOfWeek: 2, // 週二（工作日）
+  },
+
+  // 🌙 凌晨時段：隨機生成 00:00-07:00
+  late_night: {
+    // 凌晨時段：午夜到早上
+    ranges: [{ startHour: 0, endHour: 7, startMinute: 0, endMinute: 59, startSecond: 0, endSecond: 59 }],
+    isPeakHour: 0,
+    description: '凌晨時段 (00:00-07:00)',
+    dayOfWeek: 2, // 週二（工作日）
+  },
+}
+
+/**
+ * 🎯【新增】隨機時間生成函數
+ * 根據時間範圍隨機生成時、分、秒
+ * @param {Array} ranges - 時間範圍陣列
+ * @returns {Object} { hour, minute, second }
+ */
+function generateRandomTime(ranges) {
+  if (!ranges || ranges.length === 0) {
+    return { hour: 12, minute: 0, second: 0 }
+  }
+
+  // 隨機選擇一個時間範圍
+  const range = ranges[Math.floor(Math.random() * ranges.length)]
+
+  // 隨機生成小時、分鐘、秒
+  const hour = Math.floor(Math.random() * (range.endHour - range.startHour + 1)) + range.startHour
+  const minute = Math.floor(Math.random() * (range.endMinute - range.startMinute + 1)) + range.startMinute
+  const second = Math.floor(Math.random() * (range.endSecond - range.startSecond + 1)) + range.startSecond
+
+  return { hour, minute, second }
+}
+
+/**
+ * 獲取時段對應的時間配置
+ * @param {string} timePeriod - 時段 ('peak_hours', 'off_peak', 'late_night')
+ * @returns {Object} 時間配置對象（包含隨機生成的時、分、秒）
+ */
+export function getTimeConfigForScenario(timePeriod) {
+  const config = SCENARIO_TIME_CONFIG[timePeriod] || SCENARIO_TIME_CONFIG['off_peak']
+
+  // 隨機生成時間
+  const randomTime = generateRandomTime(config.ranges)
+
+  return {
+    hour: randomTime.hour,
+    minute: randomTime.minute,
+    second: randomTime.second,
+    isPeakHour: config.isPeakHour,
+    description: config.description,
+    dayOfWeek: config.dayOfWeek,
+  }
+}
+
+/**
  * 獲取時段對應的倍數乘以器
  */
 export function getDisplayMultiplier(timePeriod, vdId) {
