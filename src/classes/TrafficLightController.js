@@ -749,15 +749,15 @@ export default class TrafficLightController {
       let dataToSend = null
       if (vdData) {
         dataToSend = vdData
-        console.log('✅ 使用傳入的 VD 數據:', dataToSend)
+        console.log('⏳ 已取得傳入的 VD 原始數據，準備進行正規化轉換...')
       } else if (window.currentGeneratedVDData?.apiVDData) {
         // 使用全局保存的生成 VD 數據
         dataToSend = window.currentGeneratedVDData.apiVDData
-        console.log('✅ 使用全局保存的生成 VD 數據:', dataToSend)
+        console.log('⏳ 已取得全局保存的生成 VD 原始數據，準備進行正規化轉換...')
       } else {
         // 備用方案：使用本地收集的數據
         dataToSend = this.collectIntersectionData()
-        console.log('⚠️ 使用本地收集的數據（備用方案）:', dataToSend)
+        console.log('⏳ 已使用本地收集的數據（備用方案），準備進行正規化轉換...')
       }
 
       // 🎯【關鍵步驟 1】確保 dataToSend 是陣列格式（後端期望 4 筆路口特徵資料）
@@ -900,6 +900,20 @@ export default class TrafficLightController {
 
       // ✅ 先處理第一筆數據用於日誌（如果有多筆）
       const firstData = normalizedDataArray[0] || {}
+
+      // ✅ 【新增】打印正規化轉換完成
+      console.log('✅ 【正規化轉換完成】傳入的 VD 數據已成功正規化:')
+      console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
+      console.log(`  - 正規化倍數: ${firstData.normalization_displayMultiplier}x`)
+      console.log(`  - 時段: ${firstData.normalization_period}`)
+
+      // 【新增】打印完整的正規化後陣列（物件形式，可用 Copy object 複製）
+      console.log('📦 【完整的正規化後陣列 - 右鍵 Copy object 複製】:')
+      console.log(normalizedDataArray)
+
+      // 【新增】打印格式化的 JSON 字符串（便於閱讀和檢查）
+      console.log('📋 【格式化的 JSON 字符串 - 便於閱讀】:')
+      console.log(JSON.stringify(normalizedDataArray, null, 2))
 
       console.log('🚦 發送正規化後的交通數據到後端 AI 系統:')
       console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
