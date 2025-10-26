@@ -1505,11 +1505,6 @@ export default class Vehicle {
     // 標記正在回收
     this.isBeingRecycled = true
 
-    // 記錄回收事件
-    if (VEHICLE_RECYCLING_CONFIG.ENABLE_RECYCLE_LOGGING) {
-      console.log(`🔄 [${this.id}] 車輛被回收 (第 ${this.recycleCount + 1} 次, 方向: ${this.direction})`)
-    }
-
     // 暫停現有動畫
     if (this.movementTimeline) {
       this.movementTimeline.pause()

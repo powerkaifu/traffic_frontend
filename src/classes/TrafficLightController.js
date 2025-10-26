@@ -1267,9 +1267,6 @@ export default class TrafficLightController {
     if (idx !== -1) {
       // 如果還在陣列中，說明有其他地方派發了事件，幫忙移除
       window.liveVehicles.splice(idx, 1)
-      console.log(
-        `🗑️ 車輛已移除: ${detail.vehicleId} (剩餘: ${window.liveVehicles.length}/${this.maxLiveVehicles || '100'})`,
-      )
     } else {
       // 正常情況 - 車輛已被 IndexPage 移除
       // console.log(`✅ 車輛事件處理: ${detail.vehicleId}`)

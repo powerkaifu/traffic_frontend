@@ -489,10 +489,6 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
     window.liveVehicles = []
   }
   window.liveVehicles.push(vehicle)
-  console.log(
-    `📝 車輛已添加到 liveVehicles: id="${vehicle.id}" (${typeof vehicle.id}), 總數=${window.liveVehicles.length}`,
-    vehicle,
-  )
 
   window.dispatchEvent(
     new CustomEvent('vehicleAdded', {
@@ -536,9 +532,6 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
 
           // 嘗試回收車輛
           if (vehicleAtIndex && vehicleAtIndex.recycleVehicle()) {
-            // 回收成功 - 車輛會重新開始動畫
-            console.log(`✅ [${vehicleId}] 已成功回收，重新循環使用`)
-
             // 標記車輛為新回收，需要重新開始動畫（但保留在 activeCars 中）
             vehicleAtIndex.isAnimationStarted = false
           } else {
