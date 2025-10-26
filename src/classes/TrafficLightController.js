@@ -538,7 +538,7 @@ export default class TrafficLightController {
 
     // 🎯【CRITICAL FIX】在自動模式下使用模擬時間，否則使用系統時間或配置時間
     let dayOfWeek, hour, minute, second, isPeakHour
-    
+
     if (window.autoTrafficGenerator && window.autoTrafficGenerator.isAutoMode) {
       // 自動模式：使用模擬時間
       const simulatedTime = window.autoTrafficGenerator.simulationTime
@@ -547,7 +547,9 @@ export default class TrafficLightController {
       minute = simulatedTime.getMinutes()
       second = simulatedTime.getSeconds()
       isPeakHour = (hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19) ? 1 : 0
-      console.log(`🕐 [自動模式] 使用模擬時間: ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')} (曜日=${dayOfWeek}, 尖峰=${isPeakHour})`)
+      console.log(
+        `🕐 [自動模式] 使用模擬時間: ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')} (曜日=${dayOfWeek}, 尖峰=${isPeakHour})`,
+      )
     } else {
       // 手動模式或無模式：使用情景時間配置
       const selectedTimePeriod = window.selectedTrafficTimePeriod || 'off_peak'

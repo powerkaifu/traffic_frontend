@@ -364,7 +364,9 @@ export default class AutoTrafficGenerator {
         normalizationInfo: `[正規化] 時段=${timePeriod}, 小時=${hour}:00, displayMultiplier=${normParams.params.displayMultiplier}x`,
         // ✅ 新增：顯示是否為模擬時間
         isSimulatedTime: this.isAutoMode,
-        simulatedTimeLabel: this.isAutoMode ? `🕐 模擬時間: ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}` : '📍 系統時間',
+        simulatedTimeLabel: this.isAutoMode
+          ? `🕐 模擬時間: ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`
+          : '📍 系統時間',
       })
     }
 
