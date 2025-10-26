@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <q-layout view="hHh lpR fFf">
     <q-header elevated class="text-white bg-transparent">
       <q-toolbar class="header-toolbar">
@@ -123,12 +123,18 @@
                     min="500"
                     max="30000"
                     :step="100"
-                    @input="updateGenerationConfig"
-                    class="freq-slider"
+                    @input="onSliderInput"
+                    @mousedown="isSliderActive = true"
+                    @mouseup="isSliderActive = false"
+                    @touchstart="isSliderActive = true"
+                    @touchend="isSliderActive = false"
+                    :class="['freq-slider', { active: isSliderActive }]"
                     style="flex: 1"
                     :disabled="isAutoMode"
                   />
-                  <span class="freq-value">{{ (manualInterval / 1000).toFixed(1) }}s</span>
+                  <span :class="['freq-value', { active: isSliderActive }]"
+                    >{{ (manualInterval / 1000).toFixed(1) }}s</span
+                  >
                 </div>
               </div>
             </div>
@@ -563,11 +569,26 @@ function selectVDScenario(scenario) {
     window.autoTrafficGenerator.setVDScenario(scenario)
     console.log(`✅ [MainLayout] AutoTrafficGenerator 已設置 VD 情景: ${scenario}`)
   }
+
+  // 🎯 新增：按下情景按鈕時，拉桿跳到該情景的標準生成間隔值
+  if (!isAutoMode.value) {
+    const scenarioConfig = timeScenarios.find((s) => s.key === scenario)
+    if (scenarioConfig && scenarioConfig.config.interval) {
+      // 將拉桿設置為該情景的 normal 值
+      manualInterval.value = scenarioConfig.config.interval.normal
+      const normalValue = scenarioConfig.config.interval.normal
+      const normalSec = (normalValue / 1000).toFixed(1)
+      console.log(`[MainLayout] Scenario button clicked - ${scenario}, Slider moved to ${normalSec}s`)
+      // 更新生成配置
+      updateGenerationConfig()
+    }
+  }
 }
 
 const currentTimeScenario = ref('peak_hours')
 const manualInterval = ref(1000)
 const currentInterval = ref(7.0)
+const isSliderActive = ref(false) // 🎯 拉桿 active 狀態
 
 // timeScenarios 已從 trafficScenarioConfig.js 匯入
 const currentScenarioDetails = computed(() => {
@@ -770,6 +791,12 @@ function setupListeners() {
   }
 }
 
+// 🎯 拉桿輸入時的處理函數
+function onSliderInput() {
+  updateGenerationConfig()
+  // isSliderActive 由 @mousedown/@mouseup/@touchstart/@touchend 控制
+}
+
 function updateGenerationConfig() {
   if (isAutoMode.value) return // 如果是自動模式，則不執行手動更新
   if (!window.autoTrafficGenerator) return
@@ -793,6 +820,8 @@ function updateGenerationConfig() {
   // 💡 更新 currentTimeScenario 標籤（用於顯示下方詳細資訊）
   if (closestScenario) {
     currentTimeScenario.value = closestScenario.scenario.key
+    // 🎯 新增：同時更新 selectedVDScenario，使按鈕顯示 active 狀態
+    selectedVDScenario.value = closestScenario.scenario.key
   }
 
   // 使用該最接近情景的配置參數
@@ -1169,6 +1198,13 @@ onUnmounted(() => {
   border-radius: 2px;
   outline: none;
   appearance: none;
+  transition: all 0.2s ease;
+}
+
+.freq-slider.active {
+  background: rgba(100, 181, 246, 0.4);
+  height: 5px;
+  box-shadow: 0 0 8px rgba(100, 181, 246, 0.6);
 }
 
 .freq-slider:disabled {
@@ -1182,11 +1218,21 @@ onUnmounted(() => {
   background: #64b5f6;
   border-radius: 50%;
   cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 4px rgba(100, 181, 246, 0.5);
+}
+
+.freq-slider.active::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  background: #42a5f5;
+  box-shadow: 0 0 12px rgba(100, 181, 246, 0.8);
 }
 
 .freq-slider:disabled::-webkit-slider-thumb {
   background: #999;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .freq-value {
@@ -1195,6 +1241,12 @@ onUnmounted(() => {
   min-width: 20px;
   text-align: right;
   flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.freq-value.active {
+  color: #42a5f5;
+  font-size: 1.05em;
 }
 
 /* 當前情境參數顯示 */
