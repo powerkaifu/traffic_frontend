@@ -288,13 +288,6 @@ export default class TrafficLightController {
   // 🎯【新增】獲取左轉燈狀態
   // 除錯方法：檢查所有燈號狀態
   debugLightStates() {
-    console.log('🚦 [DEBUG] 當前所有燈號狀態：')
-    console.log(`  北燈：${this.currentLightStates.north} (DOM: ${this.lights.north?.currentState})`)
-    console.log(`  南燈：${this.currentLightStates.south} (DOM: ${this.lights.south?.currentState})`)
-    console.log(`  東燈：${this.currentLightStates.east} (DOM: ${this.lights.east?.currentState})`)
-    console.log(`  西燈：${this.currentLightStates.west} (DOM: ${this.lights.west?.currentState})`)
-    console.log(`  當前相位：${this.currentPhase}`)
-
     // 檢查是否有不一致的狀態
     const inconsistencies = []
     for (const direction of ['north', 'south', 'east', 'west']) {
@@ -1130,14 +1123,9 @@ export default class TrafficLightController {
 
   // 重置車輛數據
   resetVehicleData() {
-    // 🔧 添加日誌：顯示重置前的數據
-    console.log('🔄 [數據重置] 重置前 vehicleData:', JSON.stringify(this.vehicleData, null, 2))
-
     Object.keys(this.vehicleData).forEach((direction) => {
       this.vehicleData[direction] = { motor: 0, small: 0, large: 0 }
     })
-
-    console.log('✅ [數據重置] 車輛數據已重置為 0')
   }
 
   // ==========================================

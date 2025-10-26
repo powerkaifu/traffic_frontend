@@ -11,7 +11,7 @@ import {
 } from './config/vehicleConfig.js'
 import VDNormalizationUtils from './utils/VDNormalizationUtils.js'
 import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
-import { getTimeConfigForScenario } from './config/vdPatternConfig.js'
+import { getTimeConfigForScenario, generateVDDataByPattern } from './config/vdPatternConfig.js'
 
 export default class AutoTrafficGenerator {
   constructor(trafficController) {
@@ -383,22 +383,37 @@ export default class AutoTrafficGenerator {
       return null
     }
 
-    const features = scenario.targetFeatures
-
     // 🎯 🔧 CRITICAL FIX：根據是否在自動模式決定時間生成方式
     let hour, minute, second, isPeakHour
+    let patternData = null
+
     if (this.isAutoMode) {
-      // 自動模式：使用模擬時間的實際時間（縮時時間）
+      // 自動模式：使用模擬時間的實際時間（縮時時間）+ 使用 generateVDDataByPattern 生成統計數據
       const simulatedTime = this.simulationTime
       hour = simulatedTime.getHours()
       minute = simulatedTime.getMinutes()
       second = simulatedTime.getSeconds()
       isPeakHour = (hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19) ? 1 : 0
+
+      // 🎯【新增】自動模式：使用 generateVDDataByPattern 生成基於時段的 VD 統計模式
+      // 根據小時確定時段（peak_hours, off_peak, late_night）
+      let timePeriod = 'off_peak' // 預設離峰
+      if ((hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19)) {
+        timePeriod = 'peak_hours' // 尖峰時段
+      } else if (hour >= 0 && hour < 7) {
+        timePeriod = 'late_night' // 凌晨時段
+      }
+
+      // 使用 pattern 配置中的拉桿間隔進行生成
+      const currentInterval = this.config.interval?.normal || 2700
+      patternData = generateVDDataByPattern(timePeriod, 'VLRJX20', currentInterval)
+
       console.log(
-        `🕐 [自動模式] 使用模擬時間=${hour}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}, IsPeakHour=${isPeakHour}`,
+        `🕐 [自動模式] 使用模擬時間=${hour}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}, 時段=${timePeriod}, IsPeakHour=${isPeakHour}`,
       )
+      console.log(`📊 [自動模式] 使用 VD Pattern: Volume_T=${patternData?.Volume_T}, Speed=${patternData?.Speed}`)
     } else {
-      // 手動模式：使用隨機時間配置
+      // 手動模式：使用隨機時間配置 + 使用 targetFeatures
       const timeConfig = getTimeConfigForScenario(scenarioKey)
       hour = timeConfig.hour
       minute = timeConfig.minute
@@ -409,24 +424,54 @@ export default class AutoTrafficGenerator {
       )
     }
 
-    // 🎭 API 層數據：原始數據（不放大，用於後端）
-    const volumeByType = features.volumeByType
+    // � 使用 pattern 數據或 targetFeatures 數據
+    let volumeM, volumeS, volumeL, occupancy, speed, volumeT, speedM, speedS, speedL
 
-    // 在目標值範圍內加入隨機波動 ±20%
-    const volumeVariance = 0.8 + Math.random() * 0.4
-    const occupancyVariance = 0.8 + Math.random() * 0.4
-    const speedVariance = 0.85 + Math.random() * 0.3
+    if (this.isAutoMode && patternData) {
+      // 自動模式：直接使用 pattern 數據
+      volumeT = patternData.Volume_T
+      volumeM = patternData.Volume_M
+      volumeS = patternData.Volume_S
+      volumeL = patternData.Volume_L
+      occupancy = patternData.Occupancy
+      speed = patternData.Speed
 
-    // ✅ 正確計算各車型數量
-    const volumeM = Math.round(volumeByType.motor * volumeVariance)
-    const volumeS = Math.round(volumeByType.small * volumeVariance)
-    const volumeL = Math.round(volumeByType.large * volumeVariance)
-    // ✅ 聯結車禁止進入，必定為 0
+      // 🎯 從 pattern 中推算各車型速度（簡化方式）
+      // 因為 pattern 提供總速度，需要分配給各車型
+      const baseSpeedM = 24 // 機車基準速度
+      const baseSpeedS = 32 // 小客車基準速度
+      const baseSpeedL = 18 // 大客車基準速度
 
-    // ✅ 正確計算各車型速度
-    const speedM = Math.round(features.speed * speedVariance * (0.85 + Math.random() * 0.3))
-    const speedS = Math.round(features.speed * speedVariance)
-    const speedL = Math.round(features.speed * speedVariance * (0.7 + Math.random() * 0.3))
+      speedM = Math.round(baseSpeedM * (speed / 28)) // 28 是平均速度
+      speedS = Math.round(baseSpeedS * (speed / 28))
+      speedL = Math.round(baseSpeedL * (speed / 28))
+
+      console.log(`📊 [Pattern 數據] Volume_T=${volumeT}, 占有率=${occupancy}%, 速度=${speed}km/h`)
+    } else {
+      // 手動模式或無 pattern：使用 targetFeatures 數據
+      const features = scenario.targetFeatures
+      const volumeByType = features.volumeByType
+
+      // 在目標值範圍內加入隨機波動 ±20%
+      const volumeVariance = 0.8 + Math.random() * 0.4
+      const occupancyVariance = 0.8 + Math.random() * 0.4
+      const speedVariance = 0.85 + Math.random() * 0.3
+
+      // ✅ 正確計算各車型數量
+      volumeM = Math.round(volumeByType.motor * volumeVariance)
+      volumeS = Math.round(volumeByType.small * volumeVariance)
+      volumeL = Math.round(volumeByType.large * volumeVariance)
+      volumeT = 0 // ✅ 聯結車禁止進入，必定為 0
+
+      // ✅ 正確計算各車型速度
+      speedM = Math.round(features.speed * speedVariance * (0.85 + Math.random() * 0.3))
+      speedS = Math.round(features.speed * speedVariance)
+      speedL = Math.round(features.speed * speedVariance * (0.7 + Math.random() * 0.3))
+      speed = Math.round(features.speed * speedVariance)
+
+      // ✅ 佔有率
+      occupancy = Math.round(features.occupancy * occupancyVariance * 10) / 10
+    }
 
     // ✅ 聯結車禁止進入，不需計算 speedT
 
@@ -443,27 +488,27 @@ export default class AutoTrafficGenerator {
       Volume_M: volumeM,
       Volume_S: volumeS,
       Volume_L: volumeL,
-      Volume_T: 0, // ✅ 聯結車禁止進入，必定為 0
+      Volume_T: volumeT, // ✅ 使用計算的值（pattern 或 targetFeatures）
       // 🎯 API 層：原始速度數據
       Speed_M: speedM,
       Speed_S: speedS,
       Speed_L: speedL,
       Speed_T: 0, // ✅ 聯結車禁止進入，必定為 0
       // 🎯 API 層：原始佔有率（不放大）
-      Occupancy: Math.round(features.occupancy * occupancyVariance * 10) / 10,
+      Occupancy: occupancy,
     }
 
     // 🎭 視覺層數據：應用 displayMultiplier 放大（用於前端動畫）
-    const displayMultiplier = scenario.config.displayMultiplier || 1
+    const displayMultiplier = scenario?.config?.displayMultiplier || 1
     const visualVDData = {
       ...apiVDData,
       // 放大後的數據用於視覺顯示
       Volume_M: Math.round(volumeM * displayMultiplier),
       Volume_S: Math.round(volumeS * displayMultiplier),
       Volume_L: Math.round(volumeL * displayMultiplier),
-      Volume_T: 0, // ✅ 聯結車禁止進入，必定為 0
+      Volume_T: Math.round(volumeT * displayMultiplier), // ✅ 聯結車禁止進入，必定為 0
       // 佔有率也放大以匹配視覺流量
-      Occupancy: Math.round(features.occupancy * occupancyVariance * displayMultiplier * 10) / 10,
+      Occupancy: Math.round(occupancy * displayMultiplier * 10) / 10,
       // 標記這是視覺層數據
       isVisualData: true,
       displayMultiplier: displayMultiplier,
