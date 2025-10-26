@@ -109,7 +109,7 @@
                 </div>
                 <div class="detail-item">
                   <span class="detail-label">實際生成間隔（秒）：</span>
-                  <span class="detail-value">{{ (currentInterval / 1000).toFixed(1) }}</span>
+                  <span class="detail-value">{{ (manualInterval / 1000).toFixed(1) }}</span>
                 </div>
               </div>
 
@@ -581,7 +581,7 @@ function selectVDScenario(scenario) {
 
 const currentTimeScenario = ref('peak_hours')
 const manualInterval = ref(1000)
-const currentInterval = ref(7.0)
+const currentInterval = ref(1.0) // 初始化為 1 秒（與 manualInterval 預設值 1000ms 一致）
 
 // timeScenarios 已從 trafficScenarioConfig.js 匯入
 const currentScenarioDetails = computed(() => {
@@ -828,7 +828,7 @@ function updateGenerationConfig() {
   const minInterval = Math.max(500, Math.round(actualInterval * 0.8))
   const maxInterval = Math.round(actualInterval * 1.2)
 
-  currentInterval.value = baseInterval
+  currentInterval.value = baseInterval / 1000 // 轉換為秒
 
   console.log(
     `🎚️ [手動模式] 拉桿: ${(baseInterval / 1000).toFixed(1)}s → 實際間隔: ${actualInterval}ms (基於 ${s.name} 的倍數 ${s.config.peakMultiplier})`,

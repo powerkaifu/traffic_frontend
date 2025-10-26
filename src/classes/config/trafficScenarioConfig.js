@@ -65,14 +65,14 @@ export const timeScenarios = [
 
     config: {
       // 目標：11輛/5分鐘 → 300秒/11輛 ≈ 27秒/輛
-      // 實際：2700ms / 3.2 = 844ms → 約11.9輛/5分鐘（配合動態調整）
-      interval: { min: 500, max: 5000, normal: 2700 },
+      // 實際：1000ms / 3.2 = 313ms → 約16輛/5分鐘（高強度）
+      interval: { min: 500, max: 5000, normal: 1000 },
       vehicleTypes: [
         { type: 'motor', weight: 38 }, // 機車 38%（根據 VD 實際比例調整）
         { type: 'small', weight: 58 }, // 小客車 58%
         { type: 'large', weight: 4 }, // 大客車 4%
       ],
-      peakMultiplier: 3.2, // 高強度，實際間隔 = 2700/3.2 = 844ms
+      peakMultiplier: 3.2, // 高強度，實際間隔 = 1000/3.2 = 313ms
       maxLiveVehicles: 55, // 允許較多車輛同時在場
       densityThresholds: { light: 15, moderate: 25, heavy: 35, congested: 45 },
       description: '尖峰時段 - 高流量中等佔有率中速度 (早峰/晚峰)',
