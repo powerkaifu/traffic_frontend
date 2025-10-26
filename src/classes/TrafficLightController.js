@@ -536,20 +536,31 @@ export default class TrafficLightController {
     this.apiCallCount = (this.apiCallCount || 0) + 1
     console.log(`📞 [API 計數] 第 ${this.apiCallCount} 次呼叫`)
 
-    // 🎯【改進】使用情景時間配置而不是系統時間
-    // 根據當前選擇的時段來定義時間，不依賴電腦系統時間
-    const selectedTimePeriod = window.selectedTrafficTimePeriod || 'off_peak'
-    const timeConfig = getTimeConfigForScenario(selectedTimePeriod)
-
-    const dayOfWeek = timeConfig.dayOfWeek // 使用配置中的工作日 (2 = 週二)
-    const hour = timeConfig.hour // 使用配置中的小時
-    const minute = timeConfig.minute // 使用配置中的分鐘
-    const second = timeConfig.second // 使用配置中的秒
-    const isPeakHour = timeConfig.isPeakHour // 使用配置中的尖峰標記
-
-    console.log(
-      `📅 [時間配置] 情景: ${selectedTimePeriod} → 時間: ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')} (尖峰=${isPeakHour})`,
-    )
+    // 🎯【CRITICAL FIX】在自動模式下使用模擬時間，否則使用系統時間或配置時間
+    let dayOfWeek, hour, minute, second, isPeakHour
+    
+    if (window.autoTrafficGenerator && window.autoTrafficGenerator.isAutoMode) {
+      // 自動模式：使用模擬時間
+      const simulatedTime = window.autoTrafficGenerator.simulationTime
+      dayOfWeek = simulatedTime.getDay()
+      hour = simulatedTime.getHours()
+      minute = simulatedTime.getMinutes()
+      second = simulatedTime.getSeconds()
+      isPeakHour = (hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19) ? 1 : 0
+      console.log(`🕐 [自動模式] 使用模擬時間: ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')} (曜日=${dayOfWeek}, 尖峰=${isPeakHour})`)
+    } else {
+      // 手動模式或無模式：使用情景時間配置
+      const selectedTimePeriod = window.selectedTrafficTimePeriod || 'off_peak'
+      const timeConfig = getTimeConfigForScenario(selectedTimePeriod)
+      dayOfWeek = timeConfig.dayOfWeek // 使用配置中的工作日 (2 = 週二)
+      hour = timeConfig.hour // 使用配置中的小時
+      minute = timeConfig.minute // 使用配置中的分鐘
+      second = timeConfig.second // 使用配置中的秒
+      isPeakHour = timeConfig.isPeakHour // 使用配置中的尖峰標記
+      console.log(
+        `📅 [手動模式] 情景: ${selectedTimePeriod} → 時間: ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')} (尖峰=${isPeakHour})`,
+      )
+    }
 
     const vdData = []
 

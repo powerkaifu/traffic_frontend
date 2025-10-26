@@ -342,16 +342,18 @@ export default class AutoTrafficGenerator {
     // 🎯 生成該情景對應的 VD 數據
     const vdData = this._generateScenarioVDData(scenarioKey)
 
-    // ✅ 新增：自動時段檢測（手動模式時使用當前實時時間）
-    const now = new Date()
-    const hour = now.getHours()
+    // ✅ 🔧 CRITICAL FIX：在自動模式下使用模擬時間，否則使用系統時間
+    const timeToUse = this.isAutoMode ? this.simulationTime : new Date()
+    const hour = timeToUse.getHours()
+    const minute = timeToUse.getMinutes()
+    const second = timeToUse.getSeconds()
     const timePeriod = getCurrentTimePeriod()
     const normParams = VDNormalizationUtils.getTimePeriodAndParamsByHour('VLRJM60', hour)
 
     // 回傳給 UI
     if (this.onTimeUpdate) {
       this.onTimeUpdate({
-        time: now.toLocaleTimeString('it-IT'),
+        time: timeToUse.toLocaleTimeString('it-IT'),
         description: scenario.config.description,
         scenarioMode: scenarioKey,
         vdData: vdData,
@@ -360,6 +362,9 @@ export default class AutoTrafficGenerator {
         timePeriod: timePeriod,
         normalizationParams: normParams,
         normalizationInfo: `[正規化] 時段=${timePeriod}, 小時=${hour}:00, displayMultiplier=${normParams.params.displayMultiplier}x`,
+        // ✅ 新增：顯示是否為模擬時間
+        isSimulatedTime: this.isAutoMode,
+        simulatedTimeLabel: this.isAutoMode ? `🕐 模擬時間: ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}` : '📍 系統時間',
       })
     }
 
@@ -378,16 +383,17 @@ export default class AutoTrafficGenerator {
 
     const features = scenario.targetFeatures
 
-    // 🎯 根據是否在自動模式決定時間生成方式
-    let hour, minute, second
+    // 🎯 🔧 CRITICAL FIX：根據是否在自動模式決定時間生成方式
+    let hour, minute, second, isPeakHour
     if (this.isAutoMode) {
-      // 自動模式：使用模擬時間作為基準，但生成該時段的隨機時間
-      const timeConfig = getTimeConfigForScenario(scenarioKey)
-      hour = timeConfig.hour
-      minute = timeConfig.minute
-      second = timeConfig.second
+      // 自動模式：使用模擬時間的實際時間（縮時時間）
+      const simulatedTime = this.simulationTime
+      hour = simulatedTime.getHours()
+      minute = simulatedTime.getMinutes()
+      second = simulatedTime.getSeconds()
+      isPeakHour = (hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19) ? 1 : 0
       console.log(
-        `🕐 [自動模式] 情景=${scenarioKey}, 生成隨機時間=${hour}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}, IsPeakHour=${timeConfig.isPeakHour}`,
+        `🕐 [自動模式] 使用模擬時間=${hour}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}, IsPeakHour=${isPeakHour}`,
       )
     } else {
       // 手動模式：使用隨機時間配置
@@ -395,8 +401,9 @@ export default class AutoTrafficGenerator {
       hour = timeConfig.hour
       minute = timeConfig.minute
       second = timeConfig.second
+      isPeakHour = timeConfig.isPeakHour
       console.log(
-        `🎭 [手動模式] 情景=${scenarioKey}, 生成隨機時間=${hour}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}, IsPeakHour=${timeConfig.isPeakHour}`,
+        `🎭 [手動模式] 生成隨機時間=${hour}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}, IsPeakHour=${isPeakHour}`,
       )
     }
 
@@ -427,7 +434,7 @@ export default class AutoTrafficGenerator {
       Hour: hour,
       Minute: minute,
       Second: second,
-      IsPeakHour: scenarioKey === 'peak_hours' ? 1 : 0,
+      IsPeakHour: isPeakHour, // 使用正確計算的尖峰標記
       LaneID: 0,
       LaneType: 1,
       // 🎯 API 層：原始車輛數據（不放大）

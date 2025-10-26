@@ -126,7 +126,7 @@ export const VD_PATTERN_RANGES = {
         normal: 1.0,
         slow: 0.8,
       },
-      displayMultiplier: 3,
+      displayMultiplier: 5,
     },
 
     // 路口 VLRJX00
@@ -152,7 +152,7 @@ export const VD_PATTERN_RANGES = {
         normal: 1.0,
         slow: 0.85,
       },
-      displayMultiplier: 3,
+      displayMultiplier: 5,
     },
 
     // 路口 VLRJX20
@@ -178,7 +178,7 @@ export const VD_PATTERN_RANGES = {
         normal: 1.0,
         slow: 0.75,
       },
-      displayMultiplier: 3,
+      displayMultiplier: 5,
     },
   },
 
