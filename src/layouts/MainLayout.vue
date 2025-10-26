@@ -71,6 +71,7 @@
                 <button
                   @click="selectVDScenario('peak_hours')"
                   :class="['vd-scenario-btn', { active: selectedVDScenario === 'peak_hours' }]"
+                  :disabled="isAutoMode"
                   title="尖峰時段 (07-09, 17-19)"
                 >
                   <div class="vd-scenario-icon">🚀</div>
@@ -79,6 +80,7 @@
                 <button
                   @click="selectVDScenario('off_peak')"
                   :class="['vd-scenario-btn', { active: selectedVDScenario === 'off_peak' }]"
+                  :disabled="isAutoMode"
                   title="離峰時段 (10-16, 20-23)"
                 >
                   <div class="vd-scenario-icon">🌞</div>
@@ -87,6 +89,7 @@
                 <button
                   @click="selectVDScenario('late_night')"
                   :class="['vd-scenario-btn', { active: selectedVDScenario === 'late_night' }]"
+                  :disabled="isAutoMode"
                   title="凌晨時段 (00-06)"
                 >
                   <div class="vd-scenario-icon">🌙</div>
@@ -851,6 +854,20 @@ function updateGenerationConfig() {
 // 新增：自動模式切換功能
 function toggleAutoMode() {
   isAutoMode.value = !isAutoMode.value
+
+  if (isAutoMode.value) {
+    // 切換到自動模式：移除按鈕的 active 狀態
+    console.log('🔄 [MainLayout] 切換到自動模式 - 清除情景選擇')
+    selectedVDScenario.value = null
+  } else {
+    // 切換回手動模式：重置為尖峰情景
+    console.log('🔄 [MainLayout] 切換回手動模式 - 設回尖峰情景')
+    selectedVDScenario.value = 'peak_hours'
+    currentTimeScenario.value = 'peak_hours'
+    manualInterval.value = 1000 // 重置拉桿到 1s
+    updateGenerationConfig()
+  }
+
   if (window.autoTrafficGenerator) {
     window.autoTrafficGenerator.toggleAutoMode(isAutoMode.value)
   }
@@ -1042,6 +1059,28 @@ onUnmounted(() => {
   bottom: 0;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
   animation: shine 2s infinite;
+}
+
+.vd-scenario-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: linear-gradient(135deg, rgba(100, 100, 100, 0.1) 0%, rgba(100, 100, 100, 0.05) 100%) !important;
+  border-color: rgba(100, 100, 100, 0.3) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.vd-scenario-btn:disabled:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  background: linear-gradient(135deg, rgba(100, 100, 100, 0.1) 0%, rgba(100, 100, 100, 0.05) 100%) !important;
+}
+
+.vd-scenario-btn:disabled.active {
+  background: linear-gradient(135deg, rgba(100, 100, 100, 0.1) 0%, rgba(100, 100, 100, 0.05) 100%) !important;
+  border-color: rgba(100, 100, 100, 0.3) !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 @keyframes shine {
