@@ -1737,5 +1737,34 @@ onUnmounted(() => {
   .normalization-info .multiplier {
     color: #ffd700;
   }
+
+  .data-row .data-label,
+  .data-row .data-value {
+    font-size: 1rem;
+  }
+
+  .east-zone,
+  .west-zone {
+    position: relative;
+    top: -30px;
+  }
+
+  .south-zone,
+  .north-zone {
+    position: relative;
+    top: 90px;
+  }
+
+  .east-zone .zone-title,
+  .west-zone .zone-title {
+    top: -30px;
+    font-size: 18px;
+  }
+
+  .south-zone .zone-title,
+  .north-zone .zone-title {
+    top: -35px;
+    font-size: 18px;
+  }
 }
 </style>
