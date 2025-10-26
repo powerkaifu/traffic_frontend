@@ -2,7 +2,7 @@
  * AutoTrafficGenerator.js - 自動車流分派系統
  */
 import { getScenarioByTime, getScenarioByKey, defaultConfig } from './config/trafficScenarioConfig.js'
-import { FOLLOWING_CONFIG, GENERATION_CONFIG } from './config/vehicleConfig.js'
+import { FOLLOWING_CONFIG, GENERATION_CONFIG, VEHICLE_DIMENSIONS, LANE_SPAWN_CONFIG } from './config/vehicleConfig.js'
 import VDNormalizationUtils from './utils/VDNormalizationUtils.js'
 import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
 
@@ -887,10 +887,57 @@ export default class AutoTrafficGenerator {
         }),
       )
     } else {
-      // 生成直行車輛（車道2-4）
+      // 🚨 計算動態 initialProgress - 考慮車輛長度和安全距離
+      let initialProgress = 0
+      
+      if (LANE_SPAWN_CONFIG.ENABLE_DYNAMIC_PROGRESS && window.liveVehicles && window.liveVehicles.length > 0) {
+        // 尋找同方向且有效的最後一輛車
+        const lastVehicleInDir = window.liveVehicles
+          .filter(v => v.direction === selectedDir && typeof v.progress === 'number')
+          .slice(-1)[0]
+        
+        if (lastVehicleInDir && lastVehicleInDir.progress >= 0) {
+          // 獲取車輛長度
+          const vehicleLength = VEHICLE_DIMENSIONS[type]?.length || 60
+          const safeDistance = LANE_SPAWN_CONFIG.SAFE_DISTANCE
+          const entryBuffer = LANE_SPAWN_CONFIG.ENTRY_BUFFER
+          
+          // 取得該方向路徑長度
+          const pathId = `${selectedDir}-path`
+          const pathElement = document.getElementById(pathId)
+          
+          if (pathElement && pathElement.getTotalLength && pathElement.getTotalLength() > 0) {
+            const pathLength = pathElement.getTotalLength()
+            
+            // 計算新車的 progress：(上一輛車的像素位置 - 車長 - 安全距離 - 緩衝) / 路徑長度
+            const lastVehiclePixels = lastVehicleInDir.progress * pathLength
+            const newProgressPixels = lastVehiclePixels - vehicleLength - safeDistance - entryBuffer
+            initialProgress = newProgressPixels / pathLength
+            
+            // 如果啟用負 progress，允許車輛在 Path 外生成
+            if (LANE_SPAWN_CONFIG.ENABLE_NEGATIVE_PROGRESS) {
+              // 限制負 progress 不超過路徑長度的 20%
+              initialProgress = Math.max(-0.2, initialProgress)
+            } else {
+              // 否則最小值為 0
+              initialProgress = Math.max(0, initialProgress)
+            }
+            
+            console.log(`🚗 [${type}] ${selectedDir}方向: 上一車 progress=${lastVehicleInDir.progress.toFixed(3)}, 新車 initialProgress=${initialProgress.toFixed(3)}`)
+          }
+        }
+      }
+      
+      // 生成直行車輛（車道2-4），附帶 initialProgress
       window.dispatchEvent(
         new CustomEvent('generateVehicle', {
-          detail: { direction: selectedDir, vehicleType: type, speed: speed, timestamp: Date.now() },
+          detail: { 
+            direction: selectedDir, 
+            vehicleType: type, 
+            speed: speed, 
+            initialProgress: initialProgress,
+            timestamp: Date.now() 
+          },
         }),
       )
     }

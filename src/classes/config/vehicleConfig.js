@@ -54,6 +54,29 @@ export const TRAFFIC_LIGHT_CONFIG = {
   },
 }
 
+// ===== 車輛尺寸設定 (改進：解決重疊問題) =====
+export const VEHICLE_DIMENSIONS = {
+  // 🚗 各車種的長度（像素）
+  motorcycle: { length: 25, width: 10 },  // 機車
+  car: { length: 60, width: 20 },         // 小汽車
+  truck: { length: 120, width: 25 },      // 卡車
+}
+
+// ===== 車道生成設定 (改進：解決重疊問題) =====
+export const LANE_SPAWN_CONFIG = {
+  // 🚗 車輛之間的安全距離（像素）
+  SAFE_DISTANCE: 15,
+  
+  // 🚗 入口前的緩衝區（像素）- 新車從 Path 外緩衝區開始進入
+  ENTRY_BUFFER: 100,
+  
+  // 🚨 是否啟用動態 Progress 生成（推薦啟用）
+  ENABLE_DYNAMIC_PROGRESS: true,
+  
+  // 🚨 是否啟用負 Progress（讓新車從 Path 外開始）
+  ENABLE_NEGATIVE_PROGRESS: true,
+}
+
 // ===== 車輛間距與安全距離設定 =====
 export const DISTANCE_CONFIG = {
   // 🚗 唯一需要調整的參數
@@ -338,4 +361,6 @@ export default {
   VEHICLE_EXIT_CONFIG,
   VEHICLE_RECYCLING_CONFIG,
   LANE_CHANGING_CONFIG,
+  VEHICLE_DIMENSIONS,
+  LANE_SPAWN_CONFIG,
 }
