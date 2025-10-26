@@ -5,6 +5,7 @@ import TrafficLight from './TrafficLight.js'
 import { speedConfig } from './config/trafficConfig.js' // 引入統一的速度設定
 import VDNormalizationUtils from './utils/VDNormalizationUtils.js'
 import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
+import { VOLUME_LIMITS_CONFIG } from './config/vehicleConfig.js'
 
 export default class TrafficLightController {
   constructor() {
@@ -687,6 +688,60 @@ export default class TrafficLightController {
     return finalOccupancy.toFixed(1)
   }
 
+  // ===== 🔌 後端上限限制相關方法 =====
+
+  /**
+   * 根據時段獲取後端數據上限
+   * @param {string} timePeriod - 時段 ('peak_hours', 'off_peak', 'late_night')
+   * @returns {number} 後端允許的最大體積
+   */
+  _getMaxBackendVolumeForPeriod(timePeriod) {
+    const limits = VOLUME_LIMITS_CONFIG[timePeriod] || VOLUME_LIMITS_CONFIG['off_peak']
+    return limits.maxLiveVehiclesForBackend || 20
+  }
+
+  /**
+   * 對前端數據進行後端上限縮放
+   * 確保發送給後端的數據不超過 maxLiveVehiclesForBackend
+   * @param {object} frontendData - 前端生成的數據（包含 Volume_T, Volume_M, Volume_S, Volume_L）
+   * @param {string} timePeriod - 時段
+   * @returns {object} 後端適配的數據
+   */
+  _scaleDataToBackendLimit(frontendData, timePeriod) {
+    const maxBackendVolume = this._getMaxBackendVolumeForPeriod(timePeriod)
+    const currentVolume = frontendData?.Volume_T || 0
+
+    if (currentVolume <= 0) {
+      // 如果沒有體積數據，直接返回
+      return frontendData
+    }
+
+    // 計算縮放因子
+    const scaleFactor = Math.min(1, maxBackendVolume / currentVolume)
+
+    if (scaleFactor < 1) {
+      console.log(
+        `🔌 [後端上限] 將體積從 ${currentVolume} 縮小到 ${Math.round(currentVolume * scaleFactor)} (時段=${timePeriod}, 上限=${maxBackendVolume})`,
+      )
+
+      // 返回縮放後的數據
+      return {
+        ...frontendData,
+        Volume_T: Math.round((frontendData.Volume_T || 0) * scaleFactor),
+        Volume_M: Math.round((frontendData.Volume_M || 0) * scaleFactor),
+        Volume_S: Math.round((frontendData.Volume_S || 0) * scaleFactor),
+        Volume_L: Math.round((frontendData.Volume_L || 0) * scaleFactor),
+        // 佔有率也要縮小
+        Occupancy: (frontendData.Occupancy || 0) * scaleFactor,
+        // 記錄縮放信息
+        _backendScaleFactor: scaleFactor,
+        _backendMaxVolume: maxBackendVolume,
+      }
+    }
+
+    return frontendData
+  }
+
   // Strategy Pattern: 發送數據到後端 API（提前 10 秒請求）
   async sendDataToBackend(vdData = null) {
     try {
@@ -776,8 +831,11 @@ export default class TrafficLightController {
           volume_l: singleData?.Volume_L ?? 0,
         }
 
+        // 🔌 【新增】應用後端上限縮放：確保數據符合後端訓練範圍
+        const scaledData = this._scaleDataToBackendLimit(frontendData, timePeriod)
+
         // 【核心】執行正規化轉換：將前端顯示數據轉換為 API 層數據
-        const normalizedData = VDNormalizationUtils.denormalizeToVDRange(frontendData, intersectionId, timePeriod)
+        const normalizedData = VDNormalizationUtils.denormalizeToVDRange(scaledData, intersectionId, timePeriod)
 
         // 驗證正規化結果
         const validation = VDNormalizationUtils.validateNormalizedData(normalizedData, intersectionId, timePeriod)

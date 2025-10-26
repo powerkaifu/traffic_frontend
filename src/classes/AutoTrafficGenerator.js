@@ -2,7 +2,13 @@
  * AutoTrafficGenerator.js - 自動車流分派系統
  */
 import { getScenarioByTime, getScenarioByKey, defaultConfig } from './config/trafficScenarioConfig.js'
-import { FOLLOWING_CONFIG, GENERATION_CONFIG, VEHICLE_DIMENSIONS, LANE_SPAWN_CONFIG } from './config/vehicleConfig.js'
+import {
+  FOLLOWING_CONFIG,
+  GENERATION_CONFIG,
+  VEHICLE_DIMENSIONS,
+  LANE_SPAWN_CONFIG,
+  VOLUME_LIMITS_CONFIG,
+} from './config/vehicleConfig.js'
 import VDNormalizationUtils from './utils/VDNormalizationUtils.js'
 import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
 
@@ -610,22 +616,6 @@ export default class AutoTrafficGenerator {
   _scheduleNext() {
     if (!this.isRunning) return
 
-    // 🎭 根據 displayMultiplier 動態調整 maxLiveVehicles
-    const displayMult = this._getDisplayMultiplierAdjustment()
-    const baseMaxLiveVehicles = this.config.maxLiveVehicles || this.maxLiveVehicles
-    const adjustedMaxLiveVehicles = Math.ceil(baseMaxLiveVehicles * displayMult)
-
-    // 檢查是否已達到當前時段的上限
-    if (window.liveVehicles && window.liveVehicles.length >= adjustedMaxLiveVehicles) {
-      console.log(
-        `🚦 車輛已達上限 (${window.liveVehicles.length}/${adjustedMaxLiveVehicles}，displayMult=${displayMult})，暫停生成`,
-      )
-      this.timer = setTimeout(() => {
-        this._scheduleNext()
-      }, 500)
-      return
-    }
-
     let delay = this._calcInterval()
 
     // 動態最小生成間隔，根據滑桿強度調整
@@ -653,15 +643,19 @@ export default class AutoTrafficGenerator {
 
   // 隨機生成一輛車
   _generateVehicle() {
-    // 🎭 根據 displayMultiplier 動態調整 maxLiveVehicles
+    // 🎭 獲取當前時段和對應的上限配置
+    const currentTimePeriod = getCurrentTimePeriod() || 'off_peak' // 預設離峰
+    const timeLimits = VOLUME_LIMITS_CONFIG[currentTimePeriod] || VOLUME_LIMITS_CONFIG['off_peak']
+
+    // 🎭 根據 displayMultiplier 動態調整前端動畫上限
     const displayMult = this._getDisplayMultiplierAdjustment()
-    const baseMaxLiveVehicles = this.config.maxLiveVehicles || this.maxLiveVehicles
+    const baseMaxLiveVehicles = timeLimits.maxLiveVehicles || this.maxLiveVehicles
     const adjustedMaxLiveVehicles = Math.ceil(baseMaxLiveVehicles * displayMult)
 
-    // 🚨 檢查車輛上限，添加詳細日誌
+    // 🚨 檢查前端動畫車輛上限
     if (window.liveVehicles && window.liveVehicles.length >= adjustedMaxLiveVehicles) {
       console.log(
-        `⚠️ 車輛已達上限 (${window.liveVehicles.length}/${adjustedMaxLiveVehicles}，displayMult=${displayMult})，不生成新車`,
+        `🎭 前端動畫車輛已達上限 (${window.liveVehicles.length}/${adjustedMaxLiveVehicles}，時段=${currentTimePeriod}，displayMult=${displayMult})，暫停生成`,
       )
       return
     }

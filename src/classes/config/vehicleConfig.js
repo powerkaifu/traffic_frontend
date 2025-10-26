@@ -350,6 +350,84 @@ export const LANE_CHANGING_CONFIG = {
   ENABLE_LANE_CHANGE_LOGGING: true, // 是否記錄變道事件
 }
 
+// ===== 前後端分層上限設定 =====
+// 🎭 前端層：動畫視覺呈現的上限（會乘以 displayMultiplier）
+// 🔌 後端層：API 發送的數據上限（符合 VD 訓練範圍）
+export const VOLUME_LIMITS_CONFIG = {
+  // 🎭【尖峰時段】- 早晨 07:00-09:00 / 傍晚 17:00-19:00
+  peak_hours: {
+    // 前端動畫層（動畫上限）
+    maxLiveVehicles: 100, // 前端允許最多 100 輛動畫車輛
+    displayMultiplier: 7, // 視覺倍數（前端顯示會乘以 7）
+    // 實際視覺：100 × 7 = 700 輛的擁擠感（但實際數據只有 ~100 輛）
+
+    // 後端 API 層（數據上限）
+    maxLiveVehiclesForBackend: 30, // API 最多傳 30 輛的數據
+    // 原因：VD 訓練數據中尖峰時段約 9-11 輛/車道 × 4 車道 ≈ 40-44 輛
+    // 保守設定為 30 輛以匹配訓練範圍
+
+    // 描述
+    description: '尖峰時段 - 前端 100 輛 × 7 倍 = 視覺 700 輛 / 後端傳 30 輛',
+  },
+
+  // 🌞【離峰時段】- 白天 09:00-17:00 / 晚間 19:00-23:00
+  off_peak: {
+    maxLiveVehicles: 100,
+    displayMultiplier: 3,
+    // 實際視覺：100 × 3 = 300 輛
+
+    maxLiveVehiclesForBackend: 20,
+    // 原因：VD 訓練數據中離峰約 3-4 輛/車道 × 4 車道 ≈ 12-16 輛
+    // 保守設定為 20 輛
+
+    description: '離峰時段 - 前端 100 輛 × 3 倍 = 視覺 300 輛 / 後端傳 20 輛',
+  },
+
+  // 🌙【凌晨時段】- 深夜 23:00-07:00
+  late_night: {
+    maxLiveVehicles: 100,
+    displayMultiplier: 1.5,
+    // 實際視覺：100 × 1.5 = 150 輛
+
+    maxLiveVehiclesForBackend: 8,
+    // 原因：VD 訓練數據中凌晨約 1-2 輛/車道 × 4 車道 ≈ 4-8 輛
+    // 保守設定為 8 輛
+
+    description: '凌晨時段 - 前端 100 輛 × 1.5 倍 = 視覺 150 輛 / 後端傳 8 輛',
+  },
+
+  // 📊 工作日 vs 假日調整
+  dayTypeAdjustment: {
+    weekday: 1.0, // 工作日：100%
+    weekend: 0.85, // 假日：減少 15%（交通較少）
+    holiday: 0.75, // 特殊假日：減少 25%
+  },
+
+  // 🎯 天氣影響調整
+  weatherAdjustment: {
+    clear: 1.0, // 晴天：100%（基準）
+    cloudy: 0.95, // 陰天：減少 5%
+    rainy: 0.75, // 雨天：減少 25%（視線不佳，車輛減少）
+    foggy: 0.6, // 霧天：減少 40%（嚴重影響）
+    snowy: 0.5, // 下雪：減少 50%（道路困難）
+  },
+
+  // 💡 使用說明
+  usage: `
+  【前端層使用】
+  - AutoTrafficGenerator._generateVehicle()
+  - 檢查：window.liveVehicles.length >= baseMaxLiveVehicles * displayMult
+
+  【後端層使用】
+  - TrafficLightController.sendDataToBackend()
+  - 縮放：(當前體積) × (maxBackend / 當前體積) 確保 ≤ maxBackendVolume
+
+  【時段判斷】
+  - getCurrentTimePeriod() 返回 'peak_hours' | 'off_peak' | 'late_night'
+  - 根據 trafficScenarioConfig.js 的 hourRanges 判斷
+  `,
+}
+
 // ===== 匯出所有設定 =====
 export default {
   ANIMATION_CONFIG,
@@ -363,4 +441,5 @@ export default {
   LANE_CHANGING_CONFIG,
   VEHICLE_DIMENSIONS,
   LANE_SPAWN_CONFIG,
+  VOLUME_LIMITS_CONFIG,
 }
