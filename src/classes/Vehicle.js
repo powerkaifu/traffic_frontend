@@ -1090,6 +1090,27 @@ export default class Vehicle {
           // 🚨 車輛已在 IndexPage.vue 中使用 getPathStartPosition() 創建在正確位置
           // 移除多餘的位置設置，避免視覺跳躍
 
+          // 🚨 如果有初始 progress，先使用 gsap.set() 將元素設置到該路徑位置
+          if (this.progress && this.progress !== 0) {
+            const pathId = this.getSvgPathId()
+            const pathElement = document.getElementById(pathId)
+            if (pathElement && pathElement.getTotalLength) {
+              const pathLength = pathElement.getTotalLength()
+              // 計算路徑上的絕對位置（支援負 progress，但不會真的在路徑外）
+              const pathDistance = Math.max(0, this.progress * pathLength)
+              const point = pathElement.getPointAtLength(pathDistance)
+              if (point) {
+                gsap.set(this.element, {
+                  x: point.x,
+                  y: point.y,
+                })
+                console.log(
+                  `🚗 [${this.id}] 設置初始位置: progress=${this.progress.toFixed(3)} → (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`,
+                )
+              }
+            }
+          }
+
           this.movementTimeline.to(this.element, {
             duration: animationDuration,
             motionPath: {
@@ -1098,12 +1119,8 @@ export default class Vehicle {
               alignOrigin: [0.5, 0.5], // 車輛中心對齊
               autoRotate: true, // 啟用自動旋轉，車輛會跟隨路徑方向
             },
-            progress: {
-              from: this.progress || 0, // 🚨 從初始 progress 開始（支援負 progress）
-              to: 1, // 到達終點
-            },
             ease: 'none',
-            // 🚨 移除重複的 onUpdate，統一在時間線級別處理
+            // 🚨 使用 gsap.set() 預先定位，而不使用 progress 物件
           })
 
           // 🚨 移除：不再在初始化時暫停車輛

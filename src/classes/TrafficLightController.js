@@ -1197,17 +1197,24 @@ export default class TrafficLightController {
 
   // 處理車輛移除事件
   handleVehicleRemoved(detail) {
-    // detail 應包含 { id, direction, type }
-    if (!detail || !detail.id) return
-    const idx = window.liveVehicles.findIndex((v) => v.id === detail.id)
+    // detail 應包含 { vehicleId, direction, type }
+    if (!detail || !detail.vehicleId) {
+      return
+    }
+
+    // IndexPage.vue 已經在派發事件前從 liveVehicles 移除了車輛
+    // 這個方法主要用於數據同步和統計，不再嘗試移除
+    const idx = window.liveVehicles ? window.liveVehicles.findIndex((v) => v.id === detail.vehicleId) : -1
+
     if (idx !== -1) {
+      // 如果還在陣列中，說明有其他地方派發了事件，幫忙移除
       window.liveVehicles.splice(idx, 1)
-      // 可選：同步 UI 或觸發事件
-      window.dispatchEvent(
-        new CustomEvent('liveVehiclesChanged', {
-          detail: { count: window.liveVehicles.length, removed: detail },
-        }),
+      console.log(
+        `🗑️ 車輛已移除: ${detail.vehicleId} (剩餘: ${window.liveVehicles.length}/${this.maxLiveVehicles || '100'})`,
       )
+    } else {
+      // 正常情況 - 車輛已被 IndexPage 移除
+      // console.log(`✅ 車輛事件處理: ${detail.vehicleId}`)
     }
   }
 }

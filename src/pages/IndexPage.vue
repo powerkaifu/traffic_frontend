@@ -489,6 +489,10 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
     window.liveVehicles = []
   }
   window.liveVehicles.push(vehicle)
+  console.log(
+    `📝 車輛已添加到 liveVehicles: id="${vehicle.id}" (${typeof vehicle.id}), 總數=${window.liveVehicles.length}`,
+    vehicle,
+  )
 
   window.dispatchEvent(
     new CustomEvent('vehicleAdded', {
@@ -554,23 +558,21 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
         activeCars.value.splice(vehicleIndex, 1)
       }
 
+      // 🚨 同時立即從 window.liveVehicles 中移除（在調用 vehicle.remove() 之前）
+      if (window.liveVehicles && window.liveVehicles.length > 0) {
+        const liveVehicleIdx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
+        if (liveVehicleIdx !== -1) {
+          window.liveVehicles.splice(liveVehicleIdx, 1)
+          console.log(`📍 從 liveVehicles 移除: id="${vehicle.id}" (剩餘: ${window.liveVehicles.length})`)
+        }
+      }
+
       // 🚨 直接移除車輛，不執行淡出動畫
+      // ⚠️ 注意：vehicle.remove() 會自動派發 vehicleRemoved 事件
       setTimeout(() => {
         try {
-          // 直接移除 DOM 元素，不執行淡出
+          // 直接移除 DOM 元素並派發事件
           vehicle.remove()
-          window.dispatchEvent(
-            new CustomEvent('vehicleRemoved', {
-              detail: {
-                direction,
-                type: vehicleType,
-                vehicleId: vehicle.id,
-                finalSpeed: vehicle.currentSpeed || 0,
-                travelTime: vehicle.travelTime || 0,
-                recycleCount: vehicle.recycleCount || 0,
-              },
-            }),
-          )
         } catch (error) {
           console.warn(`⚠️ 車輛直接移除失敗:`, error)
         }
@@ -753,6 +755,12 @@ const clearAllVehicles = () => {
 
     // 清空車輛列表
     activeCars.value = []
+
+    // 同時清空 window.liveVehicles
+    if (window.liveVehicles) {
+      console.log(`📍 清空 window.liveVehicles (從 ${window.liveVehicles.length} → 0)`)
+      window.liveVehicles = []
+    }
 
     // 逐一移除車輛的 DOM 元素
     vehiclesToRemove.forEach((vehicle) => {

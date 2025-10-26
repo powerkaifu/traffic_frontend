@@ -59,7 +59,8 @@ export default class AutoTrafficGenerator {
       const timeToPassSafeDistance = safeDistance / avgSpeedPxPerMs
 
       // 設置最小間隔為通過安全距離所需時間的1.5倍（安全係數）
-      this.minLaneInterval = Math.max(1000, Math.round(timeToPassSafeDistance * 1.5))
+      // 降低最小值至 500ms 以支持快速生成模式
+      this.minLaneInterval = Math.max(500, Math.round(timeToPassSafeDistance * 1.5))
     }
   }
 
@@ -89,16 +90,21 @@ export default class AutoTrafficGenerator {
     if (typeof newConfig.interval === 'object') {
       // 當生成間隔很短時，相應縮短車道冷卻時間
       const avgInterval = (newConfig.interval.min + newConfig.interval.max) / 2
-      // 車道冷卻時間 = 平均生成間隔 * 1.2，但不少於500ms，不多於2000ms
+      // 車道冷卻時間 = 平均生成間隔 * 1.5，為了支援快速生成，最小值調整為 300ms
+      // 這樣在 0.5s 生成間隔時，車道冷卻也能相應縮短
       this.minLaneInterval = Math.max(
-        500, // 最小500ms保證碰撞檢測有效
-        Math.min(2000, Math.round(avgInterval * 1.2)), // 最大2000ms避免太長冷卻
+        Math.round(avgInterval * 0.9), // 最小允許接近平均間隔的 90%（支持快速生成）
+        Math.min(2000, Math.round(avgInterval * 1.5)), // 最大 2000ms 避免太長冷卻
+      )
+      console.log(
+        `🚨 [AutoTrafficGenerator] 動態調整 minLaneInterval: avgInterval=${Math.round(avgInterval)}ms → minLaneInterval=${this.minLaneInterval}ms`,
       )
     }
 
     // 🚨 新增：如果配置包含車道間隔設置，更新它（手動設定可覆蓋動態調整）
+    // 允許更短的間隔以支持快速生成模式（最小200ms）
     if (typeof newConfig.minLaneInterval === 'number') {
-      this.minLaneInterval = Math.max(500, newConfig.minLaneInterval) // 安全下限500ms
+      this.minLaneInterval = Math.max(200, newConfig.minLaneInterval) // 安全下限降至 200ms 以支持快速生成
     }
 
     // 🔧 CRITICAL FIX：清除情景模式計時器，防止它覆蓋手動設定
@@ -120,7 +126,9 @@ export default class AutoTrafficGenerator {
 
   // 🚨 新增：設置車道最小間隔的專用方法
   setMinLaneInterval(intervalMs) {
-    this.minLaneInterval = Math.max(500, intervalMs) // 最小不少於500ms
+    // 降低最小限制以支援快速生成（最小 200ms）
+    this.minLaneInterval = Math.max(200, intervalMs)
+    console.log(`🚨 [AutoTrafficGenerator] setMinLaneInterval: ${intervalMs}ms → 實際設置: ${this.minLaneInterval}ms`)
   }
 
   // 🚨 新增：清除特定車道的冷卻狀態（緊急情況使用）
@@ -309,8 +317,9 @@ export default class AutoTrafficGenerator {
     this.maxLiveVehicles = scenario.config.maxLiveVehicles
 
     // 🎯 根據情景的 displayMultiplier 調整車道冷卻間隔
+    // 允許更短的間隔以支持快速生成（最小 200ms）
     if (scenario.config.displayMultiplier) {
-      this.minLaneInterval = Math.max(500, Math.round(2000 / scenario.config.displayMultiplier))
+      this.minLaneInterval = Math.max(200, Math.round(2000 / scenario.config.displayMultiplier))
     }
 
     // 🎯 生成該情景對應的 VD 數據
@@ -649,7 +658,13 @@ export default class AutoTrafficGenerator {
     const baseMaxLiveVehicles = this.config.maxLiveVehicles || this.maxLiveVehicles
     const adjustedMaxLiveVehicles = Math.ceil(baseMaxLiveVehicles * displayMult)
 
-    if (window.liveVehicles && window.liveVehicles.length >= adjustedMaxLiveVehicles) return
+    // 🚨 檢查車輛上限，添加詳細日誌
+    if (window.liveVehicles && window.liveVehicles.length >= adjustedMaxLiveVehicles) {
+      console.log(
+        `⚠️ 車輛已達上限 (${window.liveVehicles.length}/${adjustedMaxLiveVehicles}，displayMult=${displayMult})，不生成新車`,
+      )
+      return
+    }
 
     // 檢查最近生成的車輛，但使用更短的檢查時間
     const now = Date.now()

@@ -509,7 +509,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRouter, useRoute } from 'vue-router'
 import { timeScenarios } from 'src/classes/config/trafficScenarioConfig.js'
@@ -877,6 +877,14 @@ onMounted(() => {
   window.mainLayoutCleanup = () => {
     stopUpdate()
     cleanup()
+  }
+})
+
+// 🚨 監聽拉桿變化，當手動調整時更新生成配置
+watch(manualInterval, (newValue) => {
+  if (!isAutoMode.value && window.autoTrafficGenerator) {
+    console.log(`🎚️ [MainLayout] 拉桿改變: ${(newValue / 1000).toFixed(1)}s，更新生成配置...`)
+    updateGenerationConfig()
   }
 })
 

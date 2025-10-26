@@ -564,9 +564,9 @@ export class WeatherController {
 
     if (weatherConfig) {
       if (WEATHER_SYSTEM_CONFIG.BEHAVIOR.DEBUG_LOG) {
-        console.log(
-          `🌤️ [WeatherController] 獲取速度倍數: ${this.currentWeather} = ${weatherConfig.multiplier.toFixed(2)}x (${weatherConfig.description})`,
-        )
+        // console.log(
+        //   `🌤️ [WeatherController] 獲取速度倍數: ${this.currentWeather} = ${weatherConfig.multiplier.toFixed(2)}x (${weatherConfig.description})`,
+        // )
       }
       return weatherConfig.multiplier
     }
