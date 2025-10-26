@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <q-page class="simulation-page">
     <!-- 十字路口場景模擬頁面內容 -->
     <div ref="crossroadContainer" class="crossroad-area">
@@ -503,11 +503,24 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => 
       // 等待 SVG 路徑準備好
       await waitForSvgPaths()
 
-      // 🚨 改進：提前移除機制 - 當車輛離開邊界時立即從碰撞檢測中移除
+      // 改進 7: 支援循環回收機制 - 當車輛離開邊界時嘗試回收而非移除
       const handleVehicleOutOfBounds = (vehicleId) => {
         const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicleId)
         if (vehicleIndex > -1) {
-          activeCars.value.splice(vehicleIndex, 1)
+          const vehicleAtIndex = activeCars.value[vehicleIndex]
+
+          // 嘗試回收車輛
+          if (vehicleAtIndex && vehicleAtIndex.recycleVehicle()) {
+            // 回收成功 - 車輛會重新開始動畫
+            console.log(`✅ [${vehicleId}] 已成功回收，重新循環使用`)
+
+            // 標記車輛為新回收，需要重新開始動畫（但保留在 activeCars 中）
+            vehicleAtIndex.isAnimationStarted = false
+          } else {
+            // 回收失敗 - 移除車輛
+            activeCars.value.splice(vehicleIndex, 1)
+            console.log(`🗑️ [${vehicleId}] 回收失敗或已達上限，準備移除`)
+          }
         }
       }
 
@@ -533,6 +546,7 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber) => 
                 vehicleId: vehicle.id,
                 finalSpeed: vehicle.currentSpeed || 0,
                 travelTime: vehicle.travelTime || 0,
+                recycleCount: vehicle.recycleCount || 0,
               },
             }),
           )

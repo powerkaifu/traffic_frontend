@@ -240,6 +240,93 @@ export const VEHICLE_EXIT_CONFIG = {
   CHECK_INTERVAL: 100,
 }
 
+// ===== 循環流量機制設定 =====
+export const VEHICLE_RECYCLING_CONFIG = {
+  // 🔄 是否啟用循環流量機制（回收車輛而不是刪除）
+  ENABLED: true,
+
+  // 📍 各方向的回收點位置（路口邊界外）
+  // 當車輛超出邊界時，回收到相反方向的起點
+  RECYCLE_POSITIONS: {
+    east: { x: 0, y: null }, // 東向車輛回收到西邊 (x=0)
+    west: { x: null, y: null }, // 西向車輛回收到東邊 (邊界外)
+    north: { x: null, y: 0 }, // 北向車輛回收到南邊 (y=0)
+    south: { x: null, y: null }, // 南向車輛回收到北邊 (邊界外)
+  },
+
+  // 🔧 回收時的車輛狀態重置
+  RESET_ON_RECYCLE: {
+    speed: 0, // 回收後的初始速度
+    currentState: 'waiting', // 回收後的初始狀態
+    resetTravelData: true, // 是否重置行駛數據
+    resetSpeedData: true, // 是否重置速度數據
+  },
+
+  // ⚙️ 回收機制調整
+  MAX_RECYCLES_PER_VEHICLE: null, // 單個車輛的最大循環次數 (null = 無限)
+  RECYCLE_COOLDOWN: 500, // 回收後的冷卻時間（毫秒），防止立即再次超出邊界
+  ENABLE_RECYCLE_LOGGING: true, // 是否記錄回收事件
+}
+
+// ===== 車道變換設定 (改進 8) =====
+export const LANE_CHANGING_CONFIG = {
+  // 🚦 車道變換啟用設定
+  ENABLED: true, // 是否啟用車道變換
+
+  // 📏 車道變換條件
+  MIN_SPEED_FOR_CHANGE: 20, // 最小速度才能變道 (km/h) - 低速下不建議變道
+  MAX_LANE_CHANGES_PER_VEHICLE: null, // 單個車輛的最大變道次數 (null = 無限)
+
+  // ⏱️ 車道變換冷卻時間 (毫秒)
+  LANE_CHANGE_COOLDOWN: 2000, // 兩次變道間的最小間隔時間
+  LANE_CHANGE_DURATION: 1.5, // 完成一次變道需要的時間 (秒)
+
+  // 🎯 變道決策條件
+  CHANGE_CONDITIONS: {
+    // 前方車輛距離過近時考慮變道
+    MIN_FRONT_VEHICLE_DISTANCE: 100, // 發現前方車輛距離 (px)
+
+    // 旁邊車道的條件
+    SIDE_LANE_MIN_GAP: 80, // 旁邊車道的最小間隔 (px)
+    SIDE_LANE_MIN_CLEAR_DISTANCE: 50, // 旁邊車道要清空的距離 (px)
+
+    // 目標車道的流量條件
+    TARGET_LANE_MAX_VEHICLES: 20, // 目標車道最多車輛數
+    TARGET_LANE_AVG_SPEED_THRESHOLD: 35, // 目標車道平均速度閾值 (km/h)
+  },
+
+  // 🚗 不同方向的變道規則
+  DIRECTION_RULES: {
+    // 南北向 (vertical) - 可在 1-4 號車道間變道
+    east: {
+      MIN_LANE: 1,
+      MAX_LANE: 4,
+      PREFERRED_LANES: [2, 3], // 偏好的車道
+    },
+    west: {
+      MIN_LANE: 1,
+      MAX_LANE: 4,
+      PREFERRED_LANES: [2, 3],
+    },
+    north: {
+      MIN_LANE: 1,
+      MAX_LANE: 4,
+      PREFERRED_LANES: [2, 3],
+    },
+    south: {
+      MIN_LANE: 1,
+      MAX_LANE: 4,
+      PREFERRED_LANES: [2, 3],
+    },
+  },
+
+  // 🔍 變道策略 (aggressive, moderate, conservative)
+  STRATEGY: 'moderate', // 變道策略：激進、中等、保守
+
+  // 📊 變道日誌設定
+  ENABLE_LANE_CHANGE_LOGGING: true, // 是否記錄變道事件
+}
+
 // ===== 匯出所有設定 =====
 export default {
   ANIMATION_CONFIG,
@@ -249,4 +336,6 @@ export default {
   COLLISION_CONFIG,
   GENERATION_CONFIG,
   VEHICLE_EXIT_CONFIG,
+  VEHICLE_RECYCLING_CONFIG,
+  LANE_CHANGING_CONFIG,
 }

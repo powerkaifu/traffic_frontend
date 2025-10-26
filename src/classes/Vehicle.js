@@ -15,6 +15,8 @@ import VehicleConfig, {
   COLLISION_CONFIG,
   GENERATION_CONFIG,
   VEHICLE_EXIT_CONFIG,
+  VEHICLE_RECYCLING_CONFIG,
+  LANE_CHANGING_CONFIG,
 } from './config/vehicleConfig.js' // 🚀 整合：車輛行為配置
 import { STOP_LINE_CONFIG } from './config/stopLineConfig.js' // 🚀 導入：停止線配置
 import {
@@ -110,6 +112,19 @@ export default class Vehicle {
     this.totalDistance = 0
     this.movementStartTime = null
     this.movementEndTime = null
+
+    // 🔄 新增：循環流量相關屬性（改進 7）
+    this.recycleCount = 0 // 車輛被回收的次數
+    this.lastRecycleTime = 0 // 上次回收時間
+    this.isBeingRecycled = false // 是否正在被回收中（防止重複回收）
+
+    // 🛣️ 新增：車道變換相關屬性（改進 8）
+    this.laneChangeCount = 0 // 車輛變道的次數
+    this.lastLaneChangeTime = 0 // 上次變道時間
+    this.isChangingLane = false // 是否正在變道中（防止重複變道）
+    this.targetLaneNumber = laneNumber // 目標車道號
+    this.targetLaneX = null // 目標車道的 X 座標
+    this.originalLaneNumber = laneNumber // 原始車道號（便於恢復）
 
     // 🌤️ 【新增】天氣相關屬性
     this.weatherMultiplier = 1.0 // 初始天氣倍數為 1.0 (晴天)
@@ -1440,6 +1455,294 @@ export default class Vehicle {
     return exitedLeft || exitedRight || exitedTop || exitedBottom
   }
 
+  // 🔄 新增：回收車輛（改進 7 - 循環流量機制）
+  // 將超出邊界的車輛回收到相反方向的起點
+  recycleVehicle() {
+    // 防止重複回收
+    if (this.isBeingRecycled) {
+      return false
+    }
+
+    // 檢查是否啟用循環機制
+    if (!VEHICLE_RECYCLING_CONFIG.ENABLED) {
+      return false
+    }
+
+    // 檢查回收次數限制
+    const maxRecycles = VEHICLE_RECYCLING_CONFIG.MAX_RECYCLES_PER_VEHICLE
+    if (maxRecycles !== null && this.recycleCount >= maxRecycles) {
+      console.log(`🚨 [${this.id}] 回收次數已達上限 (${this.recycleCount}/${maxRecycles})，進行正常移除`)
+      return false
+    }
+
+    // 檢查冷卻時間
+    const now = Date.now()
+    if (now - this.lastRecycleTime < VEHICLE_RECYCLING_CONFIG.RECYCLE_COOLDOWN) {
+      return false
+    }
+
+    // 標記正在回收
+    this.isBeingRecycled = true
+
+    // 記錄回收事件
+    if (VEHICLE_RECYCLING_CONFIG.ENABLE_RECYCLE_LOGGING) {
+      console.log(`🔄 [${this.id}] 車輛被回收 (第 ${this.recycleCount + 1} 次, 方向: ${this.direction})`)
+    }
+
+    // 暫停現有動畫
+    if (this.movementTimeline) {
+      this.movementTimeline.pause()
+    }
+
+    // 計算回收位置
+    const containerWidth = window.innerWidth || document.body.clientWidth
+    const containerHeight = window.innerHeight || document.body.clientHeight
+
+    let newX = this.startPosition.x
+    let newY = this.startPosition.y
+
+    // 根據方向計算回收位置
+    switch (this.direction) {
+      case 'east':
+        // 東向車輛回收到西邊
+        newX = -50
+        newY = this.startPosition.y
+        break
+      case 'west':
+        // 西向車輛回收到東邊
+        newX = containerWidth + 50
+        newY = this.startPosition.y
+        break
+      case 'north':
+        // 北向車輛回收到南邊
+        newX = this.startPosition.x
+        newY = containerHeight + 50
+        break
+      case 'south':
+        // 南向車輛回收到北邊
+        newX = this.startPosition.x
+        newY = -50
+        break
+    }
+
+    // 重置車輛狀態
+    const resetConfig = VEHICLE_RECYCLING_CONFIG.RESET_ON_RECYCLE
+    if (resetConfig.resetTravelData) {
+      this.totalDistance = 0
+      this.movementStartTime = null
+    }
+    if (resetConfig.resetSpeedData) {
+      this.currentSpeed = 0
+      this.maxSpeed = 0
+    }
+
+    // 重置動畫
+    if (this.movementTimeline) {
+      this.movementTimeline.kill()
+      this.movementTimeline = null
+    }
+
+    // 移動到回收位置
+    gsap.set(this.element, {
+      x: newX,
+      y: newY,
+    })
+
+    // 重置狀態
+    this.currentState = resetConfig.currentState
+    this.isAtStopLine = false
+    this.waitingForGreen = false
+    this.hasPassedStopLine = false
+
+    // 更新回收計數和時間
+    this.recycleCount += 1
+    this.lastRecycleTime = now
+
+    // 標記回收完成
+    this.isBeingRecycled = false
+
+    // 通知回收事件（用於統計）
+    if (window.trafficController && window.trafficController.onVehicleRecycled) {
+      window.trafficController.onVehicleRecycled({
+        vehicleId: this.id,
+        direction: this.direction,
+        recycleCount: this.recycleCount,
+        timestamp: now,
+      })
+    }
+
+    return true
+  }
+
+  // 🛣️ 新增：檢查是否可以變道（改進 8）
+  canChangeLane(allVehicles = []) {
+    // 檢查 1: 車道變換啟用？
+    if (!LANE_CHANGING_CONFIG.ENABLED) {
+      return false
+    }
+
+    // 檢查 2: 是否已在變道中？
+    if (this.isChangingLane) {
+      return false
+    }
+
+    // 檢查 3: 冷卻時間是否已過？
+    const now = Date.now()
+    if (now - this.lastLaneChangeTime < LANE_CHANGING_CONFIG.LANE_CHANGE_COOLDOWN) {
+      return false
+    }
+
+    // 檢查 4: 速度是否足夠？
+    if (this.currentSpeed < LANE_CHANGING_CONFIG.MIN_SPEED_FOR_CHANGE) {
+      return false
+    }
+
+    // 檢查 5: 是否超過最大變道次數？
+    const maxChanges = LANE_CHANGING_CONFIG.MAX_LANE_CHANGES_PER_VEHICLE
+    if (maxChanges !== null && this.laneChangeCount >= maxChanges) {
+      return false
+    }
+
+    // 檢查 6: 目標車道是否有效且可用？
+    const directionRules = LANE_CHANGING_CONFIG.DIRECTION_RULES[this.direction]
+    if (!directionRules) {
+      return false // 方向不支援
+    }
+
+    return true
+  }
+
+  // 🛣️ 新增：變道邏輯（改進 8）
+  // 決定是否應該變道以及變到哪個車道
+  decideLaneChange(allVehicles = []) {
+    if (!this.canChangeLane(allVehicles)) {
+      return null // 無法變道
+    }
+
+    const directionRules = LANE_CHANGING_CONFIG.DIRECTION_RULES[this.direction]
+    const minLane = directionRules.MIN_LANE
+    const maxLane = directionRules.MAX_LANE
+    const preferredLanes = directionRules.PREFERRED_LANES || []
+
+    // 計算前方距離
+    const frontVehicleInfo = this.collisionController?.checkSimpleCollision(allVehicles)
+    if (!frontVehicleInfo || !frontVehicleInfo.distance || frontVehicleInfo.distance > 150) {
+      return null // 前方距離足夠，無需變道
+    }
+
+    // 尋找最佳的目標車道
+    let bestLane = null
+    let bestScore = -Infinity
+
+    for (let lane = minLane; lane <= maxLane; lane++) {
+      if (lane === this.laneNumber) {
+        continue // 跳過當前車道
+      }
+
+      // 計算該車道的評分
+      const laneVehicles = allVehicles.filter((v) => v.laneNumber === lane && v.direction === this.direction)
+      const laneScore = this.calculateLaneScore(lane, laneVehicles, preferredLanes)
+
+      if (laneScore > bestScore) {
+        bestScore = laneScore
+        bestLane = lane
+      }
+    }
+
+    return bestLane
+  }
+
+  // 🛣️ 新增：計算車道評分
+  calculateLaneScore(lane, vehiclesInLane, preferredLanes) {
+    let score = 0
+
+    // 優先車道得分加成
+    if (preferredLanes.includes(lane)) {
+      score += 10
+    }
+
+    // 車道流量越少越好
+    const vehicleCount = vehiclesInLane.length
+    score -= vehicleCount * 5
+
+    // 計算該車道的平均速度
+    const avgSpeed =
+      vehiclesInLane.length > 0
+        ? vehiclesInLane.reduce((sum, v) => sum + (v.currentSpeed || 0), 0) / vehiclesInLane.length
+        : 60
+
+    // 速度越快越好
+    score += avgSpeed * 0.1
+
+    return score
+  }
+
+  // 🛣️ 新增：執行變道（改進 8）
+  changeLane(targetLane) {
+    // 防止重複變道
+    if (this.isChangingLane) {
+      return false
+    }
+
+    // 驗證目標車道
+    const directionRules = LANE_CHANGING_CONFIG.DIRECTION_RULES[this.direction]
+    if (!directionRules || targetLane < directionRules.MIN_LANE || targetLane > directionRules.MAX_LANE) {
+      return false
+    }
+
+    // 標記正在變道
+    this.isChangingLane = true
+
+    // 記錄變道開始時間
+    const changeStartTime = Date.now()
+
+    // 記錄原始車道
+    const originalLane = this.laneNumber
+    this.originalLaneNumber = originalLane
+
+    // 更新目標車道
+    this.laneNumber = targetLane
+    this.targetLaneNumber = targetLane
+    this.lastLaneChangeTime = changeStartTime
+
+    // 計算車道寬度（用於位置調整）
+    const laneWidth = 60 // 假設每個車道寬度約 60px
+    const laneDifference = targetLane - originalLane
+    const yOffset = laneDifference * laneWidth
+
+    // 執行平滑變道動畫
+    if (this.movementTimeline) {
+      gsap.to(this.element, {
+        y: `+=${yOffset}`,
+        duration: LANE_CHANGING_CONFIG.LANE_CHANGE_DURATION,
+        ease: 'power2.inOut',
+        onComplete: () => {
+          // 變道完成
+          this.isChangingLane = false
+          this.laneChangeCount += 1
+
+          // 記錄變道事件
+          if (LANE_CHANGING_CONFIG.ENABLE_LANE_CHANGE_LOGGING) {
+            console.log(`🛣️ [${this.id}] 成功變道: ${originalLane} → ${targetLane} (第 ${this.laneChangeCount} 次變道)`)
+          }
+
+          // 通知控制器
+          if (window.trafficController && window.trafficController.onLaneChanged) {
+            window.trafficController.onLaneChanged({
+              vehicleId: this.id,
+              fromLane: originalLane,
+              toLane: targetLane,
+              laneChangeCount: this.laneChangeCount,
+              timestamp: Date.now(),
+            })
+          }
+        },
+      })
+    }
+
+    return true
+  }
+
   // Template Method Pattern: 移除車輛的清理模板方法
   remove() {
     // 記錄移除時間
@@ -1458,6 +1761,8 @@ export default class Vehicle {
       travelTime: this.travelTime,
       startPosition: this.startPosition,
       finalPosition: this.getCurrentPosition(),
+      recycleCount: this.recycleCount,
+      laneChangeCount: this.laneChangeCount,
     })
 
     // Template Method Pattern: 定義車輛移除的標準清理流程
