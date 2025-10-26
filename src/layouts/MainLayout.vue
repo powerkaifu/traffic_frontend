@@ -1056,6 +1056,7 @@ onUnmounted(() => {
 .vd-scenario-icon {
   font-size: 22px;
   line-height: 1;
+  margin-bottom: 6px; /* 增加 icon 與文字的距離 */
 }
 
 .vd-scenario-label {
@@ -1078,6 +1079,7 @@ onUnmounted(() => {
 
   .vd-scenario-icon {
     font-size: 26px;
+    margin-bottom: 8px; /* 大螢幕調整距離 */
   }
 
   .vd-scenario-label {
@@ -1271,6 +1273,7 @@ onUnmounted(() => {
 
   .vd-scenario-icon {
     font-size: 18px;
+    margin-bottom: 3px; /* 小螢幕調整距離 */
   }
 
   .vd-scenario-label {
@@ -1314,6 +1317,7 @@ onUnmounted(() => {
 
   .vd-scenario-icon {
     font-size: 16px;
+    margin-bottom: 2px; /* 超小螢幕調整距離 */
   }
 
   .vd-scenario-label {
