@@ -813,14 +813,6 @@ export default class TrafficLightController {
           intersectionId = 'VLRJM60'
         }
 
-        // 🌤️ 【新增】獲取當前天氣信息
-        let currentWeather = 'CLEAR'
-        let weatherMultiplier = 1.0
-        if (this.weatherController) {
-          currentWeather = this.weatherController.getCurrentWeather()
-          weatherMultiplier = this.weatherController.getSpeedMultiplier()
-        }
-
         // 準備前端生成的數據（視覺層 × displayMultiplier）
         const frontendData = {
           volume: singleData?.Volume_T ?? 0,
@@ -845,30 +837,62 @@ export default class TrafficLightController {
           console.warn(`⚠️ [驗證警告] ${intersectionId} ${timePeriod}: ${validation.errors.join(', ')}`)
         }
 
-        // 返回正規化後的交叉路口數據
-        return {
-          ...singleData,
-          // 【重要】使用正規化後的數據發送給後端
-          Volume_T: Math.round(normalizedData.volume || 0),
-          Volume_M: Math.round(normalizedData.volume_m || 0),
-          Volume_S: Math.round(normalizedData.volume_s || 0),
-          Volume_L: Math.round(normalizedData.volume_l || 0),
-          Speed_T: normalizedData.speed || singleData?.Speed_T || 0,
-          Speed_M: singleData?.Speed_M,
-          Speed_S: singleData?.Speed_S,
-          Speed_L: singleData?.Speed_L,
-          Occupancy: Math.round((normalizedData.occupancy || 0) * 10) / 10,
-          // 🌤️ 【新增】天氣信息
-          weather: currentWeather,
-          weather_multiplier: weatherMultiplier,
-          // 元數據
-          normalization_applied: true,
-          normalization_period: timePeriod,
-          normalization_displayMultiplier: VDNormalizationUtils.getDisplayMultiplier(intersectionId),
-          validation_passed: validation.isValid,
-          validation_warnings: validation.warnings || [],
-          validation_errors: validation.errors || [],
+        // ✅ 返回正規化後的交叉路口數據（18個欄位給後端 + 元數據用於日誌）
+        const apiData = {
+          VD_ID: singleData.VD_ID,
+          DayOfWeek: singleData.DayOfWeek,
+          Hour: singleData.Hour,
+          Minute: singleData.Minute,
+          Second: singleData.Second,
+          IsPeakHour: singleData.IsPeakHour,
+          LaneID: singleData.LaneID,
+          LaneType: singleData.LaneType,
+          Speed: Math.round(normalizedData.speed || singleData.Speed || 0),
+          Occupancy: Math.round((normalizedData.occupancy || singleData.Occupancy || 0) * 10) / 10,
+          Volume_M: Math.round(normalizedData.volume_m || singleData.Volume_M || 0),
+          Speed_M: singleData.Speed_M,
+          Volume_S: Math.round(normalizedData.volume_s || singleData.Volume_S || 0),
+          Speed_S: singleData.Speed_S,
+          Volume_L: Math.round(normalizedData.volume_l || singleData.Volume_L || 0),
+          Speed_L: singleData.Speed_L,
+          Volume_T: Math.round(normalizedData.volume || singleData.Volume_T || 0),
+          Speed_T: normalizedData.speed || singleData.Speed_T || 0,
         }
+
+        // 🔧 為了方便日誌打印，暫時添加元數據到物件中（不會發送給後端）
+        // 注意：finalDataToSend 發送給後端前會移除這些字段
+        Object.defineProperty(apiData, 'normalization_period', {
+          value: timePeriod,
+          enumerable: false,
+        })
+        Object.defineProperty(apiData, 'normalization_displayMultiplier', {
+          value: VDNormalizationUtils.getDisplayMultiplier
+            ? VDNormalizationUtils.getDisplayMultiplier(intersectionId)
+            : 1,
+          enumerable: false,
+        })
+        Object.defineProperty(apiData, 'weather', {
+          value: 'CLEAR',
+          enumerable: false,
+        })
+        Object.defineProperty(apiData, 'weather_multiplier', {
+          value: 1.0,
+          enumerable: false,
+        })
+        Object.defineProperty(apiData, 'validation_passed', {
+          value: validation.isValid,
+          enumerable: false,
+        })
+        Object.defineProperty(apiData, 'validation_errors', {
+          value: validation.errors || [],
+          enumerable: false,
+        })
+        Object.defineProperty(apiData, 'validation_warnings', {
+          value: validation.warnings || [],
+          enumerable: false,
+        })
+
+        return apiData
       })
 
       // 🎯【重要】最終要發送給後端的格式：直接發送陣列（後端期望的格式）
