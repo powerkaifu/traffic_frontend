@@ -3,7 +3,6 @@
  */
 import TrafficLight from './TrafficLight.js'
 import { speedConfig } from './config/trafficConfig.js' // 引入統一的速度設定
-import VDNormalizationUtils from './utils/VDNormalizationUtils.js'
 import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
 import { VOLUME_LIMITS_CONFIG } from './config/vehicleConfig.js'
 import { getTimeConfigForScenario } from './config/vdPatternConfig.js' // 新增：情景時間配置
@@ -820,31 +819,10 @@ export default class TrafficLightController {
           intersectionId = 'VLRJM60'
         }
 
-        // 準備前端生成的數據（視覺層 × displayMultiplier）
-        const frontendData = {
-          volume: singleData?.Volume_T ?? 0,
-          speed: singleData?.Speed_T ?? 0,
-          occupancy: singleData?.Occupancy ?? 0,
-          volume_m: singleData?.Volume_M ?? 0,
-          volume_s: singleData?.Volume_S ?? 0,
-          volume_l: singleData?.Volume_L ?? 0,
-        }
+        // ✅ 【移除正規化】直接使用生成的 VD Pattern 數據，無需轉換
+        // 理由：vdPatternConfig 已經基於真實 VD 數據統計，符合 API 期望的範圍
 
-        // 🔌 【新增】應用後端上限縮放：確保數據符合後端訓練範圍
-        const scaledData = this._scaleDataToBackendLimit(frontendData, timePeriod)
-
-        // 【核心】執行正規化轉換：將前端顯示數據轉換為 API 層數據
-        const normalizedData = VDNormalizationUtils.denormalizeToVDRange(scaledData, intersectionId, timePeriod)
-
-        // 驗證正規化結果
-        const validation = VDNormalizationUtils.validateNormalizedData(normalizedData, intersectionId, timePeriod)
-
-        // 容錯：檢查驗證是否失敗
-        if (!validation.isValid && validation.errors?.length > 0) {
-          console.warn(`⚠️ [驗證警告] ${intersectionId} ${timePeriod}: ${validation.errors.join(', ')}`)
-        }
-
-        // ✅ 返回正規化後的交叉路口數據（18個欄位給後端 + 元數據用於日誌）
+        // ✅ 返回交叉路口數據（18個欄位給後端）
         const apiData = {
           VD_ID: singleData.VD_ID,
           DayOfWeek: singleData.DayOfWeek,
@@ -854,28 +832,25 @@ export default class TrafficLightController {
           IsPeakHour: singleData.IsPeakHour,
           LaneID: singleData.LaneID,
           LaneType: singleData.LaneType,
-          Speed: Math.round(normalizedData.speed || singleData.Speed || 0),
-          Occupancy: Math.round((normalizedData.occupancy || singleData.Occupancy || 0) * 10) / 10,
-          Volume_M: Math.round(normalizedData.volume_m || singleData.Volume_M || 0),
-          Speed_M: singleData.Speed_M,
-          Volume_S: Math.round(normalizedData.volume_s || singleData.Volume_S || 0),
-          Speed_S: singleData.Speed_S,
-          Volume_L: Math.round(normalizedData.volume_l || singleData.Volume_L || 0),
-          Speed_L: singleData.Speed_L,
-          Volume_T: Math.round(normalizedData.volume || singleData.Volume_T || 0),
-          Speed_T: normalizedData.speed || singleData.Speed_T || 0,
+          Speed: Math.round(singleData.Speed_T || 0),
+          Occupancy: Math.round((singleData.Occupancy || 0) * 10) / 10,
+          Volume_M: Math.round(singleData.Volume_M || 0),
+          Speed_M: singleData.Speed_M || 0,
+          Volume_S: Math.round(singleData.Volume_S || 0),
+          Speed_S: singleData.Speed_S || 0,
+          Volume_L: Math.round(singleData.Volume_L || 0),
+          Speed_L: singleData.Speed_L || 0,
+          Volume_T: Math.round(singleData.Volume_T || 0),
+          Speed_T: singleData.Speed_T || 0,
         }
 
         // 🔧 為了方便日誌打印，暫時添加元數據到物件中（不會發送給後端）
-        // 注意：finalDataToSend 發送給後端前會移除這些字段
-        Object.defineProperty(apiData, 'normalization_period', {
-          value: timePeriod,
+        Object.defineProperty(apiData, 'data_source', {
+          value: 'vdPatternConfig (direct)',
           enumerable: false,
         })
-        Object.defineProperty(apiData, 'normalization_displayMultiplier', {
-          value: VDNormalizationUtils.getDisplayMultiplier
-            ? VDNormalizationUtils.getDisplayMultiplier(intersectionId)
-            : 1,
+        Object.defineProperty(apiData, 'scenario', {
+          value: timePeriod,
           enumerable: false,
         })
         Object.defineProperty(apiData, 'weather', {
@@ -884,18 +859,6 @@ export default class TrafficLightController {
         })
         Object.defineProperty(apiData, 'weather_multiplier', {
           value: 1.0,
-          enumerable: false,
-        })
-        Object.defineProperty(apiData, 'validation_passed', {
-          value: validation.isValid,
-          enumerable: false,
-        })
-        Object.defineProperty(apiData, 'validation_errors', {
-          value: validation.errors || [],
-          enumerable: false,
-        })
-        Object.defineProperty(apiData, 'validation_warnings', {
-          value: validation.warnings || [],
           enumerable: false,
         })
 
@@ -908,30 +871,30 @@ export default class TrafficLightController {
       // ✅ 先處理第一筆數據用於日誌（如果有多筆）
       const firstData = normalizedDataArray[0] || {}
 
-      // ✅ 【新增】打印正規化轉換完成
-      console.log('✅ 【正規化轉換完成】傳入的 VD 數據已成功正規化:')
+      // ✅ 【直接數據】VD Pattern 生成完成，無需正規化轉換
+      console.log('✅ 【VD 數據已生成】直接使用 vdPatternConfig 生成的數據:')
       console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
-      console.log(`  - 正規化倍數: ${firstData.normalization_displayMultiplier}x`)
-      console.log(`  - 時段: ${firstData.normalization_period}`)
+      console.log(`  - 數據源: vdPatternConfig`)
+      console.log(`  - 時段: ${firstData.scenario}`)
 
-      // 【新增】打印完整的正規化後陣列（物件形式，可用 Copy object 複製）
-      console.log('📦 【完整的正規化後陣列 - 右鍵 Copy object 複製】:')
+      // 【新增】打印完整的數據陣列（物件形式，可用 Copy object 複製）
+      console.log('📦 【完整的數據陣列 - 右鍵 Copy object 複製】:')
       console.log(normalizedDataArray)
 
       // 【新增】打印格式化的 JSON 字符串（便於閱讀和檢查）
       console.log('📋 【格式化的 JSON 字符串 - 便於閱讀】:')
       console.log(JSON.stringify(normalizedDataArray, null, 2))
 
-      console.log('🚦 發送正規化後的交通數據到後端 AI 系統:')
+      console.log('🚦 發送 VD 數據到後端 AI 系統:')
       console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
       console.log(`  - 第一筆流量: Volume_T=${firstData.Volume_T}`)
       console.log(`  - 第一筆車型: M=${firstData.Volume_M}, S=${firstData.Volume_S}, L=${firstData.Volume_L}`)
-      console.log(`  - 時段信息: ${firstData.normalization_period}`)
+      console.log(`  - 時段信息: ${firstData.scenario}`)
 
-      // ✅ 【新增】打印完整的正規化數據
-      console.log('📊 【正規化數據詳情】以下是要發送給後端的 4 筆交叉路口正規化數據:')
+      // ✅ 【新增】打印完整的數據
+      console.log('📊 【VD 數據詳情】以下是要發送給後端的 4 筆交叉路口數據:')
       normalizedDataArray.forEach((data, index) => {
-        console.log(`  [交叉路口 ${index + 1}] ${data.VD_ID} (${data.normalization_period}):`)
+        console.log(`  [交叉路口 ${index + 1}] ${data.VD_ID} (${data.scenario}):`)
         console.log(
           `    - 流量: Volume_T=${data.Volume_T}, Volume_M=${data.Volume_M}, Volume_S=${data.Volume_S}, Volume_L=${data.Volume_L}`,
         )
@@ -939,18 +902,11 @@ export default class TrafficLightController {
           `    - 速度: Speed_T=${data.Speed_T}, Speed_M=${data.Speed_M}, Speed_S=${data.Speed_S}, Speed_L=${data.Speed_L}`,
         )
         console.log(`    - 佔有率: ${data.Occupancy}%`)
-        console.log(`    - 正規化倍數: ${data.normalization_displayMultiplier}x`)
+        console.log(`    - 時段: ${data.scenario}`)
         // 🌤️ 【新增】顯示天氣信息
         console.log(`    - 天氣: ${data.weather} (倍數: ${data.weather_multiplier?.toFixed(2)}x)`)
-        console.log(`    - 驗證: ${data.validation_passed ? '✅ 通過' : '❌ 失敗'}`)
-        if (data.validation_errors?.length > 0) {
-          console.log(`    - 錯誤: ${data.validation_errors.join(', ')}`)
-        }
-        if (data.validation_warnings?.length > 0) {
-          console.log(`    - 警告: ${data.validation_warnings.join(', ')}`)
-        }
       })
-      console.log('✅ 正規化數據已準備完畢，即將發送到後端...')
+      console.log('✅ VD 數據已準備完畢，即將發送到後端...')
 
       // 發送 API 開始事件
       window.dispatchEvent(new CustomEvent('trafficApiSending', { detail: { timestamp: new Date().toISOString() } }))
@@ -962,10 +918,9 @@ export default class TrafficLightController {
       })
 
       // ✅ 【新增】發送成功確認訊息
-      console.log('✅ 【正規化數據已成功發送到後端】')
-      console.log(`✅ 已發送 ${normalizedDataArray.length} 筆交叉路口正規化數據`)
-      console.log(`✅ 正規化倍數: ${firstData.normalization_displayMultiplier}x`)
-      console.log(`✅ 時段: ${firstData.normalization_period}`)
+      console.log('✅ 【VD 數據已成功發送到後端】')
+      console.log(`✅ 已發送 ${normalizedDataArray.length} 筆交叉路口數據`)
+      console.log(`✅ 時段: ${firstData.scenario}`)
 
       // 🎯【新增】保存快照供 MainLayout.vue 使用
       window.lastNormalizedDataArray = normalizedDataArray

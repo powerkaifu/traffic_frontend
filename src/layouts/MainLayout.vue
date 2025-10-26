@@ -555,6 +555,7 @@ const selectedVDScenario = ref('peak_hours')
 // 🎯【新增】VD 情景選擇函數
 function selectVDScenario(scenario) {
   selectedVDScenario.value = scenario
+  currentTimeScenario.value = scenario // 🔧 同時更新當前情景
   console.log(`🚀 [MainLayout] 選擇 VD 情景: ${scenario}`)
 
   // 將選擇存儲到全局，供 TrafficLightController 使用
@@ -789,17 +790,16 @@ function setupListeners() {
 
 // 🎯 拉桿輸入時的處理函數
 function onSliderInput() {
+  // 手動拖動拉桿時，根據拉桿位置判斷最接近的情景並更新高亮
+  updateScenarioHighlightBySlider()
   updateGenerationConfig()
   // isSliderActive 由 @mousedown/@mouseup/@touchstart/@touchend 控制
 }
 
-function updateGenerationConfig() {
-  if (isAutoMode.value) return // 如果是自動模式，則不執行手動更新
-  if (!window.autoTrafficGenerator) return
-
+// 🎯 根據拉桿位置自動判斷最接近的情景
+function updateScenarioHighlightBySlider() {
   const baseInterval = manualInterval.value
 
-  // 🎯 根據拉桿值自動判斷最接近的情景，用於更新按鈕顯示
   const closestScenario = timeScenarios.reduce((closest, scenario) => {
     const { min, max } = scenario.config.interval
     const sliderValue = baseInterval
@@ -813,15 +813,48 @@ function updateGenerationConfig() {
     return distance < closest.distance ? { scenario, distance } : closest
   }, null)
 
-  // 💡 更新 currentTimeScenario 標籤（用於顯示下方詳細資訊）
+  // 更新按鈕高亮
   if (closestScenario) {
     currentTimeScenario.value = closestScenario.scenario.key
-    // 🎯 新增：同時更新 selectedVDScenario，使按鈕顯示 active 狀態
     selectedVDScenario.value = closestScenario.scenario.key
+    console.log(`📍 [拉桿移動] 自動判斷為: ${closestScenario.scenario.name}`)
+  }
+}
+
+function updateGenerationConfig() {
+  if (isAutoMode.value) return // 如果是自動模式，則不執行手動更新
+  if (!window.autoTrafficGenerator) return
+
+  const baseInterval = manualInterval.value
+
+  // 🎯 使用已選擇的情景，而不是根據拉桿自動計算
+  // 這樣可以確保用戶點擊按鈕時的選擇不會被覆蓋
+  let selectedScenario = timeScenarios.find((s) => s.key === currentTimeScenario.value)
+
+  // 如果沒有已選擇的情景，才根據拉桿值自動判斷
+  if (!selectedScenario) {
+    const closestScenario = timeScenarios.reduce((closest, scenario) => {
+      const { min, max } = scenario.config.interval
+      const sliderValue = baseInterval
+
+      // 計算拉桿值與該情景中點的距離
+      const midpoint = (min + max) / 2
+      const distance = Math.abs(sliderValue - midpoint)
+
+      // 選擇距離最近的情景
+      if (!closest) return { scenario, distance }
+      return distance < closest.distance ? { scenario, distance } : closest
+    }, null)
+
+    if (closestScenario) {
+      selectedScenario = closestScenario.scenario
+      currentTimeScenario.value = selectedScenario.key
+      selectedVDScenario.value = selectedScenario.key
+    }
   }
 
-  // 使用該最接近情景的配置參數
-  const s = closestScenario?.scenario || timeScenarios.find((s) => s.key === 'off_peak')
+  // 使用選擇的情景配置參數
+  const s = selectedScenario || timeScenarios.find((s) => s.key === 'off_peak')
   if (!s) return
 
   // 📊 新的邏輯：直接使用拉桿值作為基準間隔
