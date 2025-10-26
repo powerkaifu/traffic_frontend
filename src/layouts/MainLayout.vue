@@ -124,17 +124,11 @@
                     max="30000"
                     :step="100"
                     @input="onSliderInput"
-                    @mousedown="isSliderActive = true"
-                    @mouseup="isSliderActive = false"
-                    @touchstart="isSliderActive = true"
-                    @touchend="isSliderActive = false"
-                    :class="['freq-slider', { active: isSliderActive }]"
+                    class="freq-slider"
                     style="flex: 1"
                     :disabled="isAutoMode"
                   />
-                  <span :class="['freq-value', { active: isSliderActive }]"
-                    >{{ (manualInterval / 1000).toFixed(1) }}s</span
-                  >
+                  <span class="freq-value">{{ (manualInterval / 1000).toFixed(1) }}s</span>
                 </div>
               </div>
             </div>
@@ -588,7 +582,6 @@ function selectVDScenario(scenario) {
 const currentTimeScenario = ref('peak_hours')
 const manualInterval = ref(1000)
 const currentInterval = ref(7.0)
-const isSliderActive = ref(false) // 🎯 拉桿 active 狀態
 
 // timeScenarios 已從 trafficScenarioConfig.js 匯入
 const currentScenarioDetails = computed(() => {
@@ -1198,13 +1191,6 @@ onUnmounted(() => {
   border-radius: 2px;
   outline: none;
   appearance: none;
-  transition: all 0.2s ease;
-}
-
-.freq-slider.active {
-  background: rgba(100, 181, 246, 0.4);
-  height: 5px;
-  box-shadow: 0 0 8px rgba(100, 181, 246, 0.6);
 }
 
 .freq-slider:disabled {
@@ -1218,21 +1204,11 @@ onUnmounted(() => {
   background: #64b5f6;
   border-radius: 50%;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 0 4px rgba(100, 181, 246, 0.5);
-}
-
-.freq-slider.active::-webkit-slider-thumb {
-  width: 14px;
-  height: 14px;
-  background: #42a5f5;
-  box-shadow: 0 0 12px rgba(100, 181, 246, 0.8);
 }
 
 .freq-slider:disabled::-webkit-slider-thumb {
   background: #999;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
 .freq-value {
@@ -1241,12 +1217,6 @@ onUnmounted(() => {
   min-width: 20px;
   text-align: right;
   flex-shrink: 0;
-  transition: all 0.2s ease;
-}
-
-.freq-value.active {
-  color: #42a5f5;
-  font-size: 1.05em;
 }
 
 /* 當前情境參數顯示 */
