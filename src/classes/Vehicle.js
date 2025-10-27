@@ -809,7 +809,12 @@ export default class Vehicle {
             this.directTrafficLightResponse(trafficController)
 
             // 🚨 簡化：檢查是否可以恢復移動（僅限碰撞相關）
-            if (this.currentState === 'waitingForVehicle' || this.currentState === 'autoFollowing') {
+            if (
+              this.currentState === 'waitingForVehicle' ||
+              this.currentState === 'autoFollowing' ||
+              this.currentState === 'rejoiningQueue' ||
+              this.currentState === 'gapRecovery'
+            ) {
               this.resumeMovement(allVehicles)
             }
           }, 50) // 統一使用50ms間隔，與後面的邏輯一致
@@ -871,7 +876,45 @@ export default class Vehicle {
               const shouldStop = this.collisionController.checkSimpleCollision(allVehicles)
               const isFirstVehicle = this.collisionController.isClosestToStopLine(allVehicles)
 
-              // 🚗 優先處理自動跟隨模式
+              // 🚗 優先處理重新加入隊列動作（碰撞後的車輛需要融入隊伍）
+              if (shouldStop && shouldStop.action === 'rejoin_queue') {
+                gsap.to(this.movementTimeline, {
+                  timeScale: shouldStop.targetSpeed,
+                  duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL,
+                  ease: 'power2.out',
+                })
+                this.currentState = 'rejoiningQueue' // 設為重新加入隊列狀態
+                return
+              }
+
+              // � 優先處理緊急間距恢復（防止碰撞失效）
+              if (
+                shouldStop &&
+                (shouldStop.action === 'gap_recovery' || shouldStop.action === 'emergency_gap_recovery')
+              ) {
+                // 🔧 極速下防穿透：立即強制暫停
+                if (this.movementTimeline) {
+                  this.movementTimeline.pause()
+                  this.movementTimeline.timeScale(shouldStop.targetSpeed)
+                  if (shouldStop.targetSpeed > 0) {
+                    this.movementTimeline.play()
+                  }
+                }
+                this.currentState = 'gapRecovery' // 設為間距恢復狀態
+                return
+              }
+
+              // 🚨 安全優先：處理跟隨模式中的完全停止指令（targetSpeed=0）
+              if (shouldStop && shouldStop.action === 'follow' && shouldStop.targetSpeed === 0) {
+                if (this.movementTimeline) {
+                  this.movementTimeline.pause()
+                  this.movementTimeline.timeScale(0)
+                }
+                this.currentState = 'safetyStopped'
+                return
+              }
+
+              // �🚗 優先處理自動跟隨模式
               if (shouldStop && shouldStop.autoFollowing && shouldStop.targetSpeed > 0) {
                 gsap.to(this.movementTimeline, {
                   timeScale: shouldStop.targetSpeed,
@@ -1008,7 +1051,12 @@ export default class Vehicle {
               }
 
               // 等待前車的恢復檢查
-              if (this.currentState === 'waitingForVehicle' || this.currentState === 'autoFollowing') {
+              if (
+                this.currentState === 'waitingForVehicle' ||
+                this.currentState === 'autoFollowing' ||
+                this.currentState === 'rejoiningQueue' ||
+                this.currentState === 'gapRecovery'
+              ) {
                 this.resumeMovement(allVehicles)
               }
 
@@ -1353,7 +1401,11 @@ export default class Vehicle {
             }
 
             // 如果當前狀態是等待前車，檢查是否可以恢復移動
-            if (this.currentState === 'waitingForVehicle') {
+            if (
+              this.currentState === 'waitingForVehicle' ||
+              this.currentState === 'rejoiningQueue' ||
+              this.currentState === 'gapRecovery'
+            ) {
               // 如果前方車輛已離開安全距離，恢復移動
               this.resumeMovement(allVehicles)
             }

@@ -236,6 +236,19 @@ export const COLLISION_CONFIG = {
   // ⏱️ 檢測間隔設定（毫秒）
   CHECK_INTERVAL: 100, // 碰撞檢查間隔
   SIMPLE_CHECK_INTERVAL: 50, // 簡單碰撞檢查間隔（優化：更頻繁的檢查）
+
+  // 🆕 TIME_MULTIPLIER 補償設定 - 解決快速動畫時碰撞失效問題
+  // 當 TIME_MULTIPLIER < 1（動畫加速）時，自動調整檢查間隔
+  // 例如：TIME_MULTIPLIER=0.1 → checkInterval = 50 * 0.1 = 2ms（激進模式）
+  TIME_MULTIPLIER_COMPENSATION: {
+    ENABLED: true, // 是否啟用時間補償
+    MIN_CHECK_INTERVAL: 2, // 最小檢查間隔（毫秒），激進設置以防止重疊
+    DYNAMIC_INTERVAL: true, // 是否啟用動態調整
+    ULTRA_AGGRESSIVE_MODE: true, // TIME_MULTIPLIER < 0.15 時進一步優化
+    DESCRIPTION: `根據 TIME_MULTIPLIER 動態調整碰撞檢查間隔
+                  激進模式確保極快動畫下無重疊現象
+                  確保無論動畫速度如何，碰撞檢測相對頻率始終一致`,
+  },
 }
 
 // ===== 生成間隔設定 =====

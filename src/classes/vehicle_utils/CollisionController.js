@@ -4,7 +4,7 @@
  * 整合了 SimpleCollisionDetector 的功能
  */
 
-import { COLLISION_CONFIG, FOLLOWING_CONFIG, DISTANCE_CONFIG } from '../config/vehicleConfig.js'
+import { COLLISION_CONFIG, FOLLOWING_CONFIG, DISTANCE_CONFIG, ANIMATION_CONFIG } from '../config/vehicleConfig.js'
 
 export class CollisionController {
   constructor(vehicle) {
@@ -15,7 +15,45 @@ export class CollisionController {
 
     // SimpleCollisionDetector 整合的屬性
     this.lastCheckTime = 0
-    this.checkInterval = COLLISION_CONFIG.SIMPLE_CHECK_INTERVAL // 使用配置的檢查間隔
+
+    // 🆕 根據 TIME_MULTIPLIER 自動調整檢查間隔
+    this.checkInterval = this._calculateAdaptiveCheckInterval()
+  }
+
+  /**
+   * 🆕 根據 TIME_MULTIPLIER 計算自適應碰撞檢查間隔
+   * @returns {number} 調整後的檢查間隔（毫秒）
+   *
+   * 當動畫加速（TIME_MULTIPLIER < 1）時，檢查間隔需要相應減少
+   * 例如：TIME_MULTIPLIER=0.1 → checkInterval = 50 * 0.1 = 5ms
+   * 這確保了無論動畫速度如何，碰撞檢測相對頻率始終一致
+   */
+  _calculateAdaptiveCheckInterval() {
+    // 檢查是否啟用時間補償
+    if (!COLLISION_CONFIG.TIME_MULTIPLIER_COMPENSATION?.ENABLED) {
+      return COLLISION_CONFIG.SIMPLE_CHECK_INTERVAL
+    }
+
+    const timeMultiplier = ANIMATION_CONFIG.TIME_MULTIPLIER
+    const baseInterval = COLLISION_CONFIG.SIMPLE_CHECK_INTERVAL
+    let minInterval = COLLISION_CONFIG.TIME_MULTIPLIER_COMPENSATION.MIN_CHECK_INTERVAL
+
+    // 激進模式：極快的動畫（TIME_MULTIPLIER < 0.15）進行額外優化
+    if (COLLISION_CONFIG.TIME_MULTIPLIER_COMPENSATION.ULTRA_AGGRESSIVE_MODE && timeMultiplier < 0.15) {
+      minInterval = Math.max(0.5, minInterval * 0.25) // 更激進：2ms → 0.5ms
+    }
+
+    // 計算補償後的檢查間隔
+    const compensatedInterval = Math.max(minInterval, baseInterval * timeMultiplier)
+
+    return compensatedInterval
+  }
+
+  /**
+   * 🆕 更新碰撞檢查間隔（當 TIME_MULTIPLIER 改變時調用）
+   */
+  updateCheckIntervalForTimeMultiplier() {
+    this.checkInterval = this._calculateAdaptiveCheckInterval()
   }
 
   /**
@@ -706,7 +744,102 @@ export class CollisionController {
   }
 
   /**
+   * 🚨 新增：檢查是否剛剛發生碰撞（被停止的車輛需要重新加入隊列）
+   * @param {Array} allVehicles 所有車輛陣列
+   * @returns {boolean} true表示需要融入隊列
+   */
+  shouldReEnqueueAfterCollision(allVehicles) {
+    // 🚨 完全重設計隊列融合邏輯
+    // 原始設計的問題：依賴於 currentState，但碰撞時的狀態判斷不準確
+    // 新設計：基於實際的碰撞和隊列位置
+
+    const myPos = this.vehicle.getCurrentPosition()
+    const mySpeed = this.vehicle.movementTimeline ? this.vehicle.movementTimeline.timeScale() : 0
+
+    // 條件1：車輛基本在停止狀態（速度接近 0）
+    if (mySpeed > 0.15) {
+      return false // 車輛還在移動，不是碰撞停止狀態
+    }
+
+    // 條件2：距離停止線還遠（表示不是普通排隊，而是碰撞停止）
+    const distanceToStopLine = this.vehicle.getDistanceToStopLine()
+    const MIN_DISTANCE_TO_STOPLINE = 100 // 至少還要 100px 才認為需要融入隊伍
+
+    if (distanceToStopLine !== null && distanceToStopLine < MIN_DISTANCE_TO_STOPLINE) {
+      return false // 已經很接近停止線了，即將進入正式排隊區，不需要融合
+    }
+
+    // 條件3：前方有停止的車或隊伍
+    const sameDirectionVehicles = allVehicles.filter(
+      (v) =>
+        v.id !== this.vehicle.id && v.direction === this.vehicle.direction && v.laneNumber === this.vehicle.laneNumber,
+    )
+
+    if (sameDirectionVehicles.length === 0) {
+      return false // 沒有前方車輛
+    }
+
+    // 條件4：檢查是否有前方車輛在停止狀態或隊伍中
+    for (let other of sameDirectionVehicles) {
+      const otherPos = other.getCurrentPosition()
+      if (!otherPos) continue
+
+      const distance = this.calculateDirectionalDistance(myPos, otherPos)
+      const otherSpeed = other.movementTimeline ? other.movementTimeline.timeScale() : 0
+
+      // 如果前方車輛停止且在合理距離內，應該融入隊伍
+      if (distance > 0 && distance < 400 && otherSpeed <= 0.15) {
+        // 另外確保前方車輛確實在隊伍中（停止線前或等紅燈）
+        if (other.isAtStopLine || other.waitingForGreen || other.currentState === 'stopped') {
+          return true // 應該融入隊伍！
+        }
+      }
+    }
+
+    return false
+  }
+
+  /**
+   * 🚨 新增：尋找當前車道的隊伍最後方車輛
+   * @param {Array} allVehicles 所有車輛陣列
+   * @returns {Vehicle|null} 隊伍最後方的車輛
+   */
+  findQueueTailVehicle(allVehicles) {
+    const samePathVehicles = allVehicles.filter(
+      (v) =>
+        v.id !== this.vehicle.id &&
+        v.direction === this.vehicle.direction &&
+        v.laneNumber === this.vehicle.laneNumber &&
+        (v.isAtStopLine || v.waitingForGreen || v.currentState === 'stopped'),
+    )
+
+    if (samePathVehicles.length === 0) {
+      return null
+    }
+
+    // 找到最接近停止線的停止車輛（即隊伍最後方）
+    const myPos = this.vehicle.getCurrentPosition()
+    let closestToMe = null
+    let maxDistance = -Infinity
+
+    for (let v of samePathVehicles) {
+      const vPos = v.getCurrentPosition()
+      if (!vPos) continue
+
+      const distance = this.calculateDirectionalDistance(myPos, vPos)
+      // 🔧 激進設置：擴大搜尋範圍從 200px 到 400px（從 200 改為 400）
+      if (distance >= 0 && distance > maxDistance && distance < 400) {
+        maxDistance = distance
+        closestToMe = v
+      }
+    }
+
+    return closestToMe
+  }
+
+  /**
    * 簡單碰撞檢查（整合 SimpleCollisionDetector 功能）
+   * 🚨 改進：強制執行最小間距檢測，防止碰撞失效
    * @param {Array} allVehicles 所有車輛陣列
    * @returns {Object|null} 碰撞結果或null
    */
@@ -723,17 +856,41 @@ export class CollisionController {
       return null
     }
 
-    // 🚦 核心邏輯：根據停止線位置和交通燈狀態決定碰撞策略
-    const hasPassedStopLine = this.isVehiclePassedStopLine()
-    const canProceedWithTrafficLight = this.canProceedWithCurrentLight()
-
-    // 🚦 特別處理1號車道：即使交通燈允許通行，也要更謹慎地檢查距離
-    if (hasPassedStopLine) {
-      // ✅ 已通過停止線：完全允許穿透
-      return null
-    } else if (canProceedWithTrafficLight && this.vehicle.laneNumber !== 1) {
-      // ✅ 非1號車道且交通燈允許通行：允許穿透
-      return null
+    // 🚨 新增：檢查是否需要重新加入隊列
+    if (this.shouldReEnqueueAfterCollision(allVehicles)) {
+      // 尋找隊伍最後方的車輛，朝向它前進以融入隊列
+      const queueTail = this.findQueueTailVehicle(allVehicles)
+      if (queueTail) {
+        const tailPos = queueTail.getCurrentPosition()
+        if (tailPos) {
+          const distance = this.calculateDirectionalDistance(myPos, tailPos)
+          // 如果距離還遠，允許加速前進
+          if (distance > 50) {
+            return {
+              action: 'rejoin_queue',
+              vehicle: queueTail,
+              distance: distance,
+              shouldStop: false,
+              shouldFollow: true,
+              targetSpeed: 0.5, // 中等速度朝隊伍前進
+              requiredGap: 15,
+              reason: `重新加入隊列：朝向隊伍最後方前進 (距離${distance.toFixed(1)}px)`,
+            }
+          } else if (distance > 25) {
+            // 距離較近，開始減速
+            return {
+              action: 'rejoin_queue',
+              vehicle: queueTail,
+              distance: distance,
+              shouldStop: false,
+              shouldFollow: true,
+              targetSpeed: 0.15,
+              requiredGap: 15,
+              reason: `接近隊伍最後方，開始減速 (距離${distance.toFixed(1)}px)`,
+            }
+          }
+        }
+      }
     }
 
     // 只檢查同方向的車輛
@@ -743,6 +900,25 @@ export class CollisionController {
     )
 
     if (sameDirectionVehicles.length === 0) {
+      return null
+    }
+
+    // 🚨 關鍵修復：在 TIME_MULTIPLIER: 0.1 極速下，必須首先進行強制最小間距檢查
+    // 防止碰撞檢查被其他邏輯跳過導致車輛相互穿透
+    const minGapCheckResult = this.performMinimumGapCheck(sameDirectionVehicles)
+    if (minGapCheckResult) {
+      return minGapCheckResult
+    }
+
+    // 🚦 只有在通過最小間距檢查後，才根據停止線位置決定是否允許穿透
+    const hasPassedStopLine = this.isVehiclePassedStopLine()
+    const canProceedWithTrafficLight = this.canProceedWithCurrentLight()
+
+    if (hasPassedStopLine) {
+      // ✅ 已通過停止線：完全允許穿透（已通過最小間距檢查）
+      return null
+    } else if (canProceedWithTrafficLight && this.vehicle.laneNumber !== 1) {
+      // ✅ 非1號車道且交通燈允許通行：允許穿透（已通過最小間距檢查）
       return null
     }
 
@@ -785,44 +961,36 @@ export class CollisionController {
       : COLLISION_CONFIG.DETECTION_DISTANCES.SLOW_DISTANCE
 
     if (distance <= effectiveStopDistance) {
-      // 🚗 改進邏輯：即使距離過近，也應允許緩慢前進以保持安全距離
+      // � 安全優先：極小距離範圍內必須完全或幾乎完全停止
+      // 在 TIME_MULTIPLIER: 0.1 極速下，任何正速度都會導致重疊
       const frontVehicleSpeed = threatVehicle.movementTimeline ? threatVehicle.movementTimeline.timeScale() : 0
-      const frontIsStopped = frontVehicleSpeed <= 0.1
 
-      // 🎯 動態計算跟隨速度，即使是最小距離也允許超慢速前進
-      let targetSpeed = 0.05 // 預設超慢速度 (5%)
+      // 🚨 關鍵修復：不允許在危險距離內繼續前進
+      let targetSpeed = 0 // 預設：完全停止
 
-      if (frontIsStopped) {
-        // 前車已停止，計算適當的跟隨速度
-        if (distance <= 2) {
-          targetSpeed = 0.03 // 極極慢速度 (3%) - 最小化前進速度
-        } else if (distance <= 4) {
-          targetSpeed = 0.05 // 極慢速度 (5%)
-        } else if (distance <= 7) {
-          targetSpeed = 0.08 // 超慢速度 (8%)
-        } else if (distance <= effectiveStopDistance) {
-          targetSpeed = 0.12 // 慢速度 (12%)
-        }
-      } else {
-        // 前車正在移動，使用更快的跟隨速度
-        if (distance <= effectiveStopDistance * 0.5) {
-          targetSpeed = 0.2 // 20% 速度
-        } else {
-          targetSpeed = 0.4 // 40% 速度
-        }
+      if (distance <= 7) {
+        // 危險區域：距離 <= 7px，必須完全停止
+        targetSpeed = 0
+      } else if (distance <= effectiveStopDistance) {
+        // 警告區域：距離 7-12px，允許極限速度（0.001 = 0.1%）
+        // 這個速度在檢查間隔內基本不會導致移動
+        targetSpeed = 0.001
       }
 
       return {
         action: 'follow',
         vehicle: threatVehicle,
         distance: distance,
-        shouldStop: false, // 🚦 改為不停止，而是超慢速前進
+        shouldStop: targetSpeed === 0, // 如果 targetSpeed=0 則標記為停止
         shouldFollow: true,
         frontVehicleIsMoving: frontVehicleSpeed > 0.1,
         targetSpeed: targetSpeed,
         requiredGap: effectiveStopDistance,
         autoFollowing: true, // 標記為自動跟隨模式
-        reason: `距離過近但保持緩慢前進: ${distance.toFixed(1)}px, 前車速度${(frontVehicleSpeed * 100).toFixed(0)}%, 目標速度${(targetSpeed * 100).toFixed(0)}%`,
+        reason:
+          targetSpeed === 0
+            ? `安全停止：距離${distance.toFixed(1)}px ≤ 7px，禁止前進`
+            : `極限速度：距離${distance.toFixed(1)}px，速度0.1%`,
       }
     }
 
@@ -877,6 +1045,53 @@ export class CollisionController {
         reason: prediction.shouldSlowDown
           ? prediction.reason
           : `跟車模式: ${distance.toFixed(1)}px, 速度: ${(speedRatio * 100).toFixed(0)}%, 前車速度: ${(frontVehicleSpeed * 100).toFixed(0)}% ${isLane1WithLeftGreen ? '(1號車道左轉綠燈)' : ''}`,
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * 🚨 新增：強制最小間距檢查 - 防止碰撞失效
+   * 這是最後一道防線，確保任何情況下都不會重疊
+   * @param {Array} sameDirectionVehicles 同方向的車輛陣列
+   * @returns {Object|null} 如果檢測到危險則返回減速指令
+   */
+  performMinimumGapCheck(sameDirectionVehicles) {
+    const myPos = this.vehicle.getCurrentPosition()
+    const ABSOLUTE_MIN_GAP = 2 // 極小最小間距（2px）
+
+    for (let other of sameDirectionVehicles) {
+      const otherPos = other.getCurrentPosition()
+      if (!otherPos) continue
+
+      const distance = this.calculateDirectionalDistance(myPos, otherPos)
+
+      // 🚨 極速下防穿透：距離太近立即停止
+      if (distance >= 0 && distance < ABSOLUTE_MIN_GAP) {
+        // 極端情況：完全停止
+        return {
+          action: 'emergency_gap_recovery',
+          vehicle: other,
+          distance: distance,
+          shouldStop: true,
+          shouldFollow: false,
+          targetSpeed: 0, // 完全停止
+          requiredGap: ABSOLUTE_MIN_GAP,
+          reason: `緊急停止：距離${distance.toFixed(1)}px，避免重疊`,
+        }
+      } else if (distance >= 0 && distance < ABSOLUTE_MIN_GAP + 5) {
+        // 接近但未到危險邊緣，極慢速
+        return {
+          action: 'gap_recovery',
+          vehicle: other,
+          distance: distance,
+          shouldStop: false,
+          shouldFollow: true,
+          targetSpeed: 0.001, // 極極慢速 (0.1%)
+          requiredGap: ABSOLUTE_MIN_GAP,
+          reason: `間距警告：距離${distance.toFixed(1)}px，極慢速前進`,
+        }
       }
     }
 
