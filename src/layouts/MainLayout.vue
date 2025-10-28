@@ -550,7 +550,7 @@ const rightDrawerOpen = ref(false)
 const $q = useQuasar()
 
 // 🎯【新增】VD 情景選擇狀態
-const selectedVDScenario = ref('peak_hours')
+const selectedVDScenario = ref('off_peak')  // 🧪 改為離峰測試
 
 // 🎯【新增】VD 情景選擇函數
 function selectVDScenario(scenario) {
@@ -893,10 +893,10 @@ function toggleAutoMode() {
     console.log('🔄 [MainLayout] 切換到自動模式 - 清除情景選擇')
     selectedVDScenario.value = null
   } else {
-    // 切換回手動模式：重置為尖峰情景
-    console.log('🔄 [MainLayout] 切換回手動模式 - 設回尖峰情景')
-    selectedVDScenario.value = 'peak_hours'
-    currentTimeScenario.value = 'peak_hours'
+    // 切換回手動模式：重置為離峰情景（測試用）
+    console.log('🔄 [MainLayout] 切換回手動模式 - 設回離峰情景')
+    selectedVDScenario.value = 'off_peak'
+    currentTimeScenario.value = 'off_peak'
     manualInterval.value = 1000 // 重置拉桿到 1s
     updateGenerationConfig()
   }
@@ -909,9 +909,9 @@ function toggleAutoMode() {
 onMounted(() => {
   const cleanup = setupListeners()
 
-  // 🚨 初始化：預設設定為尖峰時段
-  window.selectedTrafficTimePeriod = 'peak_hours'
-  console.log('🚀 [MainLayout] 初始化時段配置：預設為尖峰時段 (peak_hours)')
+  // 🧪 【測試】初始化：預設設定為離峰時段（用於驗證秒數變化）
+  window.selectedTrafficTimePeriod = 'off_peak'
+  console.log('🚀 [MainLayout] 初始化時段配置：預設為離峰時段 (off_peak) - 測試用')
 
   let tries = 0
   const tryInit = async () => {

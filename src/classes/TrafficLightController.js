@@ -6,6 +6,7 @@ import { speedConfig } from './config/trafficConfig.js' // 引入統一的速度
 import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
 import { VOLUME_LIMITS_CONFIG } from './config/vehicleConfig.js'
 import { getTimeConfigForScenario } from './config/vdPatternConfig.js' // 新增：情景時間配置
+import { getVDMappingForTimeSlot, getRandomHourForTimeSlot, getRandomVehicleCountForTimeSlot, getTypicalFeaturesForTimeSlot } from './config/vdMapping.js' // 版本 2.5：VD 時段特徵映射
 
 export default class TrafficLightController {
   constructor() {
@@ -825,14 +826,36 @@ export default class TrafficLightController {
           intersectionId = 'VLRJM60'
         }
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // 【版本 2.5 - 核心改進】VD 時段特徵對齐
+        // ═══════════════════════════════════════════════════════════════════════
+        // 根據時段從 VD 映射表獲取真實特徵，而非只依賴 vdPatternConfig 生成的數據
+        // 這確保：
+        //  ✅ 時段標籤與真實 VD 特徵對齐
+        //  ✅ 前端顯示（車輛數多少）與模型輸入特徵一致
+        //  ✅ 模型接收到與訓練時相符的特徵範圍
+        
+        // 獲取時段的 VD 特徵映射
+        const vdMapping = getVDMappingForTimeSlot(timePeriod)
+        
+        // 從映射中獲取真實的小時和車輛數
+        const mappedHour = getRandomHourForTimeSlot(timePeriod)
+        const mappedVehicleCount = getRandomVehicleCountForTimeSlot(timePeriod)
+        
+        console.log(`📊 【版本 2.5】VD 特徵對齊 - 時段: ${timePeriod}`)
+        console.log(`   - 原始 Hour: ${singleData.Hour || 'N/A'} → 映射 Hour: ${mappedHour}`)
+        console.log(`   - 原始 Volume_T: ${singleData.Volume_T || 0} → 映射 Vehicle: ${mappedVehicleCount}`)
+        console.log(`   - VD 映射範圍: ${vdMapping.vehicleCountRange[0]}-${vdMapping.vehicleCountRange[1]}`)
+
         // ✅ 【移除正規化】直接使用生成的 VD Pattern 數據，無需轉換
         // 理由：vdPatternConfig 已經基於真實 VD 數據統計，符合 API 期望的範圍
 
         // ✅ 返回交叉路口數據（18個欄位給後端）
+        // 【版本 2.5】：使用 VD 映射的 hour 和 vehicle_count，而非原始值
         const apiData = {
           VD_ID: singleData.VD_ID,
           DayOfWeek: singleData.DayOfWeek,
-          Hour: singleData.Hour,
+          Hour: mappedHour,  // 【版本 2.5】：使用 VD 映射的小時
           Minute: singleData.Minute,
           Second: singleData.Second,
           IsPeakHour: singleData.IsPeakHour,
@@ -846,7 +869,7 @@ export default class TrafficLightController {
           Speed_S: singleData.Speed_S || 0,
           Volume_L: Math.round(singleData.Volume_L || 0),
           Speed_L: singleData.Speed_L || 0,
-          Volume_T: Math.round(singleData.Volume_T || 0),
+          Volume_T: mappedVehicleCount,  // 【版本 2.5】：使用 VD 映射的車輛數
           Speed_T: singleData.Speed_T || 0,
         }
 
@@ -877,11 +900,13 @@ export default class TrafficLightController {
       // ✅ 先處理第一筆數據用於日誌（如果有多筆）
       const firstData = normalizedDataArray[0] || {}
 
-      // ✅ 【直接數據】VD Pattern 生成完成，無需正規化轉換
-      console.log('✅ 【VD 數據已生成】直接使用 vdPatternConfig 生成的數據:')
+      // ✅ 【版本 2.5】VD 數據已生成並應用時段特徵對齐
+      console.log('✅ 【版本 2.5 - VD 時段特徵對齊已應用】')
       console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
-      console.log(`  - 數據源: vdPatternConfig`)
+      console.log(`  - 數據源: vdPatternConfig (direct) + VD 時段映射對齊`)
       console.log(`  - 時段: ${firstData.scenario}`)
+      console.log(`  - 映射到真實小時: Hour = ${firstData.Hour}`)
+      console.log(`  - 映射到 VD 特徵: Volume_T = ${firstData.Volume_T} 輛`)
 
       // 【新增】打印完整的數據陣列（物件形式，可用 Copy object 複製）
       console.log('📦 【完整的數據陣列 - 右鍵 Copy object 複製】:')
@@ -893,22 +918,23 @@ export default class TrafficLightController {
 
       console.log('🚦 發送 VD 數據到後端 AI 系統:')
       console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
-      console.log(`  - 第一筆流量: Volume_T=${firstData.Volume_T}`)
+      console.log(`  - 第一筆流量 (版本 2.5): Volume_T=${firstData.Volume_T} (VD 映射值)`)
       console.log(`  - 第一筆車型: M=${firstData.Volume_M}, S=${firstData.Volume_S}, L=${firstData.Volume_L}`)
       console.log(`  - 時段信息: ${firstData.scenario}`)
 
       // ✅ 【新增】打印完整的數據
-      console.log('📊 【VD 數據詳情】以下是要發送給後端的 4 筆交叉路口數據:')
+      console.log('📊 【VD 數據詳情】以下是要發送給後端的 4 筆交叉路口數據 (版本 2.5):')
       normalizedDataArray.forEach((data, index) => {
         console.log(`  [交叉路口 ${index + 1}] ${data.VD_ID} (${data.scenario}):`)
         console.log(
-          `    - 流量: Volume_T=${data.Volume_T}, Volume_M=${data.Volume_M}, Volume_S=${data.Volume_S}, Volume_L=${data.Volume_L}`,
+          `    - 流量 (VD映射): Volume_T=${data.Volume_T}, Volume_M=${data.Volume_M}, Volume_S=${data.Volume_S}, Volume_L=${data.Volume_L}`,
         )
         console.log(
           `    - 速度: Speed_T=${data.Speed_T}, Speed_M=${data.Speed_M}, Speed_S=${data.Speed_S}, Speed_L=${data.Speed_L}`,
         )
         console.log(`    - 佔有率: ${data.Occupancy}%`)
         console.log(`    - 時段: ${data.scenario}`)
+        console.log(`    - 小時 (VD映射): ${data.Hour}`)
         // 🌤️ 【新增】顯示天氣信息
         console.log(`    - 天氣: ${data.weather} (倍數: ${data.weather_multiplier?.toFixed(2)}x)`)
       })
