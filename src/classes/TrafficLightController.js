@@ -12,6 +12,11 @@ import {
   getRandomVehicleCountForTimeSlot,
   getTypicalFeaturesForTimeSlot,
 } from './config/vdMapping.js' // 版本 2.5：VD 時段特徵映射
+import {
+  validateAndRectifyDataArray,
+  generateValidationSummary,
+  generateValidationReport,
+} from './utils/DataQualityValidator.js' // 【版本 2.5 新增】數據品質驗證與修正系統
 
 export default class TrafficLightController {
   constructor() {
@@ -847,10 +852,30 @@ export default class TrafficLightController {
         const mappedHour = getRandomHourForTimeSlot(timePeriod)
         const mappedVehicleCount = getRandomVehicleCountForTimeSlot(timePeriod)
 
+        // 🆕 【關鍵改進】根據時段的 Volume_T 總數，按比例生成各車型的數量
+        // 這確保三個時段的車流特徵明顯不同
+        const vehicleTypeRatios = {
+          peak_hours: { M: 0.35, S: 0.45, L: 0.2 }, // 尖峰：混合車型
+          off_peak: { M: 0.3, S: 0.5, L: 0.2 }, // 離峰：較多小型車
+          late_night: { M: 0.25, S: 0.55, L: 0.2 }, // 凌晨：最多小型車
+        }
+
+        const ratios = vehicleTypeRatios[timePeriod] || vehicleTypeRatios.off_peak
+
+        // 根據 mappedVehicleCount 和比例計算各車型數量
+        const mappedVolumeM = Math.round(mappedVehicleCount * ratios.M)
+        const mappedVolumeS = Math.round(mappedVehicleCount * ratios.S)
+        const mappedVolumeL = Math.round(mappedVehicleCount * ratios.L)
+
         console.log(`📊 【版本 2.5】VD 特徵對齊 - 時段: ${timePeriod}`)
-        console.log(`   - 原始 Hour: ${singleData.Hour || 'N/A'} → 映射 Hour: ${mappedHour}`)
-        console.log(`   - 原始 Volume_T: ${singleData.Volume_T || 0} → 映射 Vehicle: ${mappedVehicleCount}`)
-        console.log(`   - VD 映射範圍: ${vdMapping.vehicleCountRange[0]}-${vdMapping.vehicleCountRange[1]}`)
+        console.log(
+          `   - 映射時段: ${timePeriod} (${vdMapping.vehicleCountRange[0]}-${vdMapping.vehicleCountRange[1]} 輛範圍)`,
+        )
+        console.log(`   - 小時映射: ${singleData.Hour || 'N/A'} → ${mappedHour}`)
+        console.log(`   - 流量映射: ${singleData.Volume_T || 0} → ${mappedVehicleCount} 輛總計`)
+        console.log(
+          `   - 車型分布: M=${mappedVolumeM} + S=${mappedVolumeS} + L=${mappedVolumeL} = ${mappedVolumeM + mappedVolumeS + mappedVolumeL}`,
+        )
 
         // ✅ 【移除正規化】直接使用生成的 VD Pattern 數據，無需轉換
         // 理由：vdPatternConfig 已經基於真實 VD 數據統計，符合 API 期望的範圍
@@ -868,11 +893,11 @@ export default class TrafficLightController {
           LaneType: singleData.LaneType,
           Speed: Math.round(singleData.Speed_T || 0),
           Occupancy: Math.round((singleData.Occupancy || 0) * 10) / 10,
-          Volume_M: Math.round(singleData.Volume_M || 0),
+          Volume_M: mappedVolumeM, // 【版本 2.5】：使用時段對應的機車數
           Speed_M: singleData.Speed_M || 0,
-          Volume_S: Math.round(singleData.Volume_S || 0),
+          Volume_S: mappedVolumeS, // 【版本 2.5】：使用時段對應的小型車數
           Speed_S: singleData.Speed_S || 0,
-          Volume_L: Math.round(singleData.Volume_L || 0),
+          Volume_L: mappedVolumeL, // 【版本 2.5】：使用時段對應的大型車數
           Speed_L: singleData.Speed_L || 0,
           Volume_T: mappedVehicleCount, // 【版本 2.5】：使用 VD 映射的車輛數
           Speed_T: singleData.Speed_T || 0,
@@ -944,6 +969,32 @@ export default class TrafficLightController {
         console.log(`    - 天氣: ${data.weather} (倍數: ${data.weather_multiplier?.toFixed(2)}x)`)
       })
       console.log('✅ VD 數據已準備完畢，即將發送到後端...')
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 🔍【版本 2.5 新增】數據品質驗證與修正 - 三層防線
+      // ═══════════════════════════════════════════════════════════════════════
+      const timePeriod = firstData.scenario || getCurrentTimePeriod()
+
+      console.log(`\n🔍 【步驟 1】驗證數據品質 - 檢查是否符合 "${timePeriod}" 時段的特徵範圍...`)
+
+      // 執行驗證與自動修正
+      const validationResult = validateAndRectifyDataArray(finalDataToSend, timePeriod)
+
+      // 生成簡潔的驗證報告
+      const summaryReport = generateValidationSummary(validationResult)
+      console.log(summaryReport)
+
+      // 如果有修正，生成詳細報告
+      if (validationResult.rectifiedRecords > 0) {
+        console.log(`\n⚠️ 發現 ${validationResult.rectifiedRecords} 筆數據超出範圍，已自動修正：`)
+        const detailedReport = generateValidationReport(validationResult)
+        console.log(detailedReport)
+      } else {
+        console.log(`\n✅ 全部 ${validationResult.totalRecords} 筆數據都符合時段特徵範圍，無需修正。`)
+      }
+
+      // 修正後的數據已直接寫入 finalDataToSend，可以安全地發送
+      console.log(`\n✅ 【步驟 2】數據品質確認 - 準備發送修正後的數據到後端...`)
 
       // 發送 API 開始事件
       window.dispatchEvent(new CustomEvent('trafficApiSending', { detail: { timestamp: new Date().toISOString() } }))

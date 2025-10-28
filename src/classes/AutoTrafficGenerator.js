@@ -12,6 +12,7 @@ import {
 import VDNormalizationUtils from './utils/VDNormalizationUtils.js'
 import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
 import { getTimeConfigForScenario, generateVDDataByPattern } from './config/vdPatternConfig.js'
+import { VD_DISPLAY_CONFIG } from './config/vdDisplayConfig.js'
 
 export default class AutoTrafficGenerator {
   constructor(trafficController) {
@@ -163,16 +164,16 @@ export default class AutoTrafficGenerator {
     const timeToUse = this.isAutoMode ? this.simulationTime : new Date()
     const hour = timeToUse.getHours()
 
-    // 根據時間段判斷
+    // 根據時間段判斷，使用 vdDisplayConfig 中的可配置間隔
     if (hour >= 0 && hour < 7) {
       // 午夜段 (00:00-06:59)
-      return GENERATION_CONFIG.GENERATION_INTERVALS.MIDNIGHT
+      return VD_DISPLAY_CONFIG.late_night.generation_interval
     } else if ((hour >= 7 && hour < 10) || (hour >= 17 && hour < 20)) {
       // 尖峰時段 (07:00-09:59, 17:00-19:59)
-      return GENERATION_CONFIG.GENERATION_INTERVALS.PEAK
+      return VD_DISPLAY_CONFIG.peak_hours.generation_interval
     } else {
       // 離峰時段 (10:00-16:59, 20:00-23:59)
-      return GENERATION_CONFIG.GENERATION_INTERVALS.OFF_PEAK
+      return VD_DISPLAY_CONFIG.off_peak.generation_interval
     }
   }
 
