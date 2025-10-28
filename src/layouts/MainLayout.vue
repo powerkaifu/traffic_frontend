@@ -100,19 +100,14 @@
               <!-- 當前情境參數顯示 -->
               <div v-if="currentScenarioDetails && !isAutoMode" class="scenario-details">
                 <div class="detail-item">
-                  <span class="detail-label">生成間隔（秒）：</span>
-                  <span class="detail-value">{{ (currentScenarioDetails.interval.min / 1000).toFixed(1) }}s</span>
+                  <span class="detail-label">頻率（秒）：</span>
+                  <span class="detail-value"
+                    >{{ currentScenarioDetails.interval.min / 1000 }} /
+                    {{ currentScenarioDetails.interval.max / 1000 }}</span
+                  >
                 </div>
-                <div v-if="currentScenarioDetails.displayVolume" class="detail-item">
-                  <span class="detail-label">目標顯示流量：</span>
-                  <span class="detail-value">{{ currentScenarioDetails.displayVolume }}</span>
-                </div>
-                <div v-if="currentScenarioDetails.displayScale" class="detail-item">
-                  <span class="detail-label">縮放倍數：</span>
-                  <span class="detail-value">{{ currentScenarioDetails.displayScale }}</span>
-                </div>
-                <div v-if="currentScenarioDetails.ratios" class="detail-item">
-                  <span class="detail-label">車型機率：</span>
+                <div class="detail-item">
+                  <span class="detail-label">機/小/大 出現機率（%）：</span>
                   <span class="detail-value">{{ currentScenarioDetails.ratios }}</span>
                 </div>
                 <div class="detail-item">
@@ -603,12 +598,16 @@ const currentScenarioDetails = computed(() => {
   // 優先使用新配置 (vdDisplayConfig.js)
   const vdConfig = VD_DISPLAY_CONFIG[currentTimeScenario.value]
   if (vdConfig) {
+    // 從 timeScenarios 中找到對應的 ratios
+    const timeScenario = timeScenarios.find((s) => s.key === currentTimeScenario.value)
+    const ratios = timeScenario ? timeScenario.config.vehicleTypes.map((v) => v.weight).join(' / ') : '(VD 特徵)'
+
     return {
       interval: {
         min: vdConfig.generation_interval * 1000, // 轉換為 ms
         max: vdConfig.generation_interval * 1000,
       },
-      ratios: '(VD 特徵)',
+      ratios: ratios,
       label: vdConfig.label,
       displayVolume: `${vdConfig.display_volume_min}-${vdConfig.display_volume_max}輛`,
       displayScale: `${vdConfig.display_scale}x`,
