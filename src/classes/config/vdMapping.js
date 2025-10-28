@@ -1,14 +1,14 @@
 /**
  * vdMapping.js - VD 時段特徵映射配置
- * 
+ *
  * 根據分析的 VD 數據，建立「時段標籤」到「真實VD特徵」的映射
  * 確保前端發送給後端模型的特徵與訓練數據一致
- * 
+ *
  * ═══════════════════════════════════════════════════════════════════════
  * 核心映射邏輯：
  * ═══════════════════════════════════════════════════════════════════════
  * 用戶選擇時段 → 前端映射到真實小時 + 車輛數特徵 → 發送給後端模型
- * 
+ *
  * 例如：
  * - 用戶選「尖峰」→ 映射到 hour=[7,8,9,17,18,19] + vehicle_count=95
  * - 用戶選「離峰」→ 映射到 hour=[10-16,20-23] + vehicle_count=40
@@ -26,14 +26,14 @@ export const VD_TIME_MAPPING = {
     // VLRJX00: 07:30-09:30, 16:30-18:30 的車輛數明顯上升
     // VLRJX20: 08:30-10:30, 17:30-19:30 的車輛數明顯上升
     hours: [7, 8, 9, 17, 18, 19],
-    
+
     // 尖峰時段的車輛數範圍（基於VD實測統計）
     // VLRJM60 尖峰平均: 95輛, 範圍: 60-156輛
     // VLRJX00 尖峰平均: 105輛, 範圍: 65-189輛
     // VLRJX20 尖峰平均: 92輛, 範圍: 55-142輛
     vehicleCountRange: [60, 156],
     avgVehicleCount: 95,
-    
+
     // 模型訓練時的典型特徵
     typicalFeatures: {
       hourRange: [7, 19],
@@ -43,7 +43,7 @@ export const VD_TIME_MAPPING = {
       occupancyStdDev: 0.12,
       speedMean: 32,
     },
-    
+
     // 用於前端顯示和統計
     displayLabel: '尖峰時段',
     displayColor: '#FF4444',
@@ -59,14 +59,14 @@ export const VD_TIME_MAPPING = {
     // VLRJX00: 10:00-16:00, 19:00-23:00 的車輛數相對穩定
     // VLRJX20: 11:00-16:00, 20:00-23:00 的車輛數相對穩定
     hours: [10, 11, 12, 13, 14, 15, 16, 20, 21, 22, 23],
-    
+
     // 離峰時段的車輛數範圍（基於VD實測統計）
     // VLRJM60 離峰平均: 40輛, 範圍: 20-60輛
     // VLRJX00 離峰平均: 42輛, 範圍: 15-65輛
     // VLRJX20 離峰平均: 38輛, 範圍: 18-58輛
     vehicleCountRange: [20, 60],
     avgVehicleCount: 40,
-    
+
     // 模型訓練時的典型特徵
     typicalFeatures: {
       hourRange: [10, 23],
@@ -76,7 +76,7 @@ export const VD_TIME_MAPPING = {
       occupancyStdDev: 0.08,
       speedMean: 38,
     },
-    
+
     // 用於前端顯示和統計
     displayLabel: '離峰時段',
     displayColor: '#4444FF',
@@ -92,14 +92,14 @@ export const VD_TIME_MAPPING = {
     // VLRJX00: 01:00-06:00 的車輛數最低
     // VLRJX20: 03:00-06:00 的車輛數最低
     hours: [0, 1, 2, 3, 4, 5, 6],
-    
+
     // 凌晨時段的車輛數範圍（基於VD實測統計）
     // VLRJM60 凌晨平均: 12輛, 範圍: 1-30輛
     // VLRJX00 凌晨平均: 8輛, 範圍: 1-28輛
     // VLRJX20 凌晨平均: 10輛, 範圍: 3-25輛
     vehicleCountRange: [1, 30],
     avgVehicleCount: 12,
-    
+
     // 模型訓練時的典型特徵
     typicalFeatures: {
       hourRange: [0, 6],
@@ -109,7 +109,7 @@ export const VD_TIME_MAPPING = {
       occupancyStdDev: 0.04,
       speedMean: 44,
     },
-    
+
     // 用於前端顯示和統計
     displayLabel: '凌晨時段',
     displayColor: '#444444',
@@ -197,22 +197,22 @@ function gaussianRandom(mean, stdDev) {
  * ═══════════════════════════════════════════════════════════════════════
  * 使用說明
  * ═══════════════════════════════════════════════════════════════════════
- * 
+ *
  * 在前端使用時段映射：
- * 
+ *
  * 1. 獲取時段配置：
  *    const mapping = getVDMappingForTimeSlot('peak')
- * 
+ *
  * 2. 獲取隨機小時：
  *    const hour = getRandomHourForTimeSlot('peak')  // 返回 7, 8, 9, 17, 18, 或 19
- * 
+ *
  * 3. 獲取隨機車輛數：
  *    const vehicles = getRandomVehicleCountForTimeSlot('peak')  // 返回 60-156 範圍內的數值
- * 
+ *
  * 4. 獲取完整特徵（直接發送給模型）：
  *    const features = getTypicalFeaturesForTimeSlot('peak')
  *    // 返回 { hour: 8, vehicle_count: 92, occupancy: 0.35, speed: 32, ... }
- * 
+ *
  * 5. 在 TrafficLightController.callApi() 中使用：
  *    const timeSlot = getCurrentTimePeriod()  // 'peak', 'offPeak', 或 'midnight'
  *    const vdFeatures = getTypicalFeaturesForTimeSlot(timeSlot)

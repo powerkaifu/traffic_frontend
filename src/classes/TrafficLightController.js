@@ -6,7 +6,12 @@ import { speedConfig } from './config/trafficConfig.js' // 引入統一的速度
 import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
 import { VOLUME_LIMITS_CONFIG } from './config/vehicleConfig.js'
 import { getTimeConfigForScenario } from './config/vdPatternConfig.js' // 新增：情景時間配置
-import { getVDMappingForTimeSlot, getRandomHourForTimeSlot, getRandomVehicleCountForTimeSlot, getTypicalFeaturesForTimeSlot } from './config/vdMapping.js' // 版本 2.5：VD 時段特徵映射
+import {
+  getVDMappingForTimeSlot,
+  getRandomHourForTimeSlot,
+  getRandomVehicleCountForTimeSlot,
+  getTypicalFeaturesForTimeSlot,
+} from './config/vdMapping.js' // 版本 2.5：VD 時段特徵映射
 
 export default class TrafficLightController {
   constructor() {
@@ -834,14 +839,14 @@ export default class TrafficLightController {
         //  ✅ 時段標籤與真實 VD 特徵對齐
         //  ✅ 前端顯示（車輛數多少）與模型輸入特徵一致
         //  ✅ 模型接收到與訓練時相符的特徵範圍
-        
+
         // 獲取時段的 VD 特徵映射
         const vdMapping = getVDMappingForTimeSlot(timePeriod)
-        
+
         // 從映射中獲取真實的小時和車輛數
         const mappedHour = getRandomHourForTimeSlot(timePeriod)
         const mappedVehicleCount = getRandomVehicleCountForTimeSlot(timePeriod)
-        
+
         console.log(`📊 【版本 2.5】VD 特徵對齊 - 時段: ${timePeriod}`)
         console.log(`   - 原始 Hour: ${singleData.Hour || 'N/A'} → 映射 Hour: ${mappedHour}`)
         console.log(`   - 原始 Volume_T: ${singleData.Volume_T || 0} → 映射 Vehicle: ${mappedVehicleCount}`)
@@ -855,7 +860,7 @@ export default class TrafficLightController {
         const apiData = {
           VD_ID: singleData.VD_ID,
           DayOfWeek: singleData.DayOfWeek,
-          Hour: mappedHour,  // 【版本 2.5】：使用 VD 映射的小時
+          Hour: mappedHour, // 【版本 2.5】：使用 VD 映射的小時
           Minute: singleData.Minute,
           Second: singleData.Second,
           IsPeakHour: singleData.IsPeakHour,
@@ -869,7 +874,7 @@ export default class TrafficLightController {
           Speed_S: singleData.Speed_S || 0,
           Volume_L: Math.round(singleData.Volume_L || 0),
           Speed_L: singleData.Speed_L || 0,
-          Volume_T: mappedVehicleCount,  // 【版本 2.5】：使用 VD 映射的車輛數
+          Volume_T: mappedVehicleCount, // 【版本 2.5】：使用 VD 映射的車輛數
           Speed_T: singleData.Speed_T || 0,
         }
 

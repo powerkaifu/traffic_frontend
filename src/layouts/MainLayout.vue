@@ -524,6 +524,10 @@ import { useQuasar } from 'quasar'
 import { useRouter, useRoute } from 'vue-router'
 import { timeScenarios } from 'src/classes/config/trafficScenarioConfig.js'
 
+// 🎛️ 統一初始化常數 - 只需改這一個地方！
+// 選項: 'peak_hours' | 'off_peak' | 'late_night'
+const INITIAL_VD_SCENARIO = 'peak_hours' // ← 改這裡快速切換預設情景
+
 const router = useRouter()
 const route = useRoute()
 
@@ -550,7 +554,7 @@ const rightDrawerOpen = ref(false)
 const $q = useQuasar()
 
 // 🎯【新增】VD 情景選擇狀態
-const selectedVDScenario = ref('off_peak')  // 🧪 改為離峰測試
+const selectedVDScenario = ref(INITIAL_VD_SCENARIO)
 
 // 🎯【新增】VD 情景選擇函數
 function selectVDScenario(scenario) {
@@ -583,7 +587,7 @@ function selectVDScenario(scenario) {
   }
 }
 
-const currentTimeScenario = ref('peak_hours')
+const currentTimeScenario = ref(INITIAL_VD_SCENARIO)
 const manualInterval = ref(1000)
 const currentInterval = ref(1.0) // 初始化為 1 秒（與 manualInterval 預設值 1000ms 一致）
 
@@ -893,10 +897,10 @@ function toggleAutoMode() {
     console.log('🔄 [MainLayout] 切換到自動模式 - 清除情景選擇')
     selectedVDScenario.value = null
   } else {
-    // 切換回手動模式：重置為離峰情景（測試用）
-    console.log('🔄 [MainLayout] 切換回手動模式 - 設回離峰情景')
-    selectedVDScenario.value = 'off_peak'
-    currentTimeScenario.value = 'off_peak'
+    // 切換回手動模式：重置為 INITIAL_VD_SCENARIO
+    console.log(`🔄 [MainLayout] 切換回手動模式 - 設回 ${INITIAL_VD_SCENARIO}`)
+    selectedVDScenario.value = INITIAL_VD_SCENARIO
+    currentTimeScenario.value = INITIAL_VD_SCENARIO
     manualInterval.value = 1000 // 重置拉桿到 1s
     updateGenerationConfig()
   }
@@ -909,9 +913,9 @@ function toggleAutoMode() {
 onMounted(() => {
   const cleanup = setupListeners()
 
-  // 🧪 【測試】初始化：預設設定為離峰時段（用於驗證秒數變化）
-  window.selectedTrafficTimePeriod = 'off_peak'
-  console.log('🚀 [MainLayout] 初始化時段配置：預設為離峰時段 (off_peak) - 測試用')
+  // 🧪 【測試】初始化：預設設定為 INITIAL_VD_SCENARIO
+  window.selectedTrafficTimePeriod = INITIAL_VD_SCENARIO
+  console.log(`🚀 [MainLayout] 初始化時段配置：預設為 ${INITIAL_VD_SCENARIO}`)
 
   let tries = 0
   const tryInit = async () => {
