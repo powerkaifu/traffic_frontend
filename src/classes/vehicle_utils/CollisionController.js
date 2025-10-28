@@ -749,27 +749,24 @@ export class CollisionController {
    * @returns {boolean} true表示需要融入隊列
    */
   shouldReEnqueueAfterCollision(allVehicles) {
-    // 🚨 完全重設計隊列融合邏輯
-    // 原始設計的問題：依賴於 currentState，但碰撞時的狀態判斷不準確
-    // 新設計：基於實際的碰撞和隊列位置
+    // 🚨 重設計隊列融合邏輯（修復版本）
+    // 原始設計問題1：依賴於 currentState 判斷不準確
+    // 原始設計問題2：「距離停止線 < 100px 不融合」邏輯反了！
+    // 新設計：只要車速低 + 前方有停止的車，就應該融合
 
     const myPos = this.vehicle.getCurrentPosition()
     const mySpeed = this.vehicle.movementTimeline ? this.vehicle.movementTimeline.timeScale() : 0
 
     // 條件1：車輛基本在停止狀態（速度接近 0）
+    // 注意：0.15 的閾值較寬鬆，允許極低速移動也認為是停止
     if (mySpeed > 0.15) {
       return false // 車輛還在移動，不是碰撞停止狀態
     }
 
-    // 條件2：距離停止線還遠（表示不是普通排隊，而是碰撞停止）
-    const distanceToStopLine = this.vehicle.getDistanceToStopLine()
-    const MIN_DISTANCE_TO_STOPLINE = 100 // 至少還要 100px 才認為需要融入隊伍
-
-    if (distanceToStopLine !== null && distanceToStopLine < MIN_DISTANCE_TO_STOPLINE) {
-      return false // 已經很接近停止線了，即將進入正式排隊區，不需要融合
-    }
-
-    // 條件3：前方有停止的車或隊伍
+    // 條件2：檢查前方是否有停止的同車道車輛
+    // 🚨 修復：移除「距離停止線」的限制
+    // 原因：碰撞可能發生在距離停止線任何距離的地方
+    // 只要前方有停止的車，就應該融合
     const sameDirectionVehicles = allVehicles.filter(
       (v) =>
         v.id !== this.vehicle.id && v.direction === this.vehicle.direction && v.laneNumber === this.vehicle.laneNumber,
@@ -779,7 +776,7 @@ export class CollisionController {
       return false // 沒有前方車輛
     }
 
-    // 條件4：檢查是否有前方車輛在停止狀態或隊伍中
+    // 條件3：尋找前方停止的車輛
     for (let other of sameDirectionVehicles) {
       const otherPos = other.getCurrentPosition()
       if (!otherPos) continue
@@ -787,11 +784,18 @@ export class CollisionController {
       const distance = this.calculateDirectionalDistance(myPos, otherPos)
       const otherSpeed = other.movementTimeline ? other.movementTimeline.timeScale() : 0
 
-      // 如果前方車輛停止且在合理距離內，應該融入隊伍
-      if (distance > 0 && distance < 400 && otherSpeed <= 0.15) {
-        // 另外確保前方車輛確實在隊伍中（停止線前或等紅燈）
-        if (other.isAtStopLine || other.waitingForGreen || other.currentState === 'stopped') {
-          return true // 應該融入隊伍！
+      // 🚨 修復：確認前方車輛確實停止且在合理距離內
+      // 距離範圍：10-400px（至少 10px 安全距離，最多 400px）
+      if (distance > 10 && distance < 400 && otherSpeed <= 0.15) {
+        // 確保前方車輛確實在停止或等待狀態
+        const isInQueue =
+          other.isAtStopLine ||
+          other.waitingForGreen ||
+          other.currentState === 'stopped' ||
+          other.currentState === 'gapRecovery'
+
+        if (isInQueue) {
+          return true // ✅ 應該融入隊伍！
         }
       }
     }
@@ -864,30 +868,36 @@ export class CollisionController {
         const tailPos = queueTail.getCurrentPosition()
         if (tailPos) {
           const distance = this.calculateDirectionalDistance(myPos, tailPos)
-          // 如果距離還遠，允許加速前進
-          if (distance > 50) {
-            return {
-              action: 'rejoin_queue',
-              vehicle: queueTail,
-              distance: distance,
-              shouldStop: false,
-              shouldFollow: true,
-              targetSpeed: 0.5, // 中等速度朝隊伍前進
-              requiredGap: 15,
-              reason: `重新加入隊列：朝向隊伍最後方前進 (距離${distance.toFixed(1)}px)`,
-            }
-          } else if (distance > 25) {
-            // 距離較近，開始減速
-            return {
-              action: 'rejoin_queue',
-              vehicle: queueTail,
-              distance: distance,
-              shouldStop: false,
-              shouldFollow: true,
-              targetSpeed: 0.15,
-              requiredGap: 15,
-              reason: `接近隊伍最後方，開始減速 (距離${distance.toFixed(1)}px)`,
-            }
+          // 🚨 修復：覆蓋所有距離情況，確保總是返回 rejoin_queue 動作
+          let targetSpeed = 0.05 // 預設超慢速
+          let reason = ''
+
+          if (distance > 100) {
+            targetSpeed = 0.6 // 距離遠，加速前進
+            reason = `重新加入隊列：快速前進 (距離${distance.toFixed(1)}px)`
+          } else if (distance > 50) {
+            targetSpeed = 0.4 // 中等距離，中速前進
+            reason = `重新加入隊列：朝向隊伍最後方前進 (距離${distance.toFixed(1)}px)`
+          } else if (distance > 30) {
+            targetSpeed = 0.2 // 較近，開始減速
+            reason = `接近隊伍最後方，減速 (距離${distance.toFixed(1)}px)`
+          } else if (distance > 15) {
+            targetSpeed = 0.1 // 很近，極慢速
+            reason = `非常接近隊伍，極慢速 (距離${distance.toFixed(1)}px)`
+          } else {
+            targetSpeed = 0.03 // 極端接近，微調速度
+            reason = `已接近安全距離，微調速度 (距離${distance.toFixed(1)}px)`
+          }
+
+          return {
+            action: 'rejoin_queue',
+            vehicle: queueTail,
+            distance: distance,
+            shouldStop: false,
+            shouldFollow: true,
+            targetSpeed: targetSpeed,
+            requiredGap: 15,
+            reason: reason,
           }
         }
       }

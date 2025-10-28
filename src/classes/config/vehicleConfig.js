@@ -13,6 +13,7 @@
 export const ANIMATION_CONFIG = {
   // 🎬 全域動畫控制
   TIME_MULTIPLIER: 0.5, // 控制整體動畫速度：越小越快，越大越慢（0.5=2倍速，2=半速）
+  // 🚨 設定為 0.1 進行極速碰撞測試
 
   // ⚡ 速度變化動畫時間 (秒)
   SPEED_CHANGE_DURATION: {
