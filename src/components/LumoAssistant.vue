@@ -10,17 +10,9 @@
 
     <!-- 💬 對話框 -->
     <div ref="dialogBox" class="lumo-dialog-box" v-show="state.isDialogVisible">
-      <div class="dialog-header">
-        <div class="dialog-title">Lumo Assistant</div>
-      </div>
       <div class="dialog-content">
         <div ref="dialogText" class="dialog-text">
           <!-- 文字會通過 JavaScript 動態插入 -->
-        </div>
-      </div>
-      <div class="dialog-footer">
-        <div class="dialog-indicator">
-          <span ref="dotIndicator" class="indicator-dot"></span>
         </div>
       </div>
     </div>
@@ -28,8 +20,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import gsap from 'gsap'
+import { SplitText } from 'gsap/SplitText'
+
+// 註冊 GSAP 插件
+gsap.registerPlugin(SplitText)
 
 // Refs
 const floatingContainer = ref(null)
@@ -37,7 +33,6 @@ const canvas = ref(null)
 const shadow = ref(null)
 const dialogBox = ref(null)
 const dialogText = ref(null)
-const dotIndicator = ref(null)
 
 // State
 const state = reactive({
@@ -54,9 +49,9 @@ const state = reactive({
   animationFrameId: null,
   // 💬 對話框狀態
   dialogMessages: [
-    '你好！我是 Lumo，虛擬交通助手。',
-    '我負責實時監控和分析交通流量數據。',
-    '通過 AI 分析，我能預測交通擁堵情況。',
+    '你好！我是 Lumo 小助手！',
+    '我負責模擬車流和分析交通流量數據。',
+    '通過車流數據，我能預測綠燈秒數。',
     '讓我們一起建立更智能的城市交通系統！',
   ],
   currentMessageIndex: 0,
@@ -222,44 +217,66 @@ async function startFloatingAnimation() {
   })
 }
 
-// 💬 顯示對話框文字（帶打字效果）
+// 💬 顯示對話框文字（使用 GSAP SplitText 帶打字效果）
 function showDialogMessage(messageIndex) {
   if (!dialogText.value) return
 
   const message = state.dialogMessages[messageIndex] || ''
-  let currentIndex = 0
 
   // 清空文字
-  dialogText.value.textContent = ''
+  dialogText.value.textContent = message
 
-  // 使用 GSAP timeline 實現打字效果
-  const charTimeline = gsap.timeline()
+  // 使用 SplitText 將文字分割成字符
+  const split = new SplitText(dialogText.value, {
+    type: 'chars',
+    charsClass: 'char', // 給每個字符添加類名
+  })
 
-  const addChar = () => {
-    if (currentIndex < message.length) {
-      dialogText.value.textContent += message[currentIndex]
-      currentIndex++
-      charTimeline.call(addChar, null, `+=${0.05}`) // 每個字 50ms
-    }
-  }
+  const chars = split.chars
 
-  charTimeline.call(addChar)
+  console.log(`✍️ 開始顯示第 ${messageIndex + 1} 句對話 (${chars.length} 個字符)`)
+
+  // 設置初始狀態 - 所有字符透明
+  gsap.set(chars, {
+    opacity: 0,
+    y: 10,
+  })
+
+  // 創建動畫時間軸
+  const tl = gsap.timeline()
+
+  // 逐字動畫進入
+  tl.to(
+    chars,
+    {
+      opacity: 1,
+      y: 0,
+      duration: 0.4,
+      stagger: 0.06, // 每個字間隔 60ms
+      ease: 'back.out',
+    },
+    0, // 立即開始
+  )
+
+  // 動畫完成後重新合併文字
+  tl.call(() => {
+    split.revert()
+    console.log(`✅ 第 ${messageIndex + 1} 句對話顯示完成`)
+  })
 }
 
 // 💬 播放下一句對話
 function playNextDialog() {
+  // 清除舊的動畫
+  if (dialogText.value) {
+    gsap.killTweensOf(dialogText.value)
+    // 清除所有字符的動畫
+    const chars = dialogText.value.querySelectorAll('.char')
+    gsap.killTweensOf(chars)
+  }
+
   showDialogMessage(state.currentMessageIndex)
   state.currentMessageIndex = (state.currentMessageIndex + 1) % state.dialogMessages.length
-
-  // 更新指示器動畫
-  if (dotIndicator.value) {
-    gsap.to(dotIndicator.value, {
-      opacity: 0.3,
-      duration: 0.2,
-      yoyo: true,
-      repeat: 1,
-    })
-  }
 }
 
 // 💬 開啟對話框
@@ -276,28 +293,34 @@ function openDialog() {
     return
   }
 
-  // 對話框進場動畫
-  gsap.fromTo(
-    dialogBox.value,
-    { y: 20, opacity: 0 },
-    {
-      y: 0,
-      opacity: 1,
-      duration: 0.6,
-      ease: 'back.out',
-    },
-  )
+  // ⏳ 等待 DOM 更新後再播放動畫
+  // （v-show 需要時間同步，確保 DOM 在可見狀態下）
+  nextTick(() => {
+    // 對話框進場動畫
+    gsap.fromTo(
+      dialogBox.value,
+      { y: 20, opacity: 0 },
+      {
+        y: 0,
+        opacity: 1,
+        duration: 0.6,
+        ease: 'back.out',
+      },
+    )
 
-  // 立即播放第一條消息
-  showDialogMessage(0)
+    // 立即播放第一條消息
+    showDialogMessage(0)
+    // 遞進 index，這樣 interval 開始時會播下一句
+    state.currentMessageIndex = 1
 
-  // 每隔 4 秒播放下一條消息
-  if (state.dialogInterval) {
-    clearInterval(state.dialogInterval)
-  }
-  state.dialogInterval = setInterval(() => {
-    playNextDialog()
-  }, 4000)
+    // 每隔 4 秒播放下一條消息（在第一條消息播完之後才開始計時）
+    if (state.dialogInterval) {
+      clearInterval(state.dialogInterval)
+    }
+    state.dialogInterval = setInterval(() => {
+      playNextDialog()
+    }, 4000)
+  })
 
   console.log('✅ 對話框已打開，isDialogVisible =', state.isDialogVisible)
 }
@@ -395,13 +418,13 @@ onBeforeUnmount(() => {
   height: 150px;
   position: relative;
   top: 20px;
+  left: -30px;
 }
 
 .lumo-shadow {
   position: absolute;
   bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 15%;
   width: 150px;
   height: 20px;
 
@@ -435,8 +458,8 @@ onBeforeUnmount(() => {
 /* 💬 對話框樣式 */
 .lumo-dialog-box {
   position: absolute;
-  top: 100px;
-  right: -250px;
+  top: 120px;
+  right: -220px;
   width: 320px;
   background: linear-gradient(135deg, rgba(0, 20, 40, 0.95) 0%, rgba(10, 30, 60, 0.95) 100%);
   border: 2px solid rgba(0, 200, 255, 0.5);
@@ -451,26 +474,8 @@ onBeforeUnmount(() => {
   pointer-events: auto;
 }
 
-.dialog-header {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(0, 200, 255, 0.3);
-  background: linear-gradient(90deg, rgba(0, 150, 255, 0.1) 0%, rgba(150, 100, 255, 0.1) 100%);
-}
-
-.dialog-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #00c8ff;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  text-shadow: 0 0 10px rgba(0, 200, 255, 0.5);
-}
-
 .dialog-content {
-  padding: 20px 16px;
+  padding: 24px 20px;
   min-height: 80px;
   display: flex;
   align-items: center;
@@ -478,57 +483,16 @@ onBeforeUnmount(() => {
 }
 
 .dialog-text {
-  font-size: 14px;
   color: #ffffff;
   line-height: 1.6;
+  font-size: 1.1rem;
   letter-spacing: 0.5px;
-  text-align: center;
   font-weight: 300;
   min-height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
   /* 文字發光效果 */
   text-shadow:
     0 0 5px rgba(0, 200, 255, 0.3),
     0 0 10px rgba(100, 150, 255, 0.2);
-}
-
-.dialog-footer {
-  padding: 12px 16px;
-  border-top: 1px solid rgba(0, 200, 255, 0.3);
-  display: flex;
-  justify-content: center;
-  background: linear-gradient(90deg, rgba(0, 150, 255, 0.05) 0%, rgba(150, 100, 255, 0.05) 100%);
-}
-
-.dialog-indicator {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.indicator-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, rgba(0, 200, 255, 0.8), rgba(100, 150, 255, 0.6));
-  box-shadow: 0 0 8px rgba(0, 200, 255, 0.6);
-  opacity: 0.8;
-  animation: pulse-dot 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse-dot {
-  0%,
-  100% {
-    opacity: 0.8;
-    box-shadow: 0 0 8px rgba(0, 200, 255, 0.6);
-  }
-  50% {
-    opacity: 0.4;
-    box-shadow: 0 0 12px rgba(0, 200, 255, 0.8);
-  }
 }
 
 /* 對話框響應式調整 */
