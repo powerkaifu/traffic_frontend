@@ -1601,12 +1601,13 @@ onUnmounted(() => {
 /* 小機器人助手 ------------------------------------------------- */
 .robot-assistant {
   position: absolute;
-  bottom: 30px;
   left: 0;
-  width: 350px;
-  height: 170px;
+  bottom: 0px;
+  width: 300px;
+  height: 300px;
   cursor: pointer;
   transition: transform 0.3s ease;
+  background: rgba(255, 255, 255, 0.1);
   z-index: 10;
 }
 
@@ -1614,10 +1615,6 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   object-fit: contain;
-}
-
-.robot-assistant:hover {
-  transform: scale(1.05);
 }
 
 /* 交通燈倒數計時器 ------------------------------------------------- */

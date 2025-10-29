@@ -1,11 +1,18 @@
 <template>
   <div class="lumo-assistant">
-    <!-- Live2D Canvas -->
-    <canvas ref="canvas" class="lumo-canvas" />
+    <!-- Floating Container -->
+    <div ref="floatingContainer" class="lumo-floating-container">
+      <!-- Shadow Element -->
+      <div ref="shadow" class="lumo-shadow" />
+
+      <!-- Live2D Canvas -->
+      <canvas ref="canvas" class="lumo-canvas" />
+    </div>
   </div>
 </template>
 
 <script>
+import gsap from 'gsap'
 import { LumoStatusCheck } from '../utils/LumoStatusCheck'
 
 export default {
@@ -21,6 +28,7 @@ export default {
       currentParamX: 0,
       currentParamY: 0,
       easingFactor: 0.05,
+      floatingTimeline: null,
     }
   },
 
@@ -101,6 +109,9 @@ export default {
 
         // 啟用滑鼠追蹤
         this.setupMouseTracking()
+
+        // 啟用浮動動畫
+        this.startFloatingAnimation()
 
         console.log('✅ Lumo Live2D 已成功加載')
       } catch (error) {
@@ -193,9 +204,71 @@ export default {
 
       console.log('✅ 滑鼠追蹤已啟用 - Lumo 會跟隨你的滑鼠')
     },
+
+    /**
+     * 啟用浮動動畫 (使用 gsap 動畫浮動容器和陰影)
+     */
+    startFloatingAnimation() {
+      if (!this.$refs.floatingContainer || !this.$refs.shadow) {
+        console.warn('⚠️ 浮動容器或陰影元素未找到')
+        return
+      }
+
+      // 建立 GSAP 時間線用於浮動動畫
+      this.floatingTimeline = gsap.timeline({ repeat: -1 })
+
+      // 上升動畫
+      this.floatingTimeline.to(
+        this.$refs.floatingContainer,
+        {
+          y: -30,
+          duration: 1.5,
+          ease: 'sine.inOut',
+        },
+        0,
+      )
+
+      // 陰影在上升時變小且透明度降低
+      this.floatingTimeline.to(
+        this.$refs.shadow,
+        {
+          scaleX: 0.7,
+          filter: 'blur(8px)',
+          opacity: 0.1,
+          duration: 1.5,
+          ease: 'sine.inOut',
+        },
+        0,
+      )
+
+      // 下降動畫
+      this.floatingTimeline.to(this.$refs.floatingContainer, {
+        y: 0,
+        duration: 1.5,
+        ease: 'sine.inOut',
+      })
+
+      // 陰影在下降時變大且透明度增加
+      this.floatingTimeline.to(
+        this.$refs.shadow,
+        {
+          scaleX: 1,
+          filter: 'blur(15px)',
+          opacity: 0.3,
+          duration: 1.5,
+          ease: 'sine.inOut',
+        },
+        '<',
+      )
+
+      console.log('✅ Lumo 浮動動畫已啟用')
+    },
   },
 
   beforeUnmount() {
+    if (this.floatingTimeline) {
+      this.floatingTimeline.kill()
+    }
     if (this.app) {
       this.app.destroy()
     }
@@ -212,11 +285,41 @@ export default {
   position: relative;
   overflow: hidden;
   border-radius: 12px;
+  display: flex;
+}
+
+.lumo-floating-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  will-change: transform;
 }
 
 .lumo-canvas {
-  width: 100%;
-  height: 100%;
+  width: 300px;
+  height: 150px;
   display: block;
+  position: relative;
+  z-index: 10;
+}
+
+.lumo-shadow {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 40px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0) 70%);
+  background: red;
+  border-radius: 50%;
+  filter: blur(15px);
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.3;
+  will-change: transform, filter, opacity;
 }
 </style>
