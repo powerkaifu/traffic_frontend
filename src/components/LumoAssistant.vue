@@ -16,6 +16,15 @@
           <!-- 文字會通過 JavaScript 動態插入 -->
         </div>
       </div>
+      <!-- 💬 消息指示器 - 顯示現在是第幾句話 -->
+      <div class="message-indicators">
+        <span
+          v-for="(msg, i) in config.dialog.messages"
+          :key="i"
+          :class="{ active: i === state.currentMessageIndex }"
+          class="indicator-dot"
+        ></span>
+      </div>
     </div>
   </div>
 </template>
@@ -35,10 +44,10 @@ const config = {
   // 🎙️ 對話框配置
   dialog: {
     messages: [
-      '你好！我是 Lumo 小助手！',
-      '我負責模擬車流和分析交通流量數據。',
-      '通過車流數據，我能預測綠燈秒數。',
-      '讓我們一起建立更智能的城市交通系統！',
+      '您好！我是 Lumo 小助手！',
+      '我負責模擬車流和分析流量數據',
+      '我能透過路口車流數據來預測綠燈秒數',
+      '還能視覺化分析交通狀況',
     ],
     messageInterval: 5, // 每句話間隔時間（秒）
     messageDisplayDuration: 0.4, // 單個字符動畫時長（秒）
@@ -145,6 +154,9 @@ async function initialize() {
 
     // 🖱️ Canvas 點擊事件監聽
     canvas.value.addEventListener('click', () => {
+      // 觸發搖晃動畫
+      triggerCanvasShake()
+      // 切換對話框
       toggleDialog()
     })
   } catch (error) {
@@ -271,29 +283,72 @@ function showDialogMessage(messageIndex) {
   const chars = split.chars
   if (chars.length === 0) return
 
-  // 設置初始狀態
+  // 設置初始狀態 - 所有字符先隱藏
   gsap.set(chars, {
     opacity: 0,
-    y: 10,
   })
 
-  // 創建動畫
+  // 創建動畫 - 使用 stagger 實現逐字打字效果
   const tl = gsap.timeline()
-  tl.to(
-    chars,
-    {
-      opacity: 1,
-      y: 0,
-      duration: config.dialog.messageDisplayDuration,
-      stagger: config.dialog.messageCharStagger,
-      ease: 'back.out',
-    },
-    0,
-  )
 
-  // 動畫完成後重新合併文字
+  // 創建光標元素
+  const cursor = document.createElement('span')
+  cursor.className = 'typing-cursor'
+  cursor.textContent = '│'
+
+  // 計算 stagger 延遲
+  const charDuration = 0.05
+  const staggerDelay = config.dialog.messageCharStagger
+
+  // 為每個字符創建出現和光標更新的時序
+  chars.forEach((char, index) => {
+    const time = index * staggerDelay
+
+    // 字符出現動畫
+    tl.to(
+      char,
+      {
+        opacity: 1,
+        duration: charDuration,
+        ease: 'steps(1)',
+      },
+      time,
+    )
+
+    // 字符出現後，將光標移到該字符後面
+    tl.call(
+      () => {
+        // 移除舊光標
+        if (cursor.parentNode) {
+          cursor.remove()
+        }
+        // 在當前字符後面插入光標
+        char.parentNode.insertBefore(cursor, char.nextSibling)
+      },
+      null,
+      time + charDuration * 0.5,
+    )
+  })
+
+  // 動畫完成後：光標留在文字尾巴繼續閃爍
   tl.call(() => {
+    // 先 revert（合併所有字符）
     split.revert()
+
+    // revert 後，重新添加光標到文字容器末尾
+    // 清除舊光標
+    const oldCursor = dialogText.value.querySelector('.typing-cursor')
+    if (oldCursor) {
+      oldCursor.remove()
+    }
+
+    // 使用 nextTick 確保 DOM 更新後再添加光標
+    nextTick(() => {
+      // 確保光標有正確的類名和內容
+      cursor.className = 'typing-cursor'
+      cursor.textContent = '│'
+      dialogText.value.appendChild(cursor)
+    })
   })
 }
 
@@ -377,6 +432,25 @@ function toggleDialog() {
   }
 }
 
+// 🎯 觸發 Lumo 搖晃動畫
+function triggerCanvasShake() {
+  if (!canvas.value) return
+
+  // 移除舊的搖晃效果
+  canvas.value.classList.remove('shake')
+
+  // 觸發重排以重新開始動畫
+  void canvas.value.offsetWidth
+
+  // 添加搖晃類名
+  canvas.value.classList.add('shake')
+
+  // 動畫完成後移除類名
+  setTimeout(() => {
+    canvas.value.classList.remove('shake')
+  }, 400)
+}
+
 onMounted(() => {
   initialize()
 
@@ -425,6 +499,29 @@ onBeforeUnmount(() => {
   position: relative;
   top: 20px;
   left: -30px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+/* 🎯 Lumo 被點擊時的搖晃動畫 */
+.lumo-canvas.shake {
+  animation: canvasShake 0.4s ease-in-out;
+}
+
+@keyframes canvasShake {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  25% {
+    transform: translateX(-4px) rotate(-1deg);
+  }
+  50% {
+    transform: translateX(4px) rotate(1deg);
+  }
+  75% {
+    transform: translateX(-2px) rotate(-0.5deg);
+  }
 }
 
 .lumo-shadow {
@@ -465,14 +562,14 @@ onBeforeUnmount(() => {
 .lumo-dialog-box {
   position: absolute;
   top: 120px;
-  right: -220px;
-  width: 320px;
+  left: 180px;
+  width: 330px;
   background: linear-gradient(135deg, rgba(0, 20, 40, 0.95) 0%, rgba(10, 30, 60, 0.95) 100%);
-  border: 2px solid rgba(0, 200, 255, 0.5);
+  border: 2px solid rgba(0, 200, 255, 0.8);
   border-radius: 16px;
   box-shadow:
-    0 0 20px rgba(0, 200, 255, 0.3),
-    0 0 40px rgba(150, 100, 255, 0.2),
+    0 0 25px rgba(0, 200, 255, 0.5),
+    0 0 45px rgba(150, 100, 255, 0.3),
     inset 0 0 20px rgba(0, 200, 255, 0.1);
   backdrop-filter: blur(10px);
   z-index: 10;
@@ -557,6 +654,76 @@ onBeforeUnmount(() => {
   text-shadow:
     0 0 5px rgba(0, 200, 255, 0.3),
     0 0 10px rgba(100, 150, 255, 0.2);
+  position: relative;
+  display: inline-block;
+}
+
+/* 💬 動態光標樣式 */
+.typing-cursor {
+  display: inline;
+  color: rgba(0, 200, 255, 0.9);
+  font-weight: bold;
+  animation: cursorBlink 0.6s steps(2) infinite;
+  margin: 0 1px;
+}
+
+@keyframes cursorBlink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* 💬 消息指示器容器 */
+.message-indicators {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 15px 0;
+  border-top: 1px solid rgba(0, 200, 255, 0.2);
+}
+
+/* 💬 單個指示點 */
+.indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(0, 200, 255, 0.3);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(0, 200, 255, 0.5);
+}
+
+/* 💬 活躍的指示點 */
+.indicator-dot.active {
+  background: rgba(0, 200, 255, 0.9);
+  width: 12px;
+  height: 12px;
+  box-shadow: 0 0 12px rgba(0, 200, 255, 0.6);
+  animation: indicatorPulse 1s ease-in-out infinite;
+}
+
+/* ✨ 指示點脈衝動畫 */
+@keyframes indicatorPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 12px rgba(0, 200, 255, 0.6);
+  }
+  50% {
+    transform: scale(1.3);
+    box-shadow: 0 0 20px rgba(0, 200, 255, 0.8);
+  }
+}
+
+/* 💬 非活躍點懸停效果 */
+.indicator-dot:hover:not(.active) {
+  background: rgba(0, 200, 255, 0.5);
+  transform: scale(1.2);
 }
 
 /* 對話框響應式調整 */
