@@ -169,16 +169,16 @@ async function startFloatingAnimation() {
 
   // 🎯 容器上下浮動 (2秒一個循環)
   tl.to(canvas.value, {
-    y: -20,
-    duration: 2,
+    y: -30,
+    duration: 5,
     ease: 'sine.inOut',
   })
 
-  // ✅ 陰影動畫用 timeline.add() + gsap.to() 確保有效
+  // 🎯 陰影同步：往上浮動時縮小，往下浮動時放大
   tl.to(shadow.value, {
     scale: 0.8,
-    opacity: 0.5,
-    duration: 10,
+    opacity: 0.5, // 上浮時變淡
+    duration: 5,
     ease: 'sine.inOut',
   })
 }
@@ -222,6 +222,8 @@ onBeforeUnmount(() => {
 .lumo-canvas {
   width: 300px;
   height: 150px;
+  position: relative;
+  top: 20px;
 }
 
 .lumo-shadow {
@@ -229,13 +231,12 @@ onBeforeUnmount(() => {
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  width: 200px;
-  height: 40px;
-  background: radial-gradient(ellipse at center, rgb(0, 162, 255) 0%, rgb(21, 32, 70) 80%);
+  width: 150px;
+  height: 20px;
+  background: radial-gradient(ellipse at center, rgb(0, 160, 255) 30%, transparent 100%);
   border-radius: 50%;
-  filter: blur(15px);
+  filter: blur(10px);
   z-index: 1;
   pointer-events: none;
-  opacity: 0.5;
 }
 </style>
