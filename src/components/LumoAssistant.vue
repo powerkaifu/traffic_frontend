@@ -2,12 +2,6 @@
   <div class="lumo-assistant">
     <!-- Live2D Canvas -->
     <canvas ref="canvas" class="lumo-canvas" />
-
-    <!-- 加載指示器 -->
-    <div v-if="!loaded" class="loading-indicator">
-      <div class="spinner" />
-      <p>加載 Lumo Live2D 模型中...</p>
-    </div>
   </div>
 </template>
 
@@ -19,7 +13,6 @@ export default {
 
   data() {
     return {
-      loaded: false,
       app: null,
       model: null,
       resizeTimer: null,
@@ -109,7 +102,6 @@ export default {
         // 啟用滑鼠追蹤
         this.setupMouseTracking()
 
-        this.loaded = true
         console.log('✅ Lumo Live2D 已成功加載')
       } catch (error) {
         console.error('❌ Lumo 初始化失敗:', error)
@@ -226,42 +218,5 @@ export default {
   width: 100%;
   height: 100%;
   display: block;
-}
-
-.loading-indicator {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.95);
-  gap: 12px;
-  z-index: 100;
-  border-radius: 12px;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(100, 150, 255, 0.2);
-  border-top-color: #6496ff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.loading-indicator p {
-  color: #666;
-  font-size: 14px;
-  margin: 0;
 }
 </style>
