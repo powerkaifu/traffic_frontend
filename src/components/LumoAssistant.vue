@@ -80,7 +80,7 @@ const config = {
     offsetX: 0, // 聚光燈水平位置（像素，正值往右）
     offsetY: 80, // 聚光燈垂直位置（負值表示在下方）
     rotation: -45, // 聚光燈旋轉角度（度數，0-360）
-    opacity: 0.6, // 聚光燈三角形透明度（0-1）
+    opacity: 0.75, // 聚光燈三角形透明度（0-1）
     blurAmount: 50, // 模糊程度（像素）
     shadowBlur: 10, // 發光陰影模糊（像素）
     shadowIntensity: 0.1, // 發光強度（0-1）
