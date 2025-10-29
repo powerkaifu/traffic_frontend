@@ -6,6 +6,8 @@
       <canvas ref="canvas" class="lumo-canvas" style="cursor: pointer" />
       <!-- Shadow Element -->
       <div ref="shadow" class="lumo-shadow" />
+      <!-- ✨ Spotlight 效果 -->
+      <div ref="spotlight" class="lumo-spotlight" />
     </div>
 
     <!-- 💬 對話框 -->
@@ -74,11 +76,25 @@ const config = {
     paramRangeY: 60, // Y 軸參數範圍
     easingFactor: 0.05, // 緩動因子（越小越平順）
   },
+
+  // ✨ 聚光燈配置
+  spotlight: {
+    width: 150, // 聚光燈寬度（像素，border-left/right）
+    height: 500, // 聚光燈高度（像素，border-bottom）
+    offsetX: 30, // 聚光燈水平位置（像素，正值往右）
+    offsetY: -100, // 聚光燈垂直位置（負值表示在下方）
+    rotation: -20, // 聚光燈旋轉角度（度數，0-360）
+    opacity: 0.3, // 聚光燈三角形透明度（0-1）
+    blurAmount: 30, // 模糊程度（像素）
+    shadowBlur: 50, // 發光陰影模糊（像素）
+    shadowIntensity: 0.8, // 發光強度（0-1）
+  },
 }
 
 // Refs
 const canvas = ref(null)
 const shadow = ref(null)
+const spotlight = ref(null)
 const dialogBox = ref(null)
 const dialogText = ref(null)
 
@@ -385,6 +401,30 @@ function openDialog() {
   if (!dialogBox.value) return
 
   nextTick(() => {
+    // ✨ 設置 Spotlight 的 CSS 變數
+    spotlight.value.style.setProperty('--spotlight-width', `${config.spotlight.width}px`)
+    spotlight.value.style.setProperty('--spotlight-height', `${config.spotlight.height}px`)
+    spotlight.value.style.setProperty('--spotlight-offset-x', `${config.spotlight.offsetX}px`)
+    spotlight.value.style.setProperty('--spotlight-offset-y', `${config.spotlight.offsetY}px`)
+    spotlight.value.style.setProperty('--spotlight-rotation', `${config.spotlight.rotation}deg`)
+    spotlight.value.style.setProperty('--spotlight-opacity', config.spotlight.opacity)
+    spotlight.value.style.setProperty('--spotlight-blur', `${config.spotlight.blurAmount}px`)
+    spotlight.value.style.setProperty('--spotlight-shadow-blur', `${config.spotlight.shadowBlur}px`)
+    spotlight.value.style.setProperty('--spotlight-intensity', config.spotlight.shadowIntensity)
+
+    // Spotlight 進場動畫
+    spotlight.value.classList.add('active')
+    gsap.fromTo(
+      spotlight.value,
+      { opacity: 0, scale: 0.5 },
+      {
+        opacity: 1,
+        scale: 1,
+        duration: config.dialog.dialogOpenDuration * 0.8,
+        ease: 'back.out',
+      },
+    )
+
     // 對話框進場動畫
     gsap.fromTo(
       dialogBox.value,
@@ -431,6 +471,15 @@ function closeDialog() {
     state.isDialogVisible = false
     return
   }
+
+  // ✨ Spotlight 退場動畫並移除脈衝效果
+  spotlight.value.classList.remove('active')
+  gsap.to(spotlight.value, {
+    opacity: 0,
+    scale: 0.5,
+    duration: config.dialog.dialogCloseDuration,
+    ease: 'back.in',
+  })
 
   gsap.to(dialogBox.value, {
     y: 20,
@@ -584,6 +633,30 @@ onBeforeUnmount(() => {
     0 0 25px rgba(0, 200, 255, 0.5),
     0 0 40px rgba(150, 100, 255, 0.3),
     inset -30px -5px 40px rgba(0, 255, 200, 0.2);
+}
+
+/* ✨ Spotlight 效果 - 從下往上照在 Lumo 身上 */
+.lumo-spotlight {
+  position: absolute;
+  bottom: var(--spotlight-offset-y, -100px);
+  left: calc(50% + var(--spotlight-offset-x, 0px));
+  transform: translateX(-50%) rotate(var(--spotlight-rotation, 0deg));
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+  /* 旋轉中心設在聚光燈頂部中間（底面中心） */
+  transform-origin: center bottom;
+
+  /* 三角形聚光燈 - 頂點朝下（指向 Lumo），底面在下方 */
+  border-left: var(--spotlight-width, 150px) solid transparent;
+  border-right: var(--spotlight-width, 150px) solid transparent;
+  border-bottom: var(--spotlight-height, 500px) solid rgba(0, 220, 255, var(--spotlight-opacity, 0.5));
+
+  /* 聚光燈模糊效果 - 柔和打在 Lumo 身上 */
+  filter: blur(var(--spotlight-blur, 40px))
+    drop-shadow(0 -20px var(--spotlight-shadow-blur, 50px) rgba(0, 200, 255, var(--spotlight-intensity, 0.8)));
 }
 
 /* 💬 對話框樣式 */
