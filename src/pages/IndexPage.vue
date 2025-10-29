@@ -1594,7 +1594,7 @@ onUnmounted(() => {
   height: 300px;
   cursor: pointer;
   transition: transform 0.3s ease;
-  /* background: rgba(255, 255, 255, 0.1); */
+  background: rgba(255, 255, 255, 0.1);
   z-index: 10;
 }
 

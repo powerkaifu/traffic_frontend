@@ -167,9 +167,9 @@ async function startFloatingAnimation() {
     paused: false,
   })
 
-  // 🎯 容器上下浮動 (2秒一個循環)
+  // 🎯 容器上下浮動
   tl.to(canvas.value, {
-    y: -30,
+    y: -20,
     duration: 5,
     ease: 'sine.inOut',
   })
@@ -177,7 +177,7 @@ async function startFloatingAnimation() {
   // 🎯 陰影同步：往上浮動時縮小，往下浮動時放大
   tl.to(shadow.value, {
     scale: 0.8,
-    opacity: 0.5, // 上浮時變淡
+    opacity: 0.5,
     duration: 5,
     ease: 'sine.inOut',
   })
