@@ -238,7 +238,7 @@
                     :disable="!selectedQuestion || trafficData.length === 0"
                     color="primary"
                     icon="psychology"
-                    label="AI 分析"
+                    label="數據分析"
                     size="md"
                     class="ai-analyze-btn"
                   />
@@ -370,8 +370,6 @@ const endMonth = ref(today.getMonth() + 1)
 const endDay = ref(today.getDate())
 const showDetailDialog = ref(false)
 const selectedPoint = ref(null)
-const showEastWest = ref(true)
-const showSouthNorth = ref(true)
 
 // 圖表容器引用
 const timeSeriesChart = ref(null)
@@ -997,152 +995,53 @@ const drawTimeSeriesChart = () => {
     .style('opacity', 1)
     .text('時間')
 
-  // 繪製散點圖 - 直接顯示
-  if (showEastWest.value) {
-    // 添加東西向散點 - 直接顯示
-    g.selectAll('.dot-east-west')
-      .data(finalData)
-      .enter()
-      .append('circle')
-      .attr('class', 'dot-east-west')
-      .attr('cx', (d) => xScale(d.timestamp))
-      .attr('cy', (d) => yScale(d.eastWest))
-      .attr('r', 4)
-      .attr('fill', '#1976d2')
-      .style('cursor', 'pointer')
-      .style('opacity', 0.8)
-      .on('click', (event, d) => {
-        selectedPoint.value = d.originalData
-        showDetailDialog.value = true
+  // 繪製散點圖 - 只顯示一個合併的點（顯示東西向，但懸停時顯示兩個方向的資訊）
+  // 添加合併散點 - 直接顯示
+  g.selectAll('.dot-signal')
+    .data(finalData)
+    .enter()
+    .append('circle')
+    .attr('class', 'dot-signal')
+    .attr('cx', (d) => xScale(d.timestamp))
+    .attr('cy', (d) => yScale(d.eastWest)) // 使用東西向作為展示點的位置
+    .attr('r', 4)
+    .attr('fill', '#4CAF50') // 綠色，代表兩個方向的合併
+    .style('cursor', 'pointer')
+    .style('opacity', 0.8)
+    .on('click', (event, d) => {
+      selectedPoint.value = d.originalData
+      showDetailDialog.value = true
+    })
+    .on('mouseover', function (event, d) {
+      d3.select(this).attr('r', 6).style('fill', '#45a049')
 
-        // 高亮對應的南北向點
-        g.selectAll('.dot-south-north')
-          .style('stroke', function (southD) {
-            return southD.timestamp.getTime() === d.timestamp.getTime() ? '#FFD700' : 'none'
-          })
-          .style('stroke-width', function (southD) {
-            return southD.timestamp.getTime() === d.timestamp.getTime() ? 3 : 0
-          })
-      })
-      .on('mouseover', function (event, d) {
-        d3.select(this).attr('r', 6).style('fill', '#1565c0')
+      const tooltip = d3
+        .select('body')
+        .append('div')
+        .attr('class', 'tooltip')
+        .style('opacity', 0)
+        .style('position', 'absolute')
+        .style('background', 'rgba(0, 0, 0, 0.9)')
+        .style('color', 'white')
+        .style('padding', '12px')
+        .style('border-radius', '8px')
+        .style('pointer-events', 'none')
+        .style('box-shadow', '0 4px 20px rgba(0,0,0,0.3)')
 
-        // 高亮對應的南北向點
-        g.selectAll('.dot-south-north')
-          .attr('r', function (southD) {
-            return southD.timestamp.getTime() === d.timestamp.getTime() ? 6 : 4
-          })
-          .style('stroke', function (southD) {
-            return southD.timestamp.getTime() === d.timestamp.getTime() ? '#FFD700' : 'none'
-          })
-          .style('stroke-width', function (southD) {
-            return southD.timestamp.getTime() === d.timestamp.getTime() ? 2 : 0
-          })
+      tooltip.transition().duration(200).style('opacity', 1)
 
-        const tooltip = d3
-          .select('body')
-          .append('div')
-          .attr('class', 'tooltip')
-          .style('opacity', 0)
-          .style('position', 'absolute')
-          .style('background', 'rgba(0, 0, 0, 0.9)')
-          .style('color', 'white')
-          .style('padding', '12px')
-          .style('border-radius', '8px')
-          .style('pointer-events', 'none')
-          .style('box-shadow', '0 4px 20px rgba(0,0,0,0.3)')
+      tooltip
+        .html(
+          `🕒 時間: ${d3.timeFormat('%Y-%m-%d %H:%M')(d.timestamp)}<br/>🔄 東西向燈號: <strong>${d.eastWest}秒</strong><br/>🔄 南北向燈號: <strong>${d.southNorth}秒</strong>`,
+        )
+        .style('left', event.pageX + 15 + 'px')
+        .style('top', event.pageY - 40 + 'px')
+    })
+    .on('mouseout', function () {
+      d3.select(this).attr('r', 4).style('fill', '#FF9800')
 
-        tooltip.transition().duration(200).style('opacity', 1)
-
-        tooltip
-          .html(
-            `🕒 時間: ${d3.timeFormat('%Y-%m-%d %H:%M')(d.timestamp)}<br/>🔄 東西向燈號: <strong>${d.eastWest}秒</strong><br/>🔄 南北向燈號: <strong>${d.southNorth}秒</strong>`,
-          )
-          .style('left', event.pageX + 15 + 'px')
-          .style('top', event.pageY - 40 + 'px')
-      })
-      .on('mouseout', function () {
-        d3.select(this).attr('r', 4).style('fill', '#1976d2')
-
-        // 移除對應南北向點的高亮
-        g.selectAll('.dot-south-north').attr('r', 4).style('stroke', 'none').style('stroke-width', 0)
-
-        d3.selectAll('.tooltip').remove()
-      })
-  }
-
-  if (showSouthNorth.value) {
-    // 添加南北向散點 - 直接顯示
-    g.selectAll('.dot-south-north')
-      .data(finalData)
-      .enter()
-      .append('circle')
-      .attr('class', 'dot-south-north')
-      .attr('cx', (d) => xScale(d.timestamp))
-      .attr('cy', (d) => yScale(d.southNorth))
-      .attr('r', 4)
-      .attr('fill', '#388e3c')
-      .style('cursor', 'pointer')
-      .style('opacity', 0.8)
-      .on('click', (event, d) => {
-        selectedPoint.value = d.originalData
-        showDetailDialog.value = true
-
-        // 高亮對應的東西向點
-        g.selectAll('.dot-east-west')
-          .style('stroke', function (eastD) {
-            return eastD.timestamp.getTime() === d.timestamp.getTime() ? '#FFD700' : 'none'
-          })
-          .style('stroke-width', function (eastD) {
-            return eastD.timestamp.getTime() === d.timestamp.getTime() ? 3 : 0
-          })
-      })
-      .on('mouseover', function (event, d) {
-        d3.select(this).attr('r', 6).style('fill', '#2e7d32')
-
-        // 高亮對應的東西向點
-        g.selectAll('.dot-east-west')
-          .attr('r', function (eastD) {
-            return eastD.timestamp.getTime() === d.timestamp.getTime() ? 6 : 4
-          })
-          .style('stroke', function (eastD) {
-            return eastD.timestamp.getTime() === d.timestamp.getTime() ? '#FFD700' : 'none'
-          })
-          .style('stroke-width', function (eastD) {
-            return eastD.timestamp.getTime() === d.timestamp.getTime() ? 2 : 0
-          })
-
-        const tooltip = d3
-          .select('body')
-          .append('div')
-          .attr('class', 'tooltip')
-          .style('opacity', 0)
-          .style('position', 'absolute')
-          .style('background', 'rgba(0, 0, 0, 0.9)')
-          .style('color', 'white')
-          .style('padding', '12px')
-          .style('border-radius', '8px')
-          .style('pointer-events', 'none')
-          .style('box-shadow', '0 4px 20px rgba(0,0,0,0.3)')
-
-        tooltip.transition().duration(200).style('opacity', 1)
-
-        tooltip
-          .html(
-            `🕒 時間: ${d3.timeFormat('%Y-%m-%d %H:%M')(d.timestamp)}<br/>🔄 東西向燈號: <strong>${d.eastWest}秒</strong><br/>🔄 南北向燈號: <strong>${d.southNorth}秒</strong>`,
-          )
-          .style('left', event.pageX + 15 + 'px')
-          .style('top', event.pageY - 40 + 'px')
-      })
-      .on('mouseout', function () {
-        d3.select(this).attr('r', 4).style('fill', '#388e3c')
-
-        // 移除對應東西向點的高亮
-        g.selectAll('.dot-east-west').attr('r', 4).style('stroke', 'none').style('stroke-width', 0)
-
-        d3.selectAll('.tooltip').remove()
-      })
-  }
+      d3.selectAll('.tooltip').remove()
+    })
 
   // 添加圖例 - 直接顯示
   // 右下角 legend
@@ -1151,22 +1050,17 @@ const drawTimeSeriesChart = () => {
     .attr('font-family', 'sans-serif')
     .attr('font-size', 12)
     .attr('text-anchor', 'start')
-    .attr('transform', `translate(${width - 100},${height - 60})`)
+    .attr('transform', `translate(${width - 120},${height - 40})`)
     .style('opacity', 1)
 
   const legendItems = legend
     .selectAll('g')
-    .data(['東西向燈號', '南北向燈號'])
+    .data(['信號燈號 (東西/南北)'])
     .enter()
     .append('g')
     .attr('transform', (d, i) => `translate(0,${i * 25})`)
 
-  legendItems
-    .append('rect')
-    .attr('x', 0)
-    .attr('width', 19)
-    .attr('height', 19)
-    .attr('fill', (d, i) => (i === 0 ? '#1976d2' : '#388e3c'))
+  legendItems.append('circle').attr('cx', 8).attr('cy', 8).attr('r', 4).attr('fill', '#FF9800')
 
   legendItems
     .append('text')
@@ -1235,43 +1129,12 @@ const drawTimeSeriesChart = () => {
         dotOpacity = Math.min(0.9, 0.8 + (1 - zoomLevel) * 0.1)
       }
 
-      // 更新東西向散點
-      if (showEastWest.value) {
-        g.selectAll('.dot-east-west')
-          .attr('cx', (d) => newXScale(d.timestamp))
-          .attr('cy', (d) => newYScale(d.eastWest))
-          .attr('r', dotRadius)
-          .style('opacity', dotOpacity)
-      }
-
-      // 更新南北向散點
-      if (showSouthNorth.value) {
-        g.selectAll('.dot-south-north')
-          .attr('cx', (d) => newXScale(d.timestamp))
-          .attr('cy', (d) => newYScale(d.southNorth))
-          .attr('r', dotRadius)
-          .style('opacity', dotOpacity)
-      }
-
-      // 更新不可見的點擊區域，保持固定大小以便點擊
-      const clickRadius = Math.max(8, dotRadius + 4) // 確保點擊區域足夠大
-      g.selectAll('.click-area-east-west, .click-area-south-north')
-        .attr('cx', function () {
-          const d = d3.select(this).datum()
-          if (d) {
-            return newXScale(d.timestamp)
-          }
-          return d3.select(this).attr('cx')
-        })
-        .attr('cy', function () {
-          const d = d3.select(this).datum()
-          if (d) {
-            const isEastWest = d3.select(this).classed('click-area-east-west')
-            return isEastWest ? newYScale(d.eastWest) : newYScale(d.southNorth)
-          }
-          return d3.select(this).attr('cy')
-        })
-        .attr('r', clickRadius) // 更新點擊區域半徑
+      // 更新合併散點
+      g.selectAll('.dot-signal')
+        .attr('cx', (d) => newXScale(d.timestamp))
+        .attr('cy', (d) => newYScale(d.eastWest))
+        .attr('r', dotRadius)
+        .style('opacity', dotOpacity)
     })
 
   // 應用縮放到 SVG 容器
