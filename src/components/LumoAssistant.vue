@@ -348,6 +348,27 @@ function showDialogMessage(messageIndex) {
       cursor.className = 'typing-cursor'
       cursor.textContent = '│'
       dialogText.value.appendChild(cursor)
+
+      // 使用 GSAP 直接控制光標閃爍動畫（避免 CSS scoped 作用域問題）
+      const cursorBlink = gsap.timeline({ repeat: -1, repeatDelay: 0 })
+      cursorBlink.to(
+        cursor,
+        {
+          opacity: 0,
+          duration: 0.3,
+          ease: 'none',
+        },
+        0,
+      )
+      cursorBlink.to(
+        cursor,
+        {
+          opacity: 1,
+          duration: 0.3,
+          ease: 'none',
+        },
+        0.3,
+      )
     })
   })
 }
@@ -660,11 +681,13 @@ onBeforeUnmount(() => {
 
 /* 💬 動態光標樣式 */
 .typing-cursor {
-  display: inline;
+  display: inline-block;
   color: rgba(0, 200, 255, 0.9);
   font-weight: bold;
-  animation: cursorBlink 0.6s steps(2) infinite;
+  animation: cursorBlink 0.6s steps(2) infinite !important;
   margin: 0 1px;
+  width: auto;
+  height: 1em;
 }
 
 @keyframes cursorBlink {
