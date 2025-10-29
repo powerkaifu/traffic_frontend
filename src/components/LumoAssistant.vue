@@ -56,8 +56,10 @@ const state = reactive({
   ],
   currentMessageIndex: 0,
   isDialogVisible: false, // 默認隱藏對話框
-  dialogInterval: null,
 })
+
+// 💬 對話框 Timeline（不放在 reactive 中，直接使用變量）
+let dialogTimeline = null
 
 // Initialize
 async function initialize() {
@@ -219,33 +221,65 @@ async function startFloatingAnimation() {
 
 // 💬 顯示對話框文字（使用 GSAP SplitText 帶打字效果）
 function showDialogMessage(messageIndex) {
-  if (!dialogText.value) return
+  console.log(`\n📝 ===== showDialogMessage 開始 =====`)
+  console.log(`messageIndex: ${messageIndex}`)
+  console.log(`dialogText.value: ${dialogText.value}`)
+  console.log(`dialogText.value?.textContent: "${dialogText.value?.textContent}"`)
+
+  if (!dialogText.value) {
+    console.error(`❌ dialogText.value 為空！`)
+    return
+  }
 
   const message = state.dialogMessages[messageIndex] || ''
+  console.log(`message: "${message}"`)
 
-  // 清空文字
+  // 🔄 首先清除所有舊的動畫
+  gsap.killTweensOf(dialogText.value)
+  const oldChars = dialogText.value.querySelectorAll('.char')
+  console.log(`oldChars 數量: ${oldChars.length}`)
+  if (oldChars.length > 0) {
+    gsap.killTweensOf(oldChars)
+  }
+
+  // 清空並重置 DOM
+  dialogText.value.innerHTML = ''
+  console.log(`✅ 已清空 innerHTML`)
+
+  // 設置純文本內容
   dialogText.value.textContent = message
+  console.log(`✅ 已設置 textContent: "${dialogText.value.textContent}"`)
 
   // 使用 SplitText 將文字分割成字符
+  console.log(`開始 SplitText 分割...`)
   const split = new SplitText(dialogText.value, {
     type: 'chars',
     charsClass: 'char', // 給每個字符添加類名
   })
 
   const chars = split.chars
+  console.log(`✅ SplitText 分割完成，字符數: ${chars.length}`)
+  console.log(`DOM 內容: ${dialogText.value.innerHTML}`)
 
-  console.log(`✍️ 開始顯示第 ${messageIndex + 1} 句對話 (${chars.length} 個字符)`)
+  if (chars.length === 0) {
+    console.warn(`⚠️ 沒有字符被分割，textContent: "${dialogText.value.textContent}"`)
+    return
+  }
 
   // 設置初始狀態 - 所有字符透明
+  console.log(`設置初始狀態...`)
   gsap.set(chars, {
     opacity: 0,
     y: 10,
   })
+  console.log(`✅ 初始狀態設置完成`)
 
   // 創建動畫時間軸
   const tl = gsap.timeline()
+  console.log(`✅ Timeline 建立`)
 
   // 逐字動畫進入
+  console.log(`開始動畫...`)
   tl.to(
     chars,
     {
@@ -257,29 +291,18 @@ function showDialogMessage(messageIndex) {
     },
     0, // 立即開始
   )
+  console.log(`✅ 動畫已添加到 Timeline`)
 
   // 動畫完成後重新合併文字
   tl.call(() => {
     split.revert()
     console.log(`✅ 第 ${messageIndex + 1} 句對話顯示完成`)
   })
+
+  console.log(`📝 ===== showDialogMessage 結束 =====\n`)
 }
 
-// 💬 播放下一句對話
-function playNextDialog() {
-  // 清除舊的動畫
-  if (dialogText.value) {
-    gsap.killTweensOf(dialogText.value)
-    // 清除所有字符的動畫
-    const chars = dialogText.value.querySelectorAll('.char')
-    gsap.killTweensOf(chars)
-  }
-
-  showDialogMessage(state.currentMessageIndex)
-  state.currentMessageIndex = (state.currentMessageIndex + 1) % state.dialogMessages.length
-}
-
-// 💬 開啟對話框
+// 💬 關閉對話框
 function openDialog() {
   if (state.isDialogVisible) return
 
@@ -308,18 +331,50 @@ function openDialog() {
       },
     )
 
-    // 立即播放第一條消息
-    showDialogMessage(0)
-    // 遞進 index，這樣 interval 開始時會播下一句
-    state.currentMessageIndex = 1
-
-    // 每隔 4 秒播放下一條消息（在第一條消息播完之後才開始計時）
-    if (state.dialogInterval) {
-      clearInterval(state.dialogInterval)
+    // 🎬 建立 Timeline 管理所有消息播放時序
+    if (dialogTimeline) {
+      dialogTimeline.kill()
     }
-    state.dialogInterval = setInterval(() => {
-      playNextDialog()
-    }, 4000)
+
+    dialogTimeline = gsap.timeline({
+      repeat: -1, // 無限循環
+      repeatDelay: 0, // 循環無延遲
+    })
+
+    console.log('🎬 Timeline 已建立')
+
+    // 第一句話立即播放
+    dialogTimeline.add(() => {
+      console.log('📝 Timeline.add: 播放第 1 句')
+      showDialogMessage(0)
+      state.currentMessageIndex = 1
+    }, 0)
+
+    // 第二句話 - 等 4 秒後播放
+    dialogTimeline.add(() => {
+      console.log('📝 Timeline.add: 播放第 2 句')
+      showDialogMessage(1)
+      state.currentMessageIndex = 2
+    }, 4)
+
+    // 第三句話 - 等 8 秒後播放
+    dialogTimeline.add(() => {
+      console.log('📝 Timeline.add: 播放第 3 句')
+      showDialogMessage(2)
+      state.currentMessageIndex = 3
+    }, 8)
+
+    // 第四句話 - 等 12 秒後播放
+    dialogTimeline.add(() => {
+      console.log('📝 Timeline.add: 播放第 4 句')
+      showDialogMessage(3)
+      state.currentMessageIndex = 0
+    }, 12)
+
+    // 添加一個空動畫來設定 Timeline 的總時長（16秒）
+    dialogTimeline.set({}, {}, 16)
+
+    console.log(`✅ Timeline 設置完成，總時長: ${dialogTimeline.totalDuration()}`)
   })
 
   console.log('✅ 對話框已打開，isDialogVisible =', state.isDialogVisible)
@@ -348,10 +403,10 @@ function closeDialog() {
       console.log('✅ 對話框動畫完成')
       state.isDialogVisible = false
 
-      // 清理 interval
-      if (state.dialogInterval) {
-        clearInterval(state.dialogInterval)
-        state.dialogInterval = null
+      // 清理 Timeline
+      if (dialogTimeline) {
+        dialogTimeline.kill()
+        dialogTimeline = null
       }
 
       console.log('✅ 對話框已關閉，isDialogVisible =', state.isDialogVisible)
@@ -384,8 +439,8 @@ onBeforeUnmount(() => {
   if (state.floatingTimeline) {
     state.floatingTimeline.kill()
   }
-  if (state.dialogInterval) {
-    clearInterval(state.dialogInterval)
+  if (dialogTimeline) {
+    dialogTimeline.kill()
   }
   if (state.app) {
     state.app.destroy()
@@ -470,16 +525,41 @@ onBeforeUnmount(() => {
     inset 0 0 20px rgba(0, 200, 255, 0.1);
   backdrop-filter: blur(10px);
   z-index: 10;
-  overflow: hidden;
+  overflow: visible;
   pointer-events: auto;
+}
+
+/* 💬 對話框三角形指針（指向 Lumo） */
+.lumo-dialog-box::before {
+  content: '';
+  position: absolute;
+  left: -22px;
+  top: 15px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  /* 向左指向：上下邊界透明，右邊是實心顏色 */
+  border-width: 12px 22px 12px 0;
+  border-color: transparent rgba(0, 200, 255, 0.5) transparent transparent;
+}
+
+/* 💬 對話框三角形指針內部填充 */
+.lumo-dialog-box::after {
+  content: '';
+  position: absolute;
+  left: -18px;
+  top: 18px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  /* 內部三角形，填充對話框背景色 */
+  border-width: 9px 18px 9px 0;
+  border-color: transparent rgba(0, 20, 40, 0.95) transparent transparent;
 }
 
 .dialog-content {
   padding: 24px 20px;
   min-height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .dialog-text {
