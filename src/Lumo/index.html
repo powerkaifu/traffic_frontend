@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live2D Robot Display</title>
+    <link rel="stylesheet" href="./css/style.css">
+</head>
+
+<body>
+    <canvas id="live2d-canvas"></canvas>
+
+    <div id="action-menu">
+        <div class="menu-icon" id="icon-dialogue" title="開啟對話視窗"></div>
+    </div>
+
+    <div id="dialogue-box">
+        <span id="close-button">&times;</span>
+        <p id="dialogue-text">系統初始化中...</p>
+    </div>
+
+    <script src="./libs/pixi.min.js"></script>
+    <script src="./libs/live2dcubismcore.min.js"></script>
+    <script src="./libs/cubism4.js"></script>
+    <script src="./js/main.js" type="module" defer></script>
+</body>
+
+</html>

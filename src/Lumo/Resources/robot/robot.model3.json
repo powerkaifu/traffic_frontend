@@ -1,0 +1,43 @@
+{
+    "Version": 3,
+    "FileReferences": {
+        "Moc": "robot.moc3",
+        "Textures": [
+            "robot.1024/texture_00.png"
+        ],
+        "DisplayInfo": "robot.cdi3.json",
+        "Motions": {
+            "Idle": [
+                {
+                    "File": "motions/robot_breath.motion3.json"
+                }
+            ]
+        }
+    },
+    "Groups": [
+        {
+            "Target": "Parameter",
+            "Name": "LipSync",
+            "Ids": []
+        },
+        {
+            "Target": "Parameter",
+            "Name": "EyeBlink",
+            "Ids": []
+        },
+        {
+            "Target": "Parameter",
+            "Name": "LookAt",
+            "Ids": [
+                "BODY_ANGLE_X",
+                "BODY_ANGLE_Y"
+            ]
+        }
+    ],
+    "HitAreas": [
+        {
+            "Name": "Body",
+            "Id": "HitAreaBody"
+        }
+    ]
+}

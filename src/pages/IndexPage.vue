@@ -340,7 +340,7 @@
         </div>
       </transition>
     </div>
-    <!-- lumo 小機器人助手 -->
+    <!-- Lumo 小機器人助手 -->
     <div class="robot-assistant">
       <img src="/images/lumo.png" alt="機器人助手" />
     </div>

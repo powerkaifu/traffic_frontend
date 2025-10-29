@@ -1,0 +1,79 @@
+{
+	"Version": 3,
+	"Parameters": [
+		{
+			"Id": "BODY_ANGLE_X",
+			"GroupId": "",
+			"Name": "BodyAngleX"
+		},
+		{
+			"Id": "BODY_ANGLE_Y",
+			"GroupId": "",
+			"Name": "BodyAngleY"
+		},
+		{
+			"Id": "EYE_BALL_L",
+			"GroupId": "",
+			"Name": "EyeBallL"
+		},
+		{
+			"Id": "EYE_BALL_R",
+			"GroupId": "",
+			"Name": "EyeBallR"
+		},
+		{
+			"Id": "BREATH",
+			"GroupId": "",
+			"Name": "breath"
+		}
+	],
+	"ParameterGroups": [],
+	"Parts": [
+		{
+			"Id": "EYE__L__OPEN",
+			"Name": "Eye_L_Open"
+		},
+		{
+			"Id": "EYE__R__OPEN",
+			"Name": "Eye_R_Open"
+		},
+		{
+			"Id": "ARM__R",
+			"Name": "Arm_R"
+		},
+		{
+			"Id": "LIGHT__GREEN__ON",
+			"Name": "Light_Green_On"
+		},
+		{
+			"Id": "LIGHT__YELLOW__ON",
+			"Name": "Light_Yellow_On"
+		},
+		{
+			"Id": "LIGHT__RED__ON",
+			"Name": "Light_Red_On"
+		},
+		{
+			"Id": "TRAFFIC_LIGHT__CASE",
+			"Name": "TrafficLight_Case"
+		},
+		{
+			"Id": "FACE__SCREEN",
+			"Name": "Face_Screen"
+		},
+		{
+			"Id": "BODY__BASE",
+			"Name": "Body_Base"
+		},
+		{
+			"Id": "ARM__L",
+			"Name": "Arm_L"
+		}
+	],
+	"CombinedParameters": [
+		[
+			"BODY_ANGLE_X",
+			"BODY_ANGLE_Y"
+		]
+	]
+}
