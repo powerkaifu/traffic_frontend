@@ -2367,7 +2367,8 @@ onMounted(() => {
 .ai-result-content {
   border-radius: 4px;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  line-height: 1.6;
+  font-size: 1rem;
+  line-height: 2;
   color: white;
   white-space: pre-wrap;
   word-wrap: break-word;
