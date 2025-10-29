@@ -181,9 +181,11 @@ function setupMouseTracking() {
 }
 
 // Start floating animation
-function startFloatingAnimation() {
-  if (!state.model) {
-    console.warn('⚠️ Live2D 模型未加載')
+async function startFloatingAnimation() {
+  await nextTick() // ✅ 確保 DOM 已掛載
+
+  if (!floatingContainer.value) {
+    console.warn('⚠️ 浮動容器未找到')
     return
   }
 
@@ -198,36 +200,27 @@ function startFloatingAnimation() {
     state.floatingTimeline.kill()
   }
 
-  state.floatingTimeline = gsap.timeline({ repeat: -1, yoyo: true })
+  // ✅ 建立 timeline 時明確指定 paused: false
+  const tl = gsap.timeline({
+    repeat: -1,
+    yoyo: true,
+    paused: false,
+  })
 
-  // 🎯 模型上下浮動 (2秒一個循環)
-  const initialY = state.model.position.y
-  state.floatingTimeline.to(
-    { y: 0 },
-    {
-      y: -80,
-      duration: 2,
-      ease: 'sine.inOut',
-      onUpdate: function () {
-        state.model.position.y = initialY + this.progress() * -80
-      },
-    },
-    0,
-  )
+  // 🎯 容器上下浮動 (2秒一個循環)
+  tl.to(floatingContainer.value, {
+    y: -80,
+    duration: 2,
+    ease: 'sine.inOut',
+  })
 
-  // 陰影同步縮放與透明度變化
-  state.floatingTimeline.to(
-    shadow.value,
-    {
-      scale: 3,
-      opacity: 1,
-      duration: 1,
-      ease: 'sine.inOut',
-    },
-    0,
-  )
-
-  console.log('✅ 浮動動畫已建立：上下浮動 + 旋轉')
+  // ✅ 陰影動畫用 timeline.add() + gsap.to() 確保有效
+  tl.to(shadow.value, {
+    scale: 0.6,
+    opacity: 0,
+    duration: 2,
+    ease: 'sine.inOut',
+  })
 }
 
 // Lifecycle
