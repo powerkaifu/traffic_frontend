@@ -1588,8 +1588,8 @@ onUnmounted(() => {
 /* 小機器人助手 ------------------------------------------------- */
 .robot-assistant {
   position: absolute;
-  left: 0;
-  bottom: 10px;
+  left: 30px;
+  bottom: 25px;
   width: 300px;
   height: 300px;
   cursor: pointer;

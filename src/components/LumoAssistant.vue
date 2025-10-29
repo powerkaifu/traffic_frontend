@@ -4,8 +4,6 @@
     <div class="lumo-floating-container">
       <!-- Live2D Canvas - 點擊可打開/關閉對話框 -->
       <canvas ref="canvas" class="lumo-canvas" style="cursor: pointer" />
-      <!-- Shadow Element -->
-      <div ref="shadow" class="lumo-shadow" />
       <!-- ✨ Spotlight 效果 -->
       <div ref="spotlight" class="lumo-spotlight" />
     </div>
@@ -66,8 +64,6 @@ const config = {
   floating: {
     floatDistance: 20, // 浮動距離（像素）
     floatDuration: 5, // 浮動周期（秒）
-    shadowScale: 0.8, // 陰影縮放比例
-    shadowOpacity: 0.5, // 陰影透明度
   },
 
   // 👁️ 鼠標追蹤配置
@@ -79,21 +75,20 @@ const config = {
 
   // ✨ 聚光燈配置
   spotlight: {
-    width: 150, // 聚光燈寬度（像素，border-left/right）
-    height: 500, // 聚光燈高度（像素，border-bottom）
-    offsetX: 30, // 聚光燈水平位置（像素，正值往右）
-    offsetY: -100, // 聚光燈垂直位置（負值表示在下方）
-    rotation: -20, // 聚光燈旋轉角度（度數，0-360）
-    opacity: 0.3, // 聚光燈三角形透明度（0-1）
-    blurAmount: 30, // 模糊程度（像素）
-    shadowBlur: 50, // 發光陰影模糊（像素）
-    shadowIntensity: 0.8, // 發光強度（0-1）
+    width: 100, // 聚光燈寬度（像素，border-left/right）
+    height: 600, // 聚光燈高度（像素，border-bottom）
+    offsetX: 0, // 聚光燈水平位置（像素，正值往右）
+    offsetY: 80, // 聚光燈垂直位置（負值表示在下方）
+    rotation: -45, // 聚光燈旋轉角度（度數，0-360）
+    opacity: 0.6, // 聚光燈三角形透明度（0-1）
+    blurAmount: 50, // 模糊程度（像素）
+    shadowBlur: 10, // 發光陰影模糊（像素）
+    shadowIntensity: 0.1, // 發光強度（0-1）
   },
 }
 
 // Refs
 const canvas = ref(null)
-const shadow = ref(null)
 const spotlight = ref(null)
 const dialogBox = ref(null)
 const dialogText = ref(null)
@@ -174,8 +169,6 @@ async function initialize() {
 
     // 🖱️ Canvas 點擊事件監聽
     canvas.value.addEventListener('click', () => {
-      // 觸發搖晃動畫
-      triggerCanvasShake()
       // 切換對話框
       toggleDialog()
     })
@@ -264,14 +257,6 @@ async function startFloatingAnimation() {
   // 🎯 容器上下浮動
   tl.to(canvas.value, {
     y: -config.floating.floatDistance,
-    duration: config.floating.floatDuration,
-    ease: 'sine.inOut',
-  })
-
-  // 🎯 陰影同步：往上浮動時縮小，往下浮動時放大
-  tl.to(shadow.value, {
-    scale: config.floating.shadowScale,
-    opacity: config.floating.shadowOpacity,
     duration: config.floating.floatDuration,
     ease: 'sine.inOut',
   })
@@ -506,25 +491,6 @@ function toggleDialog() {
   }
 }
 
-// 🎯 觸發 Lumo 搖晃動畫
-function triggerCanvasShake() {
-  if (!canvas.value) return
-
-  // 移除舊的搖晃效果
-  canvas.value.classList.remove('shake')
-
-  // 觸發重排以重新開始動畫
-  void canvas.value.offsetWidth
-
-  // 添加搖晃類名
-  canvas.value.classList.add('shake')
-
-  // 動畫完成後移除類名
-  setTimeout(() => {
-    canvas.value.classList.remove('shake')
-  }, 400)
-}
-
 onMounted(() => {
   initialize()
 
@@ -580,59 +546,9 @@ onBeforeUnmount(() => {
   transition: all 0.1s ease;
 }
 
-/* 🎯 Lumo 被點擊時的搖晃動畫 */
-.lumo-canvas.shake {
-  animation: canvasShake 0.4s ease-in-out;
-}
-
-@keyframes canvasShake {
-  0%,
-  100% {
-    transform: translateX(0) rotate(0deg);
-  }
-  25% {
-    transform: translateX(-4px) rotate(-1deg);
-  }
-  50% {
-    transform: translateX(4px) rotate(1deg);
-  }
-  75% {
-    transform: translateX(-2px) rotate(-0.5deg);
-  }
-}
-
-.lumo-shadow {
-  position: absolute;
-  bottom: 20px;
-  left: 15%;
-  width: 150px;
-  height: 20px;
-
-  /* 🎆 多層次科技感漸層 - 藍紫漸變 */
-  background:
-    radial-gradient(ellipse 120px 30px at 50% 30%, rgba(0, 200, 255, 0.8) 0%, transparent 60%),
-    radial-gradient(ellipse 150px 25px at 50% 50%, rgba(100, 150, 255, 0.5) 0%, transparent 70%),
-    radial-gradient(ellipse 140px 20px at 50% 70%, rgba(200, 100, 255, 0.4) 0%, transparent 80%);
-
-  border-radius: 50%;
-
-  /* 🌟 多層次濾鏡效果 - 發光 + 模糊 + 飽和度 */
-  filter: blur(12px) drop-shadow(0 0 15px rgba(0, 200, 255, 0.6)) drop-shadow(0 0 30px rgba(150, 100, 255, 0.3))
-    saturate(1.3);
-
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0.8;
-
-  /* 動畫性能優化 */
-  will-change: transform, opacity, filter;
-  transform-origin: center center;
-
-  /* 陰影本身的發光效果 */
-  box-shadow:
-    0 0 25px rgba(0, 200, 255, 0.5),
-    0 0 40px rgba(150, 100, 255, 0.3),
-    inset -30px -5px 40px rgba(0, 255, 200, 0.2);
+/*  Canvas 倒影效果 */
+.lumo-canvas {
+  -webkit-box-reflect: below -5px linear-gradient(to bottom, transparent 0%, rgba(0, 200, 255, 0.3) 100%);
 }
 
 /* ✨ Spotlight 效果 - 從下往上照在 Lumo 身上 */
