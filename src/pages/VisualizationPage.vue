@@ -1038,7 +1038,7 @@ const drawTimeSeriesChart = () => {
         .style('top', event.pageY - 40 + 'px')
     })
     .on('mouseout', function () {
-      d3.select(this).attr('r', 4).style('fill', '#FF9800')
+      d3.select(this).attr('r', 4).style('fill', '#4CAF50')
 
       d3.selectAll('.tooltip').remove()
     })
@@ -1060,7 +1060,7 @@ const drawTimeSeriesChart = () => {
     .append('g')
     .attr('transform', (d, i) => `translate(0,${i * 25})`)
 
-  legendItems.append('circle').attr('cx', 8).attr('cy', 8).attr('r', 4).attr('fill', '#FF9800')
+  legendItems.append('circle').attr('cx', 8).attr('cy', 8).attr('r', 4).attr('fill', '#4CAF50')
 
   legendItems
     .append('text')
