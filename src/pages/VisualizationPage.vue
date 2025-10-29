@@ -1338,9 +1338,9 @@ const drawScatterChart = () => {
   // 右下角 VD 色彩說明 - 只顯示選擇的 VD，點擊可切換
   // 使用與散點相同的顏色（d3.schemeCategory10）
   const vdColorMap = [
-    { vdId: 'VLRJX20', color: '#1f77b4' },  // 藍色
-    { vdId: 'VLRJX00', color: '#ff7f0e' },  // 橘色
-    { vdId: 'VLRJM60', color: '#2ca02c' },  // 綠色
+    { vdId: 'VLRJX20', color: '#1f77b4' }, // 藍色
+    { vdId: 'VLRJX00', color: '#ff7f0e' }, // 橘色
+    { vdId: 'VLRJM60', color: '#2ca02c' }, // 綠色
   ]
 
   // 橫向排列，置於最下方中央 - 顯示所有 VD，點擊可切換
