@@ -342,7 +342,7 @@
     </div>
     <!-- Lumo 小機器人助手 -->
     <div class="robot-assistant">
-      <img src="/images/lumo.png" alt="機器人助手" />
+      <LumoAssistant ref="lumoRef" />
     </div>
   </q-page>
 </template>
@@ -357,6 +357,7 @@ import TrafficLightController from '../classes/TrafficLightController.js'
 import AutoTrafficGenerator from '../classes/AutoTrafficGenerator.js'
 import TrafficDataCollector from '../classes/TrafficDataCollector.js'
 import Vehicle from '../classes/Vehicle.js'
+import LumoAssistant from '../components/LumoAssistant.vue'
 import { createLanePathCalculator } from '../utils/lanePathCalculator.js'
 import { stopLineConfig, lightColorConfig } from '../classes/config/trafficConfig.js'
 import WeatherController from '../classes/WeatherController.js'
@@ -584,6 +585,7 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
 
 const crossroadContainer = ref(null)
 const vehicleContainer = ref(null) // 車輛專用容器
+const lumoRef = ref(null) // Lumo 助手組件
 const trafficController = new TrafficLightController()
 const autoTrafficGenerator = new AutoTrafficGenerator(trafficController)
 
@@ -1363,6 +1365,19 @@ onMounted(async () => {
   }
 })
 
+/**
+ * 通知 Lumo 交通事件變化
+ */
+const notifyLumoTrafficEvent = (eventType) => {
+  if (!lumoRef.value) return
+
+  try {
+    lumoRef.value.respondToTrafficEvent(eventType)
+  } catch (error) {
+    console.warn('❌ 通知 Lumo 失敗:', error)
+  }
+}
+
 // 組件卸載時清理資源
 onUnmounted(() => {
   // 清理 MotionPathHelper
@@ -1586,12 +1601,13 @@ onUnmounted(() => {
 /* 小機器人助手 ------------------------------------------------- */
 .robot-assistant {
   position: absolute;
-  bottom: 0;
-  left: 5%;
-  width: 200px;
-  height: 200px;
+  bottom: 30px;
+  left: 0;
+  width: 350px;
+  height: 170px;
   cursor: pointer;
   transition: transform 0.3s ease;
+  z-index: 10;
 }
 
 .robot-assistant img {
@@ -1601,7 +1617,7 @@ onUnmounted(() => {
 }
 
 .robot-assistant:hover {
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
 /* 交通燈倒數計時器 ------------------------------------------------- */
