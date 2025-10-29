@@ -10,7 +10,6 @@ import {
   getVDMappingForTimeSlot,
   getRandomHourForTimeSlot,
   getRandomVehicleCountForTimeSlot,
-  getTypicalFeaturesForTimeSlot,
 } from './config/vdMapping.js' // 版本 2.5：VD 時段特徵映射
 import {
   validateAndRectifyDataArray,

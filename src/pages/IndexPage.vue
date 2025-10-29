@@ -1365,19 +1365,6 @@ onMounted(async () => {
   }
 })
 
-/**
- * 通知 Lumo 交通事件變化
- */
-const notifyLumoTrafficEvent = (eventType) => {
-  if (!lumoRef.value) return
-
-  try {
-    lumoRef.value.respondToTrafficEvent(eventType)
-  } catch (error) {
-    console.warn('❌ 通知 Lumo 失敗:', error)
-  }
-}
-
 // 組件卸載時清理資源
 onUnmounted(() => {
   // 清理 MotionPathHelper
@@ -1607,7 +1594,7 @@ onUnmounted(() => {
   height: 300px;
   cursor: pointer;
   transition: transform 0.3s ease;
-  background: rgba(255, 255, 255, 0.1);
+  /* background: rgba(255, 255, 255, 0.1); */
   z-index: 10;
 }
 

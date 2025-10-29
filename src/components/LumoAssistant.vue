@@ -11,7 +11,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import gsap from 'gsap'
 
 // Refs
@@ -29,14 +29,11 @@ const state = reactive({
   currentParamX: 0,
   currentParamY: 0,
   easingFactor: 0.05,
-  floatingTimeline: null,
 })
 
 // Initialize
 async function initialize() {
   try {
-    await nextTick()
-
     // 檢查必要的庫 - 使用重試機制
     let retryCount = 0
     const maxRetries = 50
@@ -63,8 +60,6 @@ async function initialize() {
       return
     }
 
-    console.log('✅ 所有庫已加載，開始初始化 PIXI 應用...')
-
     // 建立 PIXI 應用
     state.app = new window.PIXI.Application({
       view: canvas.value,
@@ -75,24 +70,11 @@ async function initialize() {
       resolution: window.devicePixelRatio || 1,
     })
 
-    console.log('✅ PIXI 應用已創建，開始加載模型...')
-
     // 加載 Live2D 模型
     const modelPath = '/Lumo/Resources/robot/robot.model3.json'
-
-    try {
-      state.model = await window.PIXI.live2d.Live2DModel.from(modelPath)
-      console.log('✅ 模型已加載:', modelPath)
-    } catch (modelError) {
-      console.error('❌ 模型加載失敗:', modelPath, modelError)
-      const backupPath = '/src/Lumo/Resources/robot/robot.model3.json'
-      console.log('嘗試備用路徑:', backupPath)
-      state.model = await window.PIXI.live2d.Live2DModel.from(backupPath)
-      console.log('✅ 模型已加載（備用路徑）:', backupPath)
-    }
-
+    state.model = await window.PIXI.live2d.Live2DModel.from(modelPath)
+    // 將模型添加到舞台
     state.app.stage.addChild(state.model)
-    console.log('✅ 模型已添加到舞台')
 
     // 初始化佈局
     updateLayout()
@@ -103,8 +85,6 @@ async function initialize() {
 
     // 啟用浮動動畫
     startFloatingAnimation()
-
-    console.log('✅ Lumo Live2D 已成功加載')
   } catch (error) {
     console.error('❌ Lumo 初始化失敗:', error)
     console.error('詳細信息:', error.stack)
@@ -176,30 +156,10 @@ function setupMouseTracking() {
       state.model.internalModel.coreModel.setParameterValueById('BODY_ANGLE_Y', state.currentParamY)
     }
   })
-
-  console.log('✅ 滑鼠追蹤已啟用 - Lumo 會跟隨你的滑鼠')
 }
 
 // Start floating animation
 async function startFloatingAnimation() {
-  await nextTick() // ✅ 確保 DOM 已掛載
-
-  if (!floatingContainer.value) {
-    console.warn('⚠️ 浮動容器未找到')
-    return
-  }
-
-  if (!shadow.value) {
-    console.warn('⚠️ 陰影元素未找到')
-    return
-  }
-
-  console.log('🎬 開始浮動動畫...')
-
-  if (state.floatingTimeline) {
-    state.floatingTimeline.kill()
-  }
-
   // ✅ 建立 timeline 時明確指定 paused: false
   const tl = gsap.timeline({
     repeat: -1,
@@ -208,17 +168,17 @@ async function startFloatingAnimation() {
   })
 
   // 🎯 容器上下浮動 (2秒一個循環)
-  tl.to(floatingContainer.value, {
-    y: -80,
+  tl.to(canvas.value, {
+    y: -20,
     duration: 2,
     ease: 'sine.inOut',
   })
 
   // ✅ 陰影動畫用 timeline.add() + gsap.to() 確保有效
   tl.to(shadow.value, {
-    scale: 0.6,
-    opacity: 0,
-    duration: 2,
+    scale: 0.8,
+    opacity: 0.5,
+    duration: 10,
     ease: 'sine.inOut',
   })
 }
@@ -257,15 +217,11 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  will-change: transform;
 }
 
 .lumo-canvas {
   width: 300px;
   height: 150px;
-  display: block;
-  position: relative;
-  z-index: 10;
 }
 
 .lumo-shadow {
@@ -275,13 +231,11 @@ onBeforeUnmount(() => {
   transform: translateX(-50%);
   width: 200px;
   height: 40px;
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0) 70%);
-  background: red;
+  background: radial-gradient(ellipse at center, rgb(0, 162, 255) 0%, rgb(21, 32, 70) 80%);
   border-radius: 50%;
   filter: blur(15px);
   z-index: 1;
   pointer-events: none;
-  opacity: 0.3;
-  will-change: transform, filter, opacity;
+  opacity: 0.5;
 }
 </style>
