@@ -348,8 +348,7 @@ import { ref, reactive, onMounted, onUnmounted, nextTick, watch, computed } from
 import { useRouter, useRoute } from 'vue-router'
 import { date, copyToClipboard, useQuasar } from 'quasar'
 import * as d3 from 'd3'
-import { trafficAPI } from '../api/index.js'
-import { analyzeTrafficDataWithAI, prepareTrafficDataSummary, ANALYSIS_QUESTIONS } from '../api/openai.js'
+import { trafficAPI, analyzeTrafficDataWithAI, prepareTrafficDataSummary, ANALYSIS_QUESTIONS } from '../api/index.js'
 
 const router = useRouter()
 const route = useRoute()
