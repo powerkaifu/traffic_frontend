@@ -628,7 +628,28 @@ const loadData = async () => {
     const response = trafficAPI.transformBackendData(backendResponse)
     console.log('轉換後的數據:', response)
 
-    trafficData.value = response.data || []
+    // 驗證和清理數據 - 確保秒數值為正數
+    let dataWithInvalidSeconds = 0
+    const cleanedData = response.data || []
+    cleanedData.forEach((item) => {
+      // 檢查並修正負的秒數
+      if (item.group && item.group.east_west_seconds < 0) {
+        console.warn(`警告: 發現負的東西向燈號秒數 (${item.group.east_west_seconds}), 已調整為 0`)
+        item.group.east_west_seconds = 0
+        dataWithInvalidSeconds++
+      }
+      if (item.group && item.group.south_north_seconds < 0) {
+        console.warn(`警告: 發現負的南北向燈號秒數 (${item.group.south_north_seconds}), 已調整為 0`)
+        item.group.south_north_seconds = 0
+        dataWithInvalidSeconds++
+      }
+    })
+
+    if (dataWithInvalidSeconds > 0) {
+      console.warn(`總共修正了 ${dataWithInvalidSeconds} 筆無效的秒數數據`)
+    }
+
+    trafficData.value = cleanedData
 
     calculateSummaryStats()
     updateCharts()
@@ -931,9 +952,22 @@ const drawTimeSeriesChart = () => {
     }
   })
 
-  // 過濾掉無效的時間戳記
-  const validData = data.filter((d) => !isNaN(d.timestamp))
-  console.log(`總數據: ${data.length}, 有效時間數據: ${validData.length}`)
+  // 過濾掉無效的時間戳記和負的秒數
+  let filteredCount = 0
+  const validData = data.filter((d) => {
+    // 檢查時間戳記是否有效
+    if (isNaN(d.timestamp)) {
+      return false
+    }
+    // 檢查秒數是否為負或無效
+    if (d.eastWest < 0 || isNaN(d.eastWest) || d.southNorth < 0 || isNaN(d.southNorth)) {
+      console.warn(`時間序列: 過濾掉無效數據 - 時間: ${d.timestamp}, 東西向: ${d.eastWest}, 南北向: ${d.southNorth}`)
+      filteredCount++
+      return false
+    }
+    return true
+  })
+  console.log(`總數據: ${data.length}, 有效時間數據: ${validData.length}, 已過濾: ${filteredCount}`)
   console.log(
     '時間範圍:',
     d3.extent(validData, (d) => d.timestamp),
@@ -1229,43 +1263,79 @@ const drawScatterChart = () => {
 
   // 準備散點圖數據 - 根據選擇的 VD 過濾
   const scatterData = []
+  let filteredCount = 0
   trafficData.value.forEach((item) => {
     item.intersections.forEach((intersection) => {
       // 只顯示選擇的 VD 站點的數據
       if (intersection.VD_ID === selectedVD.value) {
+        // 驗證數據有效性 - 排除負的秒數或無效數據
+        const eastWestSeconds = item.group.east_west_seconds
+        const totalVolume = intersection.total_volume
+        const speed = intersection.Speed
+
+        if (
+          eastWestSeconds < 0 ||
+          isNaN(eastWestSeconds) ||
+          totalVolume < 0 ||
+          isNaN(totalVolume) ||
+          speed < 0 ||
+          isNaN(speed)
+        ) {
+          console.warn(`數據驗證失敗: 排除無效數據 - 東西向: ${eastWestSeconds}, 流量: ${totalVolume}, 速度: ${speed}`)
+          filteredCount++
+          return
+        }
+
         scatterData.push({
-          volume: intersection.total_volume,
-          eastWestSeconds: item.group.east_west_seconds,
+          volume: totalVolume,
+          eastWestSeconds: eastWestSeconds,
           southNorthSeconds: item.group.south_north_seconds,
-          speed: intersection.Speed,
+          speed: speed,
           vdId: intersection.VD_ID,
         })
       }
     })
   })
 
+  if (filteredCount > 0) {
+    console.warn(`散點圖: 已過濾掉 ${filteredCount} 筆無效數據，保留 ${scatterData.length} 筆有效數據`)
+  }
+
+  // 如果沒有有效數據，顯示警告
+  if (scatterData.length === 0) {
+    console.warn(`選擇的 VD ${selectedVD.value} 沒有有效的數據點`)
+    d3.select(scatterChart.value)
+      .append('div')
+      .style('padding', '20px')
+      .style('text-align', 'center')
+      .style('color', 'white')
+      .text(`選擇的 VD 站點 (${selectedVD.value}) 沒有有效的數據點`)
+    return
+  }
+
   const xScale = d3
     .scaleLinear()
     .domain(d3.extent(scatterData, (d) => d.volume))
     .range([0, width])
 
-  const yScale = d3
-    .scaleLinear()
-    .domain(d3.extent(scatterData, (d) => d.eastWestSeconds))
-    .range([height, 0])
+  // 優化Y軸刻度範圍 - 設定最小0，最大根據數據上限增加10%
+  const yExtent = d3.extent(scatterData, (d) => d.eastWestSeconds)
+  const yMax = Math.ceil((yExtent[1] * 1.1) / 10) * 10 // 向上舍入到最近的10
+  const yScale = d3.scaleLinear().domain([0, yMax]).range([height, 0])
 
   const colorScale = d3.scaleOrdinal().domain(['VLRJX20', 'VLRJX00', 'VLRJM60']).range(d3.schemeCategory10)
 
-  // 添加軸
+  // 添加軸 - X軸（交通車流量）
   g.append('g')
     .attr('transform', `translate(0,${height})`)
-    .call(d3.axisBottom(xScale))
+    .call(d3.axisBottom(xScale).ticks(8).tickFormat(d3.format('d')))
     .selectAll('text')
     .style('fill', 'white')
     .style('font-size', '12px')
 
+  // 添加軸 - Y軸（東西向燈號秒數）- 設置合理的刻度
   g.append('g')
-    .call(d3.axisLeft(yScale))
+    .call(d3.axisLeft(yScale).ticks(10))
     .selectAll('text')
     .style('fill', 'white')
     .style('font-size', '12px')
@@ -1722,23 +1792,6 @@ onMounted(() => {
   transition: all 0.3s ease;
 }
 
-.page-header {
-  text-align: center;
-  margin-bottom: 30px;
-}
-
-.page-header h2 {
-  color: white;
-  font-size: 2.5rem;
-  margin-bottom: 10px;
-  font-weight: 300;
-}
-
-.page-header p {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 1.1rem;
-}
-
 .control-panel {
   margin-bottom: 20px;
 }
@@ -1837,29 +1890,6 @@ onMounted(() => {
   right: 0;
 }
 
-.summary-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: row;
-  gap: 20px;
-  margin-bottom: 10px;
-  position: relative;
-  padding-top: 15px;
-}
-
-.summary-header .date-range-display {
-  position: absolute;
-  right: 0;
-}
-
-.summary-header h3 {
-  color: white;
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 400;
-}
-
 .date-range-display {
   display: flex;
   justify-content: center;
@@ -1944,17 +1974,6 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.detail-table-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.detail-table-card h3 {
-  color: white;
-  margin-bottom: 20px;
-}
-
 .detail-dialog {
   background: rgba(30, 60, 114, 0.95);
   backdrop-filter: blur(10px);
@@ -2034,17 +2053,6 @@ onMounted(() => {
     align-self: center;
   }
 
-  .summary-header {
-    flex-direction: column;
-    gap: 10px;
-    text-align: center;
-  }
-
-  .summary-header .date-range-display {
-    position: static;
-    align-self: center;
-  }
-
   .timeseries-chart {
     min-height: 300px;
     max-height: 400px;
@@ -2077,15 +2085,6 @@ onMounted(() => {
   .ai-analyze-btn {
     min-width: auto;
     width: 100%;
-  }
-
-  .ai-question-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .ai-question-row .q-select {
-    min-width: auto;
   }
 
   .ai-result-actions {
@@ -2354,18 +2353,6 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.ai-question-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.ai-question-row .q-select {
-  flex: 1;
-  min-width: 300px;
-}
-
 .ai-question-select {
   flex: 1;
   min-width: 300px;
@@ -2396,62 +2383,6 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.87);
 }
 
-.ai-result-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 15px;
-  flex-wrap: wrap;
-}
-
-.ai-error-card {
-  background: rgba(244, 67, 54, 0.1);
-  border: 1px solid rgba(244, 67, 54, 0.3);
-  border-radius: 8px;
-  padding: 15px;
-  margin-top: 15px;
-}
-
-.ai-error-content {
-  color: #ffcdd2;
-  margin-bottom: 10px;
-}
-
-.ai-loading {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: rgba(255, 255, 255, 0.8);
-  font-style: italic;
-}
-
-.ai-loading-card {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  padding: 30px;
-  text-align: center;
-  margin-top: 15px;
-}
-
-.ai-loading-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-}
-
-.ai-loading-text {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.ai-loading-title {
-  font-size: 1.1rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.87);
-}
-
 .ai-loading-subtitle {
   font-size: 0.9rem;
   color: rgba(255, 255, 255, 0.6);
@@ -2468,6 +2399,34 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.ai-empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.ai-empty-icon {
+  opacity: 0.6;
+}
+
+.ai-empty-text {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ai-empty-title {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.ai-empty-subtitle {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* 針對不同解析度調整 AI 分析區域高度 */
@@ -2503,34 +2462,6 @@ onMounted(() => {
   .ai-result-card {
     min-height: 300px;
   }
-}
-
-.ai-empty-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-}
-
-.ai-empty-icon {
-  opacity: 0.6;
-}
-
-.ai-empty-text {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.ai-empty-title {
-  font-size: 1.2rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.ai-empty-subtitle {
-  font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.5);
 }
 
 /* =============== 自訂滾動條樣式 =============== */
