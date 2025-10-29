@@ -220,7 +220,7 @@ onBeforeUnmount(() => {
 }
 
 .lumo-canvas {
-  width: 300px;
+  width: 320px;
   height: 150px;
   position: relative;
   top: 20px;
