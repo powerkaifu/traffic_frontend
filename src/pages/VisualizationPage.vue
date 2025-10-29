@@ -371,6 +371,9 @@ const endDay = ref(today.getDate())
 const showDetailDialog = ref(false)
 const selectedPoint = ref(null)
 
+// 流量與燈號關聯性分析 - VD 站點選擇
+const selectedVD = ref('VLRJX20') // 預設選擇第一個 VD
+
 // 圖表容器引用
 const timeSeriesChart = ref(null)
 const scatterChart = ref(null)
@@ -1224,17 +1227,20 @@ const drawScatterChart = () => {
 
   const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`)
 
-  // 準備散點圖數據
+  // 準備散點圖數據 - 根據選擇的 VD 過濾
   const scatterData = []
   trafficData.value.forEach((item) => {
     item.intersections.forEach((intersection) => {
-      scatterData.push({
-        volume: intersection.total_volume,
-        eastWestSeconds: item.group.east_west_seconds,
-        southNorthSeconds: item.group.south_north_seconds,
-        speed: intersection.Speed,
-        vdId: intersection.VD_ID,
-      })
+      // 只顯示選擇的 VD 站點的數據
+      if (intersection.VD_ID === selectedVD.value) {
+        scatterData.push({
+          volume: intersection.total_volume,
+          eastWestSeconds: item.group.east_west_seconds,
+          southNorthSeconds: item.group.south_north_seconds,
+          speed: intersection.Speed,
+          vdId: intersection.VD_ID,
+        })
+      }
     })
   })
 
@@ -1329,28 +1335,46 @@ const drawScatterChart = () => {
       d3.selectAll('.tooltip').remove()
     })
 
-  // 右下角 VD 色彩說明
+  // 右下角 VD 色彩說明 - 只顯示選擇的 VD，點擊可切換
+  // 使用與散點相同的顏色（d3.schemeCategory10）
   const vdColorMap = [
-    { vdId: 'VLRJX20', color: '#2ca02c' },
-    { vdId: 'VLRJX00', color: '#1f77b4' },
-    { vdId: 'VLRJM60', color: '#ff7f0e' },
+    { vdId: 'VLRJX20', color: '#1f77b4' },  // 藍色
+    { vdId: 'VLRJX00', color: '#ff7f0e' },  // 橘色
+    { vdId: 'VLRJM60', color: '#2ca02c' },  // 綠色
   ]
-  // 橫向排列，置於最下方中央
+
+  // 橫向排列，置於最下方中央 - 顯示所有 VD，點擊可切換
   const legendGroup = svg
     .append('g')
     .attr('class', 'vd-legend')
-    .attr('transform', `translate(${margin.left + width / 2 + 230}, ${height + margin.top + margin.bottom - 25})`)
+    .attr('transform', `translate(${margin.left + width / 2 + 200}, ${height + margin.top + margin.bottom - 25})`)
 
   vdColorMap.forEach((item, i) => {
     const xOffset = i * 110
-    legendGroup.append('circle').attr('cx', xOffset).attr('cy', 8).attr('r', 8).style('fill', item.color)
-    legendGroup
+    const legendItem = legendGroup
+      .append('g')
+      .style('cursor', 'pointer')
+      .on('click', function () {
+        selectedVD.value = item.vdId
+        drawScatterChart()
+      })
+
+    legendItem
+      .append('circle')
+      .attr('cx', xOffset)
+      .attr('cy', 8)
+      .attr('r', 8)
+      .style('fill', item.color)
+      .style('opacity', selectedVD.value === item.vdId ? 1 : 0.5)
+
+    legendItem
       .append('text')
       .attr('x', xOffset + 16)
       .attr('y', 14)
       .text(`${item.vdId}`)
       .style('fill', 'white')
       .style('font-size', '14px')
+      .style('opacity', selectedVD.value === item.vdId ? 1 : 0.6)
   })
 }
 
