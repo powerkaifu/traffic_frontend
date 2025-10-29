@@ -26,6 +26,9 @@
           />
         </div>
 
+        <!-- 進入後台管理 Icon -->
+        <q-btn dense flat round icon="settings" @click="navigateToAdmin" class="admin-btn" title="進入後台管理" />
+
         <q-btn dense flat round icon="menu" @click="toggleRightDrawer" />
       </q-toolbar>
     </q-header>
@@ -543,6 +546,11 @@ function navigateToSimulation() {
 
 function navigateToVisualization() {
   router.push('/visualization')
+}
+
+function navigateToAdmin() {
+  // 開啟新視窗進入後台
+  window.open('http://127.0.0.1:8000/admin', '_blank')
 }
 
 const currentRoute = computed(() => route.path)
@@ -1594,6 +1602,23 @@ onUnmounted(() => {
 }
 .nav-button:hover {
   opacity: 0.8;
+}
+
+/* 後台管理按鈕樣式 */
+.admin-btn {
+  color: rgba(255, 255, 255, 0.7) !important;
+  transition: all 0.3s ease !important;
+  margin-right: 8px;
+}
+
+.admin-btn:hover {
+  color: #00d4ff !important;
+  transform: scale(1.1);
+  text-shadow: 0 0 10px rgba(0, 212, 255, 0.6);
+}
+
+.admin-btn:active {
+  transform: scale(0.95);
 }
 
 @media (max-width: 1024px) {
