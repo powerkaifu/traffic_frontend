@@ -1,7 +1,7 @@
 <template>
   <div class="lumo-assistant">
     <!-- Floating Container -->
-    <div ref="floatingContainer" class="lumo-floating-container">
+    <div class="lumo-floating-container">
       <!-- Live2D Canvas - 點擊可打開/關閉對話框 -->
       <canvas ref="canvas" class="lumo-canvas" style="cursor: pointer" />
       <!-- Shadow Element -->
@@ -10,6 +10,7 @@
 
     <!-- 💬 對話框 -->
     <div ref="dialogBox" class="lumo-dialog-box" v-show="state.isDialogVisible">
+      <button class="dialog-close-btn" @click="closeDialog">✕</button>
       <div class="dialog-content">
         <div ref="dialogText" class="dialog-text">
           <!-- 文字會通過 JavaScript 動態插入 -->
@@ -27,8 +28,42 @@ import { SplitText } from 'gsap/SplitText'
 // 註冊 GSAP 插件
 gsap.registerPlugin(SplitText)
 
+// ========================================
+// 🎛️ 配置參數 - 在這裡調整組件行為
+// ========================================
+const config = {
+  // 🎙️ 對話框配置
+  dialog: {
+    messages: [
+      '你好！我是 Lumo 小助手！',
+      '我負責模擬車流和分析交通流量數據。',
+      '通過車流數據，我能預測綠燈秒數。',
+      '讓我們一起建立更智能的城市交通系統！',
+    ],
+    messageInterval: 5, // 每句話間隔時間（秒）
+    messageDisplayDuration: 0.4, // 單個字符動畫時長（秒）
+    messageCharStagger: 0.06, // 字符之間的延遲（秒）
+    dialogOpenDuration: 0.6, // 對話框打開動畫時長（秒）
+    dialogCloseDuration: 0.5, // 對話框關閉動畫時長（秒）
+  },
+
+  // 🎯 浮動動畫配置
+  floating: {
+    floatDistance: 20, // 浮動距離（像素）
+    floatDuration: 5, // 浮動周期（秒）
+    shadowScale: 0.8, // 陰影縮放比例
+    shadowOpacity: 0.5, // 陰影透明度
+  },
+
+  // 👁️ 鼠標追蹤配置
+  mouseTracking: {
+    paramRangeX: 60, // X 軸參數範圍
+    paramRangeY: 60, // Y 軸參數範圍
+    easingFactor: 0.05, // 緩動因子（越小越平順）
+  },
+}
+
 // Refs
-const floatingContainer = ref(null)
 const canvas = ref(null)
 const shadow = ref(null)
 const dialogBox = ref(null)
@@ -43,19 +78,11 @@ const state = reactive({
   targetParamY: 0,
   currentParamX: 0,
   currentParamY: 0,
-  easingFactor: 0.05,
-  particles: [],
-  particleCtx: null,
-  animationFrameId: null,
+  easingFactor: config.mouseTracking.easingFactor,
   // 💬 對話框狀態
-  dialogMessages: [
-    '你好！我是 Lumo 小助手！',
-    '我負責模擬車流和分析交通流量數據。',
-    '通過車流數據，我能預測綠燈秒數。',
-    '讓我們一起建立更智能的城市交通系統！',
-  ],
+  dialogMessages: config.dialog.messages,
   currentMessageIndex: 0,
-  isDialogVisible: false, // 默認隱藏對話框
+  isDialogVisible: false, // 先設置為 false，在 onMounted 時再打開
 })
 
 // 💬 對話框 Timeline（不放在 reactive 中，直接使用變量）
@@ -116,9 +143,8 @@ async function initialize() {
     // 啟用浮動動畫
     startFloatingAnimation()
 
-    // 🖱️ 在 Canvas 上添加點擊事件監聽器
+    // 🖱️ Canvas 點擊事件監聽
     canvas.value.addEventListener('click', () => {
-      console.log('🖱️ Canvas 被點擊，切換對話框狀態')
       toggleDialog()
     })
   } catch (error) {
@@ -174,8 +200,8 @@ function setupMouseTracking() {
   if (!state.model || !state.app) return
 
   window.addEventListener('pointermove', (e) => {
-    state.targetParamX = (e.clientX / window.innerWidth - 0.5) * 60
-    state.targetParamY = (e.clientY / window.innerHeight - 0.5) * -60
+    state.targetParamX = (e.clientX / window.innerWidth - 0.5) * config.mouseTracking.paramRangeX
+    state.targetParamY = (e.clientY / window.innerHeight - 0.5) * -config.mouseTracking.paramRangeY
   })
 
   document.addEventListener('mouseleave', () => {
@@ -205,119 +231,79 @@ async function startFloatingAnimation() {
 
   // 🎯 容器上下浮動
   tl.to(canvas.value, {
-    y: -20,
-    duration: 5,
+    y: -config.floating.floatDistance,
+    duration: config.floating.floatDuration,
     ease: 'sine.inOut',
   })
 
   // 🎯 陰影同步：往上浮動時縮小，往下浮動時放大
   tl.to(shadow.value, {
-    scale: 0.8,
-    opacity: 0.5,
-    duration: 5,
+    scale: config.floating.shadowScale,
+    opacity: config.floating.shadowOpacity,
+    duration: config.floating.floatDuration,
     ease: 'sine.inOut',
   })
 }
 
 // 💬 顯示對話框文字（使用 GSAP SplitText 帶打字效果）
 function showDialogMessage(messageIndex) {
-  console.log(`\n📝 ===== showDialogMessage 開始 =====`)
-  console.log(`messageIndex: ${messageIndex}`)
-  console.log(`dialogText.value: ${dialogText.value}`)
-  console.log(`dialogText.value?.textContent: "${dialogText.value?.textContent}"`)
-
-  if (!dialogText.value) {
-    console.error(`❌ dialogText.value 為空！`)
-    return
-  }
+  if (!dialogText.value) return
 
   const message = state.dialogMessages[messageIndex] || ''
-  console.log(`message: "${message}"`)
 
-  // 🔄 首先清除所有舊的動畫
+  // 清除所有舊的動畫和 DOM
   gsap.killTweensOf(dialogText.value)
   const oldChars = dialogText.value.querySelectorAll('.char')
-  console.log(`oldChars 數量: ${oldChars.length}`)
   if (oldChars.length > 0) {
     gsap.killTweensOf(oldChars)
   }
 
-  // 清空並重置 DOM
+  // 重置 DOM 內容
   dialogText.value.innerHTML = ''
-  console.log(`✅ 已清空 innerHTML`)
-
-  // 設置純文本內容
   dialogText.value.textContent = message
-  console.log(`✅ 已設置 textContent: "${dialogText.value.textContent}"`)
 
-  // 使用 SplitText 將文字分割成字符
-  console.log(`開始 SplitText 分割...`)
+  // 使用 SplitText 分割文字為字符
   const split = new SplitText(dialogText.value, {
     type: 'chars',
-    charsClass: 'char', // 給每個字符添加類名
+    charsClass: 'char',
   })
 
   const chars = split.chars
-  console.log(`✅ SplitText 分割完成，字符數: ${chars.length}`)
-  console.log(`DOM 內容: ${dialogText.value.innerHTML}`)
+  if (chars.length === 0) return
 
-  if (chars.length === 0) {
-    console.warn(`⚠️ 沒有字符被分割，textContent: "${dialogText.value.textContent}"`)
-    return
-  }
-
-  // 設置初始狀態 - 所有字符透明
-  console.log(`設置初始狀態...`)
+  // 設置初始狀態
   gsap.set(chars, {
     opacity: 0,
     y: 10,
   })
-  console.log(`✅ 初始狀態設置完成`)
 
-  // 創建動畫時間軸
+  // 創建動畫
   const tl = gsap.timeline()
-  console.log(`✅ Timeline 建立`)
-
-  // 逐字動畫進入
-  console.log(`開始動畫...`)
   tl.to(
     chars,
     {
       opacity: 1,
       y: 0,
-      duration: 0.4,
-      stagger: 0.06, // 每個字間隔 60ms
+      duration: config.dialog.messageDisplayDuration,
+      stagger: config.dialog.messageCharStagger,
       ease: 'back.out',
     },
-    0, // 立即開始
+    0,
   )
-  console.log(`✅ 動畫已添加到 Timeline`)
 
   // 動畫完成後重新合併文字
   tl.call(() => {
     split.revert()
-    console.log(`✅ 第 ${messageIndex + 1} 句對話顯示完成`)
   })
-
-  console.log(`📝 ===== showDialogMessage 結束 =====\n`)
 }
 
-// 💬 關閉對話框
+// 💬 開啟對話框
 function openDialog() {
-  if (state.isDialogVisible) return
-
-  console.log('📖 開啟對話框')
   state.isDialogVisible = true
   state.currentMessageIndex = 0
 
-  // 確保 dialogBox 已掛載
-  if (!dialogBox.value) {
-    console.warn('⚠️ dialogBox 未掛載')
-    return
-  }
+  if (!dialogBox.value) return
 
-  // ⏳ 等待 DOM 更新後再播放動畫
-  // （v-show 需要時間同步，確保 DOM 在可見狀態下）
   nextTick(() => {
     // 對話框進場動畫
     gsap.fromTo(
@@ -326,98 +312,64 @@ function openDialog() {
       {
         y: 0,
         opacity: 1,
-        duration: 0.6,
+        duration: config.dialog.dialogOpenDuration,
         ease: 'back.out',
       },
     )
 
-    // 🎬 建立 Timeline 管理所有消息播放時序
+    // 建立 Timeline 管理消息播放時序
     if (dialogTimeline) {
       dialogTimeline.kill()
     }
 
     dialogTimeline = gsap.timeline({
-      repeat: -1, // 無限循環
-      repeatDelay: 0, // 循環無延遲
+      repeat: -1,
+      repeatDelay: 0,
     })
 
-    console.log('🎬 Timeline 已建立')
+    // 根據消息數量動態生成播放時序
+    const messageInterval = config.dialog.messageInterval
+    config.dialog.messages.forEach((msg, index) => {
+      const time = index * messageInterval
+      dialogTimeline.add(() => {
+        showDialogMessage(index)
+        state.currentMessageIndex = (index + 1) % config.dialog.messages.length
+      }, time)
+    })
 
-    // 第一句話立即播放
-    dialogTimeline.add(() => {
-      console.log('📝 Timeline.add: 播放第 1 句')
-      showDialogMessage(0)
-      state.currentMessageIndex = 1
-    }, 0)
-
-    // 第二句話 - 等 4 秒後播放
-    dialogTimeline.add(() => {
-      console.log('📝 Timeline.add: 播放第 2 句')
-      showDialogMessage(1)
-      state.currentMessageIndex = 2
-    }, 4)
-
-    // 第三句話 - 等 8 秒後播放
-    dialogTimeline.add(() => {
-      console.log('📝 Timeline.add: 播放第 3 句')
-      showDialogMessage(2)
-      state.currentMessageIndex = 3
-    }, 8)
-
-    // 第四句話 - 等 12 秒後播放
-    dialogTimeline.add(() => {
-      console.log('📝 Timeline.add: 播放第 4 句')
-      showDialogMessage(3)
-      state.currentMessageIndex = 0
-    }, 12)
-
-    // 添加一個空動畫來設定 Timeline 的總時長（16秒）
-    dialogTimeline.set({}, {}, 16)
-
-    console.log(`✅ Timeline 設置完成，總時長: ${dialogTimeline.totalDuration()}`)
+    // 設置 Timeline 總時長
+    const totalDuration = config.dialog.messages.length * messageInterval
+    dialogTimeline.set({}, {}, totalDuration)
   })
-
-  console.log('✅ 對話框已打開，isDialogVisible =', state.isDialogVisible)
 }
 
 // 💬 關閉對話框
 function closeDialog() {
   if (!state.isDialogVisible) return
 
-  console.log('📖 關閉對話框')
-
-  // 確保 dialogBox 已掛載
   if (!dialogBox.value) {
-    console.warn('⚠️ dialogBox 未掛載')
     state.isDialogVisible = false
     return
   }
 
-  // 對話框退場動畫
   gsap.to(dialogBox.value, {
     y: 20,
     opacity: 0,
-    duration: 0.5,
+    duration: config.dialog.dialogCloseDuration,
     ease: 'back.in',
     onComplete: () => {
-      console.log('✅ 對話框動畫完成')
       state.isDialogVisible = false
 
-      // 清理 Timeline
       if (dialogTimeline) {
         dialogTimeline.kill()
         dialogTimeline = null
       }
-
-      console.log('✅ 對話框已關閉，isDialogVisible =', state.isDialogVisible)
     },
   })
 }
 
 // 💬 切換對話框顯示/隱藏
 function toggleDialog() {
-  console.log('🔄 toggleDialog 被呼叫，當前狀態:', state.isDialogVisible)
-
   if (state.isDialogVisible) {
     closeDialog()
   } else {
@@ -425,14 +377,13 @@ function toggleDialog() {
   }
 }
 
-// 💬 初始化對話框動畫
-function initializeDialog() {
-  // 初始狀態：對話框隱藏
-  // 等待用戶點擊 Lumo 來開啟對話框
-}
 onMounted(() => {
   initialize()
-  initializeDialog()
+
+  // 延遲執行以確保 DOM 已準備好
+  nextTick(() => {
+    openDialog()
+  })
 })
 
 onBeforeUnmount(() => {
@@ -557,9 +508,42 @@ onBeforeUnmount(() => {
   border-color: transparent rgba(0, 20, 40, 0.95) transparent transparent;
 }
 
+/* 💬 對話框關閉按鈕 */
+.dialog-close-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: rgba(0, 200, 255, 0.7);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  z-index: 11;
+}
+
+.dialog-close-btn:hover {
+  color: rgba(0, 200, 255, 1);
+  background: rgba(0, 200, 255, 0.1);
+  box-shadow: 0 0 12px rgba(0, 200, 255, 0.3);
+}
+
+.dialog-close-btn:active {
+  transform: scale(0.95);
+}
+
 .dialog-content {
-  padding: 24px 20px;
-  min-height: 80px;
+  padding: 30px 20px;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .dialog-text {
@@ -568,7 +552,7 @@ onBeforeUnmount(() => {
   font-size: 1.1rem;
   letter-spacing: 0.5px;
   font-weight: 300;
-  min-height: 60px;
+  text-align: center;
   /* 文字發光效果 */
   text-shadow:
     0 0 5px rgba(0, 200, 255, 0.3),
