@@ -1440,7 +1440,7 @@ onUnmounted(() => {
   z-index: 5; /* 在 SVG 路徑之上，但在其他 UI 元素之下 */
   pointer-events: none; /* 不攔截點擊事件 */
   /* 開發時可以加上邊框來調整大小 */
-  border: 2px dashed rgba(255, 255, 255, 0.1);
+  /* border: 2px dashed rgba(255, 255, 255, 0.1); */
   /* overflow: hidden; */
 }
 
@@ -1589,7 +1589,7 @@ onUnmounted(() => {
 .robot-assistant {
   position: absolute;
   left: 0;
-  bottom: 0px;
+  bottom: 10px;
   width: 300px;
   height: 300px;
   cursor: pointer;

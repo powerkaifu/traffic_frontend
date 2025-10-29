@@ -44,16 +44,20 @@ const config = {
   // 🎙️ 對話框配置
   dialog: {
     messages: [
-      '您好！我是 Lumo 小助手！',
-      '我負責模擬車流和分析流量數據',
-      '我能透過路口車流數據來預測綠燈秒數',
-      '還能視覺化分析交通狀況',
+      '✨ 哈囉！我是你的 Lumo 助手，很高興認識你！',
+      '🚗 我可以即時模擬車流，幫你了解交通狀況！',
+      '🚦 透過路口車流預測綠燈秒數，讓通行更順暢。',
+      '📊 將複雜的交通數據視覺化，讓資訊一目了然。',
+      '🌍 我的目標是讓城市交通更流暢、更高效！',
+      '😊 我會繼續努力，為用路人創造更順暢的出行體驗！',
     ],
-    messageInterval: 5, // 每句話間隔時間（秒）
-    messageDisplayDuration: 0.4, // 單個字符動畫時長（秒）
-    messageCharStagger: 0.06, // 字符之間的延遲（秒）
+    messageInterval: 6, // 每句話間隔時間（秒）
+    messageCharStagger: 0.05, // 字符之間的延遲（秒）
     dialogOpenDuration: 0.6, // 對話框打開動畫時長（秒）
     dialogCloseDuration: 0.5, // 對話框關閉動畫時長（秒）
+    typingCharDuration: 0.05, // 每個字符顯示時長（秒）
+    isOpenOnInit: false, // 初始化時是否打開對話框
+    autoRepeat: true, // 對話框是否自動循環播放
   },
 
   // 🎯 浮動動畫配置
@@ -91,7 +95,7 @@ const state = reactive({
   // 💬 對話框狀態
   dialogMessages: config.dialog.messages,
   currentMessageIndex: 0,
-  isDialogVisible: false, // 先設置為 false，在 onMounted 時再打開
+  isDialogVisible: config.dialog.isOpenOnInit, // 根據配置決定初始狀態
 })
 
 // 💬 對話框 Timeline（不放在 reactive 中，直接使用變量）
@@ -297,7 +301,7 @@ function showDialogMessage(messageIndex) {
   cursor.textContent = '│'
 
   // 計算 stagger 延遲
-  const charDuration = 0.05
+  const charDuration = config.dialog.typingCharDuration
   const staggerDelay = config.dialog.messageCharStagger
 
   // 為每個字符創建出現和光標更新的時序
@@ -399,7 +403,7 @@ function openDialog() {
     }
 
     dialogTimeline = gsap.timeline({
-      repeat: -1,
+      repeat: config.dialog.autoRepeat ? -1 : 0, // 根據配置決定是否循環
       repeatDelay: 0,
     })
 
@@ -477,7 +481,10 @@ onMounted(() => {
 
   // 延遲執行以確保 DOM 已準備好
   nextTick(() => {
-    openDialog()
+    // 根據配置決定是否打開對話框
+    if (config.dialog.isOpenOnInit) {
+      openDialog()
+    }
   })
 })
 
@@ -582,19 +589,18 @@ onBeforeUnmount(() => {
 /* 💬 對話框樣式 */
 .lumo-dialog-box {
   position: absolute;
-  top: 120px;
-  left: 180px;
-  width: 330px;
-  background: linear-gradient(135deg, rgba(0, 20, 40, 0.95) 0%, rgba(10, 30, 60, 0.95) 100%);
+  top: 110px;
+  left: 200px;
+  width: 550px;
+  background: linear-gradient(135deg, rgba(0, 20, 40, 0.4) 0%, rgba(10, 30, 60, 0.4) 100%);
   border: 2px solid rgba(0, 200, 255, 0.8);
   border-radius: 16px;
   box-shadow:
     0 0 25px rgba(0, 200, 255, 0.5),
     0 0 45px rgba(150, 100, 255, 0.3),
     inset 0 0 20px rgba(0, 200, 255, 0.1);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(2px);
   z-index: 10;
-  overflow: visible;
   pointer-events: auto;
 }
 
@@ -642,14 +648,14 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  transition: all 0.2s ease;
+  transition: 0.2s ease;
   z-index: 11;
 }
 
 .dialog-close-btn:hover {
   color: rgba(0, 200, 255, 1);
   background: rgba(0, 200, 255, 0.1);
-  box-shadow: 0 0 12px rgba(0, 200, 255, 0.3);
+  border: 1px solid rgba(0, 200, 255, 0.5);
 }
 
 .dialog-close-btn:active {
