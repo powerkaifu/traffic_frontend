@@ -233,10 +233,31 @@ onBeforeUnmount(() => {
   transform: translateX(-50%);
   width: 150px;
   height: 20px;
-  background: radial-gradient(ellipse at center, rgb(0, 160, 255) 30%, transparent 100%);
+
+  /* 🎆 多層次科技感漸層 - 藍紫漸變 */
+  background:
+    radial-gradient(ellipse 120px 30px at 50% 30%, rgba(0, 200, 255, 0.8) 0%, transparent 60%),
+    radial-gradient(ellipse 150px 25px at 50% 50%, rgba(100, 150, 255, 0.5) 0%, transparent 70%),
+    radial-gradient(ellipse 140px 20px at 50% 70%, rgba(200, 100, 255, 0.4) 0%, transparent 80%);
+
   border-radius: 50%;
-  filter: blur(10px);
+
+  /* 🌟 多層次濾鏡效果 - 發光 + 模糊 + 飽和度 */
+  filter: blur(12px) drop-shadow(0 0 15px rgba(0, 200, 255, 0.6)) drop-shadow(0 0 30px rgba(150, 100, 255, 0.3))
+    saturate(1.3);
+
   z-index: 1;
   pointer-events: none;
+  opacity: 0.8;
+
+  /* 動畫性能優化 */
+  will-change: transform, opacity, filter;
+  transform-origin: center center;
+
+  /* 陰影本身的發光效果 */
+  box-shadow:
+    0 0 25px rgba(0, 200, 255, 0.5),
+    0 0 40px rgba(150, 100, 255, 0.3),
+    inset -30px -5px 40px rgba(0, 255, 200, 0.2);
 }
 </style>
