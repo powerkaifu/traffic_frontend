@@ -398,6 +398,21 @@ function showDialogMessage(messageIndex) {
   })
 }
 
+// ⚙️ 輔助函數：設置 Spotlight CSS 變數（避免重複代碼）
+function setSpotlightStyles() {
+  if (!spotlight.value) return
+  const s = config.spotlight
+  spotlight.value.style.setProperty('--spotlight-width', `${s.width}px`)
+  spotlight.value.style.setProperty('--spotlight-height', `${s.height}px`)
+  spotlight.value.style.setProperty('--spotlight-offset-x', `${s.offsetX}px`)
+  spotlight.value.style.setProperty('--spotlight-offset-y', `${s.offsetY}px`)
+  spotlight.value.style.setProperty('--spotlight-rotation', `${s.rotation}deg`)
+  spotlight.value.style.setProperty('--spotlight-opacity', s.opacity)
+  spotlight.value.style.setProperty('--spotlight-blur', `${s.blurAmount}px`)
+  spotlight.value.style.setProperty('--spotlight-shadow-blur', `${s.shadowBlur}px`)
+  spotlight.value.style.setProperty('--spotlight-intensity', s.shadowIntensity)
+}
+
 // 💬 開啟對話框
 function openDialog() {
   state.isDialogVisible = true
@@ -407,15 +422,7 @@ function openDialog() {
 
   nextTick(() => {
     // ✨ 設置 Spotlight 的 CSS 變數
-    spotlight.value.style.setProperty('--spotlight-width', `${config.spotlight.width}px`)
-    spotlight.value.style.setProperty('--spotlight-height', `${config.spotlight.height}px`)
-    spotlight.value.style.setProperty('--spotlight-offset-x', `${config.spotlight.offsetX}px`)
-    spotlight.value.style.setProperty('--spotlight-offset-y', `${config.spotlight.offsetY}px`)
-    spotlight.value.style.setProperty('--spotlight-rotation', `${config.spotlight.rotation}deg`)
-    spotlight.value.style.setProperty('--spotlight-opacity', config.spotlight.opacity)
-    spotlight.value.style.setProperty('--spotlight-blur', `${config.spotlight.blurAmount}px`)
-    spotlight.value.style.setProperty('--spotlight-shadow-blur', `${config.spotlight.shadowBlur}px`)
-    spotlight.value.style.setProperty('--spotlight-intensity', config.spotlight.shadowIntensity)
+    setSpotlightStyles()
 
     // Spotlight 進場動畫
     spotlight.value.classList.add('active')
@@ -544,17 +551,7 @@ onMounted(() => {
         state.isDialogVisible = true
 
         // ✨ 設置 Spotlight 的 CSS 變數（確保統一配置）
-        if (spotlight.value) {
-          spotlight.value.style.setProperty('--spotlight-width', `${config.spotlight.width}px`)
-          spotlight.value.style.setProperty('--spotlight-height', `${config.spotlight.height}px`)
-          spotlight.value.style.setProperty('--spotlight-offset-x', `${config.spotlight.offsetX}px`)
-          spotlight.value.style.setProperty('--spotlight-offset-y', `${config.spotlight.offsetY}px`)
-          spotlight.value.style.setProperty('--spotlight-rotation', `${config.spotlight.rotation}deg`)
-          spotlight.value.style.setProperty('--spotlight-opacity', config.spotlight.opacity)
-          spotlight.value.style.setProperty('--spotlight-blur', `${config.spotlight.blurAmount}px`)
-          spotlight.value.style.setProperty('--spotlight-shadow-blur', `${config.spotlight.shadowBlur}px`)
-          spotlight.value.style.setProperty('--spotlight-intensity', config.spotlight.shadowIntensity)
-        }
+        setSpotlightStyles()
 
         // 顯示自定義消息
         if (dialogText.value) {
