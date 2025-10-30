@@ -340,6 +340,14 @@
         </div>
       </transition>
     </div>
+
+    <!-- 💡 十字路口下方 - 可愛的互動區域 -->
+    <div
+      class="crossroad-below-area"
+      @mouseenter="showLumoTooltip(window.lumoConfig?.tooltips?.crossroadBelow)"
+      @mouseleave="hideLumoTooltip"
+    ></div>
+
     <!-- Lumo 小機器人助手 -->
     <div class="robot-assistant">
       <LumoAssistant ref="lumoRef" />
@@ -1365,6 +1373,24 @@ onMounted(async () => {
   }
 })
 
+// 💡 顯示 Lumo Tooltip 的函數
+function showLumoTooltip(message) {
+  if (lumoRef.value && lumoRef.value.showTooltip) {
+    lumoRef.value.showTooltip(message)
+  } else if (window.lumoTooltipManager) {
+    window.lumoTooltipManager.show(message)
+  }
+}
+
+// 💡 隱藏 Lumo Tooltip 的函數
+function hideLumoTooltip() {
+  if (lumoRef.value && lumoRef.value.hideTooltip) {
+    lumoRef.value.hideTooltip()
+  } else if (window.lumoTooltipManager) {
+    window.lumoTooltipManager.hide?.()
+  }
+}
+
 // 組件卸載時清理資源
 onUnmounted(() => {
   // 清理 MotionPathHelper
@@ -1940,5 +1966,28 @@ onUnmounted(() => {
   pointer-events: none;
   z-index: 1000;
   overflow: hidden;
+}
+
+/* 🤔 十字路口下方互動區域 ===== */
+.crossroad-below-area {
+  position: absolute;
+  /* 位置在十字路口 (450x450) 下方，寬度相同 */
+  width: 100%;
+  height: 100px;
+  bottom: 0%;
+  left: 50%;
+  transform: translateX(-50%);
+
+  /* 互動效果 */
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  /* 顯示範圍邊框 */
+  /* border: 2px solid rgba(255, 150, 50, 0.6); */
+  /* background: rgba(255, 150, 50, 0.1); */
+}
+
+.crossroad-below-area:hover {
+  cursor: auto;
 }
 </style>
