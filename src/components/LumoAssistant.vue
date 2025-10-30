@@ -59,7 +59,27 @@ const config = {
     isOpenOnInit: false, // 初始化時是否打開對話框
     autoRepeat: true, // 對話框是否自動循環播放
   },
+  // 💬 Tooltip 訊息配置（滑鼠移過去時顯示）
+  tooltips: {
+    // === 頂部導航按鈕 ===
+    simulationBtn: '🚗 場景模擬 - 即時生成車流數據，模擬真實交通環境，幫助您理解交通流量的動態變化！',
+    visualizationBtn: '📊 視覺化數據 - 將複雜的交通數據轉化為直觀的圖表和分析，讓數據洞察一目了然！',
+    adminBtn: '⚙️ 後台管理 - 進入系統配置中心，管理車流數據、調整參數設置，掌控整個交通系統！',
+    menuBtn: '☰ 打開側邊欄 - 調整車流情景、配置模擬參數、掌握系統所有設置！',
 
+    // === VD 情景選擇按鈕 ===
+    peakHours: '🚀 尖峰時段 - 早上 7-9 點、晚上 5-7 點的車流高峰，體驗最繁忙的交通狀況！',
+    offPeak: '🌞 離峰時段 - 白天 10-16 點、晚上 20-23 點，交通流暢舒適的時段！',
+    lateNight: '🌙 凌晨時段 - 午夜 00-06 點的低流量時段，很少看到車流擁堵的情況！',
+
+    // === 資料區塊 ===
+    dataSection:
+      '📊 特徵模擬數據 - 展示即時的交通流量特徵數據，包含平均車速、占用率和各類型車流量，幫助您全面了解路口交通狀況！',
+
+    // === 控制與統計 ===
+    frequencyControl:
+      '⏱️ 生成間隔 - 調整車流數據的生成頻率，控制數據更新速度。間隔越短，數據更新越頻繁，越能感受到實時的交通變化！',
+  },
   // 🎯 浮動動畫配置
   floating: {
     floatDistance: 20, // 浮動距離（像素）
@@ -500,6 +520,196 @@ onMounted(() => {
     if (config.dialog.isOpenOnInit) {
       openDialog()
     }
+
+    // 設置全局 Tooltip 管理器供 MainLayout 使用
+    window.lumoTooltipManager = {
+      currentTimeout: null,
+      showAnimationTimer: null,
+      isTooltipEnabled: true, // 💡 新增：控制 Tooltip 是否顯示
+      show(message) {
+        // 如果 Tooltip 被禁用，直接返回
+        if (!this.isTooltipEnabled) return
+        // 取消舊的關閉延遲
+        if (this.currentTimeout) {
+          clearTimeout(this.currentTimeout)
+        }
+        if (this.showAnimationTimer) {
+          clearTimeout(this.showAnimationTimer)
+        }
+
+        // 需要重新顯示時，先確保狀態正確
+        const wasVisible = state.isDialogVisible
+
+        // 立即顯示對話框
+        state.isDialogVisible = true
+
+        // ✨ 設置 Spotlight 的 CSS 變數（確保統一配置）
+        if (spotlight.value) {
+          spotlight.value.style.setProperty('--spotlight-width', `${config.spotlight.width}px`)
+          spotlight.value.style.setProperty('--spotlight-height', `${config.spotlight.height}px`)
+          spotlight.value.style.setProperty('--spotlight-offset-x', `${config.spotlight.offsetX}px`)
+          spotlight.value.style.setProperty('--spotlight-offset-y', `${config.spotlight.offsetY}px`)
+          spotlight.value.style.setProperty('--spotlight-rotation', `${config.spotlight.rotation}deg`)
+          spotlight.value.style.setProperty('--spotlight-opacity', config.spotlight.opacity)
+          spotlight.value.style.setProperty('--spotlight-blur', `${config.spotlight.blurAmount}px`)
+          spotlight.value.style.setProperty('--spotlight-shadow-blur', `${config.spotlight.shadowBlur}px`)
+          spotlight.value.style.setProperty('--spotlight-intensity', config.spotlight.shadowIntensity)
+        }
+
+        // 顯示自定義消息
+        if (dialogText.value) {
+          // 清除之前的文字動畫
+          gsap.killTweensOf(dialogText.value.querySelectorAll('.char'))
+
+          dialogText.value.innerHTML = ''
+          dialogText.value.textContent = message
+
+          // 使用 SplitText 分割文字為字符（打字效果）
+          const split = new SplitText(dialogText.value, {
+            type: 'chars',
+            charsClass: 'char',
+          })
+
+          const chars = split.chars
+          if (chars.length === 0) return
+
+          // 設置初始狀態 - 所有字符先隱藏
+          gsap.set(chars, {
+            opacity: 0,
+          })
+
+          // 創建打字效果 Timeline
+          const tl = gsap.timeline()
+
+          // 創建光標元素
+          const cursor = document.createElement('span')
+          cursor.className = 'typing-cursor'
+          cursor.textContent = '│'
+
+          // 計算 stagger 延遲
+          const charDuration = config.dialog.typingCharDuration
+          const staggerDelay = config.dialog.messageCharStagger
+
+          // 為每個字符創建出現和光標更新的時序
+          chars.forEach((char, index) => {
+            const time = index * staggerDelay
+
+            // 字符出現動畫
+            tl.to(
+              char,
+              {
+                opacity: 1,
+                duration: charDuration,
+                ease: 'steps(1)',
+              },
+              time,
+            )
+
+            // 字符出現後，將光標移到該字符後面
+            tl.call(
+              () => {
+                // 移除舊光標
+                if (cursor.parentNode) {
+                  cursor.remove()
+                }
+                // 在當前字符後面插入光標
+                char.parentNode.insertBefore(cursor, char.nextSibling)
+              },
+              null,
+              time + charDuration * 0.5,
+            )
+          })
+
+          // 動畫完成後：光標留在文字尾巴繼續閃爍
+          tl.call(() => {
+            // 先 revert（合併所有字符）
+            split.revert()
+
+            // revert 後，重新添加光標到文字容器末尾
+            // 清除舊光標
+            const oldCursor = dialogText.value.querySelector('.typing-cursor')
+            if (oldCursor) {
+              oldCursor.remove()
+            }
+
+            // 使用 nextTick 確保 DOM 更新後再添加光標
+            nextTick(() => {
+              // 確保光標有正確的類名和內容
+              cursor.className = 'typing-cursor'
+              cursor.textContent = '│'
+              dialogText.value.appendChild(cursor)
+
+              // 使用 GSAP 直接控制光標閃爍動畫
+              const cursorBlink = gsap.timeline({ repeat: -1, repeatDelay: 0 })
+              cursorBlink.to(
+                cursor,
+                {
+                  opacity: 0,
+                  duration: 0.3,
+                  ease: 'none',
+                },
+                0,
+              )
+              cursorBlink.to(
+                cursor,
+                {
+                  opacity: 1,
+                  duration: 0.3,
+                  ease: 'none',
+                },
+                0.3,
+              )
+            })
+          })
+        }
+
+        // 打開對話框動畫
+        if (dialogBox.value) {
+          dialogBox.value.classList.add('active')
+
+          // 如果已經可見，跳過進場動畫，直接更新內容
+          if (!wasVisible) {
+            gsap.fromTo(
+              dialogBox.value,
+              { y: 20, opacity: 0 },
+              {
+                y: 0,
+                opacity: 1,
+                duration: 0.4,
+                ease: 'back.out',
+              },
+            )
+          }
+        }
+
+        // 打開 Spotlight 動畫
+        if (spotlight.value) {
+          spotlight.value.classList.add('active')
+
+          // 如果已經可見，跳過進場動畫
+          if (!wasVisible) {
+            gsap.fromTo(
+              spotlight.value,
+              { opacity: 0, scale: 0.5 },
+              {
+                opacity: 1,
+                scale: 1,
+                duration: 0.3,
+                ease: 'back.out',
+              },
+            )
+          }
+        }
+      },
+      hide() {
+        // 設置延遲隱藏以避免頻繁切換
+        this.currentTimeout = setTimeout(() => {
+          if (state.isDialogVisible) {
+            closeDialog()
+          }
+        }, 300)
+      },
+    }
   })
 })
 
@@ -580,7 +790,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 110px;
   left: 200px;
-  width: 550px;
+  width: 500px;
   background: linear-gradient(135deg, rgba(0, 20, 40, 0.4) 0%, rgba(10, 30, 60, 0.4) 100%);
   border: 2px solid rgba(0, 200, 255, 0.8);
   border-radius: 16px;
@@ -604,7 +814,7 @@ onBeforeUnmount(() => {
   border-style: solid;
   /* 向左指向：上下邊界透明，右邊是實心顏色 */
   border-width: 12px 22px 12px 0;
-  border-color: transparent rgba(0, 200, 255, 0.5) transparent transparent;
+  border-color: transparent rgba(0, 200, 255, 0.8) transparent transparent;
 }
 
 /* 💬 對話框三角形指針內部填充 */
@@ -618,7 +828,7 @@ onBeforeUnmount(() => {
   border-style: solid;
   /* 內部三角形，填充對話框背景色 */
   border-width: 9px 18px 9px 0;
-  border-color: transparent rgba(0, 20, 40, 0.95) transparent transparent;
+  border-color: transparent rgba(0, 15, 30, 0.9) transparent transparent;
 }
 
 /* 💬 對話框關閉按鈕 */
@@ -665,7 +875,6 @@ onBeforeUnmount(() => {
   font-size: 1.1rem;
   letter-spacing: 0.5px;
   font-weight: 300;
-  text-align: center;
   /* 文字發光效果 */
   text-shadow:
     0 0 5px rgba(0, 200, 255, 0.3),

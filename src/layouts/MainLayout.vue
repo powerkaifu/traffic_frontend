@@ -13,6 +13,10 @@
             alt="場景模擬"
             class="nav-button"
             @click="navigateToSimulation"
+            @mouseenter="
+              showLumoTooltip('🚗 場景模擬 - 即時生成車流數據，模擬真實交通環境，幫助您理解交通流量的動態變化！')
+            "
+            @mouseleave="hideLumoTooltip"
           />
           <img
             :src="
@@ -23,13 +27,56 @@
             alt="視覺化數據"
             class="nav-button"
             @click="navigateToVisualization"
+            @mouseenter="
+              showLumoTooltip('📊 視覺化數據 - 將複雜的交通數據轉化為直觀的圖表和分析，讓數據洞察一目了然！')
+            "
+            @mouseleave="hideLumoTooltip"
           />
         </div>
 
-        <!-- 進入後台管理 Icon -->
-        <q-btn dense flat round icon="settings" @click="navigateToAdmin" class="admin-btn" title="進入後台管理" />
+        <!-- 💡 Tooltip 開關按鈕 (單顆按鈕) -->
+        <q-btn
+          dense
+          flat
+          round
+          :icon="isTooltipEnabled ? 'lightbulb' : 'lightbulb_outline'"
+          @click="toggleTooltip"
+          class="tooltip-btn-single"
+          :title="isTooltipEnabled ? '關閉 Lumo 提示' : '開啟 Lumo 提示'"
+          @mouseenter="
+            showLumoTooltip(
+              isTooltipEnabled
+                ? '💡 關閉 Lumo 提示 - 停止顯示 hover 時的功能說明文字'
+                : '💡 開啟 Lumo 提示 - 顯示 hover 時的功能說明文字',
+            )
+          "
+          @mouseleave="hideLumoTooltip"
+        />
 
-        <q-btn dense flat round icon="menu" @click="toggleRightDrawer" />
+        <!-- 進入後台管理 Icon -->
+        <q-btn
+          dense
+          flat
+          round
+          icon="settings"
+          @click="navigateToAdmin"
+          class="admin-btn"
+          title="進入後台管理"
+          @mouseenter="
+            showLumoTooltip('⚙️ 後台管理 - 進入系統配置中心，管理車流數據、調整參數設置，掌控整個交通系統！')
+          "
+          @mouseleave="hideLumoTooltip"
+        />
+
+        <q-btn
+          dense
+          flat
+          round
+          icon="menu"
+          @click="toggleRightDrawer"
+          @mouseenter="showLumoTooltip('☰ 打開側邊欄 - 調整車流情景、配置模擬參數、掌握系統所有設置！')"
+          @mouseleave="hideLumoTooltip"
+        />
       </q-toolbar>
     </q-header>
 
@@ -76,6 +123,8 @@
                   :class="['vd-scenario-btn', { active: selectedVDScenario === 'peak_hours' }]"
                   :disabled="isAutoMode"
                   title="尖峰時段 (07-09, 17-19)"
+                  @mouseenter="showLumoTooltip('🚀 尖峰時段 - 早上7-9點、晚上5-7點的車流高峰，體驗最繁忙的交通狀況！')"
+                  @mouseleave="hideLumoTooltip"
                 >
                   <div class="vd-scenario-icon">🚀</div>
                   <div class="vd-scenario-label">尖峰</div>
@@ -85,6 +134,8 @@
                   :class="['vd-scenario-btn', { active: selectedVDScenario === 'off_peak' }]"
                   :disabled="isAutoMode"
                   title="離峰時段 (10-16, 20-23)"
+                  @mouseenter="showLumoTooltip('🌞 離峰時段 - 白天10-16點、晚上20-23點，交通流暢舒適的時段！')"
+                  @mouseleave="hideLumoTooltip"
                 >
                   <div class="vd-scenario-icon">🌞</div>
                   <div class="vd-scenario-label">離峰</div>
@@ -94,6 +145,8 @@
                   :class="['vd-scenario-btn', { active: selectedVDScenario === 'late_night' }]"
                   :disabled="isAutoMode"
                   title="凌晨時段 (00-06)"
+                  @mouseenter="showLumoTooltip('🌙 凌晨時段 - 午夜00-06點的低流量時段，很少看到車流擁堵的情況！')"
+                  @mouseleave="hideLumoTooltip"
                 >
                   <div class="vd-scenario-icon">🌙</div>
                   <div class="vd-scenario-label">凌晨</div>
@@ -121,7 +174,15 @@
 
               <!-- 控制與統計 -->
               <div class="control-stats-row">
-                <div class="frequency-control">
+                <div
+                  class="frequency-control"
+                  @mouseenter="
+                    showLumoTooltip(
+                      '⏱️ 生成間隔 - 調整車流數據的生成頻率，控制數據更新速度。間隔越短，數據更新越頻繁，越能感受到實時的交通變化！',
+                    )
+                  "
+                  @mouseleave="hideLumoTooltip"
+                >
                   <span class="freq-label">生成間隔</span>
                   <input
                     type="range"
@@ -148,7 +209,15 @@
               <img src="/images/button/setDataBtnOn.png" alt="特徵模擬數據" class="control-button" />
             </div>
           </div>
-          <div class="data-section-content">
+          <div
+            class="data-section-content"
+            @mouseenter="
+              showLumoTooltip(
+                '📊 特徵模擬數據 - 展示即時的交通流量特徵數據，包含平均車速、占用率和各類型車流量，幫助您全面了解路口交通狀況！',
+              )
+            "
+            @mouseleave="hideLumoTooltip"
+          >
             <div class="traffic-data-grid">
               <!-- Data cells... -->
               <div class="traffic-zone east-zone">
@@ -551,6 +620,34 @@ function navigateToVisualization() {
 function navigateToAdmin() {
   // 開啟新視窗進入後台
   window.open('http://127.0.0.1:8000/admin', '_blank')
+}
+
+/**
+ * Lumo 功能介紹系統
+ * 在滑鼠移過按鈕/介面時，觸發 Lumo 顯示功能說明對話框
+ */
+function showLumoTooltip(message) {
+  if (window.lumoTooltipManager) {
+    window.lumoTooltipManager.show(message)
+  }
+}
+
+function hideLumoTooltip() {
+  if (window.lumoTooltipManager) {
+    window.lumoTooltipManager.hide()
+  }
+}
+
+// 💡 Tooltip 開關狀態
+const isTooltipEnabled = ref(true)
+
+// 💡 切換 Tooltip 顯示
+function toggleTooltip() {
+  isTooltipEnabled.value = !isTooltipEnabled.value
+  if (window.lumoTooltipManager) {
+    window.lumoTooltipManager.isTooltipEnabled = isTooltipEnabled.value
+  }
+  console.log(`💡 [MainLayout] Lumo Tooltip ${isTooltipEnabled.value ? '已開啟' : '已關閉'}`)
 }
 
 const currentRoute = computed(() => route.path)
@@ -1619,6 +1716,28 @@ onUnmounted(() => {
 
 .admin-btn:active {
   transform: scale(0.95);
+}
+
+/* 💡 Tooltip 單顆按鈕樣式 (切換 icon 和顏色，不會跳動) */
+.tooltip-btn-single {
+  color: rgba(255, 255, 255, 0.7) !important;
+  transition: color 0.2s ease !important;
+  margin-right: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* 強制 icon 寬度固定，防止不同圖示寬度導致位置移動 */
+.tooltip-btn-single .q-icon {
+  width: 24px !important;
+  min-width: 24px !important;
+  max-width: 24px !important;
+}
+
+.tooltip-btn-single:hover {
+  color: #ffd700 !important;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
 }
 
 @media (max-width: 1024px) {
