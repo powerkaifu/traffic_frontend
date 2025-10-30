@@ -344,7 +344,7 @@
     <!-- 💡 十字路口下方 - 可愛的互動區域 -->
     <div
       class="crossroad-below-area"
-      @mouseenter="showLumoTooltip(window.lumoConfig?.tooltips?.crossroadBelow)"
+      @mouseenter="showLumoTooltip('🤔 這邊有什麼東西嗎？...似乎什麼都沒有呢，但感覺可能會發生什麼有趣的事情哦！')"
       @mouseleave="hideLumoTooltip"
     ></div>
 
@@ -1375,18 +1375,20 @@ onMounted(async () => {
 
 // 💡 顯示 Lumo Tooltip 的函數
 function showLumoTooltip(message) {
-  if (lumoRef.value && lumoRef.value.showTooltip) {
-    lumoRef.value.showTooltip(message)
-  } else if (window.lumoTooltipManager) {
+  console.log('🎯 showLumoTooltip called with message:', message)
+  console.log('🔍 window.lumoTooltipManager:', window.lumoTooltipManager)
+  console.log('🔍 isTooltipEnabled:', window.lumoTooltipManager?.isTooltipEnabled)
+
+  if (window.lumoTooltipManager) {
     window.lumoTooltipManager.show(message)
+  } else {
+    console.warn('⚠️ lumoTooltipManager 未初始化')
   }
 }
 
 // 💡 隱藏 Lumo Tooltip 的函數
 function hideLumoTooltip() {
-  if (lumoRef.value && lumoRef.value.hideTooltip) {
-    lumoRef.value.hideTooltip()
-  } else if (window.lumoTooltipManager) {
+  if (window.lumoTooltipManager) {
     window.lumoTooltipManager.hide?.()
   }
 }
@@ -1979,15 +1981,7 @@ onUnmounted(() => {
   transform: translateX(-50%);
 
   /* 互動效果 */
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  /* 顯示範圍邊框 */
-  /* border: 2px solid rgba(255, 150, 50, 0.6); */
-  /* background: rgba(255, 150, 50, 0.1); */
-}
-
-.crossroad-below-area:hover {
   cursor: auto;
+  transition: all 0.3s ease;
 }
 </style>
