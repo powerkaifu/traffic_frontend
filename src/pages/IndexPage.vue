@@ -595,7 +595,18 @@ const crossroadContainer = ref(null)
 const vehicleContainer = ref(null) // 車輛專用容器
 const lumoRef = ref(null) // Lumo 助手組件
 const trafficController = new TrafficLightController()
-const autoTrafficGenerator = new AutoTrafficGenerator(trafficController)
+
+// ✅ HMR 保護：重用已存在的 autoTrafficGenerator 或創建新的
+let autoTrafficGenerator
+if (typeof window !== 'undefined' && window.autoTrafficGenerator && window.trafficController === trafficController) {
+  // 重用現有的 autoTrafficGenerator（HMR 恢復）
+  autoTrafficGenerator = window.autoTrafficGenerator
+  console.log('♻️ [IndexPage] 重用現有的 autoTrafficGenerator（HMR 恢復）')
+} else {
+  // 創建新的 autoTrafficGenerator
+  autoTrafficGenerator = new AutoTrafficGenerator(trafficController)
+  console.log('✨ [IndexPage] 創建新的 autoTrafficGenerator')
+}
 
 // 🚨 設置車道級別生成控制，防止碰撞
 autoTrafficGenerator.setMinLaneInterval(2000) // 同一車道2秒內不重複生成
@@ -1164,6 +1175,21 @@ let getNorthLane3Path = () => 'M590,-600 L590,1400'
 let getNorthLane4Path = () => 'M620,-600 L620,1400'
 
 onMounted(async () => {
+  // ✅ HMR 恢復：恢復保存的狀態
+  if (typeof window !== 'undefined') {
+    if (window.lastActiveCarCount !== undefined) {
+      console.log(`✅ [IndexPage] HMR 恢復：最後車輛數 = ${window.lastActiveCarCount}`)
+    }
+    if (window.lastCountdown !== undefined) {
+      countdown.value = window.lastCountdown
+      console.log(`✅ [IndexPage] HMR 恢復：計時器 = ${window.lastCountdown}`)
+    }
+    if (window.lastPhase !== undefined) {
+      currentPhase.value = window.lastPhase
+      console.log(`✅ [IndexPage] HMR 恢復：燈號 = ${window.lastPhase}`)
+    }
+  }
+
   // 等待 DOM 完全渲染
   await nextTick()
 
@@ -1350,8 +1376,13 @@ onMounted(async () => {
       aiPrediction.value = prediction
     })
 
-    // 立即開始交通燈時相變化（移除延遲）
-    trafficController.start()
+    // ✅ HMR 保護：只在第一次啟動時啟動交通燈
+    if (!trafficController.isRunning || trafficController.isRunning === false) {
+      console.log('🚀 啟動交通燈控制系統（首次啟動或 HMR 恢復）')
+      trafficController.start()
+    } else {
+      console.log('♻️ 交通燈控制系統已在運行（HMR 恢復中）')
+    }
 
     // 初始化自動交通產生器
     console.log('🚦 初始化自動交通產生器...')
@@ -1362,9 +1393,14 @@ onMounted(async () => {
     // 🔧 設置全域 autoTrafficGenerator 供其他組件使用
     window.autoTrafficGenerator = autoTrafficGenerator
 
-    // 啟動自動交通產生器
-    autoTrafficGenerator.start()
-    console.log('--------------------- 🤖 自動交通產生器已啟動 ---------------------')
+    // ✅ HMR 保護：只在第一次啟動時啟動生成器
+    if (!autoTrafficGenerator.isRunning || autoTrafficGenerator.isRunning === false) {
+      console.log('🚀 啟動自動交通產生器（首次啟動或 HMR 恢復）')
+      autoTrafficGenerator.start()
+      console.log('--------------------- 🤖 自動交通產生器已啟動 ---------------------')
+    } else {
+      console.log('♻️ 自動交通產生器已在運行（HMR 恢復中）')
+    }
 
     // 再次等待一個小延遲，確保 autoTrafficGenerator 完全初始化
     await new Promise((resolve) => setTimeout(resolve, 500))
@@ -1464,6 +1500,15 @@ function hideLumoTooltip() {
 
 // 組件卸載時清理資源
 onUnmounted(() => {
+  // 🧪 HMR 保護：保存關鍵狀態到全局
+  console.log('💾 [IndexPage] 保存狀態以便 HMR 恢復...')
+  window.lastActiveCarCount = activeCars.value.length
+  window.lastCountdown = countdown.value
+  window.lastPhase = currentPhase.value
+
+  // ⚠️ 不要停止 autoTrafficGenerator 和 trafficController，讓它們繼續運行
+  // 這樣在 HMR 恢復時可以立即重用它們
+
   // 清理 MotionPathHelper
   disablePathEditing()
 
@@ -1484,11 +1529,7 @@ onUnmounted(() => {
     window.cleanupVehicleInterval = null
   }
 
-  // 清理所有活躍車輛
-  activeCars.value.forEach((vehicle) => {
-    vehicle.remove()
-  })
-  activeCars.value = []
+  // ⚠️ 不要清理活躍車輛列表，保留它以便 HMR 恢復
 
   // 🌤️ 清理天氣控制器
   if (weatherController) {
@@ -1501,7 +1542,7 @@ onUnmounted(() => {
   // 確保鍵盤事件監聽器被移除（使用與添加時相同的選項）
   document.removeEventListener('keydown', handleKeyDown, { capture: false })
 
-  console.log('🧹 IndexPage 資源清理完成')
+  console.log('🧹 IndexPage 資源清理完成（保留 autoTrafficGenerator 以便 HMR 恢復）')
 })
 </script>
 
