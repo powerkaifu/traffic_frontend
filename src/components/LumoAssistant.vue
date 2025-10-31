@@ -117,7 +117,7 @@ const config = {
   // 💬 Tooltip 訊息配置（滑鼠移過去時顯示）
   tooltips: {
     // === Logo ===
-    logo: '🎯 阿，您在看我們的標題啊～覺得設計有科技感嗎？',
+    logo: '💡哈哈，被你發現了嗎？！我們的專題名稱「AI 智慧交通控制信號」～ 智慧綠燈控，AI 算你行！意思是我們 AI 不只幫大家計算通行時間，還超級無敵厲害的呢～💪',
 
     // === 頂部導航按鈕 ===
     simulationBtn: '🚗 場景模擬 - 即時生成車流數據，模擬真實交通環境，幫助您理解交通流量的動態變化！',
@@ -868,7 +868,7 @@ onBeforeUnmount(() => {
 /* 💬 對話框樣式 */
 .lumo-dialog-box {
   position: absolute;
-  top: 110px;
+  top: 100px;
   left: 200px;
   width: 500px;
   background: linear-gradient(135deg, rgba(0, 20, 40, 0.4) 0%, rgba(10, 30, 60, 0.4) 100%);
@@ -943,7 +943,7 @@ onBeforeUnmount(() => {
 }
 
 .dialog-content {
-  padding: 30px 20px;
+  padding: 30px 20px 20px;
   min-height: 120px;
   display: flex;
   align-items: center;
