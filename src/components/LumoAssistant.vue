@@ -811,7 +811,7 @@ onBeforeUnmount(() => {
     dialogTimeline.kill()
     dialogTimeline = null
   }
-  
+
   // 🎬 殺死所有活躍的 GSAP tweens（包括打字效果）
   gsap.killTweensOf('*')
   console.log('✅ [LumoAssistant] GSAP 動畫已清理')
