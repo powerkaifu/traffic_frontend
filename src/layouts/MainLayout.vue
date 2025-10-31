@@ -1138,6 +1138,10 @@ onMounted(() => {
   window.mainLayoutCleanup = () => {
     cleanup()
   }
+
+  console.log('═══════════════════════════════════════════════════════════')
+  console.log('✅ [MainLayout] onMounted 完成')
+  console.log('═══════════════════════════════════════════════════════════')
 })
 
 // 🚨 監聽拉桿變化，當手動調整時更新生成配置

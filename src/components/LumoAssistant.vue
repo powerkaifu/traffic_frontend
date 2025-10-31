@@ -795,6 +795,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  console.log('🧹 [LumoAssistant] 開始清理資源...')
+
   // 🎬 移除標籤頁可見性監聽
   document.removeEventListener('visibilitychange', handleVisibilityChange)
 
@@ -804,11 +806,28 @@ onBeforeUnmount(() => {
   if (dialogTimeline) {
     dialogTimeline.kill()
   }
+
+  // 🎨 安全地銷毀 PIXI 應用
   if (state.app) {
-    state.app.destroy()
+    try {
+      // 先移除所有子元素
+      if (state.app.stage && state.app.stage.children) {
+        state.app.stage.removeChildren()
+      }
+
+      // 使用正確的銷毀參數 (removeView: false 避免 canvas 相關錯誤)
+      state.app.destroy(false, { children: true, texture: true, baseTexture: true })
+      state.app = null
+      console.log('✅ [LumoAssistant] PIXI 應用已安全銷毀')
+    } catch (error) {
+      console.warn('⚠️ [LumoAssistant] PIXI 銷毀時出現錯誤（已忽略）:', error)
+    }
   }
+
   clearTimeout(state.resizeTimer)
   window.removeEventListener('resize', onResize)
+
+  console.log('✅ [LumoAssistant] 資源清理完成')
 })
 </script>
 

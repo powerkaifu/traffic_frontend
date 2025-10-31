@@ -1164,8 +1164,13 @@ let getNorthLane3Path = () => 'M590,-600 L590,1400'
 let getNorthLane4Path = () => 'M620,-600 L620,1400'
 
 onMounted(async () => {
+  console.log('═══════════════════════════════════════════════════════════')
+  console.log('🚀 [IndexPage] onMounted 開始')
+  console.log('═══════════════════════════════════════════════════════════')
+
   // ✅ HMR 檢測：確定是否在 HMR 恢復中
-  const isHMRRecovery = typeof window !== 'undefined' && (window.lastCountdown !== undefined || window.lastPhase !== undefined)
+  const isHMRRecovery =
+    typeof window !== 'undefined' && (window.lastCountdown !== undefined || window.lastPhase !== undefined)
   if (isHMRRecovery) {
     console.log('🔄 [IndexPage] 偵測到 HMR 恢復，將強制重新初始化...')
   }
@@ -1173,10 +1178,12 @@ onMounted(async () => {
   // ✅ 確保側邊欄在任何情況下都顯示
   if (typeof window !== 'undefined') {
     window.drawerState = true
+    console.log('✅ [IndexPage] 強制設置 window.drawerState = true')
   }
 
   // 等待 DOM 完全渲染
   await nextTick()
+  console.log('✅ [IndexPage] DOM 已準備好')
 
   // 初始化路徑計算器並設定所有路徑函數
   if (crossroadContainer.value) {
@@ -1434,12 +1441,16 @@ onMounted(async () => {
     // 🌤️ 初始化天氣控制器
     console.log('🌤️ 初始化天氣系統...')
     weatherController = new WeatherController(crossroadContainer.value)
-    // 設置全域天氣控制器，讓車輛可以訪問
+    // 設置全域天氣控制器,讓車輛可以訪問
     window.weatherController = weatherController
     console.log('✅ 天氣系統已初始化')
 
     console.log('✅ 所有系統已初始化完成')
   }
+
+  console.log('═══════════════════════════════════════════════════════════')
+  console.log('✅ [IndexPage] onMounted 完成')
+  console.log('═══════════════════════════════════════════════════════════')
 })
 
 // 💡 獲取 tooltip 訊息的輔助函數 - 支援配置鍵或直接訊息
@@ -1557,6 +1568,9 @@ onUnmounted(() => {
   }
 
   console.log('🧹 IndexPage 資源完全清理完成')
+  console.log('═══════════════════════════════════════════════════════════')
+  console.log('⏹️  [IndexPage] onUnmounted 完成')
+  console.log('═══════════════════════════════════════════════════════════')
 })
 </script>
 
