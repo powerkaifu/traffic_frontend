@@ -135,19 +135,21 @@ class VDNormalizationUtils {
       // 計算最終流量（確保在範圍內）
       let finalVolume = baseline.Volume_T + variation * randomFactor
       finalVolume = Math.max(range.Volume_T[0], Math.min(range.Volume_T[1], finalVolume))
+      // 確保是整數（VD 數據不應有小數點）
+      finalVolume = Math.round(finalVolume)
 
       // 車型流量按比例分配
       const volumeRatio = finalVolume / baseline.Volume_T
-      const volume_m = Math.round(baseline.Volume_M * volumeRatio)
-      const volume_s = Math.round(baseline.Volume_S * volumeRatio)
-      const volume_l = Math.round(baseline.Volume_L * volumeRatio)
+      let volume_m = Math.round(baseline.Volume_M * volumeRatio)
+      let volume_s = Math.round(baseline.Volume_S * volumeRatio)
+      let volume_l = Math.round(baseline.Volume_L * volumeRatio)
 
-      // 確保車型流量在範圍內
-      const finalVolumeM = Math.max(range.Volume_M[0], Math.min(range.Volume_M[1], volume_m))
-      const finalVolumeS = Math.max(range.Volume_S[0], Math.min(range.Volume_S[1], volume_s))
-      const finalVolumeL = Math.max(range.Volume_L[0], Math.min(range.Volume_L[1], volume_l))
+      // 確保車型流量在範圍內 + 確保都是整數
+      const finalVolumeM = Math.round(Math.max(range.Volume_M[0], Math.min(range.Volume_M[1], volume_m)))
+      const finalVolumeS = Math.round(Math.max(range.Volume_S[0], Math.min(range.Volume_S[1], volume_s)))
+      const finalVolumeL = Math.round(Math.max(range.Volume_L[0], Math.min(range.Volume_L[1], volume_l)))
 
-      // 總流量 = 三種車型之和
+      // 總流量 = 三種車型之和（確保是整數）
       const totalFlow = finalVolumeM + finalVolumeS + finalVolumeL
 
       // 佔有率：基準值 + 隨機波動
@@ -164,12 +166,12 @@ class VDNormalizationUtils {
       const speedL = baseline.Speed + (Math.random() - 0.5) * 3
 
       const normalizedData = {
-        volume_m: finalVolumeM,
-        volume_s: finalVolumeS,
-        volume_l: finalVolumeL,
-        volume: totalFlow,
-        volume_t: totalFlow,
-        occupancy: occupancy / 100, // 轉換為小數
+        volume_m: finalVolumeM, // 確保是整數
+        volume_s: finalVolumeS, // 確保是整數
+        volume_l: finalVolumeL, // 確保是整數
+        volume: totalFlow, // 確保是整數
+        volume_t: 0, // 👈 聯結車禁止進入，永遠為 0（不是小數點）
+        occupancy: occupancy / 100, // 轉換為小數（範圍 0-1）
         speed: Math.round(speed * 10) / 10,
         speed_m: Math.round(speedM * 10) / 10,
         speed_s: Math.round(speedS * 10) / 10,

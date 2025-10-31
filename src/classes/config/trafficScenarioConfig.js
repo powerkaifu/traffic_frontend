@@ -68,10 +68,10 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 3, max: 5 }, // 👈 🎯 每個 interval 生成 1 台車（避免一次大量出現）
-      peakMultiplier: 3.2, // 👈 次常調整！強度倍數，實際間隔 = normal / peakMultiplier（越大越密集）
-      interval: { min: 500, max: 5000, normal: 1000 }, // ⏱️ 生成間隔，normal 是基準值
-      displayMultiplier: 7, // 🎭 視覺層倍數：前端動畫放大 7 倍
+      vehiclesPerInterval: { min: 2, max: 5 }, // 👈 🎯 每個 interval 生成 2-5 台車
+      peakMultiplier: 1.0, // 👈 次常調整！強度倍數，設為 1.0 表示 normal 就是實際間隔（直觀控制）
+      interval: { min: 500, max: 5000, normal: 1000 }, // ⏱️ 生成間隔，normal 是基準值（1000ms = 1秒）
+      displayMultiplier: 1.5, // 🎭 視覺層倍數：前端動畫放大 1.5 倍
 
       // =========================================
       // 🚌 【次常調整】- 車型與系統參數
@@ -121,10 +121,10 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 2 }, // 👈 🎯 【最常調整】每個 interval 隨機生成的車數（直接影響密度）
-      peakMultiplier: 2.0, // 👈 次常調整！強度倍數，實際間隔 = normal / peakMultiplier（越大越密集）
-      interval: { min: 4500, max: 17000, normal: 5800 }, // ⏱️ 生成間隔，normal 是基準值
-      displayMultiplier: 3, // 🎭 視覺層倍數：前端動畫放大 3 倍
+      vehiclesPerInterval: { min: 1, max: 1 }, // 👈 🎯 每個 interval 生成 1 台車
+      peakMultiplier: 1.0, // 👈 次常調整！強度倍數，設為 1.0 表示 normal 就是實際間隔（直觀控制）
+      interval: { min: 4500, max: 17000, normal: 2000 }, // ⏱️ 生成間隔，normal = 2000ms（每 2 秒 1 台車）
+      displayMultiplier: 1.0, // 🎭 視覺層倍數：無放大
 
       // =========================================
       // 🚌 【次常調整】- 車型與系統參數
@@ -174,10 +174,10 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 1 }, // 👈 🎯 【最常調整】每個 interval 隨機生成的車數（直接影響密度）
-      peakMultiplier: 0.95, // 👈 次常調整！強度倍數，實際間隔 = normal / peakMultiplier（越大越密集）
-      interval: { min: 17000, max: 35000, normal: 24000 }, // ⏱️ 生成間隔，normal 是基準值
-      displayMultiplier: 1.5, // 🎭 視覺層倍數：前端動畫放大 1.5 倍
+      vehiclesPerInterval: { min: 1, max: 1 }, // 👈 🎯 每個 interval 生成 1 台車
+      peakMultiplier: 1.0, // 👈 次常調整！強度倍數，設為 1.0 表示 normal 就是實際間隔（直觀控制）
+      interval: { min: 17000, max: 35000, normal: 5000 }, // ⏱️ 生成間隔，normal = 5000ms（每 5 秒 1 台車）
+      displayMultiplier: 1.0, // 🎭 視覺層倍數：無放大
 
       // =========================================
       // 🚌 【次常調整】- 車型與系統參數
