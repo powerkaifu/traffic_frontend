@@ -84,13 +84,13 @@
     </q-header>
 
     <q-drawer
-      show-if-above
       v-model="rightDrawerOpen"
       side="right"
       bordered
       class="bg-transparent"
       :width="drawerWidth"
       :breakpoint="1024"
+      elevated
     >
       <div class="drawer-content">
         <!-- 場景參數設定區域 - setWindow.png 背景 -->
@@ -678,6 +678,18 @@ function toggleRightDrawer() {
 const rightDrawerOpen = ref(true)
 const $q = useQuasar()
 
+// ✅ 從全局恢復側邊欄狀態（支持熱重載）
+if (typeof window !== 'undefined' && window.drawerState !== undefined) {
+  rightDrawerOpen.value = window.drawerState
+  console.log(`✅ [MainLayout] 從全局恢復側邊欄狀態: ${window.drawerState}`)
+}
+
+// ✅ 監視側邊欄狀態變化，保存到全局
+watch(rightDrawerOpen, (newValue) => {
+  window.drawerState = newValue
+  console.log(`📌 [MainLayout] 側邊欄狀態已保存: ${newValue}`)
+})
+
 // 🎯【新增】VD 情景選擇狀態
 const selectedVDScenario = ref(INITIAL_VD_SCENARIO)
 
@@ -1062,6 +1074,10 @@ onMounted(() => {
   // 🧪 【測試】初始化：預設設定為 INITIAL_VD_SCENARIO
   window.selectedTrafficTimePeriod = INITIAL_VD_SCENARIO
   console.log(`🚀 [MainLayout] 初始化時段配置：預設為 ${INITIAL_VD_SCENARIO}`)
+
+  // ✅ 確保側邊欄在 onMounted 時顯示
+  rightDrawerOpen.value = true
+  console.log('✅ [MainLayout] 側邊欄已強制開啟')
 
   let tries = 0
   const tryInit = async () => {
