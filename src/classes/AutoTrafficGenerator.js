@@ -94,6 +94,21 @@ export default class AutoTrafficGenerator {
     // 將情景保存到全局
     window.selectedTrafficScenario = scenario
     window.selectedTrafficTimePeriod = scenario
+
+    // 🚀 【關鍵修復】套用情景的完整配置（包括 interval）
+    const scenarioConfig = getScenarioByKey(scenario)
+    if (scenarioConfig && scenarioConfig.config) {
+      console.log(`🔧 [AutoTrafficGenerator] 套用情景配置:`, {
+        interval: scenarioConfig.config.interval,
+        vehiclesPerInterval: scenarioConfig.config.vehiclesPerInterval,
+        peakMultiplier: scenarioConfig.config.peakMultiplier,
+      })
+      
+      // 更新配置（這會觸發 updateConfig 中的動態調整邏輯）
+      this.updateConfig(scenarioConfig.config)
+    } else {
+      console.warn(`⚠️ [AutoTrafficGenerator] 找不到情景配置: ${scenario}`)
+    }
   }
 
   // 切換場景：完全覆蓋（手動模式）
