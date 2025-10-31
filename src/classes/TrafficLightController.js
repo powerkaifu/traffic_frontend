@@ -930,12 +930,12 @@ export default class TrafficLightController {
       const firstData = normalizedDataArray[0] || {}
 
       // ✅ 【版本 2.5】VD 數據已生成並應用時段特徵對齐
-      console.log('✅ 【版本 2.5 - VD 時段特徵對齊已應用】')
-      console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
-      console.log(`  - 數據源: vdPatternConfig (direct) + VD 時段映射對齊`)
-      console.log(`  - 時段: ${firstData.scenario}`)
-      console.log(`  - 映射到真實小時: Hour = ${firstData.Hour}`)
-      console.log(`  - 映射到 VD 特徵: Volume_T = ${firstData.Volume_T} 輛`)
+      // console.log('✅ 【版本 2.5 - VD 時段特徵對齊已應用】')
+      // console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
+      // console.log(`  - 數據源: vdPatternConfig (direct) + VD 時段映射對齊`)
+      // console.log(`  - 時段: ${firstData.scenario}`)
+      // console.log(`  - 映射到真實小時: Hour = ${firstData.Hour}`)
+      // console.log(`  - 映射到 VD 特徵: Volume_T = ${firstData.Volume_T} 輛`)
 
       // 【新增】打印完整的數據陣列（物件形式，可用 Copy object 複製）
       console.log('📦 【完整的數據陣列 - 右鍵 Copy object 複製】:')
@@ -945,11 +945,11 @@ export default class TrafficLightController {
       console.log('📋 【格式化的 JSON 字符串 - 便於閱讀】:')
       console.log(JSON.stringify(normalizedDataArray, null, 2))
 
-      console.log('🚦 發送 VD 數據到後端 AI 系統:')
-      console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
-      console.log(`  - 第一筆流量 (版本 2.5): Volume_T=${firstData.Volume_T} (VD 映射值)`)
-      console.log(`  - 第一筆車型: M=${firstData.Volume_M}, S=${firstData.Volume_S}, L=${firstData.Volume_L}`)
-      console.log(`  - 時段信息: ${firstData.scenario}`)
+      // console.log('🚦 發送 VD 數據到後端 AI 系統:')
+      // console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
+      // console.log(`  - 第一筆流量 (版本 2.5): Volume_T=${firstData.Volume_T} (VD 映射值)`)
+      // console.log(`  - 第一筆車型: M=${firstData.Volume_M}, S=${firstData.Volume_S}, L=${firstData.Volume_L}`)
+      // console.log(`  - 時段信息: ${firstData.scenario}`)
 
       // ✅ 【新增】打印完整的數據
       console.log('📊 【VD 數據詳情】以下是要發送給後端的 4 筆交叉路口數據 (版本 2.5):')

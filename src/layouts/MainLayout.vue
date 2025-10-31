@@ -821,16 +821,16 @@ function getTrafficData(dir) {
     }
   }
 
-  // 從快照返回正規化後的數據
+  // 從快照返回正規化後的數據（確保所有 Volume 都是整數）
   return {
-    averageSpeed: snapshotData.Speed_T || 0,
+    averageSpeed: Math.round(snapshotData.Speed_T || 0),
     occupancy: snapshotData.Occupancy || 0,
-    motorFlow: snapshotData.Volume_M || 0,
-    smallCarFlow: snapshotData.Volume_S || 0,
-    largeCarFlow: snapshotData.Volume_L || 0,
-    motorSpeed: snapshotData.Speed_M || 0,
-    smallCarSpeed: snapshotData.Speed_S || 0,
-    largeCarSpeed: snapshotData.Speed_L || 0,
+    motorFlow: Math.round(snapshotData.Volume_M || 0),
+    smallCarFlow: Math.round(snapshotData.Volume_S || 0),
+    largeCarFlow: Math.round(snapshotData.Volume_L || 0),
+    motorSpeed: Math.round(snapshotData.Speed_M || 0),
+    smallCarSpeed: Math.round(snapshotData.Speed_S || 0),
+    largeCarSpeed: Math.round(snapshotData.Speed_L || 0),
   }
 }
 
