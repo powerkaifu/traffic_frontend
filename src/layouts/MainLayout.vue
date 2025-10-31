@@ -108,6 +108,8 @@
                     size="sm"
                     class="mode-toggle-btn"
                     :label="isAutoMode ? '每日自動模式' : '情境手動模式'"
+                    @mouseenter="showLumoTooltip('modeToggle')"
+                    @mouseleave="hideLumoTooltip"
                   >
                   </q-btn>
                 </div>

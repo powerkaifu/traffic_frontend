@@ -767,16 +767,23 @@ export default class AutoTrafficGenerator {
       : []
 
     // 檢查極短時間內的車輛（500ms內）
+    // 🚗 動態調整：根據 vehiclesPerInterval 的最大值調整限制
+    const maxVehiclesPerInterval = this.config.vehiclesPerInterval?.max || 1
     const veryRecentVehicles = recentVehicles.filter((v) => now - v.timestamp < 500)
-    if (veryRecentVehicles.length >= 3) {
-      console.log('🚨 極短時間內車輛生成過多，短暫延後')
+    const veryRecentLimit = Math.max(5, maxVehiclesPerInterval * 1.5) // 允許最大值的1.5倍
+
+    if (veryRecentVehicles.length >= veryRecentLimit) {
+      console.log(`🚨 極短時間內車輛生成過多 (${veryRecentVehicles.length}/${veryRecentLimit})，短暫延後`)
       setTimeout(() => this._scheduleNext(), Math.max(200, this.config.minInterval || 200)) // 使用配置的最小間隔
       return
     }
 
     // 如果2秒內生成的車輛過多，延後生成
-    if (recentVehicles.length >= 8) {
-      console.log('🚦 短時間內車輛生成過多，延後生成')
+    // 🚗 動態調整：允許更多車輛
+    const recentLimit = Math.max(15, maxVehiclesPerInterval * 2)
+
+    if (recentVehicles.length >= recentLimit) {
+      console.log(`🚦 短時間內車輛生成過多 (${recentVehicles.length}/${recentLimit})，延後生成`)
       setTimeout(() => this._scheduleNext(), Math.max(300, this.config.minInterval || 300)) // 使用配置的最小間隔
       return
     }
