@@ -2,9 +2,23 @@
   <q-layout view="hHh lpR fFf">
     <q-header elevated class="text-white bg-transparent">
       <q-toolbar class="header-toolbar">
-        <q-toolbar-title style="cursor: pointer" @mouseenter="showLumoTooltip('logo')" @mouseleave="hideLumoTooltip">
-          <img src="/images/logo.png" width="200" alt="AI 智慧交通控制系統" />
-          <span class="ai-gradient animate"> 智慧綠燈控，AI 算你行！</span>
+        <q-toolbar-title>
+          <img
+            src="/images/logo.png"
+            width="200"
+            alt="AI 智慧交通控制系統"
+            style="pointer-events: auto; cursor: pointer"
+            @mouseenter.stop="showLumoTooltip('logo')"
+            @mouseleave.stop="hideLumoTooltip"
+          />
+          <span
+            class="ai-gradient animate"
+            style="pointer-events: auto; cursor: pointer"
+            @mouseenter.stop="showLumoTooltip('logo')"
+            @mouseleave.stop="hideLumoTooltip"
+          >
+            智慧綠燈控，AI 算你行！
+          </span>
         </q-toolbar-title>
 
         <!-- 中間切換按鈕 -->
@@ -1682,6 +1696,16 @@ onUnmounted(() => {
   position: relative;
   min-height: 50px;
 }
+
+/* 🎯 限制 q-toolbar-title 的寬度，防止延伸到整個 header */
+.header-toolbar :deep(.q-toolbar-title) {
+  width: auto;
+  flex-grow: 0;
+  flex-shrink: 0;
+  max-width: 400px;
+  padding-right: 20px;
+}
+
 .q-toolbar-title img {
   max-width: 100%;
   height: auto;
