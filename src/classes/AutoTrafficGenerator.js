@@ -820,7 +820,6 @@ export default class AutoTrafficGenerator {
 
     // 如果沒有可用方向，延後重試
     if (availableDirs.length === 0) {
-      console.log(`🚨 所有車道都在冷卻中，延後 ${this.minLaneInterval / 2}ms 重試`)
       setTimeout(() => this._scheduleNext(), this.minLaneInterval / 2)
       return
     }
