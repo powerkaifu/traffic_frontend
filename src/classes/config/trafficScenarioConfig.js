@@ -68,7 +68,7 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 5, max: 10 }, // 👈 🎯 【最常調整】每個 interval 隨機生成的車數（直接影響密度）
+      vehiclesPerInterval: { min: 1, max: 5 }, // 👈 🎯 【最常調整】每個 interval 隨機生成的車數（直接影響密度）
       peakMultiplier: 3.2, // 👈 次常調整！強度倍數，實際間隔 = normal / peakMultiplier（越大越密集）
       interval: { min: 500, max: 5000, normal: 1000 }, // ⏱️ 生成間隔，normal 是基準值
       displayMultiplier: 7, // 🎭 視覺層倍數：前端動畫放大 7 倍

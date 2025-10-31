@@ -332,6 +332,7 @@ export default class AutoTrafficGenerator {
     this.config.peakMultiplier = scenario.config.peakMultiplier
     this.config.vehicleTypes = scenario.config.vehicleTypes
     this.config.maxLiveVehicles = scenario.config.maxLiveVehicles
+    this.config.vehiclesPerInterval = scenario.config.vehiclesPerInterval // ✅ 套用情景的車量參數
     this.maxLiveVehicles = scenario.config.maxLiveVehicles
 
     // 🎯 根據情景的 displayMultiplier 調整車道冷卻間隔
@@ -339,6 +340,10 @@ export default class AutoTrafficGenerator {
     if (scenario.config.displayMultiplier) {
       this.minLaneInterval = Math.max(200, Math.round(2000 / scenario.config.displayMultiplier))
     }
+
+    console.log(
+      `✅ [情景模式] 已應用 "${scenario.name}" 配置：interval=${normalInterval}ms, vehiclesPerInterval=${JSON.stringify(scenario.config.vehiclesPerInterval)}, peakMultiplier=${scenario.config.peakMultiplier}`,
+    )
 
     // 🎯 生成該情景對應的 VD 數據
     const vdData = this._generateScenarioVDData(scenarioKey)
