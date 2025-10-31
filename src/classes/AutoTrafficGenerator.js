@@ -103,7 +103,7 @@ export default class AutoTrafficGenerator {
         vehiclesPerInterval: scenarioConfig.config.vehiclesPerInterval,
         peakMultiplier: scenarioConfig.config.peakMultiplier,
       })
-      
+
       // 更新配置（這會觸發 updateConfig 中的動態調整邏輯）
       this.updateConfig(scenarioConfig.config)
     } else {

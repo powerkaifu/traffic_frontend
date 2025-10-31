@@ -1092,6 +1092,10 @@ onMounted(() => {
     if (window.trafficController && window.autoTrafficGenerator) {
       console.log('✅ [MainLayout] 找到已初始化的 autoTrafficGenerator')
 
+      // 🚀 【關鍵修復】初始化時套用預設情景的完整配置
+      console.log(`🎯 [MainLayout] 套用預設情景配置: ${INITIAL_VD_SCENARIO}`)
+      selectVDScenario(INITIAL_VD_SCENARIO)
+
       // 初始化完成後，設定自動模式的回調
       window.autoTrafficGenerator.setOnTimeUpdate((status) => {
         if (status) {
