@@ -344,8 +344,8 @@
     <!-- 💡 十字路口下方 - 可愛的互動區域 -->
     <div
       class="crossroad-below-area"
-      @mouseenter="showLumoTooltip('crossroadBelow')"
-      @mouseleave="hideLumoTooltip"
+      @mouseenter="handleBelowAreaMouseEnter"
+      @mouseleave="handleBelowAreaMouseLeave"
     ></div>
 
     <!-- Lumo 小機器人助手 -->
@@ -654,6 +654,40 @@ const pathTooltip = ref({
   x: 0,
   y: 0,
 })
+
+// 🎯 下方區域互動防抖機制 - 防止 Tooltip 反覆彈進彈出
+let belowAreaDebounceTimer = null
+let isBelowAreaTooltipVisible = false
+
+const handleBelowAreaMouseEnter = () => {
+  // 清除之前的防抖計時器
+  if (belowAreaDebounceTimer) {
+    clearTimeout(belowAreaDebounceTimer)
+  }
+
+  // 如果 tooltip 已經顯示，不做任何操作
+  if (isBelowAreaTooltipVisible) return
+
+  // 立即顯示 tooltip
+  showLumoTooltip('crossroadBelow')
+  isBelowAreaTooltipVisible = true
+  console.log('✅ 下方區域 Tooltip 已顯示')
+}
+
+const handleBelowAreaMouseLeave = () => {
+  // 清除之前的防抖計時器
+  if (belowAreaDebounceTimer) {
+    clearTimeout(belowAreaDebounceTimer)
+  }
+
+  // 延遲 300ms 再隱藏，防止快速切換時誤隱藏
+  belowAreaDebounceTimer = setTimeout(() => {
+    hideLumoTooltip()
+    isBelowAreaTooltipVisible = false
+    console.log('✅ 下方區域 Tooltip 已隱藏')
+  }, 300)
+}
+
 // 路徑計算器實例
 let lanePathCalculator = null
 
@@ -983,19 +1017,28 @@ const showPathTooltip = (event, text) => {
   if (!isPathEditMode.value) return
 
   const rect = event.target.closest('svg').getBoundingClientRect()
-  pathTooltip.value = {
-    show: true,
-    text: text,
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top,
+
+  // 🎯 只在 tooltip 還未顯示時才顯示，避免重複觸發
+  if (!pathTooltip.value.show) {
+    pathTooltip.value = {
+      show: true,
+      text: text,
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    }
+    console.log(`✅ Tooltip 已顯示: ${text}`)
   }
 }
 
 const hidePathTooltip = () => {
-  pathTooltip.value.show = false
+  if (pathTooltip.value.show) {
+    pathTooltip.value.show = false
+    console.log('✅ Tooltip 已隱藏')
+  }
 }
 
 const updateTooltipPosition = (event) => {
+  // 🎯 只在 tooltip 已顯示時才更新位置
   if (!pathTooltip.value.show) return
 
   const rect = event.target.closest('svg').getBoundingClientRect()
@@ -1998,13 +2041,15 @@ onUnmounted(() => {
   position: absolute;
   /* 位置在十字路口 (450x450) 下方，寬度相同 */
   width: 100%;
-  height: 200px;
+  height: 50px;
   bottom: 0%;
   left: 50%;
   transform: translateX(-50%);
-
-  /* 互動效果 */
+  /* background-color: rgba(0, 0, 0, 0.5); */
+  /* 🎯 互動效果 - 確保滑鼠事件正確傳遞 */
   cursor: auto;
   transition: all 0.3s ease;
+  pointer-events: auto; /* 確保可以接收滑鼠事件 */
+  z-index: 5; /* 設置適當的層級 */
 }
 </style>

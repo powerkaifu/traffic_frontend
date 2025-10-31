@@ -880,7 +880,7 @@ onBeforeUnmount(() => {
     inset 0 0 20px rgba(0, 200, 255, 0.1);
   backdrop-filter: blur(2px);
   z-index: 10;
-  pointer-events: auto;
+  pointer-events: none; /* 🎯 改為 none，讓滑鼠事件穿透訊息框 */
 }
 
 /* 💬 對話框三角形指針（指向 Lumo） */
@@ -929,6 +929,7 @@ onBeforeUnmount(() => {
   border-radius: 4px;
   transition: 0.2s ease;
   z-index: 11;
+  pointer-events: auto; /* 🎯 確保按鈕可以點擊 */
 }
 
 .dialog-close-btn:hover {
@@ -1003,6 +1004,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition: all 0.3s ease;
   border: 1px solid rgba(0, 200, 255, 0.5);
+  pointer-events: auto; /* 🎯 確保指示點可以點擊 */
 }
 
 /* 💬 活躍的指示點 */
