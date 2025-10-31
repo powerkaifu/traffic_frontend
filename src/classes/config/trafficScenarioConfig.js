@@ -69,8 +69,8 @@ export const timeScenarios = [
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
       vehiclesPerInterval: { min: 1, max: 5 }, // 👈 🎯 每個 interval 生成 1-5 台車（平均 3 輛）
-      interval: { min: 500, max: 5000, normal: 1000 }, // ⏱️ 生成間隔，恢復原本設定
-      peakMultiplier: 1.5, // 👈 尖峰倍數
+      interval: { min: 500, max: 5000, normal: 5000 }, // ⏱️ 生成間隔，恢復原本設定
+      peakMultiplier: 1, // 👈 尖峰倍數
       displayMultiplier: 1.5, // 🎭 視覺層倍數：前端動畫放大 1.5 倍
 
       // =========================================
@@ -81,7 +81,7 @@ export const timeScenarios = [
         { type: 'small', weight: 50 }, // 小客車 50%
         { type: 'large', weight: 10 }, // 大客車 10%
       ],
-      maxLiveVehicles: 55, // 允許較多車輛同時在場
+      maxLiveVehicles: 100, // 允許較多車輛同時在場
       densityThresholds: { light: 15, moderate: 25, heavy: 35, congested: 45 },
 
       // =========================================
@@ -134,7 +134,7 @@ export const timeScenarios = [
         { type: 'small', weight: 65 }, // 小客車 65%
         { type: 'large', weight: 5 }, // 大客車 5%
       ],
-      maxLiveVehicles: 35, // 中等車輛數
+      maxLiveVehicles: 100, // 中等車輛數
       densityThresholds: { light: 10, moderate: 18, heavy: 28, congested: 40 },
 
       // =========================================
@@ -187,7 +187,7 @@ export const timeScenarios = [
         { type: 'small', weight: 40 }, // 小客車 40%
         { type: 'large', weight: 0 }, // 大客車 0%
       ],
-      maxLiveVehicles: 12, // 少量車輛
+      maxLiveVehicles: 100, // 少量車輛
       densityThresholds: { light: 5, moderate: 10, heavy: 15, congested: 25 },
 
       // =========================================
