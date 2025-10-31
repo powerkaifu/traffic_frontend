@@ -68,18 +68,18 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 2 }, // 👈 🎯 每個 interval 生成 1-2 台車（平均 1.5 輛）
-      interval: { min: 35000, max: 45000, normal: 40000 }, // ⏱️ 生成間隔
-      peakMultiplier: 1.0, // 👈 強度倍數，設為 1.0 表示 normal 就是實際間隔
-      displayMultiplier: 5.0, // 🎭 視覺層倍數：前端動畫放大 5 倍（顯示 55 輛）
+      vehiclesPerInterval: { min: 1, max: 5 }, // 👈 🎯 每個 interval 生成 1-5 台車（平均 3 輛）
+      interval: { min: 500, max: 5000, normal: 1000 }, // ⏱️ 生成間隔，恢復原本設定
+      peakMultiplier: 1.5, // 👈 尖峰倍數
+      displayMultiplier: 1.5, // 🎭 視覺層倍數：前端動畫放大 1.5 倍
 
       // =========================================
       // 🚌 【次常調整】- 車型與系統參數
       // =========================================
       vehicleTypes: [
-        { type: 'motor', weight: 36 }, // 機車 36%（符合 targetFeatures 4/11 = 36%）
-        { type: 'small', weight: 55 }, // 小客車 55%（符合 targetFeatures 6/11 = 55%）
-        { type: 'large', weight: 9 }, // 大客車 9%（符合 targetFeatures 1/11 = 9%）
+        { type: 'motor', weight: 40 }, // 機車 40%
+        { type: 'small', weight: 50 }, // 小客車 50%
+        { type: 'large', weight: 10 }, // 大客車 10%
       ],
       maxLiveVehicles: 55, // 允許較多車輛同時在場
       densityThresholds: { light: 15, moderate: 25, heavy: 35, congested: 45 },
@@ -89,8 +89,8 @@ export const timeScenarios = [
       // =========================================
       description: '尖峰時段 - 高流量中等佔有率中速度 (早峰/晚峰)',
       // 💡 計算參考：
-      // 目標：11輛/5分鐘 → 300秒/11輛 ≈ 27秒/輛
-      // 實際：40000ms / 1.0 × 1.5輛 = 11.25輛/5分鐘 ✅ 符合目標
+      // 目標：11輛/5分鐘
+      // 實際：1000ms × 1.5倍數 × 3輛 = 約 600輛/5分鐘（會被品質檢查修正到 11 輛）
     },
   },
   {
@@ -121,18 +121,18 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 1 }, // 👈 🎯 每個 interval 生成 1 台車
-      interval: { min: 70000, max: 80000, normal: 75000 }, // ⏱️ 生成間隔，normal = 75秒
-      peakMultiplier: 1.0, // 👈 強度倍數，設為 1.0 表示 normal 就是實際間隔
-      displayMultiplier: 3.0, // 🎭 視覺層倍數：前端動畫放大 3 倍（顯示 12 輛）
+      vehiclesPerInterval: { min: 1, max: 3 }, // 👈 🎯 每個 interval 生成 1-3 台車
+      interval: { min: 1000, max: 10000, normal: 2000 }, // ⏱️ 生成間隔，恢復原本設定
+      peakMultiplier: 1.0, // 👈 離峰不加倍
+      displayMultiplier: 1.0, // 🎭 視覺層倍數：不放大
 
       // =========================================
       // 🚌 【次常調整】- 車型與系統參數
       // =========================================
       vehicleTypes: [
-        { type: 'motor', weight: 25 }, // 機車 25%（符合 targetFeatures 1/4 = 25%）
-        { type: 'small', weight: 75 }, // 小客車 75%（符合 targetFeatures 3/4 = 75%）
-        { type: 'large', weight: 0 }, // 大客車 0%（符合 targetFeatures）
+        { type: 'motor', weight: 30 }, // 機車 30%
+        { type: 'small', weight: 65 }, // 小客車 65%
+        { type: 'large', weight: 5 }, // 大客車 5%
       ],
       maxLiveVehicles: 35, // 中等車輛數
       densityThresholds: { light: 10, moderate: 18, heavy: 28, congested: 40 },
@@ -142,8 +142,8 @@ export const timeScenarios = [
       // =========================================
       description: '離峰時段 - 中等流量低佔有率較高速度 (中午/晚間)',
       // 💡 計算參考：
-      // 目標：4輛/5分鐘 → 300秒/4輛 = 75秒/輛
-      // 實際：75000ms / 1.0 × 1輛 = 4輛/5分鐘 ✅ 完美符合目標
+      // 目標：4輛/5分鐘
+      // 實際：2000ms × 1.0倍數 × 2輛 = 約 300輛/5分鐘（會被品質檢查修正到 4 輛）
     },
   },
   {
@@ -174,18 +174,18 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 1 }, // 👈 🎯 每個 interval 生成 1 台車
-      interval: { min: 280000, max: 320000, normal: 300000 }, // ⏱️ 生成間隔，normal = 300秒 = 5分鐘
-      peakMultiplier: 1.0, // 👈 強度倍數，設為 1.0 表示 normal 就是實際間隔
-      displayMultiplier: 2.0, // 🎭 視覺層倍數：前端動畫放大 2 倍（顯示 2 輛）
+      vehiclesPerInterval: { min: 1, max: 2 }, // 👈 🎯 每個 interval 生成 1-2 台車
+      interval: { min: 3000, max: 10000, normal: 5000 }, // ⏱️ 生成間隔，恢復原本設定
+      peakMultiplier: 1.0, // 👈 凌晨不加倍
+      displayMultiplier: 1.0, // 🎭 視覺層倍數：不放大
 
       // =========================================
       // 🚌 【次常調整】- 車型與系統參數
       // =========================================
       vehicleTypes: [
-        { type: 'motor', weight: 50 }, // 機車 50%（符合 targetFeatures 0.5/1 = 50%）
-        { type: 'small', weight: 50 }, // 小客車 50%（符合 targetFeatures 0.5/1 = 50%）
-        { type: 'large', weight: 0 }, // 大客車 0%（符合 targetFeatures）
+        { type: 'motor', weight: 60 }, // 機車 60%（凌晨以機車為主）
+        { type: 'small', weight: 40 }, // 小客車 40%
+        { type: 'large', weight: 0 }, // 大客車 0%
       ],
       maxLiveVehicles: 12, // 少量車輛
       densityThresholds: { light: 5, moderate: 10, heavy: 15, congested: 25 },
@@ -195,8 +195,8 @@ export const timeScenarios = [
       // =========================================
       description: '凌晨時段 - 極低流量極低佔有率高速度 (00:00-07:00)',
       // 💡 計算參考：
-      // 目標：1輛/5分鐘 → 300秒/1輛 = 300秒/輛
-      // 實際：300000ms / 1.0 × 1輛 = 1輛/5分鐘 ✅ 完美符合目標
+      // 目標：1輛/5分鐘
+      // 實際：5000ms × 1.0倍數 × 1.5輛 = 約 90輛/5分鐘（會被品質檢查修正到 1 輛）
     },
   },
 ]
