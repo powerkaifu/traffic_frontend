@@ -1007,7 +1007,14 @@ export default class TrafficLightController {
       // 修正後的數據已直接寫入 finalDataToSend，可以安全地發送
       console.log(`\n✅ 【步驟 2】數據品質確認 - 準備發送修正後的數據到後端...`)
 
-      // 發送 API 開始事件
+      // 🎯 【修正】先保存數據快照,再發送事件和 API
+      window.lastNormalizedDataArray = normalizedDataArray // 正規化後的數據（品質檢查後）
+      window.lastApiVDDataArray = finalDataToSend // 原始 API 數據（實際發送）
+      console.log('💾 [TrafficLightController] 已保存數據快照:')
+      console.log('  - window.lastNormalizedDataArray: 正規化數據（品質檢查後）')
+      console.log('  - window.lastApiVDDataArray: 原始 API 數據（實際發送）')
+
+      // 發送 API 開始事件 (數據已保存,前端可以讀取)
       window.dispatchEvent(new CustomEvent('trafficApiSending', { detail: { timestamp: new Date().toISOString() } }))
 
       const response = await fetch(this.apiEndpoint, {
@@ -1020,10 +1027,6 @@ export default class TrafficLightController {
       console.log('✅ 【VD 數據已成功發送到後端】')
       console.log(`✅ 已發送 ${normalizedDataArray.length} 筆交叉路口數據`)
       console.log(`✅ 時段: ${firstData.scenario}`)
-
-      // 🎯【新增】保存快照供 MainLayout.vue 使用
-      window.lastNormalizedDataArray = normalizedDataArray
-      console.log('💾 [TrafficLightController] 已保存正規化數據快照到 window.lastNormalizedDataArray')
 
       if (!response.ok) {
         // 嘗試獲取錯誤信息
