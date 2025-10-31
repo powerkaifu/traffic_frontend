@@ -823,7 +823,7 @@ function getTrafficData(dir) {
 
   // 從快照返回正規化後的數據（確保所有 Volume 都是整數）
   return {
-    averageSpeed: Math.round(snapshotData.Speed_T || 0),
+    averageSpeed: Math.round(snapshotData.Speed || 0), // 🎯 修正：使用 Speed 而非 Speed_T
     occupancy: snapshotData.Occupancy || 0,
     motorFlow: Math.round(snapshotData.Volume_M || 0),
     smallCarFlow: Math.round(snapshotData.Volume_S || 0),

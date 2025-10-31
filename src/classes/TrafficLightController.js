@@ -879,6 +879,18 @@ export default class TrafficLightController {
         // ✅ 【移除正規化】直接使用生成的 VD Pattern 數據，無需轉換
         // 理由：vdPatternConfig 已經基於真實 VD 數據統計，符合 API 期望的範圍
 
+        // 🎯 計算加權平均速度（基於各車型的數量和速度）
+        const totalVolume = mappedVolumeM + mappedVolumeS + mappedVolumeL
+        const weightedSpeed =
+          totalVolume > 0
+            ? Math.round(
+                ((singleData.Speed_M || 0) * mappedVolumeM +
+                  (singleData.Speed_S || 0) * mappedVolumeS +
+                  (singleData.Speed_L || 0) * mappedVolumeL) /
+                  totalVolume,
+              )
+            : 0
+
         // ✅ 返回交叉路口數據（18個欄位給後端）
         // 【版本 2.5】：使用 VD 映射的 hour 和 vehicle_count，而非原始值
         const apiData = {
@@ -890,7 +902,7 @@ export default class TrafficLightController {
           IsPeakHour: singleData.IsPeakHour,
           LaneID: singleData.LaneID,
           LaneType: singleData.LaneType,
-          Speed: Math.round(singleData.Speed_T || 0),
+          Speed: weightedSpeed, // 🎯 使用加權平均速度
           Occupancy: Math.round((singleData.Occupancy || 0) * 10) / 10,
           Volume_M: mappedVolumeM, // 【版本 2.5】：使用時段對應的機車數
           Speed_M: singleData.Speed_M || 0,
