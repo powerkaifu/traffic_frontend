@@ -13,6 +13,7 @@
 export const defaultConfig = {
   interval: { min: 3000, max: 8000, normal: 5000 },
   peakMultiplier: 1.5,
+  vehiclesPerInterval: { min: 1, max: 1 }, // 🚗 支持範圍：{ min, max }，固定時用 { min: x, max: x }
   maxLiveVehicles: 100,
   minInterval: 200,
   minLaneInterval: 800,
@@ -72,6 +73,7 @@ export const timeScenarios = [
         { type: 'small', weight: 58 }, // 小客車 58%
         { type: 'large', weight: 4 }, // 大客車 4%
       ],
+      vehiclesPerInterval: { min: 1, max: 3 }, // 🚗 每個 interval 隨機生成 1~3 輛車
       peakMultiplier: 3.2, // 高強度，實際間隔 = 1000/3.2 = 313ms
       maxLiveVehicles: 55, // 允許較多車輛同時在場
       densityThresholds: { light: 15, moderate: 25, heavy: 35, congested: 45 },
@@ -113,6 +115,7 @@ export const timeScenarios = [
         { type: 'small', weight: 65 }, // 小客車 65%（離峰小客車佔多數）
         { type: 'large', weight: 5 }, // 大客車 5%
       ],
+      vehiclesPerInterval: { min: 1, max: 2 }, // 🚗 每個 interval 隨機生成 1~2 輛車
       peakMultiplier: 2.0, // 中等強度，實際間隔 = 5800/2.0 = 2900ms
       maxLiveVehicles: 35, // 中等車輛數
       densityThresholds: { light: 10, moderate: 18, heavy: 28, congested: 40 },
@@ -156,6 +159,7 @@ export const timeScenarios = [
         { type: 'large', weight: 5 }, // 大客車 5%（幾乎沒有）
       ],
 
+      vehiclesPerInterval: { min: 1, max: 1 }, // 🚗 固定生成 1 輛車（凌晨低流量）
       peakMultiplier: 0.95, // 低強度，實際間隔 = 24000/0.95 = 25263ms
       maxLiveVehicles: 12, // 少量車輛
       densityThresholds: { light: 5, moderate: 10, heavy: 15, congested: 25 },

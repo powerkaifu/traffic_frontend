@@ -722,7 +722,19 @@ export default class AutoTrafficGenerator {
     delay = Math.max(delay, minGenerationGap)
 
     this.timer = setTimeout(() => {
-      this._generateVehicle()
+      // 🚗 新增：根據配置生成多輛車（支持固定值或隨機範圍）
+      let vehiclesToGenerate = this.config.vehiclesPerInterval || 1
+
+      // 如果是對象格式 { min, max }，則取隨機值
+      if (typeof vehiclesToGenerate === 'object' && vehiclesToGenerate.min !== undefined) {
+        const min = vehiclesToGenerate.min || 1
+        const max = vehiclesToGenerate.max || 1
+        vehiclesToGenerate = Math.floor(Math.random() * (max - min + 1)) + min
+      }
+
+      for (let i = 0; i < vehiclesToGenerate; i++) {
+        this._generateVehicle()
+      }
       this._scheduleNext()
     }, delay)
   }
