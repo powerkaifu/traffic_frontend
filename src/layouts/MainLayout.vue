@@ -2,8 +2,9 @@
   <q-layout view="hHh lpR fFf">
     <q-header elevated class="text-white bg-transparent">
       <q-toolbar class="header-toolbar">
-        <q-toolbar-title>
-          <img src="/images/logo.png" width="200" />
+        <q-toolbar-title style="cursor: pointer" @mouseenter="showLumoTooltip('logo')" @mouseleave="hideLumoTooltip">
+          <img src="/images/logo.png" width="200" alt="AI 智慧交通控制系統" />
+          <span class="ai-gradient animate"> 智慧綠燈控，AI 算你行！</span>
         </q-toolbar-title>
 
         <!-- 中間切換按鈕 -->
@@ -13,9 +14,7 @@
             alt="場景模擬"
             class="nav-button"
             @click="navigateToSimulation"
-            @mouseenter="
-              showLumoTooltip('🚗 場景模擬 - 即時生成車流數據，模擬真實交通環境，幫助您理解交通流量的動態變化！')
-            "
+            @mouseenter="showLumoTooltip('simulationBtn')"
             @mouseleave="hideLumoTooltip"
           />
           <img
@@ -27,9 +26,7 @@
             alt="視覺化數據"
             class="nav-button"
             @click="navigateToVisualization"
-            @mouseenter="
-              showLumoTooltip('📊 視覺化數據 - 將複雜的交通數據轉化為直觀的圖表和分析，讓數據洞察一目了然！')
-            "
+            @mouseenter="showLumoTooltip('visualizationBtn')"
             @mouseleave="hideLumoTooltip"
           />
         </div>
@@ -43,13 +40,7 @@
           @click="toggleTooltip"
           class="tooltip-btn-single"
           :title="isTooltipEnabled ? '關閉 Lumo 提示' : '開啟 Lumo 提示'"
-          @mouseenter="
-            showLumoTooltip(
-              isTooltipEnabled
-                ? '💡 關閉 Lumo 提示 - 停止顯示 hover 時的功能說明文字'
-                : '💡 開啟 Lumo 提示 - 顯示 hover 時的功能說明文字',
-            )
-          "
+          @mouseenter="showLumoTooltip('tooltipToggle')"
           @mouseleave="hideLumoTooltip"
         />
 
@@ -62,9 +53,7 @@
           @click="navigateToAdmin"
           class="admin-btn"
           title="進入後台管理"
-          @mouseenter="
-            showLumoTooltip('⚙️ 後台管理 - 進入系統配置中心，管理車流數據、調整參數設置，掌控整個交通系統！')
-          "
+          @mouseenter="showLumoTooltip('adminBtn')"
           @mouseleave="hideLumoTooltip"
         />
 
@@ -74,7 +63,7 @@
           round
           icon="menu"
           @click="toggleRightDrawer"
-          @mouseenter="showLumoTooltip('☰ 打開側邊欄 - 調整車流情景、配置模擬參數、掌握系統所有設置！')"
+          @mouseenter="showLumoTooltip('menuBtn')"
           @mouseleave="hideLumoTooltip"
         />
       </q-toolbar>
@@ -123,7 +112,7 @@
                   :class="['vd-scenario-btn', { active: selectedVDScenario === 'peak_hours' }]"
                   :disabled="isAutoMode"
                   title="尖峰時段 (07-09, 17-19)"
-                  @mouseenter="showLumoTooltip('🚀 尖峰時段 - 早上7-9點、晚上5-7點的車流高峰，體驗最繁忙的交通狀況！')"
+                  @mouseenter="showLumoTooltip('peakHours')"
                   @mouseleave="hideLumoTooltip"
                 >
                   <div class="vd-scenario-icon">🚀</div>
@@ -134,7 +123,7 @@
                   :class="['vd-scenario-btn', { active: selectedVDScenario === 'off_peak' }]"
                   :disabled="isAutoMode"
                   title="離峰時段 (10-16, 20-23)"
-                  @mouseenter="showLumoTooltip('🌞 離峰時段 - 白天10-16點、晚上20-23點，交通流暢舒適的時段！')"
+                  @mouseenter="showLumoTooltip('offPeak')"
                   @mouseleave="hideLumoTooltip"
                 >
                   <div class="vd-scenario-icon">🌞</div>
@@ -145,7 +134,7 @@
                   :class="['vd-scenario-btn', { active: selectedVDScenario === 'late_night' }]"
                   :disabled="isAutoMode"
                   title="凌晨時段 (00-06)"
-                  @mouseenter="showLumoTooltip('🌙 凌晨時段 - 午夜00-06點的低流量時段，很少看到車流擁堵的情況！')"
+                  @mouseenter="showLumoTooltip('lateNight')"
                   @mouseleave="hideLumoTooltip"
                 >
                   <div class="vd-scenario-icon">🌙</div>
@@ -176,11 +165,7 @@
               <div class="control-stats-row">
                 <div
                   class="frequency-control"
-                  @mouseenter="
-                    showLumoTooltip(
-                      '⏱️ 生成間隔 - 調整車流數據的生成頻率，控制數據更新速度。間隔越短，數據更新越頻繁，越能感受到實時的交通變化！',
-                    )
-                  "
+                  @mouseenter="showLumoTooltip('frequencyControl')"
                   @mouseleave="hideLumoTooltip"
                 >
                   <span class="freq-label">生成間隔</span>
@@ -209,15 +194,7 @@
               <img src="/images/button/setDataBtnOn.png" alt="特徵模擬數據" class="control-button" />
             </div>
           </div>
-          <div
-            class="data-section-content"
-            @mouseenter="
-              showLumoTooltip(
-                '📊 特徵模擬數據 - 展示即時的交通流量特徵數據，包含平均車速、占用率和各類型車流量，幫助您全面了解路口交通狀況！',
-              )
-            "
-            @mouseleave="hideLumoTooltip"
-          >
+          <div class="data-section-content" @mouseenter="showLumoTooltip('dataSection')" @mouseleave="hideLumoTooltip">
             <div class="traffic-data-grid">
               <!-- Data cells... -->
               <div class="traffic-zone east-zone">
@@ -626,9 +603,35 @@ function navigateToAdmin() {
  * Lumo 功能介紹系統
  * 在滑鼠移過按鈕/介面時，觸發 Lumo 顯示功能說明對話框
  */
-function showLumoTooltip(message) {
+
+// 💡 獲取 tooltip 訊息的輔助函數 - 支援配置鍵或直接訊息
+function getTooltipMessage(messageOrKey) {
+  // 如果是字符串且不含空格和特殊字符 (像是一個鍵)，嘗試從配置中獲取
+  if (typeof messageOrKey === 'string' && !messageOrKey.includes('：') && window.lumoConfig?.tooltips) {
+    const configValue = window.lumoConfig.tooltips[messageOrKey]
+    if (configValue) {
+      console.log(`💬 [Tooltip] 使用配置: ${messageOrKey} => ${configValue.substring(0, 30)}...`)
+      return configValue
+    }
+  }
+
+  // 否則直接返回訊息
+  console.log(`💬 [Tooltip] 使用直接訊息: ${String(messageOrKey).substring(0, 30)}...`)
+  return messageOrKey
+}
+
+function showLumoTooltip(messageOrKey) {
+  const message = getTooltipMessage(messageOrKey)
+
+  if (!message) {
+    console.warn('⚠️ [Tooltip] 訊息為空，跳過顯示')
+    return
+  }
+
   if (window.lumoTooltipManager) {
     window.lumoTooltipManager.show(message)
+  } else {
+    console.warn('⚠️ [Tooltip] lumoTooltipManager 未初始化')
   }
 }
 
@@ -2007,6 +2010,40 @@ onUnmounted(() => {
   .north-zone .zone-title {
     top: -35px;
     font-size: 18px;
+  }
+}
+
+.ai-gradient {
+  font-size: 16px;
+  vertical-align: -5px;
+  display: inline-block;
+  margin-left: 5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 2px 3px;
+  margin-left: 10px;
+
+  /* 💡 三色漸層：深藍 → 淺藍 → 綠 */
+  background: linear-gradient(90deg, #0066ff, #33ccff, #00ff99, #0066ff);
+  background-size: 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ✨ 流動動畫 */
+.animate {
+  animation: gradientFlow 4s linear infinite;
+}
+
+@keyframes gradientFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
   }
 }
 </style>

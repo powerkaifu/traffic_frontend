@@ -344,7 +344,7 @@
     <!-- 💡 十字路口下方 - 可愛的互動區域 -->
     <div
       class="crossroad-below-area"
-      @mouseenter="showLumoTooltip('🤔 這邊有什麼東西嗎？...似乎什麼都沒有呢，但感覺可能會發生什麼有趣的事情哦！')"
+      @mouseenter="showLumoTooltip('crossroadBelow')"
       @mouseleave="hideLumoTooltip"
     ></div>
 
@@ -1373,8 +1373,31 @@ onMounted(async () => {
   }
 })
 
+// 💡 獲取 tooltip 訊息的輔助函數 - 支援配置鍵或直接訊息
+function getTooltipMessage(messageOrKey) {
+  // 如果是字符串且不含空格和特殊字符 (像是一個鍵)，嘗試從配置中獲取
+  if (typeof messageOrKey === 'string' && !messageOrKey.includes('：') && window.lumoConfig?.tooltips) {
+    const configValue = window.lumoConfig.tooltips[messageOrKey]
+    if (configValue) {
+      console.log(`💬 [Tooltip] 使用配置: ${messageOrKey} => ${configValue.substring(0, 30)}...`)
+      return configValue
+    }
+  }
+
+  // 否則直接返回訊息
+  console.log(`💬 [Tooltip] 使用直接訊息: ${String(messageOrKey).substring(0, 30)}...`)
+  return messageOrKey
+}
+
 // 💡 顯示 Lumo Tooltip 的函數
-function showLumoTooltip(message) {
+function showLumoTooltip(messageOrKey) {
+  const message = getTooltipMessage(messageOrKey)
+
+  if (!message) {
+    console.warn('⚠️ [Tooltip] 訊息為空，跳過顯示')
+    return
+  }
+
   console.log('🎯 showLumoTooltip called with message:', message)
   console.log('🔍 window.lumoTooltipManager:', window.lumoTooltipManager)
   console.log('🔍 isTooltipEnabled:', window.lumoTooltipManager?.isTooltipEnabled)
@@ -1975,7 +1998,7 @@ onUnmounted(() => {
   position: absolute;
   /* 位置在十字路口 (450x450) 下方，寬度相同 */
   width: 100%;
-  height: 100px;
+  height: 200px;
   bottom: 0%;
   left: 50%;
   transform: translateX(-50%);
