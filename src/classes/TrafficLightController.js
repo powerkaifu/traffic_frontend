@@ -1045,22 +1045,8 @@ export default class TrafficLightController {
         new CustomEvent('trafficApiComplete', { detail: { timestamp: new Date().toISOString(), response: result } }),
       )
 
-      // 更新下一輪的綠燈時間
-      if (result.east_west_seconds && result.south_north_seconds) {
-        this.nextTiming.eastWest = result.east_west_seconds
-        this.nextTiming.northSouth = result.south_north_seconds
-
-        if (this.onPredictionUpdate) {
-          this.onPredictionUpdate({
-            eastWest: result.east_west_seconds,
-            northSouth: result.south_north_seconds,
-            timestamp: new Date().toLocaleTimeString(),
-          })
-        }
-        console.log(
-          `✅ 下一輪綠燈時間已更新 - 東西向: ${result.east_west_seconds}秒, 南北向: ${result.south_north_seconds}秒`,
-        )
-      }
+      // ✅ 更新下一輪的綠燈時間（使用提取的公共方法）
+      this.updatePredictionResult(result, '正式')
       return result
     } catch (error) {
       console.warn('⚠️ 真實 API 呼叫失敗:', error.message)
@@ -1083,22 +1069,8 @@ export default class TrafficLightController {
         new CustomEvent('trafficApiError', { detail: { timestamp: new Date().toISOString(), error: error.message } }),
       )
 
-      // 更新下一輪的綠燈時間
-      if (result.east_west_seconds && result.south_north_seconds) {
-        this.nextTiming.eastWest = result.east_west_seconds
-        this.nextTiming.northSouth = result.south_north_seconds
-
-        if (this.onPredictionUpdate) {
-          this.onPredictionUpdate({
-            eastWest: result.east_west_seconds,
-            northSouth: result.south_north_seconds,
-            timestamp: new Date().toLocaleTimeString(),
-          })
-        }
-        console.log(
-          `✅ (備援) 下一輪綠燈時間已更新 - 東西向: ${result.east_west_seconds}秒, 南北向: ${result.south_north_seconds}秒`,
-        )
-      }
+      // ✅ 更新下一輪的綠燈時間（使用提取的公共方法）
+      this.updatePredictionResult(result, '備援')
       return null
     }
   }
@@ -1337,6 +1309,34 @@ export default class TrafficLightController {
   // 延遲函數
   delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
+  // ==========================================
+  // 🔧 公共優化方法 (Optimization Methods)
+  // ==========================================
+
+  /**
+   * 統一處理預測結果並更新綠燈時間
+   * 用於消除 API 成功和備援路徑之間的代碼重複
+   * @param {Object} result - 預測結果 {east_west_seconds, south_north_seconds}
+   * @param {String} source - 來源標記 ('正式' 或 '備援')
+   */
+  updatePredictionResult(result, source = '正式') {
+    if (result && result.east_west_seconds && result.south_north_seconds) {
+      this.nextTiming.eastWest = result.east_west_seconds
+      this.nextTiming.northSouth = result.south_north_seconds
+
+      if (this.onPredictionUpdate) {
+        this.onPredictionUpdate({
+          eastWest: result.east_west_seconds,
+          northSouth: result.south_north_seconds,
+          timestamp: new Date().toLocaleTimeString(),
+        })
+      }
+      console.log(
+        `✅ (${source}) 下一輪綠燈時間已更新 - 東西向: ${result.east_west_seconds}秒, 南北向: ${result.south_north_seconds}秒`,
+      )
+    }
   }
 
   // 處理車輛移除事件
