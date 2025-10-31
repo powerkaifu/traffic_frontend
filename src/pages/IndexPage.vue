@@ -1359,6 +1359,9 @@ onMounted(async () => {
     // 等待一個小的延遲，確保 DOM 元素和 SVG 路徑都已經完全初始化
     await new Promise((resolve) => setTimeout(resolve, 500))
 
+    // 🔧 設置全域 autoTrafficGenerator 供其他組件使用
+    window.autoTrafficGenerator = autoTrafficGenerator
+
     // 啟動自動交通產生器
     autoTrafficGenerator.start()
     console.log('--------------------- 🤖 自動交通產生器已啟動 ---------------------')

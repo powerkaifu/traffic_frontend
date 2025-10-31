@@ -1065,10 +1065,9 @@ onMounted(() => {
 
   let tries = 0
   const tryInit = async () => {
-    if (window.trafficController && !window.autoTrafficGenerator) {
-      const AutoGen = (await import('../classes/AutoTrafficGenerator.js')).default
-      window.autoTrafficGenerator = new AutoGen(window.trafficController)
-      window.autoTrafficGenerator.start()
+    // ✅ 等待 IndexPage 創建的 autoTrafficGenerator
+    if (window.trafficController && window.autoTrafficGenerator) {
+      console.log('✅ [MainLayout] 找到已初始化的 autoTrafficGenerator')
 
       // 初始化完成後，設定自動模式的回調
       window.autoTrafficGenerator.setOnTimeUpdate((status) => {
@@ -1104,8 +1103,11 @@ onMounted(() => {
           window.currentGeneratedVDData = null
         }
       })
-    } else if (tries++ < 30) {
+    } else if (tries++ < 50) {
+      // 等待直到 autoTrafficGenerator 初始化完成（最多 5 秒）
       setTimeout(tryInit, 100)
+    } else {
+      console.warn('⚠️ [MainLayout] 超時：未能找到 autoTrafficGenerator')
     }
   }
   tryInit()
