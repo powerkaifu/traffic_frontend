@@ -52,7 +52,7 @@ const config = {
       '😊 我會繼續努力，為用路人創造更順暢的出行體驗！',
     ],
     messageInterval: 6, // 每句話間隔時間（秒）
-    messageCharStagger: 0.05, // 字符之間的延遲（秒）
+    messageCharStagger: 0.025, // 字符之間的延遲（秒）
     dialogOpenDuration: 0.6, // 對話框打開動畫時長（秒）
     dialogCloseDuration: 0.5, // 對話框關閉動畫時長（秒）
     typingCharDuration: 0.05, // 每個字符顯示時長（秒）
