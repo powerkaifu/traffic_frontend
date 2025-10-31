@@ -38,6 +38,61 @@ import { SplitText } from 'gsap/SplitText'
 gsap.registerPlugin(SplitText)
 
 // ========================================
+// 🎬 全局動畫管理 - 處理標籤頁可見性
+// ========================================
+let isAnimationsPaused = false
+const pausedTimelines = [] // 記錄所有被暫停的時間軸
+
+function pauseAllAnimations() {
+  if (!isAnimationsPaused) {
+    console.log('📍 [Lumo] 標籤頁隱藏 - 暫停所有動畫')
+
+    // 1️⃣ 暫停全局時間軸
+    gsap.globalTimeline.pause()
+
+    // 2️⃣ 暫停所有活動的 GSAP 動畫（包括車輛、天氣等）
+    const allTweens = gsap.getTweensOf()
+    allTweens.forEach((tween) => {
+      if (tween && !tween.paused()) {
+        pausedTimelines.push(tween)
+        tween.pause()
+      }
+    })
+
+    // 3️⃣ 暫停車輛的移動時間軸（通過全局變量存取）
+    if (window.allVehicles && window.allVehicles.length > 0) {
+      window.allVehicles.forEach((vehicle) => {
+        if (vehicle && vehicle.movementTimeline && !vehicle.movementTimeline.paused()) {
+          pausedTimelines.push(vehicle.movementTimeline)
+          vehicle.movementTimeline.pause()
+        }
+      })
+    }
+
+    isAnimationsPaused = true
+  }
+}
+
+function resumeAllAnimations() {
+  if (isAnimationsPaused) {
+    console.log('📍 [Lumo] 標籤頁顯示 - 恢復所有動畫')
+
+    // 1️⃣ 恢復全局時間軸
+    gsap.globalTimeline.play()
+
+    // 2️⃣ 恢復所有被暫停的動畫
+    pausedTimelines.forEach((timeline) => {
+      if (timeline && timeline.paused()) {
+        timeline.play()
+      }
+    })
+    pausedTimelines.length = 0 // 清空列表
+
+    isAnimationsPaused = false
+  }
+}
+
+// ========================================
 // 🎛️ 配置參數 - 在這裡調整組件行為
 // ========================================
 const config = {
@@ -521,8 +576,21 @@ function toggleDialog() {
   }
 }
 
+// ========================================
+// 🎬 標籤頁可見性變化處理器
+// ========================================
+function handleVisibilityChange() {
+  if (document.hidden) {
+    pauseAllAnimations()
+  } else {
+    resumeAllAnimations()
+  }
+}
+
 onMounted(() => {
   initialize()
+
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 
   // 延遲執行以確保 DOM 已準備好
   nextTick(() => {
@@ -717,6 +785,9 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  // 🎬 移除標籤頁可見性監聽
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+
   if (state.floatingTimeline) {
     state.floatingTimeline.kill()
   }
