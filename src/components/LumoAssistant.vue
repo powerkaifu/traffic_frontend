@@ -690,8 +690,10 @@ onMounted(() => {
                 if (cursor.parentNode) {
                   cursor.remove()
                 }
-                // 在當前字符後面插入光標
-                char.parentNode.insertBefore(cursor, char.nextSibling)
+                // 在當前字符後面插入光標（HMR 安全檢查）
+                if (char.parentNode) {
+                  char.parentNode.insertBefore(cursor, char.nextSibling)
+                }
               },
               null,
               time + charDuration * 0.5,
@@ -800,12 +802,19 @@ onBeforeUnmount(() => {
   // 🎬 移除標籤頁可見性監聽
   document.removeEventListener('visibilitychange', handleVisibilityChange)
 
+  // 🎬 清理所有 GSAP 動畫
   if (state.floatingTimeline) {
     state.floatingTimeline.kill()
+    state.floatingTimeline = null
   }
   if (dialogTimeline) {
     dialogTimeline.kill()
+    dialogTimeline = null
   }
+  
+  // 🎬 殺死所有活躍的 GSAP tweens（包括打字效果）
+  gsap.killTweensOf('*')
+  console.log('✅ [LumoAssistant] GSAP 動畫已清理')
 
   // 🎨 安全地銷毀 PIXI 應用
   if (state.app) {
