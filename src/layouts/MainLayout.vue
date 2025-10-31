@@ -679,14 +679,21 @@ const rightDrawerOpen = ref(true)
 const $q = useQuasar()
 
 // ✅ 從全局恢復側邊欄狀態（支持熱重載）
+// 如果全局狀態存在，使用它；否則默認為 true（打開）
 if (typeof window !== 'undefined' && window.drawerState !== undefined) {
   rightDrawerOpen.value = window.drawerState
   console.log(`✅ [MainLayout] 從全局恢復側邊欄狀態: ${window.drawerState}`)
+} else if (typeof window !== 'undefined') {
+  // 確保全局狀態被初始化為 true
+  window.drawerState = true
+  console.log('✅ [MainLayout] 初始化全局側邊欄狀態為 true')
 }
 
 // ✅ 監視側邊欄狀態變化，保存到全局
 watch(rightDrawerOpen, (newValue) => {
-  window.drawerState = newValue
+  if (typeof window !== 'undefined') {
+    window.drawerState = newValue
+  }
   console.log(`📌 [MainLayout] 側邊欄狀態已保存: ${newValue}`)
 })
 
