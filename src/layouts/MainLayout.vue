@@ -675,7 +675,7 @@ function toggleRightDrawer() {
   rightDrawerOpen.value = !rightDrawerOpen.value
 }
 
-const rightDrawerOpen = ref(false)
+const rightDrawerOpen = ref(true)
 const $q = useQuasar()
 
 // 🎯【新增】VD 情景選擇狀態
@@ -1029,14 +1029,9 @@ function updateGenerationConfig() {
   window.autoTrafficGenerator.updateConfig({
     ...s.config,
     interval: { min: minInterval, max: maxInterval, normal: actualInterval },
-    vehiclesPerInterval: s.config.vehiclesPerInterval, // ✅ 確保套用情景的車量參數
     peakMultiplier: s.config.peakMultiplier, // 使用情景定義的 peakMultiplier
     maxLiveVehicles: s.config.maxLiveVehicles,
   })
-
-  console.log(
-    `✅ [更新配置] 情景: ${s.name}, vehiclesPerInterval: ${JSON.stringify(s.config.vehiclesPerInterval)}, interval: ${actualInterval}ms`,
-  )
 }
 
 // 新增：自動模式切換功能

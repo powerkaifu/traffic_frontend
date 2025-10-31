@@ -1164,13 +1164,6 @@ let getNorthLane3Path = () => 'M590,-600 L590,1400'
 let getNorthLane4Path = () => 'M620,-600 L620,1400'
 
 onMounted(async () => {
-  // ✅ 熱重載時完全清除所有舊的全域狀態標記
-  if (window.autoTrafficGenerator) {
-    // 移除所有可能的狀態標記
-    delete window.autoTrafficGenerator._mainLayoutCallbacksSet
-    console.log('🔄 [IndexPage] 已清除全域狀態標記（熱重載）')
-  }
-
   // 等待 DOM 完全渲染
   await nextTick()
 
@@ -1369,21 +1362,6 @@ onMounted(async () => {
     // 啟動自動交通產生器
     autoTrafficGenerator.start()
     console.log('--------------------- 🤖 自動交通產生器已啟動 ---------------------')
-
-    // 設置全域 autoTrafficGenerator 供其他組件使用
-    window.autoTrafficGenerator = autoTrafficGenerator
-    console.log('🎯 [IndexPage] 已設置全域 autoTrafficGenerator')
-
-    // 立即通知 MainLayout 交通系統已初始化完成
-    window.dispatchEvent(
-      new CustomEvent('trafficSystemReady', {
-        detail: {
-          trafficController: window.trafficController,
-          autoTrafficGenerator: window.autoTrafficGenerator,
-        },
-      }),
-    )
-    console.log('🎯 [IndexPage] 已發送 trafficSystemReady 事件')
 
     // 再次等待一個小延遲，確保 autoTrafficGenerator 完全初始化
     await new Promise((resolve) => setTimeout(resolve, 500))
