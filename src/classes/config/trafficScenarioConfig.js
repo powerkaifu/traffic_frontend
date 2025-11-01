@@ -79,11 +79,7 @@ export const timeScenarios = [
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
       vehiclesPerInterval: { min: 1, max: 3 },
-      interval: { min: 2000, max: 8000, normal: 2000 }, // ✅ 改為更長的基礎間隔
-
-      // 這組可以測試高密集度車流是否會導致綠燈秒數停止倒數
-      // vehiclesPerInterval: { min: 1, max: 5 },
-      // interval: { min: 500, max: 8000, normal: 1000 }, //
+      interval: { min: 2000, max: 8000, normal: 5000 }, // ✅ 改為更長的基礎間隔
       peakMultiplier: 1, // 👈 尖峰倍數
       displayMultiplier: 1.5, // 🎭 視覺層倍數：前端動畫放大 1.5 倍
 
@@ -136,7 +132,7 @@ export const timeScenarios = [
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
       vehiclesPerInterval: { min: 1, max: 3 }, // 👈 🎯 每個 interval 生成 1-3 台車
-      interval: { min: 2000, max: 10000, normal: 6000 }, // ⏱️ 生成間隔，恢復原本設定
+      interval: { min: 5000, max: 10000, normal: 8000 }, // ⏱️ 生成間隔，恢復原本設定
       peakMultiplier: 1.0, // 👈 離峰不加倍
       displayMultiplier: 1.0, // 🎭 視覺層倍數：不放大
 
@@ -275,19 +271,16 @@ export function getScenarioByTime(currentTime) {
   if (currentHour >= 0 && currentHour < 6) {
     return {
       name: '深夜',
-      interval: { min: 15000, max: 35000, normal: 22000 },
-      peakMultiplier: 1.2,
+      interval: { min: 15000, max: 40000, normal: 20000 },
+      peakMultiplier: 1.0,
       displayMultiplier: 1.0,
       vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
-        { type: 'motor', weight: 70 },
-        { type: 'small', weight: 25 },
-        { type: 'large', weight: 5 },
+        { type: 'motor', weight: 60 },
+        { type: 'small', weight: 40 },
+        { type: 'large', weight: 0 },
       ],
       description: '深夜時段 - 極低流量（參考: late_night）',
-      targetVolume: 2,
-      targetOccupancy: 9,
-      targetSpeed: 48,
     }
   }
 
@@ -296,19 +289,16 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 6 && currentHour < 7) {
     return {
       name: '清晨',
-      interval: { min: 8000, max: 15000, normal: 10000 },
-      peakMultiplier: 1.5,
+      interval: { min: 12000, max: 20000, normal: 15000 },
+      peakMultiplier: 1.0,
       displayMultiplier: 1.0,
-      vehiclesPerInterval: { min: 1, max: 2 },
+      vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
         { type: 'motor', weight: 55 },
-        { type: 'small', weight: 35 },
-        { type: 'large', weight: 10 },
+        { type: 'small', weight: 40 },
+        { type: 'large', weight: 5 },
       ],
-      description: '清晨時段 - 低流量（過渡段）',
-      targetVolume: 3,
-      targetOccupancy: 12,
-      targetSpeed: 42,
+      description: '清晨時段 - 低流量（過渡段：late_night→peak_hours）',
     }
   }
 
@@ -321,8 +311,8 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 7 && currentHour < 9) {
     return {
       name: '早尖峰',
-      interval: { min: 2500, max: 5000, normal: 2000 },
-      peakMultiplier: 2.0,
+      interval: { min: 2000, max: 8000, normal: 5000 },
+      peakMultiplier: 1.0,
       displayMultiplier: 1.5,
       vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
@@ -331,9 +321,6 @@ export function getScenarioByTime(currentTime) {
         { type: 'large', weight: 10 },
       ],
       description: '早尖峰時段 - 極高流量（參考: peak_hours）',
-      targetVolume: 11,
-      targetOccupancy: 55,
-      targetSpeed: 25,
     }
   }
 
@@ -342,19 +329,16 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 9 && currentHour < 11) {
     return {
       name: '上午',
-      interval: { min: 4000, max: 8000, normal: 5000 },
-      peakMultiplier: 2.0,
+      interval: { min: 5000, max: 9000, normal: 6500 },
+      peakMultiplier: 1.0,
       displayMultiplier: 1.2,
       vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
         { type: 'motor', weight: 35 },
-        { type: 'small', weight: 50 },
-        { type: 'large', weight: 15 },
+        { type: 'small', weight: 55 },
+        { type: 'large', weight: 10 },
       ],
-      description: '上午時段 - 中等流量（過渡段）',
-      targetVolume: 7,
-      targetOccupancy: 22,
-      targetSpeed: 38,
+      description: '上午時段 - 中等流量（過渡段：peak_hours→off_peak）',
     }
   }
 
@@ -367,8 +351,8 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 11 && currentHour < 14) {
     return {
       name: '午間',
-      interval: { min: 4000, max: 10000, normal: 6000 },
-      peakMultiplier: 1.8,
+      interval: { min: 5000, max: 10000, normal: 8000 },
+      peakMultiplier: 1.0,
       displayMultiplier: 1.0,
       vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
@@ -377,30 +361,24 @@ export function getScenarioByTime(currentTime) {
         { type: 'large', weight: 5 },
       ],
       description: '午間時段 - 中等流量（參考: off_peak）',
-      targetVolume: 4,
-      targetOccupancy: 15,
-      targetSpeed: 35,
     }
   }
 
-  // 14:00-16:00 下午（略增）
-  // 參考：off_peak 情景模式，略帶上升趨勢
+  // 14:00-16:00 下午（穩定離峰，略升）
+  // 參考：off_peak 情景模式
   else if (currentHour >= 14 && currentHour < 16) {
     return {
       name: '下午',
-      interval: { min: 3500, max: 8000, normal: 5000 },
-      peakMultiplier: 2.0,
-      displayMultiplier: 1.1,
+      interval: { min: 5000, max: 10000, normal: 8000 },
+      peakMultiplier: 1.0,
+      displayMultiplier: 1.0,
       vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
-        { type: 'motor', weight: 35 },
-        { type: 'small', weight: 55 },
-        { type: 'large', weight: 10 },
+        { type: 'motor', weight: 32 },
+        { type: 'small', weight: 63 },
+        { type: 'large', weight: 5 },
       ],
-      description: '下午時段 - 中等流量（略升）',
-      targetVolume: 5,
-      targetOccupancy: 18,
-      targetSpeed: 33,
+      description: '下午時段 - 中等流量（參考: off_peak）',
     }
   }
 
@@ -413,19 +391,16 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 16 && currentHour < 17) {
     return {
       name: '傍晚前',
-      interval: { min: 3000, max: 6000, normal: 3500 },
-      peakMultiplier: 2.5,
-      displayMultiplier: 1.3,
+      interval: { min: 4000, max: 9000, normal: 6500 },
+      peakMultiplier: 1.0,
+      displayMultiplier: 1.2,
       vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
-        { type: 'motor', weight: 38 },
-        { type: 'small', weight: 50 },
-        { type: 'large', weight: 12 },
+        { type: 'motor', weight: 36 },
+        { type: 'small', weight: 58 },
+        { type: 'large', weight: 6 },
       ],
-      description: '傍晚前時段 - 高流量（過渡段）',
-      targetVolume: 8,
-      targetOccupancy: 28,
-      targetSpeed: 30,
+      description: '傍晚前時段 - 高流量（過渡段：off_peak→peak_hours）',
     }
   }
 
@@ -434,8 +409,8 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 17 && currentHour < 19) {
     return {
       name: '晚尖峰',
-      interval: { min: 2500, max: 5000, normal: 2000 },
-      peakMultiplier: 2.0,
+      interval: { min: 2000, max: 8000, normal: 5000 },
+      peakMultiplier: 1.0,
       displayMultiplier: 1.5,
       vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
@@ -444,9 +419,6 @@ export function getScenarioByTime(currentTime) {
         { type: 'large', weight: 10 },
       ],
       description: '晚尖峰時段 - 極高流量（參考: peak_hours）',
-      targetVolume: 11,
-      targetOccupancy: 50,
-      targetSpeed: 27,
     }
   }
 
@@ -455,19 +427,16 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 19 && currentHour < 21) {
     return {
       name: '晚間',
-      interval: { min: 4500, max: 9000, normal: 6000 },
-      peakMultiplier: 1.8,
-      displayMultiplier: 1.1,
+      interval: { min: 5000, max: 10000, normal: 8000 },
+      peakMultiplier: 1.0,
+      displayMultiplier: 1.0,
       vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
-        { type: 'motor', weight: 35 },
-        { type: 'small', weight: 55 },
-        { type: 'large', weight: 10 },
+        { type: 'motor', weight: 32 },
+        { type: 'small', weight: 63 },
+        { type: 'large', weight: 5 },
       ],
-      description: '晚間時段 - 中等流量（參考: off_peak，下降）',
-      targetVolume: 5,
-      targetOccupancy: 18,
-      targetSpeed: 40,
+      description: '晚間時段 - 中等流量（參考: off_peak）',
     }
   }
 
@@ -480,19 +449,16 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 21 && currentHour < 23) {
     return {
       name: '深夜前',
-      interval: { min: 8000, max: 16000, normal: 10000 },
-      peakMultiplier: 1.5,
+      interval: { min: 12000, max: 20000, normal: 15000 },
+      peakMultiplier: 1.0,
       displayMultiplier: 1.0,
       vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
-        { type: 'motor', weight: 60 },
-        { type: 'small', weight: 32 },
-        { type: 'large', weight: 8 },
+        { type: 'motor', weight: 50 },
+        { type: 'small', weight: 45 },
+        { type: 'large', weight: 5 },
       ],
-      description: '深夜前時段 - 低流量（過渡段）',
-      targetVolume: 3,
-      targetOccupancy: 12,
-      targetSpeed: 45,
+      description: '深夜前時段 - 低流量（過渡段：off_peak→late_night）',
     }
   }
 
@@ -501,19 +467,16 @@ export function getScenarioByTime(currentTime) {
   else {
     return {
       name: '深夜',
-      interval: { min: 15000, max: 35000, normal: 22000 },
-      peakMultiplier: 1.2,
+      interval: { min: 15000, max: 40000, normal: 20000 },
+      peakMultiplier: 1.0,
       displayMultiplier: 1.0,
       vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
-        { type: 'motor', weight: 70 },
-        { type: 'small', weight: 25 },
-        { type: 'large', weight: 5 },
+        { type: 'motor', weight: 60 },
+        { type: 'small', weight: 40 },
+        { type: 'large', weight: 0 },
       ],
       description: '深夜時段 - 極低流量（參考: late_night）',
-      targetVolume: 2,
-      targetOccupancy: 9,
-      targetSpeed: 48,
     }
   }
 }
