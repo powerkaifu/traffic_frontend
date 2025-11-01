@@ -438,13 +438,13 @@ function getTooltipMessage(messageOrKey) {
   if (typeof messageOrKey === 'string' && !messageOrKey.includes('：') && window.lumoConfig?.tooltips) {
     const configValue = window.lumoConfig.tooltips[messageOrKey]
     if (configValue) {
-      console.log(`💬 [Tooltip] 使用配置: ${messageOrKey} => ${configValue.substring(0, 30)}...`)
+      if (process.env.DEV) console.log(`💬 [Tooltip] 使用配置: ${messageOrKey} => ${configValue.substring(0, 30)}...`)
       return configValue
     }
   }
 
   // 否則直接返回訊息
-  console.log(`💬 [Tooltip] 使用直接訊息: ${String(messageOrKey).substring(0, 30)}...`)
+  if (process.env.DEV) console.log(`💬 [Tooltip] 使用直接訊息: ${String(messageOrKey).substring(0, 30)}...`)
   return messageOrKey
 }
 
@@ -452,14 +452,14 @@ function showLumoTooltip(messageOrKey) {
   const message = getTooltipMessage(messageOrKey)
 
   if (!message) {
-    console.warn('⚠️ [Tooltip] 訊息為空，跳過顯示')
+    if (process.env.DEV) console.warn('⚠️ [Tooltip] 訊息為空，跳過顯示')
     return
   }
 
   if (window.lumoTooltipManager) {
     window.lumoTooltipManager.show(message)
   } else {
-    console.warn('⚠️ [Tooltip] lumoTooltipManager 未初始化')
+    if (process.env.DEV) console.warn('⚠️ [Tooltip] lumoTooltipManager 未初始化')
   }
 }
 
@@ -478,7 +478,7 @@ function toggleTooltip() {
   if (window.lumoTooltipManager) {
     window.lumoTooltipManager.isTooltipEnabled = isTooltipEnabled.value
   }
-  console.log(`💡 [MainLayout] Lumo Tooltip ${isTooltipEnabled.value ? '已開啟' : '已關閉'}`)
+  if (process.env.DEV) console.log(`💡 [MainLayout] Lumo Tooltip ${isTooltipEnabled.value ? '已開啟' : '已關閉'}`)
 }
 
 const currentRoute = computed(() => route.path)
@@ -494,11 +494,11 @@ const $q = useQuasar()
 // 如果全局狀態存在，使用它；否則默認為 true（打開）
 if (typeof window !== 'undefined' && window.drawerState !== undefined) {
   rightDrawerOpen.value = window.drawerState
-  console.log(`✅ [MainLayout] 從全局恢復側邊欄狀態: ${window.drawerState}`)
+  if (process.env.DEV) console.log(`✅ [MainLayout] 從全局恢復側邊欄狀態: ${window.drawerState}`)
 } else if (typeof window !== 'undefined') {
   // 確保全局狀態被初始化為 true
   window.drawerState = true
-  console.log('✅ [MainLayout] 初始化全局側邊欄狀態為 true')
+  if (process.env.DEV) console.log('✅ [MainLayout] 初始化全局側邊欄狀態為 true')
 }
 
 // ✅ 監視側邊欄狀態變化，保存到全局
@@ -506,7 +506,7 @@ watch(rightDrawerOpen, (newValue) => {
   if (typeof window !== 'undefined') {
     window.drawerState = newValue
   }
-  console.log(`📌 [MainLayout] 側邊欄狀態已保存: ${newValue}`)
+  if (process.env.DEV) console.log(`📌 [MainLayout] 側邊欄狀態已保存: ${newValue}`)
 })
 
 // 🎯【新增】VD 情景選擇狀態
@@ -516,7 +516,7 @@ const selectedVDScenario = ref(INITIAL_VD_SCENARIO)
 function selectVDScenario(scenario) {
   selectedVDScenario.value = scenario
   currentTimeScenario.value = scenario // 🔧 同時更新當前情景
-  console.log(`🚀 [MainLayout] 選擇 VD 情景: ${scenario}`)
+  if (process.env.DEV) console.log(`🚀 [MainLayout] 選擇 VD 情景: ${scenario}`)
 
   // 將選擇存儲到全局，供 TrafficLightController 使用
   window.selectedTrafficScenario = scenario
@@ -525,7 +525,7 @@ function selectVDScenario(scenario) {
   // 如果有 AutoTrafficGenerator，通知它
   if (window.autoTrafficGenerator) {
     window.autoTrafficGenerator.setVDScenario(scenario)
-    console.log(`✅ [MainLayout] AutoTrafficGenerator 已設置 VD 情景: ${scenario}`)
+    if (process.env.DEV) console.log(`✅ [MainLayout] AutoTrafficGenerator 已設置 VD 情景: ${scenario}`)
   }
 
   // 🎯 新增：按下情景按鈕時，拉桿跳到該情景的標準生成間隔值
@@ -536,7 +536,8 @@ function selectVDScenario(scenario) {
       manualInterval.value = scenarioConfig.config.interval.normal
       const normalValue = scenarioConfig.config.interval.normal
       const normalSec = (normalValue / 1000).toFixed(1)
-      console.log(`[MainLayout] Scenario button clicked - ${scenario}, Slider moved to ${normalSec}s`)
+      if (process.env.DEV)
+        console.log(`[MainLayout] Scenario button clicked - ${scenario}, Slider moved to ${normalSec}s`)
       // 更新生成配置
       updateGenerationConfig()
     }
@@ -633,8 +634,8 @@ function getApiVDData(dir) {
 
   // 🔍 調試：檢查讀取到的 Volume_L
   if (index === 0) {
-    console.log('🔍 [MainLayout] window.lastApiVDDataArray:', window.lastApiVDDataArray)
-    console.log(`🔍 [MainLayout] 方向 ${dir} (index ${index}): Volume_L = ${data.Volume_L}`)
+    if (process.env.DEV) console.log('🔍 [MainLayout] window.lastApiVDDataArray:', window.lastApiVDDataArray)
+    if (process.env.DEV) console.log(`🔍 [MainLayout] 方向 ${dir} (index ${index}): Volume_L = ${data.Volume_L}`)
   }
 
   // 返回與前端顯示相同的結構(方便模板使用)
@@ -667,10 +668,19 @@ const northData = computed(() => getApiVDData('north'))
  * 🎯 設置事件監聽器
  */
 function setupListeners() {
+  // 🔧 【優化】添加節流機制 - 每 2 秒最多更新一次，減輕 CPU 負擔
+  let lastApiUpdateTime = 0
+  const API_UPDATE_INTERVAL = 2000 // 改為 2 秒，原本是 1 秒
+
   // 監聽 API 發送事件,觸發數據更新
   const handleApiSending = () => {
-    console.log('📊 [MainLayout] 偵測到 API 發送,更新特徵模擬數據面板')
-    apiDataUpdateTrigger.value++
+    const now = Date.now()
+    // 節流檢查：距離上次更新超過 2 秒才更新
+    if (now - lastApiUpdateTime >= API_UPDATE_INTERVAL) {
+      if (process.env.DEV) console.log('📊 [MainLayout] 偵測到 API 發送,更新特徵模擬數據面板')
+      apiDataUpdateTrigger.value++
+      lastApiUpdateTime = now
+    }
   }
 
   window.addEventListener('trafficApiSending', handleApiSending)
@@ -709,7 +719,7 @@ function updateScenarioHighlightBySlider() {
   if (closestScenario) {
     currentTimeScenario.value = closestScenario.scenario.key
     selectedVDScenario.value = closestScenario.scenario.key
-    console.log(`📍 [拉桿移動] 自動判斷為: ${closestScenario.scenario.name}`)
+    if (process.env.DEV) console.log(`📍 [拉桿移動] 自動判斷為: ${closestScenario.scenario.name}`)
   }
 }
 
@@ -758,13 +768,15 @@ function updateGenerationConfig() {
 
   currentInterval.value = baseInterval / 1000 // 轉換為秒
 
-  console.log(
-    `🎚️ [手動模式] 拉桿: ${(baseInterval / 1000).toFixed(1)}s → 實際間隔: ${actualInterval}ms (基於 ${s.name} 的倍數 ${s.config.peakMultiplier})`,
-  )
+  if (process.env.DEV)
+    console.log(
+      `🎚️ [手動模式] 拉桿: ${(baseInterval / 1000).toFixed(1)}s → 實際間隔: ${actualInterval}ms (基於 ${s.name} 的倍數 ${s.config.peakMultiplier})`,
+    )
 
   // 🔧 CRITICAL FIX：先清除情景模式，確保手動設定不被覆蓋
   if (window.autoTrafficGenerator.currentScenarioMode) {
-    console.log(`🛑 [UI] 清除 currentScenarioMode: ${window.autoTrafficGenerator.currentScenarioMode}`)
+    if (process.env.DEV)
+      console.log(`🛑 [UI] 清除 currentScenarioMode: ${window.autoTrafficGenerator.currentScenarioMode}`)
     window.autoTrafficGenerator.currentScenarioMode = null
   }
 
@@ -782,11 +794,11 @@ function toggleAutoMode() {
 
   if (isAutoMode.value) {
     // 切換到自動模式：移除按鈕的 active 狀態
-    console.log('🔄 [MainLayout] 切換到自動模式 - 清除情景選擇')
+    if (process.env.DEV) console.log('🔄 [MainLayout] 切換到自動模式 - 清除情景選擇')
     selectedVDScenario.value = null
   } else {
     // 切換回手動模式：重置為 INITIAL_VD_SCENARIO
-    console.log(`🔄 [MainLayout] 切換回手動模式 - 設回 ${INITIAL_VD_SCENARIO}`)
+    if (process.env.DEV) console.log(`🔄 [MainLayout] 切換回手動模式 - 設回 ${INITIAL_VD_SCENARIO}`)
     selectedVDScenario.value = INITIAL_VD_SCENARIO
     currentTimeScenario.value = INITIAL_VD_SCENARIO
     manualInterval.value = 1000 // 重置拉桿到 1s
@@ -803,61 +815,80 @@ onMounted(() => {
 
   // 🧪 【測試】初始化：預設設定為 INITIAL_VD_SCENARIO
   window.selectedTrafficTimePeriod = INITIAL_VD_SCENARIO
-  console.log(`🚀 [MainLayout] 初始化時段配置：預設為 ${INITIAL_VD_SCENARIO}`)
+  if (process.env.DEV) console.log(`🚀 [MainLayout] 初始化時段配置：預設為 ${INITIAL_VD_SCENARIO}`)
 
   // ✅ 確保側邊欄在 onMounted 時顯示
   rightDrawerOpen.value = true
-  console.log('✅ [MainLayout] 側邊欄已強制開啟')
+  if (process.env.DEV) console.log('✅ [MainLayout] 側邊欄已強制開啟')
 
   let tries = 0
   const tryInit = async () => {
-    // ✅ 等待 IndexPage 創建的 autoTrafficGenerator
-    if (window.trafficController && window.autoTrafficGenerator) {
-      console.log('✅ [MainLayout] 找到已初始化的 autoTrafficGenerator')
+    try {
+      // ✅ 等待 IndexPage 創建的 autoTrafficGenerator
+      if (window.trafficController && window.autoTrafficGenerator) {
+        if (process.env.DEV) console.log('✅ [MainLayout] 找到已初始化的 autoTrafficGenerator')
 
-      // 🚀 【關鍵修復】初始化時套用預設情景的完整配置
-      console.log(`🎯 [MainLayout] 套用預設情景配置: ${INITIAL_VD_SCENARIO}`)
-      selectVDScenario(INITIAL_VD_SCENARIO)
+        // 🚀 【關鍵修復】初始化時套用預設情景的完整配置
+        if (process.env.DEV) console.log(`🎯 [MainLayout] 套用預設情景配置: ${INITIAL_VD_SCENARIO}`)
+        selectVDScenario(INITIAL_VD_SCENARIO)
 
-      // 初始化完成後，設定自動模式的回調
-      window.autoTrafficGenerator.setOnTimeUpdate((status) => {
-        if (status) {
-          simulationStatus.value = `${status.time} - ${status.description}`
+        // 初始化完成後，設定自動模式的回調
+        window.autoTrafficGenerator.setOnTimeUpdate((status) => {
+          if (status) {
+            simulationStatus.value = `${status.time} - ${status.description}`
 
-          // 🎭 新增：在自動模式下更新 currentTimeScenario
-          if (status.scenarioMode) {
-            currentTimeScenario.value = status.scenarioMode
-          }
-
-          // 🎯 新增：將 VD 數據保存到全局，供 TrafficLightController.sendDataToBackend() 使用
-          if (status.vdData || status.apiVDData) {
-            window.currentGeneratedVDData = {
-              vdData: status.vdData,
-              apiVDData: status.apiVDData,
-              targetFeatures: status.targetFeatures,
-              timestamp: new Date().toISOString(),
+            // 🎭 新增：在自動模式下更新 currentTimeScenario
+            if (status.scenarioMode) {
+              currentTimeScenario.value = status.scenarioMode
             }
-            console.log('💾 [MainLayout] 已保存生成的 VD 數據:', window.currentGeneratedVDData)
-          }
 
-          // 獲取當前間隔時間（毫秒轉秒）
-          if (window.autoTrafficGenerator.config && window.autoTrafficGenerator.config.interval) {
-            const intervalMs =
-              window.autoTrafficGenerator.config.interval.normal || window.autoTrafficGenerator.config.interval.min
-            currentAutoInterval.value = Math.round(intervalMs / 1000)
+            // 🎯 新增：將 VD 數據保存到全局，供 TrafficLightController.sendDataToBackend() 使用
+            if (status.vdData || status.apiVDData) {
+              window.currentGeneratedVDData = {
+                vdData: status.vdData,
+                apiVDData: status.apiVDData,
+                targetFeatures: status.targetFeatures,
+                timestamp: new Date().toISOString(),
+              }
+              if (process.env.DEV) console.log('💾 [MainLayout] 已保存生成的 VD 數據:', window.currentGeneratedVDData)
+            }
+
+            // 獲取當前間隔時間（毫秒轉秒）
+            if (window.autoTrafficGenerator.config && window.autoTrafficGenerator.config.interval) {
+              const intervalMs =
+                window.autoTrafficGenerator.config.interval.normal || window.autoTrafficGenerator.config.interval.min
+              currentAutoInterval.value = Math.round(intervalMs / 1000)
+            }
+          } else {
+            simulationStatus.value = null
+            currentAutoInterval.value = null
+            // 清空保存的 VD 數據
+            window.currentGeneratedVDData = null
           }
-        } else {
-          simulationStatus.value = null
-          currentAutoInterval.value = null
-          // 清空保存的 VD 數據
-          window.currentGeneratedVDData = null
-        }
-      })
-    } else if (tries++ < 50) {
-      // 等待直到 autoTrafficGenerator 初始化完成（最多 5 秒）
-      setTimeout(tryInit, 100)
-    } else {
-      console.warn('⚠️ [MainLayout] 超時：未能找到 autoTrafficGenerator')
+        })
+      } else if (tries++ < 50) {
+        // 等待直到 autoTrafficGenerator 初始化完成（最多 5 秒）
+        setTimeout(tryInit, 100)
+      } else {
+        if (process.env.DEV) console.warn('⚠️ [MainLayout] 超時：未能找到 autoTrafficGenerator')
+      }
+    } catch (error) {
+      // 🛡️ 【錯誤邊界保護】初始化失敗時的降級方案
+      console.error('❌ [MainLayout] 初始化失敗:', error)
+      if (process.env.DEV) console.warn('⚠️ [MainLayout] 使用預設配置重試...')
+
+      // 降級方案：使用預設配置
+      if (tries++ < 50) {
+        setTimeout(tryInit, 100)
+      } else {
+        console.error('❌ [MainLayout] 多次重試失敗，無法初始化交通系統')
+        $q.notify({
+          type: 'negative',
+          message: '交通系統初始化失敗，請刷新頁面',
+          position: 'top',
+          timeout: 5000,
+        })
+      }
     }
   }
   tryInit()
@@ -866,15 +897,15 @@ onMounted(() => {
     cleanup()
   }
 
-  console.log('═══════════════════════════════════════════════════════════')
-  console.log('✅ [MainLayout] onMounted 完成')
-  console.log('═══════════════════════════════════════════════════════════')
+  if (process.env.DEV) console.log('═══════════════════════════════════════════════════════════')
+  if (process.env.DEV) console.log('✅ [MainLayout] onMounted 完成')
+  if (process.env.DEV) console.log('═══════════════════════════════════════════════════════════')
 })
 
 // 🚨 監聽拉桿變化，當手動調整時更新生成配置
 watch(manualInterval, (newValue) => {
   if (!isAutoMode.value && window.autoTrafficGenerator) {
-    console.log(`🎚️ [MainLayout] 拉桿改變: ${(newValue / 1000).toFixed(1)}s，更新生成配置...`)
+    if (process.env.DEV) console.log(`🎚️ [MainLayout] 拉桿改變: ${(newValue / 1000).toFixed(1)}s，更新生成配置...`)
     updateGenerationConfig()
   }
 })
