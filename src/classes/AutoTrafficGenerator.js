@@ -589,6 +589,12 @@ export default class AutoTrafficGenerator {
       scenario: scenarioKey,
     }
 
+    // 🔍 調試：檢查每個方向的 Volume_L
+    console.log('🔍 [AutoTrafficGenerator] 4 方向 API 數據 Volume_L 值：')
+    apiDataArray.forEach((data, index) => {
+      console.log(`  方向 ${index} (${data.VD_ID}): Volume_L = ${data.Volume_L} (小數位: ${typeof data.Volume_L})`)
+    })
+
     return visualVDData
   }
 

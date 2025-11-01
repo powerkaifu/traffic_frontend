@@ -639,6 +639,12 @@ function getApiVDData(dir) {
   const data = window.lastApiVDDataArray[index]
   if (!data) return defaultData
 
+  // 🔍 調試：檢查讀取到的 Volume_L
+  if (index === 0) {
+    console.log('🔍 [MainLayout] window.lastApiVDDataArray:', window.lastApiVDDataArray)
+    console.log(`🔍 [MainLayout] 方向 ${dir} (index ${index}): Volume_L = ${data.Volume_L}`)
+  }
+
   // 返回與前端顯示相同的結構(方便模板使用)
   const apiData = {
     vdId: data.VD_ID || 'N/A',

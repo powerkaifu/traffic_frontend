@@ -112,8 +112,8 @@ export const timeScenarios = [
       speed: 52, // 平均速度：52 km/h
       volumeByType: {
         motor: 1, // 機車：約 25-35%
-        small: 3, // 小客車：約 65-75%
-        large: 0, // 大客車：很少
+        small: 2, // 小客車：約 60-70%
+        large: 1, // 大客車：約 5-10% ✅ 改為 1 以顯示大車數據
       },
     },
 
@@ -164,9 +164,9 @@ export const timeScenarios = [
       occupancy: 2, // 佔有率：2%（原始數據，極低）
       speed: 59, // 平均速度：59 km/h（流量少，速度快）
       volumeByType: {
-        motor: 0.5, // 機車：主要是機車
-        small: 0.5, // 小客車：很少
-        large: 0, // 大客車：幾乎沒有
+        motor: 0.4, // 機車：主要是機車
+        small: 0.4, // 小客車：很少
+        large: 0.2, // 大客車：少量 ✅ 改為 0.2 以顯示大車數據
       },
     },
 

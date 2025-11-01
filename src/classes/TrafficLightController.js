@@ -593,7 +593,7 @@ export default class TrafficLightController {
         // 沒有車輛時使用最小值
         const minMotor = 1 // 降低最少機車數量
         const minSmall = 1 // 降低最少小客車數量
-        const minLarge = 0 // 降低最少大客車數量
+        const minLarge = 1 // ✅ 修改為 1，確保大客車也會顯示
 
         scaledMotor = minMotor
         scaledSmall = minSmall
@@ -983,6 +983,12 @@ export default class TrafficLightController {
 
       // ✅ 先處理第一筆數據用於日誌（如果有多筆）
       const firstData = normalizedDataArray[0] || {}
+
+      // 🔍 調試：檢查 finalDataToSend 的 Volume_L
+      console.log('🔍 [TrafficLightController] finalDataToSend 中各方向的 Volume_L：')
+      finalDataToSend.forEach((data, index) => {
+        console.log(`  方向 ${index} (${data.VD_ID}, LaneID: ${data.LaneID}): Volume_L = ${data.Volume_L}`)
+      })
 
       // ✅ 【版本 2.5】VD 數據已生成並應用時段特徵對齐
       // console.log('✅ 【版本 2.5 - VD 時段特徵對齊已應用】')

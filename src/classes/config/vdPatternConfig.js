@@ -308,15 +308,15 @@ export function generateVDDataByPattern(timePeriod, vdId, currentInterval) {
   // 計算實際值 = 基準值 × 倍數 + 隨機波動
   const randomVariation = (min, max) => Math.random() * (max - min) + min
 
-  // 車型分布
-  const volumeM = Math.round(baseline.Volume_M * multiplier)
-  const volumeS = Math.round(baseline.Volume_S * multiplier)
-  const volumeL = Math.round(baseline.Volume_L * multiplier)
+  // 車型分布 - ✅ 使用 Math.ceil 確保小數值不會被捨去為 0
+  const volumeM = Math.ceil(baseline.Volume_M * multiplier)
+  const volumeS = Math.ceil(baseline.Volume_S * multiplier)
+  const volumeL = Math.ceil(baseline.Volume_L * multiplier) // ✅ 確保 Volume_L 不為 0
 
   // 確保車型流量在範圍內
   const finalVolumeM = Math.max(range.Volume_M[0], Math.min(range.Volume_M[1], volumeM))
   const finalVolumeS = Math.max(range.Volume_S[0], Math.min(range.Volume_S[1], volumeS))
-  const finalVolumeL = Math.max(range.Volume_L[0], Math.min(range.Volume_L[1], volumeL))
+  const finalVolumeL = Math.max(range.Volume_L[0], Math.min(range.Volume_L[1], volumeL)) // ✅ 確保在範圍內
 
   // 總流量 = 三種車型之和
   const totalVolume = finalVolumeM + finalVolumeS + finalVolumeL
