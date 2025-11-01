@@ -68,8 +68,8 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 5 }, // 👈 🎯 每個 interval 生成 1-5 台車（平均 3 輛）
-      interval: { min: 500, max: 10000, normal: 3000 }, // ⏱️ 生成間隔，恢復原本設定
+      vehiclesPerInterval: { min: 1, max: 2 }, // ✅ 改為每次只生成 1 台（降低車輛生成速度）
+      interval: { min: 2000, max: 8000, normal: 2000 }, // ✅ 改為更長的基礎間隔
       peakMultiplier: 1, // 👈 尖峰倍數
       displayMultiplier: 1.5, // 🎭 視覺層倍數：前端動畫放大 1.5 倍
 
@@ -81,7 +81,7 @@ export const timeScenarios = [
         { type: 'small', weight: 50 }, // 小客車 50%
         { type: 'large', weight: 10 }, // 大客車 10%
       ],
-      maxLiveVehicles: 100, // 允許較多車輛同時在場
+      maxLiveVehicles: 50, // ✅ 改為 50，降低同時在場車輛數量
       densityThresholds: { light: 15, moderate: 25, heavy: 35, congested: 45 },
 
       // =========================================
@@ -90,7 +90,7 @@ export const timeScenarios = [
       description: '尖峰時段 - 高流量中等佔有率中速度 (早峰/晚峰)',
       // 💡 計算參考：
       // 目標：11輛/5分鐘
-      // 實際：1000ms × 1.5倍數 × 3輛 = 約 600輛/5分鐘（會被品質檢查修正到 11 輛）
+      // 實際：4000ms × 1.0倍數 × 1輛 = 約 7輛/5分鐘
     },
   },
   {
@@ -305,8 +305,8 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 7 && currentHour < 9) {
     return {
       name: '早尖峰',
-      interval: { min: 2000, max: 4500, normal: 2800 },
-      peakMultiplier: 4.2, // 實際間隔 = 2800/4.2 = 667ms → 約14輛/5分鐘
+      interval: { min: 2500, max: 5000, normal: 3500 }, // ✅ 改為更長的基礎間隔
+      peakMultiplier: 2.0, // ✅ 改為 2.0（實際間隔 = 3500/2.0 = 1750ms，原本 667ms）
       displayMultiplier: 7, // 🎭 視覺層倍數：對應 peak_hours
       vehicleTypes: [
         { type: 'motor', weight: 55 }, // 尖峰時段機車多
@@ -413,8 +413,8 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 17 && currentHour < 19) {
     return {
       name: '晚尖峰',
-      interval: { min: 2200, max: 4800, normal: 3000 },
-      peakMultiplier: 4.0, // 實際間隔 = 3000/4.0 = 750ms → 約13輛/5分鐘
+      interval: { min: 2500, max: 5000, normal: 3600 }, // ✅ 改為更長的基礎間隔
+      peakMultiplier: 2.0, // ✅ 改為 2.0（實際間隔 = 3600/2.0 = 1800ms，原本 750ms）
       displayMultiplier: 7, // 🎭 視覺層倍數：對應 peak_hours
       vehicleTypes: [
         { type: 'motor', weight: 52 },
