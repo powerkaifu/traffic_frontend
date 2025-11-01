@@ -132,6 +132,55 @@ export default class TrafficLightController {
     window.addEventListener('vehicleRemoved', (e) => {
       this.handleVehicleRemoved(e.detail)
     })
+
+    // ✅ 【新增】初始化 Web Worker 用於精準計時
+    this.initializeTimerWorker()
+  }
+
+  // ✅ 【新增】初始化 Web Worker
+  initializeTimerWorker() {
+    try {
+      if (typeof Worker !== 'undefined') {
+        // 動態導入 Worker
+        this.timerWorker = new Worker(new URL('../workers/timerWorker.js', import.meta.url), { type: 'module' })
+
+        // 監聽 Worker 的消息
+        this.timerWorker.onmessage = (event) => {
+          const { type, remainingSeconds } = event.data
+
+          if (type === 'initialized') {
+            console.log('✅ [TrafficLightController] Worker 已初始化')
+          } else if (type === 'tick') {
+            // 📊 每秒更新秒數
+            this.updateCountdown(remainingSeconds)
+          } else if (type === 'completed') {
+            console.log('✅ [Worker] 綠燈時間已結束')
+            // 發送信號進行相位切換
+            window.dispatchEvent(new Event('greenLightCompleted'))
+          } else if (type === 'started') {
+            console.log(`✅ [Worker] 開始倒數：${remainingSeconds} 秒`)
+          } else if (type === 'stopped') {
+            console.log('⏹️ [Worker] 倒數已停止')
+          }
+        }
+
+        this.timerWorker.onerror = (error) => {
+          console.error('❌ [Worker] 錯誤:', error.message)
+        }
+      } else {
+        console.warn('⚠️ 此瀏覽器不支援 Web Worker，使用備用計時方案')
+      }
+    } catch (error) {
+      console.error('❌ [TrafficLightController] Worker 初始化失敗:', error)
+    }
+  }
+
+  // ✅ 【新增】更新倒數顯示
+  updateCountdown(remainingSeconds) {
+    // 透過 onTimerUpdate 回調函數更新前端顯示
+    if (this.onTimerUpdate) {
+      this.onTimerUpdate(null, remainingSeconds)
+    }
   }
 
   // ==========================================
@@ -465,67 +514,127 @@ export default class TrafficLightController {
     }
   }
 
-  // Template Method Pattern: 倒數延遲函數
+  // Template Method Pattern: 倒數延遲函數 (使用 Web Worker)
   async countdownDelay(totalMs) {
     const totalSeconds = Math.floor(totalMs / 1000)
 
-    for (let i = totalSeconds; i > 0; i--) {
-      if (this.onTimerUpdate) {
-        // 只更新倒數秒數，不改變時相描述
-        this.onTimerUpdate(null, i)
+    // 如果有 Worker，使用 Worker；否則回退到舊的倒數邏輯
+    if (this.timerWorker) {
+      return new Promise((resolve) => {
+        const messageHandler = (event) => {
+          const { type, remainingSeconds } = event.data
+
+          if (type === 'tick') {
+            if (this.onTimerUpdate) {
+              this.onTimerUpdate(null, remainingSeconds)
+            }
+          } else if (type === 'completed') {
+            this.timerWorker.removeEventListener('message', messageHandler)
+            resolve()
+          }
+        }
+
+        this.timerWorker.addEventListener('message', messageHandler)
+        this.timerWorker.postMessage({ action: 'start', seconds: totalSeconds })
+      })
+    } else {
+      // 回退方案：使用舊的倒數邏輯
+      console.warn('⚠️ Web Worker 不可用，使用回退倒數邏輯')
+      for (let i = totalSeconds; i > 0; i--) {
+        if (this.onTimerUpdate) {
+          this.onTimerUpdate(null, i)
+        }
+        await this.delay(1000)
       }
-      await this.delay(1000)
     }
   }
 
-  // Template Method Pattern: 帶API觸發的倒數延遲函數（專用於南北向綠燈）
+  // Template Method Pattern: 帶API觸發的倒數延遲函數（專用於南北向綠燈，使用 Web Worker）
   async countdownDelayWithAPI(totalMs, apiTriggerSeconds) {
     const totalSeconds = Math.floor(totalMs / 1000)
     let apiTriggered = false
 
     // 🔧 修正：計算實際觸發時機，確保不會錯過
-    // 如果總秒數 < apiTriggerSeconds，則在開始時立即觸發
     const actualTriggerSeconds = Math.min(apiTriggerSeconds, totalSeconds)
 
     console.log(
       `🕐 [API觸發檢查] 總綠燈時間: ${totalSeconds}秒, 設定觸發時間: ${apiTriggerSeconds}秒, 實際觸發時間: ${actualTriggerSeconds}秒`,
     )
 
-    for (let i = totalSeconds; i > 0; i--) {
-      if (this.onTimerUpdate) {
-        // 只更新倒數秒數，不改變時相描述
-        this.onTimerUpdate(null, i)
+    if (this.timerWorker) {
+      return new Promise((resolve) => {
+        const messageHandler = (event) => {
+          const { type, remainingSeconds } = event.data
+
+          if (type === 'tick') {
+            if (this.onTimerUpdate) {
+              this.onTimerUpdate(null, remainingSeconds)
+            }
+
+            // Strategy Pattern: 在剩餘指定秒數時觸發API
+            if (remainingSeconds === actualTriggerSeconds && !apiTriggered) {
+              console.log(`⏰ [API觸發] 剩餘 ${remainingSeconds} 秒，開始 AI 預測流程...`)
+              console.log(`📊 [API觸發] 當前相位: ${this.currentPhase}, 綠燈總時間: ${totalSeconds}秒`)
+
+              // 1. 收集當前週期的完整數據
+              const currentCycleData = this.collectIntersectionData()
+
+              // 2. 發送到 AI 後端（異步）
+              this.sendDataToBackend(currentCycleData)
+
+              // 3. 立即更新特徵模擬數據顯示
+              this.updateFeatureSimulationDisplay(currentCycleData)
+
+              console.log('ℹ️ [API觸發] 數據已發送，將在相位切換時重置數據')
+
+              apiTriggered = true
+            }
+          } else if (type === 'completed') {
+            this.timerWorker.removeEventListener('message', messageHandler)
+
+            // 🔧 安全檢查：如果整個循環結束都沒觸發，記錄警告
+            if (!apiTriggered) {
+              console.warn(
+                `⚠️ [API觸發失敗] 南北向綠燈 ${totalSeconds} 秒已結束，但未觸發API（設定值: ${apiTriggerSeconds}秒）`,
+              )
+            }
+
+            resolve()
+          }
+        }
+
+        this.timerWorker.addEventListener('message', messageHandler)
+        this.timerWorker.postMessage({ action: 'start', seconds: totalSeconds })
+      })
+    } else {
+      // 回退方案：使用舊的倒數邏輯
+      console.warn('⚠️ Web Worker 不可用，使用回退倒數邏輯')
+      for (let i = totalSeconds; i > 0; i--) {
+        if (this.onTimerUpdate) {
+          this.onTimerUpdate(null, i)
+        }
+
+        // Strategy Pattern: 在剩餘指定秒數時觸發API
+        if (i === actualTriggerSeconds && !apiTriggered) {
+          console.log(`⏰ [API觸發] 剩餘 ${i} 秒，開始 AI 預測流程...`)
+          console.log(`📊 [API觸發] 當前相位: ${this.currentPhase}, 綠燈總時間: ${totalSeconds}秒`)
+
+          // 1. 收集當前週期的完整數據
+          const currentCycleData = this.collectIntersectionData()
+
+          // 2. 發送到 AI 後端（異步）
+          this.sendDataToBackend(currentCycleData)
+
+          // 3. 立即更新特徵模擬數據顯示
+          this.updateFeatureSimulationDisplay(currentCycleData)
+
+          console.log('ℹ️ [API觸發] 數據已發送，將在相位切換時重置數據')
+
+          apiTriggered = true
+        }
+
+        await this.delay(1000)
       }
-
-      // Strategy Pattern: 在剩餘指定秒數時觸發API
-      if (i === actualTriggerSeconds && !apiTriggered) {
-        console.log(`⏰ [API觸發] 剩餘 ${i} 秒，開始 AI 預測流程...`)
-        console.log(`📊 [API觸發] 當前相位: ${this.currentPhase}, 綠燈總時間: ${totalSeconds}秒`)
-
-        // 1. 收集當前週期的完整數據
-        const currentCycleData = this.collectIntersectionData()
-
-        // 2. 發送到 AI 後端（異步）
-        this.sendDataToBackend(currentCycleData)
-
-        // 3. 立即更新特徵模擬數據顯示
-        this.updateFeatureSimulationDisplay(currentCycleData)
-
-        // 🔧 修正：不再立即重置數據，改為在相位切換時重置
-        // 這樣可以累積完整週期的車輛數據
-        console.log('ℹ️ [API觸發] 數據已發送，將在相位切換時重置數據')
-
-        apiTriggered = true
-      }
-
-      await this.delay(1000)
-    }
-
-    // 🔧 安全檢查：如果整個循環結束都沒觸發，記錄警告
-    if (!apiTriggered) {
-      console.warn(
-        `⚠️ [API觸發失敗] 南北向綠燈 ${totalSeconds} 秒已結束，但未觸發API（設定值: ${apiTriggerSeconds}秒）`,
-      )
     }
   }
 

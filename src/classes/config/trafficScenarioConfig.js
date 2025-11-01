@@ -80,8 +80,10 @@ export const timeScenarios = [
       // =========================================
       // vehiclesPerInterval: { min: 1, max: 3 },
       // interval: { min: 2000, max: 8000, normal: 2000 }, // ✅ 改為更長的基礎間隔
+
+      // 這組可以測試高密集度車流是否會導致綠燈秒數停止倒數
       vehiclesPerInterval: { min: 1, max: 5 },
-      interval: { min: 500, max: 8000, normal: 1000 }, // ✅ 改為更長的基礎間隔
+      interval: { min: 500, max: 8000, normal: 1000 }, //
       peakMultiplier: 1, // 👈 尖峰倍數
       displayMultiplier: 1.5, // 🎭 視覺層倍數：前端動畫放大 1.5 倍
 
