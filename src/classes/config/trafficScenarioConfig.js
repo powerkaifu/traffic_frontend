@@ -4,7 +4,17 @@
  */
 
 // ============================================
-// 🌍 系統預設配置 - 初始化時使用
+// �️ 【全局車輛管理配置】
+// ============================================
+// 用途：全系統範圍內控制同時在場的車輛數量上限
+// 調用：AutoTrafficGenerator.checkVehicleLimit()、IndexPage.cleanupVehicles()
+// 作用：防止車輛生成過多導致記憶體溢出和卡頓
+// ✅ 可在此調整，無需修改其他地方
+// ============================================
+export const GLOBAL_MAX_LIVE_VEHICLES = 100 // 🎯 全局車輛上限（無論何種情景或模式）
+
+// ============================================
+// �🌍 系統預設配置 - 初始化時使用
 // ============================================
 // 用途：AutoTrafficGenerator.js constructor 中初始化
 // 調用：this.config = { ...defaultConfig }
@@ -14,7 +24,7 @@ export const defaultConfig = {
   interval: { min: 3000, max: 8000, normal: 5000 },
   peakMultiplier: 1.5,
   vehiclesPerInterval: { min: 1, max: 1 }, // 🚗 支持範圍：{ min, max }，固定時用 { min: x, max: x }
-  maxLiveVehicles: 100,
+  maxLiveVehicles: GLOBAL_MAX_LIVE_VEHICLES, // ✅ 使用全局配置
   minInterval: 200,
   minLaneInterval: 800,
   vehicleTypes: [
@@ -68,8 +78,10 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 2 }, // ✅ 改為每次只生成 1 台（降低車輛生成速度）
-      interval: { min: 2000, max: 8000, normal: 2000 }, // ✅ 改為更長的基礎間隔
+      // vehiclesPerInterval: { min: 1, max: 3 },
+      // interval: { min: 2000, max: 8000, normal: 2000 }, // ✅ 改為更長的基礎間隔
+      vehiclesPerInterval: { min: 1, max: 5 },
+      interval: { min: 500, max: 8000, normal: 1000 }, // ✅ 改為更長的基礎間隔
       peakMultiplier: 1, // 👈 尖峰倍數
       displayMultiplier: 1.5, // 🎭 視覺層倍數：前端動畫放大 1.5 倍
 
@@ -81,7 +93,7 @@ export const timeScenarios = [
         { type: 'small', weight: 50 }, // 小客車 50%
         { type: 'large', weight: 10 }, // 大客車 10%
       ],
-      maxLiveVehicles: 50, // ✅ 改為 50，降低同時在場車輛數量
+      maxLiveVehicles: GLOBAL_MAX_LIVE_VEHICLES, // ✅ 使用全局配置
       densityThresholds: { light: 15, moderate: 25, heavy: 35, congested: 45 },
 
       // =========================================
@@ -134,7 +146,7 @@ export const timeScenarios = [
         { type: 'small', weight: 65 }, // 小客車 65%
         { type: 'large', weight: 5 }, // 大客車 5%
       ],
-      maxLiveVehicles: 100, // 中等車輛數
+      maxLiveVehicles: GLOBAL_MAX_LIVE_VEHICLES, // ✅ 使用全局配置
       densityThresholds: { light: 10, moderate: 18, heavy: 28, congested: 40 },
 
       // =========================================
@@ -187,7 +199,7 @@ export const timeScenarios = [
         { type: 'small', weight: 40 }, // 小客車 40%
         { type: 'large', weight: 0 }, // 大客車 0%
       ],
-      maxLiveVehicles: 100, // 少量車輛
+      maxLiveVehicles: GLOBAL_MAX_LIVE_VEHICLES, // ✅ 使用全局配置
       densityThresholds: { light: 5, moderate: 10, heavy: 15, congested: 25 },
 
       // =========================================

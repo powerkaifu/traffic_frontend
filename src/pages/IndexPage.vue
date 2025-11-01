@@ -480,6 +480,15 @@ const handleAutoGenerateLeftTurn = (event) => {
 
 // 通用車輛創建函數
 const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, initialProgress = 0) => {
+  // ✅ 【新增】檢查是否超過車輛限制
+  const maxLiveVehicles = autoTrafficGenerator.config.maxLiveVehicles || 100
+  const currentVehicleCount = activeCars.value.length
+
+  if (currentVehicleCount >= maxLiveVehicles) {
+    console.warn(`⚠️ [車輛限制] 當前車輛數 (${currentVehicleCount}) 已達上限 (${maxLiveVehicles})，暫停生成新車輛`)
+    return null // 返回 null，不生成新車輛
+  }
+
   // 使用指定位置創建車輛
   const vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, trafficController)
 
@@ -1401,11 +1410,18 @@ onMounted(async () => {
 
     // 定期清理超時車輛機制
     const cleanupInterval = setInterval(() => {
+      const initialCount = activeCars.value.length
+
       // 清理可能已經完成但沒有正確清理的車輛
       activeCars.value = activeCars.value.filter((vehicle) => {
         // 檢查車輛是否還在DOM中
         if (!vehicle.element || !vehicle.element.parentNode) {
           console.log(`🗑️ 清理孤立車輛: ${vehicle.id}`)
+          // 同時清理 window.liveVehicles
+          if (window.liveVehicles) {
+            const idx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
+            if (idx !== -1) window.liveVehicles.splice(idx, 1)
+          }
           return false
         }
 
@@ -1421,11 +1437,70 @@ onMounted(async () => {
         // 如果車輛狀態是 completed 或 nearComplete，也要清理
         if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
           vehicle.remove()
+          // 同時清理 window.liveVehicles
+          if (window.liveVehicles) {
+            const idx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
+            if (idx !== -1) window.liveVehicles.splice(idx, 1)
+          }
           return false
         }
 
         return true
       })
+
+      // ✅ 【修改】如果當前車輛數超過限制，只清理已完成的車輛
+      const maxLiveVehicles = autoTrafficGenerator.config.maxLiveVehicles || 100
+      if (activeCars.value.length > maxLiveVehicles) {
+        const excessCount = activeCars.value.length - maxLiveVehicles
+        console.warn(`🚨 [車輛超限清理] 超過限制 ${excessCount} 輛，準備清理已完成的車輛...`)
+
+        // ✅ 只清理已完成動畫的車輛，不觸碰正在通行的車輛
+        let removedCount = 0
+        const vehiclesToRemove = []
+
+        // 找出所有已完成的車輛
+        for (let i = activeCars.value.length - 1; i >= 0 && removedCount < excessCount; i--) {
+          const vehicle = activeCars.value[i]
+          // 只移除已完成或接近完成的車輛
+          if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
+            vehiclesToRemove.push(i)
+            removedCount++
+          }
+        }
+
+        // 逆序移除，避免索引混亂
+        vehiclesToRemove.sort((a, b) => b - a)
+        vehiclesToRemove.forEach((idx) => {
+          const vehicleToRemove = activeCars.value[idx]
+          if (vehicleToRemove) {
+            vehicleToRemove.remove()
+            if (window.liveVehicles) {
+              const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicleToRemove.id)
+              if (liveIdx !== -1) window.liveVehicles.splice(liveIdx, 1)
+            }
+            console.log(`🗑️ 清理已完成車輛: ${vehicleToRemove.id} (狀態: ${vehicleToRemove.currentState})`)
+          }
+          activeCars.value.splice(idx, 1)
+        })
+
+        // 如果清理已完成的車輛還不夠，才記錄警告
+        if (removedCount < excessCount) {
+          console.warn(
+            `⚠️ [車輛超限] 只找到 ${removedCount} 輛已完成車輛可清理，需要 ${excessCount} 輛。` +
+              `剩餘 ${excessCount - removedCount} 輛超限車輛仍在通行，無法強制移除`,
+          )
+        } else {
+          console.log(`✅ [車輛超限] 已清理 ${removedCount} 輛完成車輛，恢復正常`)
+        }
+      }
+
+      // ✅ 【新增】定期日誌，監控車輛數量
+      if (initialCount !== activeCars.value.length || initialCount > maxLiveVehicles * 0.8) {
+        console.log(
+          `📊 [車輛狀態] 當前: ${activeCars.value.length} 輛 (限制: ${maxLiveVehicles}), ` +
+            `liveVehicles: ${window.liveVehicles?.length || 0}`,
+        )
+      }
     }, 2000) // 改為每2秒清理一次，更頻繁地處理終點車輛
 
     // 在組件卸載時清理定时器

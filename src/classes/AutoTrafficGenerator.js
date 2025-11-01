@@ -819,6 +819,15 @@ export default class AutoTrafficGenerator {
 
   // 隨機生成一輛車
   _generateVehicle() {
+    // ✅ 【新增】優先級 1：檢查全局車輛限制（硬性限制）
+    const maxLiveVehicles = this.config.maxLiveVehicles || 100
+    const currentLiveVehicles = window.liveVehicles ? window.liveVehicles.length : 0
+
+    if (currentLiveVehicles >= maxLiveVehicles) {
+      console.warn(`❌ [生成限制] 當前活躍車輛 ${currentLiveVehicles} 已達硬性限制 ${maxLiveVehicles}，停止生成新車輛`)
+      return
+    }
+
     // 🎭 獲取當前時段和對應的上限配置
     const currentTimePeriod = getCurrentTimePeriod() || 'off_peak' // 預設離峰
     const timeLimits = VOLUME_LIMITS_CONFIG[currentTimePeriod] || VOLUME_LIMITS_CONFIG['off_peak']
