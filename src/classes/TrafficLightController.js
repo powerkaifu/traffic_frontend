@@ -910,8 +910,8 @@ export default class TrafficLightController {
           Speed_S: singleData.Speed_S || 0,
           Volume_L: mappedVolumeL, // 【版本 2.5】：使用時段對應的大型車數
           Speed_L: singleData.Speed_L || 0,
-          Volume_T: mappedVehicleCount, // 【版本 2.5】：使用 VD 映射的車輛數
-          Speed_T: singleData.Speed_T || 0,
+          Volume_T: 0, // ✅ 聯結車禁止進入，必定為 0（不使用 mappedVehicleCount）
+          Speed_T: 0, // ✅ 聯結車禁止進入，必定為 0
         }
 
         // 🔧 為了方便日誌打印，暫時添加元數據到物件中（不會發送給後端）
