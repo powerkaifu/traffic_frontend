@@ -767,15 +767,19 @@ export default class TrafficLightController {
   // Strategy Pattern: 發送數據到後端 API（提前 10 秒請求）
   async sendDataToBackend(vdData = null) {
     try {
-      // 🎯 優先使用生成的 VD 數據（來自 AutoTrafficGenerator）
+      // 🎯【重要】優先使用 AutoTrafficGenerator 生成的 4-方向 API 數據陣列
       let dataToSend = null
       if (vdData) {
         dataToSend = vdData
         console.log('⏳ 已取得傳入的 VD 原始數據，準備進行正規化轉換...')
+      } else if (window.currentGeneratedVDData?.apiDataArray) {
+        // 🎯【新】使用 AutoTrafficGenerator 生成的 4-方向 API 數據陣列
+        dataToSend = window.currentGeneratedVDData.apiDataArray
+        console.log('✅ 已取得 AutoTrafficGenerator 生成的 4-方向 API 數據陣列，將直接發送到後端...')
       } else if (window.currentGeneratedVDData?.apiVDData) {
-        // 使用全局保存的生成 VD 數據
+        // 備用方案：相容舊版本
         dataToSend = window.currentGeneratedVDData.apiVDData
-        console.log('⏳ 已取得全局保存的生成 VD 原始數據，準備進行正規化轉換...')
+        console.log('⏳ 已取得全局保存的生成 VD 原始數據（舊版本），準備進行正規化轉換...')
       } else {
         // 備用方案：使用本地收集的數據
         dataToSend = this.collectIntersectionData()
@@ -816,7 +820,46 @@ export default class TrafficLightController {
       }
 
       // ✅ 進行正規化轉換：前端顯示數據 → API 發送數據
-      const normalizedDataArray = allIntersectionData.map((singleData) => {
+      let normalizedDataArray = allIntersectionData.map((singleData) => {
+        // 🎯【新】檢查數據是否已經是完整的 API 格式（來自 AutoTrafficGenerator）
+        // AutoTrafficGenerator 的 API 數據包含所有必需的欄位（VD_ID, Volume_M, Volume_S, Volume_L, Speed, Speed_M, Speed_S, Speed_L, Volume_T=0, Speed_T=0）
+        if (
+          singleData.Volume_M !== undefined &&
+          singleData.Volume_S !== undefined &&
+          singleData.Volume_L !== undefined &&
+          singleData.Speed_M !== undefined &&
+          singleData.Speed_S !== undefined &&
+          singleData.Speed_L !== undefined &&
+          singleData.Volume_T === 0 &&
+          singleData.Speed_T === 0
+        ) {
+          // ✅【新】數據已經是完整的 API 格式，直接返回
+          console.log(
+            `✅ 偵測到完整的 AutoTrafficGenerator API 數據，直接使用（VD_ID: ${singleData.VD_ID}, LaneID: ${singleData.LaneID}）`,
+          )
+          return {
+            VD_ID: singleData.VD_ID,
+            DayOfWeek: singleData.DayOfWeek,
+            Hour: singleData.Hour,
+            Minute: singleData.Minute,
+            Second: singleData.Second,
+            IsPeakHour: singleData.IsPeakHour,
+            LaneID: singleData.LaneID,
+            LaneType: singleData.LaneType,
+            Speed: singleData.Speed,
+            Occupancy: singleData.Occupancy,
+            Volume_M: singleData.Volume_M,
+            Speed_M: singleData.Speed_M,
+            Volume_S: singleData.Volume_S,
+            Speed_S: singleData.Speed_S,
+            Volume_L: singleData.Volume_L,
+            Speed_L: singleData.Speed_L,
+            Volume_T: 0,
+            Speed_T: 0,
+          }
+        }
+
+        // 【舊邏輯】如果不是完整的 API 數據，進行時段特徵對齐
         // 提取路口 ID 和時段
         let intersectionId = singleData?.VD_ID || 'VLRJM60'
         const timePeriod = getCurrentTimePeriod()

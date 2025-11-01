@@ -537,6 +537,58 @@ export default class AutoTrafficGenerator {
       apiData: apiVDData,
     }
 
+    // 🎯【重要】生成4個方向的 API 數據陣列（東、西、南、北）
+    // 每個方向都是發送給後端的完整格式
+    const directions = [
+      { VD_ID: 'VLRJX20', LaneID: 0, name: '往東' }, // 東向
+      { VD_ID: 'VLRJM60', LaneID: 1, name: '往西' }, // 西向
+      { VD_ID: 'VLRJX00', LaneID: 2, name: '往南' }, // 南向
+      { VD_ID: 'VLRJX00', LaneID: 3, name: '往北' }, // 北向
+    ]
+
+    // 計算加權平均速度（用於 Speed 欄位）
+    const totalVolume = volumeM + volumeS + volumeL
+    const weightedSpeed =
+      totalVolume > 0 ? Math.round((speedM * volumeM + speedS * volumeS + speedL * volumeL) / totalVolume) : 0
+
+    // 為每個方向生成略微不同的數據（模擬實際情況）
+    const apiDataArray = directions.map((direction) => {
+      // 為每個方向添加隨機波動（±5-10%）
+      const variance = 0.95 + Math.random() * 0.1
+
+      return {
+        VD_ID: direction.VD_ID,
+        DayOfWeek: new Date().getDay(),
+        Hour: hour,
+        Minute: minute,
+        Second: second,
+        IsPeakHour: isPeakHour,
+        LaneID: direction.LaneID,
+        LaneType: 1,
+        // 加權平均速度
+        Speed: weightedSpeed,
+        // 佔有率（各方向略有不同）
+        Occupancy: Math.round(occupancy * variance * 10) / 10,
+        // 🎯 API 層：各車型流量
+        Volume_M: Math.round(volumeM * variance),
+        Speed_M: speedM,
+        Volume_S: Math.round(volumeS * variance * 10) / 10, // 允許小數
+        Speed_S: speedS,
+        Volume_L: Math.round(volumeL * variance * 10) / 10, // 允許小數
+        Speed_L: speedL,
+        // 聯結車禁止進入
+        Volume_T: 0,
+        Speed_T: 0,
+      }
+    })
+
+    // 🎯【重要】保存 API 數據陣列到全局，供 MainLayout.vue 顯示特徵模擬數據面板
+    window.currentGeneratedVDData = {
+      apiDataArray: apiDataArray, // 4筆API數據（東西南北）
+      timestamp: new Date().toISOString(),
+      scenario: scenarioKey,
+    }
+
     return visualVDData
   }
 
