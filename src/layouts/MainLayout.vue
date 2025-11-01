@@ -3,22 +3,14 @@
     <q-header elevated class="text-white bg-transparent">
       <q-toolbar class="header-toolbar">
         <q-toolbar-title>
-          <img
-            src="/images/logo.png"
-            width="200"
-            alt="AI 智慧交通控制系統"
-            style="pointer-events: auto; cursor: pointer"
+          <div
             @mouseenter.stop="showLumoTooltip('logo')"
             @mouseleave.stop="hideLumoTooltip"
-          />
-          <span
-            class="ai-gradient animate"
-            style="pointer-events: auto; cursor: pointer"
-            @mouseenter.stop="showLumoTooltip('logo')"
-            @mouseleave.stop="hideLumoTooltip"
+            style="pointer-events: auto; cursor: auto"
           >
-            智慧綠燈控，AI 算你行！
-          </span>
+            <img src="/images/logo.png" width="200" alt="AI 智慧交通控制系統" />
+            <span class="ai-gradient animate"> 智慧綠燈控，AI 算你行！ </span>
+          </div>
         </q-toolbar-title>
 
         <!-- 中間切換按鈕 -->
