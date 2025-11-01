@@ -271,39 +271,41 @@ export function getScenarioByTime(currentTime) {
   // ==========================================
 
   // 00:00-06:00 深夜（凌晨低峰）
-  // 參考：VD深夜數據，極低流量
+  // 參考：late_night 情景模式
   if (currentHour >= 0 && currentHour < 6) {
     return {
       name: '深夜',
-      interval: { min: 20000, max: 45000, normal: 30000 },
-      peakMultiplier: 0.8, // 實際間隔 = 30000/0.8 = 37500ms → 約1.6輛/5分鐘
-      displayMultiplier: 1.5, // 🎭 視覺層倍數：對應 late_night
+      interval: { min: 15000, max: 35000, normal: 22000 },
+      peakMultiplier: 1.2,
+      displayMultiplier: 1.0,
+      vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
-        { type: 'motor', weight: 75 }, // 凌晨機車最多
-        { type: 'small', weight: 20 },
+        { type: 'motor', weight: 70 },
+        { type: 'small', weight: 25 },
         { type: 'large', weight: 5 },
       ],
-      description: '深夜時段 - 極低流量（目標：1.5輛/5分）',
-      targetVolume: 1.5,
-      targetOccupancy: 8,
-      targetSpeed: 50,
+      description: '深夜時段 - 極低流量（參考: late_night）',
+      targetVolume: 2,
+      targetOccupancy: 9,
+      targetSpeed: 48,
     }
   }
 
   // 06:00-07:00 清晨（開始增加）
-  // 參考：VD清晨數據
+  // 參考：late_night → off_peak 過渡
   else if (currentHour >= 6 && currentHour < 7) {
     return {
       name: '清晨',
       interval: { min: 8000, max: 15000, normal: 10000 },
-      peakMultiplier: 1.5, // 實際間隔 = 10000/1.5 = 6667ms → 約4.5輛/5分鐘
-      displayMultiplier: 1.5, // 🎭 視覺層倍數：對應 late_night
+      peakMultiplier: 1.5,
+      displayMultiplier: 1.0,
+      vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
         { type: 'motor', weight: 55 },
         { type: 'small', weight: 35 },
         { type: 'large', weight: 10 },
       ],
-      description: '清晨時段 - 低流量（目標：3輛/5分）',
+      description: '清晨時段 - 低流量（過渡段）',
       targetVolume: 3,
       targetOccupancy: 12,
       targetSpeed: 42,
@@ -315,39 +317,41 @@ export function getScenarioByTime(currentTime) {
   // ==========================================
 
   // 07:00-09:00 早尖峰（最高峰）
-  // 參考：VLRJX20 尖峰時段數據
+  // 參考：peak_hours 情景模式
   else if (currentHour >= 7 && currentHour < 9) {
     return {
       name: '早尖峰',
-      interval: { min: 2500, max: 5000, normal: 3500 }, // ✅ 改為更長的基礎間隔
-      peakMultiplier: 2.0, // ✅ 改為 2.0（實際間隔 = 3500/2.0 = 1750ms，原本 667ms）
-      displayMultiplier: 7, // 🎭 視覺層倍數：對應 peak_hours
+      interval: { min: 2500, max: 5000, normal: 2000 },
+      peakMultiplier: 2.0,
+      displayMultiplier: 1.5,
+      vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
-        { type: 'motor', weight: 55 }, // 尖峰時段機車多
-        { type: 'small', weight: 38 },
-        { type: 'large', weight: 7 },
+        { type: 'motor', weight: 40 },
+        { type: 'small', weight: 50 },
+        { type: 'large', weight: 10 },
       ],
-      description: '早尖峰時段 - 極高流量（目標：14輛/5分）',
-      targetVolume: 14,
+      description: '早尖峰時段 - 極高流量（參考: peak_hours）',
+      targetVolume: 11,
       targetOccupancy: 55,
       targetSpeed: 25,
     }
   }
 
-  // 09:00-11:00 上午（略降）
-  // 參考：VD上午時段數據
+  // 09:00-11:00 上午（略降至中等）
+  // 參考：peak_hours → off_peak 過渡
   else if (currentHour >= 9 && currentHour < 11) {
     return {
       name: '上午',
-      interval: { min: 4000, max: 8000, normal: 5500 },
-      peakMultiplier: 2.8, // 實際間隔 = 5500/2.8 = 1964ms → 約7輛/5分鐘
-      displayMultiplier: 3, // 🎭 視覺層倍數：對應 off_peak
+      interval: { min: 4000, max: 8000, normal: 5000 },
+      peakMultiplier: 2.0,
+      displayMultiplier: 1.2,
+      vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
         { type: 'motor', weight: 35 },
         { type: 'small', weight: 50 },
         { type: 'large', weight: 15 },
       ],
-      description: '上午時段 - 中等流量（目標：7輛/5分）',
+      description: '上午時段 - 中等流量（過渡段）',
       targetVolume: 7,
       targetOccupancy: 22,
       targetSpeed: 38,
@@ -358,42 +362,44 @@ export function getScenarioByTime(currentTime) {
   // ☀️ 中午時段 (11:00-17:00)
   // ==========================================
 
-  // 11:00-14:00 午間（穩定）
-  // 參考：VD午間時段數據
+  // 11:00-14:00 午間（穩定離峰）
+  // 參考：off_peak 情景模式
   else if (currentHour >= 11 && currentHour < 14) {
     return {
       name: '午間',
-      interval: { min: 3500, max: 7000, normal: 5000 },
-      peakMultiplier: 3.0, // 實際間隔 = 5000/3.0 = 1667ms → 約8輛/5分鐘
-      displayMultiplier: 3, // 🎭 視覺層倍數：對應 off_peak
+      interval: { min: 4000, max: 10000, normal: 6000 },
+      peakMultiplier: 1.8,
+      displayMultiplier: 1.0,
+      vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
-        { type: 'motor', weight: 38 },
-        { type: 'small', weight: 47 },
-        { type: 'large', weight: 15 },
+        { type: 'motor', weight: 30 },
+        { type: 'small', weight: 65 },
+        { type: 'large', weight: 5 },
       ],
-      description: '午間時段 - 中高流量（目標：8輛/5分）',
-      targetVolume: 8,
-      targetOccupancy: 25,
+      description: '午間時段 - 中等流量（參考: off_peak）',
+      targetVolume: 4,
+      targetOccupancy: 15,
       targetSpeed: 35,
     }
   }
 
   // 14:00-16:00 下午（略增）
-  // 參考：VD下午時段數據
+  // 參考：off_peak 情景模式，略帶上升趨勢
   else if (currentHour >= 14 && currentHour < 16) {
     return {
       name: '下午',
-      interval: { min: 3000, max: 6500, normal: 4500 },
-      peakMultiplier: 3.2, // 實際間隔 = 4500/3.2 = 1406ms → 約9輛/5分鐘
-      displayMultiplier: 3, // 🎭 視覺層倍數：對應 off_peak
+      interval: { min: 3500, max: 8000, normal: 5000 },
+      peakMultiplier: 2.0,
+      displayMultiplier: 1.1,
+      vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
-        { type: 'motor', weight: 42 },
-        { type: 'small', weight: 45 },
-        { type: 'large', weight: 13 },
+        { type: 'motor', weight: 35 },
+        { type: 'small', weight: 55 },
+        { type: 'large', weight: 10 },
       ],
-      description: '下午時段 - 中高流量（目標：9輛/5分）',
-      targetVolume: 9,
-      targetOccupancy: 28,
+      description: '下午時段 - 中等流量（略升）',
+      targetVolume: 5,
+      targetOccupancy: 18,
       targetSpeed: 33,
     }
   }
@@ -403,60 +409,63 @@ export function getScenarioByTime(currentTime) {
   // ==========================================
 
   // 16:00-17:00 傍晚前（開始壅塞）
-  // 參考：VD傍晚前時段數據
+  // 參考：off_peak → peak_hours 過渡
   else if (currentHour >= 16 && currentHour < 17) {
     return {
       name: '傍晚前',
-      interval: { min: 2500, max: 5000, normal: 3500 },
-      peakMultiplier: 3.8, // 實際間隔 = 3500/3.8 = 921ms → 約11輛/5分鐘
-      displayMultiplier: 7, // 🎭 視覺層倍數：對應 peak_hours (即將進入晚尖峰)
+      interval: { min: 3000, max: 6000, normal: 3500 },
+      peakMultiplier: 2.5,
+      displayMultiplier: 1.3,
+      vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
-        { type: 'motor', weight: 48 },
-        { type: 'small', weight: 42 },
-        { type: 'large', weight: 10 },
+        { type: 'motor', weight: 38 },
+        { type: 'small', weight: 50 },
+        { type: 'large', weight: 12 },
       ],
-      description: '傍晚前時段 - 高流量（目標：11輛/5分）',
-      targetVolume: 11,
-      targetOccupancy: 38,
+      description: '傍晚前時段 - 高流量（過渡段）',
+      targetVolume: 8,
+      targetOccupancy: 28,
       targetSpeed: 30,
     }
   }
 
   // 17:00-19:00 晚尖峰（第二高峰）
-  // 參考：VLRJX20 晚尖峰時段數據
+  // 參考：peak_hours 情景模式
   else if (currentHour >= 17 && currentHour < 19) {
     return {
       name: '晚尖峰',
-      interval: { min: 2500, max: 5000, normal: 3600 }, // ✅ 改為更長的基礎間隔
-      peakMultiplier: 2.0, // ✅ 改為 2.0（實際間隔 = 3600/2.0 = 1800ms，原本 750ms）
-      displayMultiplier: 7, // 🎭 視覺層倍數：對應 peak_hours
+      interval: { min: 2500, max: 5000, normal: 2000 },
+      peakMultiplier: 2.0,
+      displayMultiplier: 1.5,
+      vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
-        { type: 'motor', weight: 52 },
-        { type: 'small', weight: 40 },
-        { type: 'large', weight: 8 },
+        { type: 'motor', weight: 40 },
+        { type: 'small', weight: 50 },
+        { type: 'large', weight: 10 },
       ],
-      description: '晚尖峰時段 - 極高流量（目標：13輛/5分）',
-      targetVolume: 13,
+      description: '晚尖峰時段 - 極高流量（參考: peak_hours）',
+      targetVolume: 11,
       targetOccupancy: 50,
       targetSpeed: 27,
     }
   }
 
   // 19:00-21:00 晚間（逐漸降低）
-  // 參考：VD晚間時段數據
+  // 參考：peak_hours → off_peak 過渡
   else if (currentHour >= 19 && currentHour < 21) {
     return {
       name: '晚間',
-      interval: { min: 4500, max: 9000, normal: 6500 },
-      peakMultiplier: 2.4, // 實際間隔 = 6500/2.4 = 2708ms → 約6輛/5分鐘
-      displayMultiplier: 3, // 🎭 視覺層倍數：對應 off_peak
+      interval: { min: 4500, max: 9000, normal: 6000 },
+      peakMultiplier: 1.8,
+      displayMultiplier: 1.1,
+      vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
-        { type: 'motor', weight: 45 },
-        { type: 'small', weight: 45 },
+        { type: 'motor', weight: 35 },
+        { type: 'small', weight: 55 },
         { type: 'large', weight: 10 },
       ],
-      description: '晚間時段 - 中等流量（目標：6輛/5分）',
-      targetVolume: 6,
+      description: '晚間時段 - 中等流量（參考: off_peak，下降）',
+      targetVolume: 5,
       targetOccupancy: 18,
       targetSpeed: 40,
     }
@@ -467,39 +476,41 @@ export function getScenarioByTime(currentTime) {
   // ==========================================
 
   // 21:00-23:00 深夜前（持續降低）
-  // 參考：VD深夜前時段數據
+  // 參考：off_peak → late_night 過渡
   else if (currentHour >= 21 && currentHour < 23) {
     return {
       name: '深夜前',
-      interval: { min: 8000, max: 16000, normal: 11000 },
-      peakMultiplier: 1.8, // 實際間隔 = 11000/1.8 = 6111ms → 約3.5輛/5分鐘
-      displayMultiplier: 1.5, // 🎭 視覺層倍數：對應 late_night
+      interval: { min: 8000, max: 16000, normal: 10000 },
+      peakMultiplier: 1.5,
+      displayMultiplier: 1.0,
+      vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
         { type: 'motor', weight: 60 },
         { type: 'small', weight: 32 },
         { type: 'large', weight: 8 },
       ],
-      description: '深夜前時段 - 低流量（目標：3.5輛/5分）',
-      targetVolume: 3.5,
+      description: '深夜前時段 - 低流量（過渡段）',
+      targetVolume: 3,
       targetOccupancy: 12,
       targetSpeed: 45,
     }
   }
 
   // 23:00-24:00 深夜（回到低峰）
-  // 參考：VD深夜時段數據
+  // 參考：late_night 情景模式
   else {
     return {
       name: '深夜',
       interval: { min: 15000, max: 35000, normal: 22000 },
-      peakMultiplier: 1.2, // 實際間隔 = 22000/1.2 = 18333ms → 約2輛/5分鐘
-      displayMultiplier: 1.5, // 🎭 視覺層倍數：對應 late_night
+      peakMultiplier: 1.2,
+      displayMultiplier: 1.0,
+      vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
         { type: 'motor', weight: 70 },
         { type: 'small', weight: 25 },
         { type: 'large', weight: 5 },
       ],
-      description: '深夜時段 - 極低流量（目標：2輛/5分）',
+      description: '深夜時段 - 極低流量（參考: late_night）',
       targetVolume: 2,
       targetOccupancy: 9,
       targetSpeed: 48,
