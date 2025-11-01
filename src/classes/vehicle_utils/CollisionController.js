@@ -904,10 +904,26 @@ export class CollisionController {
     }
 
     // 只檢查同方向的車輛
-    const sameDirectionVehicles = allVehicles.filter(
+    let sameDirectionVehicles = allVehicles.filter(
       (v) =>
         v.id !== this.vehicle.id && v.direction === this.vehicle.direction && v.laneNumber === this.vehicle.laneNumber,
     )
+
+    if (sameDirectionVehicles.length === 0) {
+      return null
+    }
+
+    // 🚨 性能優化：只檢查前方最近的 3 台車
+    // 按照方向排序，找出前方的車輛，然後只檢查最近的 3 台
+    sameDirectionVehicles = sameDirectionVehicles
+      .map((v) => ({
+        vehicle: v,
+        distance: this.calculateDirectionalDistance(myPos, v.getCurrentPosition()),
+      }))
+      .filter((item) => item.distance > 0) // 只取前方車輛
+      .sort((a, b) => a.distance - b.distance) // 按距離排序
+      .slice(0, 3) // 只保留最近的 3 台
+      .map((item) => item.vehicle)
 
     if (sameDirectionVehicles.length === 0) {
       return null
@@ -932,7 +948,7 @@ export class CollisionController {
       return null
     }
 
-    // 尋找最近的前方車輛
+    // 尋找最近的前方車輛（已優化為只檢查前 3 台）
     let closestThreat = null
     let minDistance = Infinity
 
