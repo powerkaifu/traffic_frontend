@@ -9,7 +9,7 @@
             style="pointer-events: auto; cursor: auto"
           >
             <img src="/images/logo.png" width="200" alt="AI 智慧交通控制系統" />
-            <span class="ai-gradient animate"> 智慧綠燈控，AI 算你行！ </span>
+            <span class="ai-gradient animate"> 【智慧綠燈控 &nbsp;AI 算你行】</span>
           </div>
         </q-toolbar-title>
 

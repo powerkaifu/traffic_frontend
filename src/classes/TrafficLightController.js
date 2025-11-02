@@ -17,6 +17,96 @@ import {
   generateValidationReport,
 } from './utils/DataQualityValidator.js' // 【版本 2.5 新增】數據品質驗證與修正系統
 
+// 🎯 【優化】全局日誌系統 - 區分開發和生產環境
+const isDev = process.env.DEV || process.env.NODE_ENV !== 'production'
+
+const LOG_LEVELS = {
+  ERROR: 0, // 總是輸出
+  WARN: 1, // 總是輸出
+  INFO: 2, // DEV 模式輸出
+  DEBUG: 3, // DEV 模式輸出
+}
+
+const MIN_LOG_LEVEL = isDev ? LOG_LEVELS.DEBUG : LOG_LEVELS.ERROR
+
+/**
+ * 創建日誌函數 - 根據環境自動過濾
+ * @param {number} level - 日誌級別
+ * @returns {Function} 日誌函數
+ */
+const createLogger = (level) => {
+  return (...args) => {
+    if (level <= MIN_LOG_LEVEL) {
+      if (level === LOG_LEVELS.ERROR) {
+        console.error(...args)
+      } else if (level === LOG_LEVELS.WARN) {
+        console.warn(...args)
+      } else {
+        console.log(...args)
+      }
+    }
+  }
+}
+
+// 日誌實例
+const logError = createLogger(LOG_LEVELS.ERROR)
+const logWarn = createLogger(LOG_LEVELS.WARN)
+const logInfo = createLogger(LOG_LEVELS.INFO)
+// const logDebug = createLogger(LOG_LEVELS.DEBUG)
+
+// 🎯 【API 重試機制】指數退避配置
+const API_RETRY_CONFIG = {
+  MAX_RETRIES: 3, // 最多重試 3 次
+  BASE_DELAY: 1000, // 基礎延遲 1000ms
+  TIMEOUT: 5000, // 單次請求超時 5000ms
+}
+
+/**
+ * 帶重試機制的 fetch 函數 - 指數退避
+ * @param {string} url - API 端點
+ * @param {object} options - fetch 選項
+ * @returns {Promise} 響應物件
+ */
+const fetchWithRetry = async (url, options = {}) => {
+  let lastError = null
+
+  for (let attempt = 1; attempt <= API_RETRY_CONFIG.MAX_RETRIES; attempt++) {
+    let timeoutId = null
+    try {
+      // 為每次請求添加超時控制
+      const controller = new AbortController()
+      timeoutId = setTimeout(() => controller.abort(), API_RETRY_CONFIG.TIMEOUT)
+
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeoutId)
+      return response
+    } catch (error) {
+      if (timeoutId) clearTimeout(timeoutId)
+      lastError = error
+
+      // 如果是最後一次嘗試，直接拋出錯誤
+      if (attempt === API_RETRY_CONFIG.MAX_RETRIES) {
+        logError(`❌ [API 重試] 第 ${attempt} 次嘗試失敗，已達最大重試次數`)
+        throw lastError
+      }
+
+      // 計算延遲時間：1000ms * 2^(attempt-1) = 1s, 2s, 4s
+      const delayMs = API_RETRY_CONFIG.BASE_DELAY * Math.pow(2, attempt - 1)
+
+      logWarn(`⚠️ [API 重試] 第 ${attempt} 次嘗試失敗: ${error.message}，${delayMs}ms 後重試...`)
+
+      // 等待指定時間後重試
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+    }
+  }
+
+  throw lastError
+}
+
 export default class TrafficLightController {
   constructor() {
     // Strategy Pattern: 不同方向的燈號管理策略
@@ -149,29 +239,29 @@ export default class TrafficLightController {
           const { type, remainingSeconds } = event.data
 
           if (type === 'initialized') {
-            console.log('✅ [TrafficLightController] Worker 已初始化')
+            logInfo('✅ [TrafficLightController] Worker 已初始化')
           } else if (type === 'tick') {
             // 📊 每秒更新秒數
             this.updateCountdown(remainingSeconds)
           } else if (type === 'completed') {
-            console.log('✅ [Worker] 綠燈時間已結束')
+            logInfo('✅ [Worker] 綠燈時間已結束')
             // 發送信號進行相位切換
             window.dispatchEvent(new Event('greenLightCompleted'))
           } else if (type === 'started') {
-            console.log(`✅ [Worker] 開始倒數：${remainingSeconds} 秒`)
+            logInfo(`✅ [Worker] 開始倒數：${remainingSeconds} 秒`)
           } else if (type === 'stopped') {
-            console.log('⏹️ [Worker] 倒數已停止')
+            logInfo('⏹️ [Worker] 倒數已停止')
           }
         }
 
         this.timerWorker.onerror = (error) => {
-          console.error('❌ [Worker] 錯誤:', error.message)
+          logError('❌ [Worker] 錯誤:', error.message)
         }
       } else {
-        console.warn('⚠️ 此瀏覽器不支援 Web Worker，使用備用計時方案')
+        logWarn('⚠️ 此瀏覽器不支援 Web Worker，使用備用計時方案')
       }
     } catch (error) {
-      console.error('❌ [TrafficLightController] Worker 初始化失敗:', error)
+      logError('❌ [TrafficLightController] Worker 初始化失敗:', error)
     }
   }
 
@@ -379,7 +469,7 @@ export default class TrafficLightController {
 
   // Template Method Pattern: 運行一個完整的燈號循環（包含左轉階段）
   async runCycle() {
-    console.log('🔄 開始交通燈循環（直行優先的左轉燈號流程）...')
+    logInfo('🔄 開始交通燈循環（直行優先的左轉燈號流程）...')
     this.debugLightStates()
 
     while (this.isRunning) {
@@ -436,13 +526,13 @@ export default class TrafficLightController {
           await this.countdownDelay(this.phaseTimings.allRed.duration * 1000)
 
           // 🔧 修正：在南北向時相結束前，重置數據以準備東西向時相
-          console.log('🔄 [相位切換] 南北向時相結束，重置數據以準備東西向')
+          logInfo('🔄 [相位切換] 南北向時相結束，重置數據以準備東西向')
           this.resetTrafficDataForNextCycle()
 
           // 切換至東西向
           this.currentPhase = 'eastWest'
           this.dynamicTiming.eastWest = this.nextTiming.eastWest
-          console.log('🔄 [TrafficController] 相位切換至 eastWest')
+          logInfo('🔄 [TrafficController] 相位切換至 eastWest')
           this.debugLightStates()
         } else {
           // 🎯【階段1】東西向直行綠燈（先直行）
@@ -495,20 +585,20 @@ export default class TrafficLightController {
           await this.countdownDelay(this.phaseTimings.allRed.duration * 1000)
 
           // 🔧 修正：在東西向時相結束前，重置數據以準備南北向時相
-          console.log('🔄 [相位切換] 東西向時相結束，重置數據以準備南北向')
+          logInfo('🔄 [相位切換] 東西向時相結束，重置數據以準備南北向')
           this.resetTrafficDataForNextCycle()
 
           // 切換至南北向
           this.currentPhase = 'northSouth'
           this.dynamicTiming.northSouth = this.nextTiming.northSouth
-          console.log('🔄 [TrafficController] 相位切換至 northSouth')
+          logInfo('🔄 [TrafficController] 相位切換至 northSouth')
           this.debugLightStates()
         }
 
         // 🔧 移除：不再在這裡重置，改為在相位切換時重置
         // this.resetVehicleData()
       } catch (error) {
-        console.error('🚨 交通燈循環出現錯誤:', error)
+        logError('🚨 交通燈循環出現錯誤:', error)
         await this.delay(1000)
       }
     }
@@ -539,7 +629,7 @@ export default class TrafficLightController {
       })
     } else {
       // 回退方案：使用舊的倒數邏輯
-      console.warn('⚠️ Web Worker 不可用，使用回退倒數邏輯')
+      logWarn('⚠️ Web Worker 不可用，使用回退倒數邏輯')
       for (let i = totalSeconds; i > 0; i--) {
         if (this.onTimerUpdate) {
           this.onTimerUpdate(null, i)
@@ -557,7 +647,7 @@ export default class TrafficLightController {
     // 🔧 修正：計算實際觸發時機，確保不會錯過
     const actualTriggerSeconds = Math.min(apiTriggerSeconds, totalSeconds)
 
-    console.log(
+    logInfo(
       `🕐 [API觸發檢查] 總綠燈時間: ${totalSeconds}秒, 設定觸發時間: ${apiTriggerSeconds}秒, 實際觸發時間: ${actualTriggerSeconds}秒`,
     )
 
@@ -573,8 +663,8 @@ export default class TrafficLightController {
 
             // Strategy Pattern: 在剩餘指定秒數時觸發API
             if (remainingSeconds === actualTriggerSeconds && !apiTriggered) {
-              console.log(`⏰ [API觸發] 剩餘 ${remainingSeconds} 秒，開始 AI 預測流程...`)
-              console.log(`📊 [API觸發] 當前相位: ${this.currentPhase}, 綠燈總時間: ${totalSeconds}秒`)
+              logInfo(`⏰ [API觸發] 剩餘 ${remainingSeconds} 秒，開始 AI 預測流程...`)
+              logInfo(`📊 [API觸發] 當前相位: ${this.currentPhase}, 綠燈總時間: ${totalSeconds}秒`)
 
               // 1. 收集當前週期的完整數據
               const currentCycleData = this.collectIntersectionData()
@@ -585,7 +675,7 @@ export default class TrafficLightController {
               // 3. 立即更新特徵模擬數據顯示
               this.updateFeatureSimulationDisplay(currentCycleData)
 
-              console.log('ℹ️ [API觸發] 數據已發送，將在相位切換時重置數據')
+              logInfo('ℹ️ [API觸發] 數據已發送，將在相位切換時重置數據')
 
               apiTriggered = true
             }
@@ -594,7 +684,7 @@ export default class TrafficLightController {
 
             // 🔧 安全檢查：如果整個循環結束都沒觸發，記錄警告
             if (!apiTriggered) {
-              console.warn(
+              logWarn(
                 `⚠️ [API觸發失敗] 南北向綠燈 ${totalSeconds} 秒已結束，但未觸發API（設定值: ${apiTriggerSeconds}秒）`,
               )
             }
@@ -608,7 +698,7 @@ export default class TrafficLightController {
       })
     } else {
       // 回退方案：使用舊的倒數邏輯
-      console.warn('⚠️ Web Worker 不可用，使用回退倒數邏輯')
+      logWarn('⚠️ Web Worker 不可用，使用回退倒數邏輯')
       for (let i = totalSeconds; i > 0; i--) {
         if (this.onTimerUpdate) {
           this.onTimerUpdate(null, i)
@@ -616,8 +706,8 @@ export default class TrafficLightController {
 
         // Strategy Pattern: 在剩餘指定秒數時觸發API
         if (i === actualTriggerSeconds && !apiTriggered) {
-          console.log(`⏰ [API觸發] 剩餘 ${i} 秒，開始 AI 預測流程...`)
-          console.log(`📊 [API觸發] 當前相位: ${this.currentPhase}, 綠燈總時間: ${totalSeconds}秒`)
+          logInfo(`⏰ [API觸發] 剩餘 ${i} 秒，開始 AI 預測流程...`)
+          logInfo(`📊 [API觸發] 當前相位: ${this.currentPhase}, 綠燈總時間: ${totalSeconds}秒`)
 
           // 1. 收集當前週期的完整數據
           const currentCycleData = this.collectIntersectionData()
@@ -628,7 +718,7 @@ export default class TrafficLightController {
           // 3. 立即更新特徵模擬數據顯示
           this.updateFeatureSimulationDisplay(currentCycleData)
 
-          console.log('ℹ️ [API觸發] 數據已發送，將在相位切換時重置數據')
+          logInfo('ℹ️ [API觸發] 數據已發送，將在相位切換時重置數據')
 
           apiTriggered = true
         }
@@ -646,7 +736,7 @@ export default class TrafficLightController {
   collectIntersectionData() {
     // 🎯【新增】增加 API 呼叫計數，用於第一/二次呼叫時的隨機化
     this.apiCallCount = (this.apiCallCount || 0) + 1
-    console.log(`📞 [API 計數] 第 ${this.apiCallCount} 次呼叫`)
+    logInfo(`📞 [API 計數] 第 ${this.apiCallCount} 次呼叫`)
 
     // 🎯【CRITICAL FIX】在自動模式下使用模擬時間，否則使用系統時間或配置時間
     let dayOfWeek, hour, minute, second, isPeakHour
@@ -659,7 +749,7 @@ export default class TrafficLightController {
       minute = simulatedTime.getMinutes()
       second = simulatedTime.getSeconds()
       isPeakHour = (hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19) ? 1 : 0
-      console.log(
+      logInfo(
         `🕐 [自動模式] 使用模擬時間: ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')} (曜日=${dayOfWeek}, 尖峰=${isPeakHour})`,
       )
     } else {
@@ -671,7 +761,7 @@ export default class TrafficLightController {
       minute = timeConfig.minute // 使用配置中的分鐘
       second = timeConfig.second // 使用配置中的秒
       isPeakHour = timeConfig.isPeakHour // 使用配置中的尖峰標記
-      console.log(
+      logInfo(
         `📅 [手動模式] 情景: ${selectedTimePeriod} → 時間: ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')} (尖峰=${isPeakHour})`,
       )
     }
@@ -679,7 +769,7 @@ export default class TrafficLightController {
     const vdData = []
 
     // 🔧 添加日誌：顯示當前 vehicleData 狀態
-    console.log('📊 [數據收集] 當前 vehicleData 原始狀態:', JSON.stringify(this.vehicleData, null, 2))
+    logInfo('📊 [數據收集] 當前 vehicleData 原始狀態:', JSON.stringify(this.vehicleData, null, 2))
 
     // Strategy Pattern: VD_ID 映射策略
     const vdMapping = {
@@ -712,7 +802,7 @@ export default class TrafficLightController {
         scaledSmall = Math.max(1, Math.round(baseSmall * variation))
         scaledLarge = Math.max(1, Math.round(baseLarge * variation))
 
-        console.log(
+        logInfo(
           `⚠️ [數據收集] ${direction} 方向無車輛，使用基礎值+隨機波動 (×${variation.toFixed(2)}): motor=${scaledMotor}, small=${scaledSmall}, large=${scaledLarge}`,
         )
       } else {
@@ -721,7 +811,7 @@ export default class TrafficLightController {
         scaledSmall = Math.round(data.small * this.dataScalingFactor)
         scaledLarge = Math.round(data.large * this.dataScalingFactor)
 
-        console.log(
+        logInfo(
           `✅ [數據收集] ${direction} 方向 - 原始: motor=${data.motor}, small=${data.small}, large=${data.large} | 縮放後: motor=${scaledMotor}, small=${scaledSmall}, large=${scaledLarge}`,
         )
       }
@@ -769,7 +859,7 @@ export default class TrafficLightController {
     })
 
     // 🔧 添加日誌：顯示處理後的數據
-    console.log('📤 [數據發送] 處理後的 vdData:', JSON.stringify(vdData, null, 2))
+    logInfo('📤 [數據發送] 處理後的 vdData:', JSON.stringify(vdData, null, 2))
 
     return vdData
   }
@@ -855,7 +945,7 @@ export default class TrafficLightController {
     const scaleFactor = Math.min(1, maxBackendVolume / currentVolume)
 
     if (scaleFactor < 1) {
-      console.log(
+      logInfo(
         `🔌 [後端上限] 將體積從 ${currentVolume} 縮小到 ${Math.round(currentVolume * scaleFactor)} (時段=${timePeriod}, 上限=${maxBackendVolume})`,
       )
 
@@ -884,19 +974,19 @@ export default class TrafficLightController {
       let dataToSend = null
       if (vdData) {
         dataToSend = vdData
-        console.log('⏳ 已取得傳入的 VD 原始數據，準備進行正規化轉換...')
+        logInfo('⏳ 已取得傳入的 VD 原始數據，準備進行正規化轉換...')
       } else if (window.currentGeneratedVDData?.apiDataArray) {
         // 🎯【新】使用 AutoTrafficGenerator 生成的 4-方向 API 數據陣列
         dataToSend = window.currentGeneratedVDData.apiDataArray
-        console.log('✅ 已取得 AutoTrafficGenerator 生成的 4-方向 API 數據陣列，將直接發送到後端...')
+        logInfo('✅ 已取得 AutoTrafficGenerator 生成的 4-方向 API 數據陣列，將直接發送到後端...')
       } else if (window.currentGeneratedVDData?.apiVDData) {
         // 備用方案：相容舊版本
         dataToSend = window.currentGeneratedVDData.apiVDData
-        console.log('⏳ 已取得全局保存的生成 VD 原始數據（舊版本），準備進行正規化轉換...')
+        logInfo('⏳ 已取得全局保存的生成 VD 原始數據（舊版本），準備進行正規化轉換...')
       } else {
         // 備用方案：使用本地收集的數據
         dataToSend = this.collectIntersectionData()
-        console.log('⏳ 已使用本地收集的數據（備用方案），準備進行正規化轉換...')
+        logInfo('⏳ 已使用本地收集的數據（備用方案），準備進行正規化轉換...')
       }
 
       // 🎯【關鍵步驟 1】確保 dataToSend 是陣列格式（後端期望 4 筆路口特徵資料）
@@ -904,10 +994,10 @@ export default class TrafficLightController {
       if (Array.isArray(dataToSend)) {
         // 已經是陣列格式（來自 collectIntersectionData()）
         allIntersectionData = dataToSend
-        console.log('✅ 數據已是陣列格式，包含 ' + allIntersectionData.length + ' 筆交叉路口數據')
+        logInfo('✅ 數據已是陣列格式，包含 ' + allIntersectionData.length + ' 筆交叉路口數據')
       } else if (dataToSend && typeof dataToSend === 'object') {
         // 單個物件（來自 AutoTrafficGenerator），需要複製為 4 筆（東、西、南、北）
-        console.log('📋 檢測到單筆 AutoTrafficGenerator 數據，準備擴展為 4 筆交叉路口...')
+        logInfo('📋 檢測到單筆 AutoTrafficGenerator 數據，準備擴展為 4 筆交叉路口...')
 
         // 東、西、南、北的 VD_ID 和方向信息
         const directions = [
@@ -926,9 +1016,9 @@ export default class TrafficLightController {
           // ✅ 保持原始的 Volume_M, Volume_S, Volume_L, Speed 等數據
         }))
 
-        console.log('✅ 已將單筆數據擴展為 4 筆交叉路口數據（東、西、南、北）')
+        logInfo('✅ 已將單筆數據擴展為 4 筆交叉路口數據（東、西、南、北）')
       } else {
-        console.error('❌ 數據格式錯誤，無法發送到後端')
+        logError('❌ 數據格式錯誤，無法發送到後端')
         throw new Error('Invalid data format: expected array or object with intersection data')
       }
 
@@ -947,7 +1037,7 @@ export default class TrafficLightController {
           singleData.Speed_T === 0
         ) {
           // ✅【新】數據已經是完整的 API 格式，直接返回
-          console.log(
+          logInfo(
             `✅ 偵測到完整的 AutoTrafficGenerator API 數據，直接使用（VD_ID: ${singleData.VD_ID}, LaneID: ${singleData.LaneID}）`,
           )
           return {
@@ -979,7 +1069,7 @@ export default class TrafficLightController {
 
         // 容錯：檢查時段轉換
         if (timePeriod !== this.lastTimePeriod) {
-          console.warn(`⚠️ [時段轉換] ${this.lastTimePeriod} → ${timePeriod} 於 ${new Date().toLocaleTimeString()}`)
+          logWarn(`⚠️ [時段轉換] ${this.lastTimePeriod} → ${timePeriod} 於 ${new Date().toLocaleTimeString()}`)
           this.timePeriodChangeCount++
           this.lastTimePeriod = timePeriod
         }
@@ -987,7 +1077,7 @@ export default class TrafficLightController {
         // 容錯：驗證路口 ID
         const validIds = ['VLRJM60', 'VLRJX00', 'VLRJX20']
         if (!validIds.includes(intersectionId)) {
-          console.warn(`⚠️ [路口容錯] 無效的路口 ID: ${intersectionId}，使用 VLRJM60`)
+          logWarn(`⚠️ [路口容錯] 無效的路口 ID: ${intersectionId}，使用 VLRJM60`)
           intersectionId = 'VLRJM60'
         }
 
@@ -1022,13 +1112,13 @@ export default class TrafficLightController {
         const mappedVolumeS = Math.round(mappedVehicleCount * ratios.S)
         const mappedVolumeL = Math.round(mappedVehicleCount * ratios.L)
 
-        console.log(`📊 【版本 2.5】VD 特徵對齊 - 時段: ${timePeriod}`)
-        console.log(
+        logInfo(`📊 【版本 2.5】VD 特徵對齊 - 時段: ${timePeriod}`)
+        logInfo(
           `   - 映射時段: ${timePeriod} (${vdMapping.vehicleCountRange[0]}-${vdMapping.vehicleCountRange[1]} 輛範圍)`,
         )
-        console.log(`   - 小時映射: ${singleData.Hour || 'N/A'} → ${mappedHour}`)
-        console.log(`   - 流量映射: ${singleData.Volume_T || 0} → ${mappedVehicleCount} 輛總計`)
-        console.log(
+        logInfo(`   - 小時映射: ${singleData.Hour || 'N/A'} → ${mappedHour}`)
+        logInfo(`   - 流量映射: ${singleData.Volume_T || 0} → ${mappedVehicleCount} 輛總計`)
+        logInfo(
           `   - 車型分布: M=${mappedVolumeM} + S=${mappedVolumeS} + L=${mappedVolumeL} = ${mappedVolumeM + mappedVolumeS + mappedVolumeL}`,
         )
 
@@ -1098,9 +1188,9 @@ export default class TrafficLightController {
       const firstData = normalizedDataArray[0] || {}
 
       // 🔍 調試：檢查 finalDataToSend 的 Volume_L
-      console.log('🔍 [TrafficLightController] finalDataToSend 中各方向的 Volume_L：')
+      logInfo('🔍 [TrafficLightController] finalDataToSend 中各方向的 Volume_L：')
       finalDataToSend.forEach((data, index) => {
-        console.log(`  方向 ${index} (${data.VD_ID}, LaneID: ${data.LaneID}): Volume_L = ${data.Volume_L}`)
+        logInfo(`  方向 ${index} (${data.VD_ID}, LaneID: ${data.LaneID}): Volume_L = ${data.Volume_L}`)
       })
 
       // ✅ 【版本 2.5】VD 數據已生成並應用時段特徵對齐
@@ -1112,30 +1202,30 @@ export default class TrafficLightController {
       // console.log(`  - 映射到 VD 特徵: Volume_T = ${firstData.Volume_T} 輛`)
 
       // 【新增】打印完整的數據陣列（物件形式，可用 Copy object 複製）
-      console.log('📦 【完整的數據陣列 - 右鍵 Copy object 複製】:')
-      console.log(normalizedDataArray)
+      logInfo('📦 【完整的數據陣列 - 右鍵 Copy object 複製】:')
+      logInfo(normalizedDataArray)
 
       // 【新增】打印格式化的 JSON 字符串（便於閱讀和檢查）
-      console.log('📋 【格式化的 JSON 字符串 - 便於閱讀】:')
-      console.log(JSON.stringify(normalizedDataArray, null, 2))
+      logInfo('📋 【格式化的 JSON 字符串 - 便於閱讀】:')
+      logInfo(JSON.stringify(normalizedDataArray, null, 2))
 
-      // console.log('🚦 發送 VD 數據到後端 AI 系統:')
-      // console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
-      // console.log(`  - 第一筆流量 (版本 2.5): Volume_T=${firstData.Volume_T} (VD 映射值)`)
-      // console.log(`  - 第一筆車型: M=${firstData.Volume_M}, S=${firstData.Volume_S}, L=${firstData.Volume_L}`)
-      // console.log(`  - 時段信息: ${firstData.scenario}`)
+      // logInfo('🚦 發送 VD 數據到後端 AI 系統:')
+      // logInfo(`  - 交叉路口數量: ${normalizedDataArray.length}`)
+      // logInfo(`  - 第一筆流量 (版本 2.5): Volume_T=${firstData.Volume_T} (VD 映射值)`)
+      // logInfo(`  - 第一筆車型: M=${firstData.Volume_M}, S=${firstData.Volume_S}, L=${firstData.Volume_L}`)
+      // logInfo(`  - 時段信息: ${firstData.scenario}`)
 
       // ✅ 【新增】打印完整的數據
-      console.log('📊 【VD 數據詳情】以下是要發送給後端的 4 筆交叉路口數據 (版本 2.5):')
+      logInfo('📊 【VD 數據詳情】以下是要發送給後端的 4 筆交叉路口數據 (版本 2.5):')
       normalizedDataArray.forEach((data, index) => {
-        console.log(`  [交叉路口 ${index + 1}] ${data.VD_ID} (${data.scenario}):`)
-        console.log(
+        logInfo(`  [交叉路口 ${index + 1}] ${data.VD_ID} (${data.scenario}):`)
+        logInfo(
           `    - 流量 (VD映射): Volume_T=${data.Volume_T}, Volume_M=${data.Volume_M}, Volume_S=${data.Volume_S}, Volume_L=${data.Volume_L}`,
         )
-        console.log(
+        logInfo(
           `    - 速度: Speed_T=${data.Speed_T}, Speed_M=${data.Speed_M}, Speed_S=${data.Speed_S}, Speed_L=${data.Speed_L}`,
         )
-        console.log(`    - 佔有率: ${data.Occupancy}%`)
+        logInfo(`    - 佔有率: ${data.Occupancy}%`)
         console.log(`    - 時段: ${data.scenario}`)
         console.log(`    - 小時 (VD映射): ${data.Hour}`)
         // 🌤️ 【新增】顯示天氣信息
@@ -1148,47 +1238,48 @@ export default class TrafficLightController {
       // ═══════════════════════════════════════════════════════════════════════
       const timePeriod = firstData.scenario || getCurrentTimePeriod()
 
-      console.log(`\n🔍 【步驟 1】驗證數據品質 - 檢查是否符合 "${timePeriod}" 時段的特徵範圍...`)
+      logInfo(`\n🔍 【步驟 1】驗證數據品質 - 檢查是否符合 "${timePeriod}" 時段的特徵範圍...`)
 
       // 執行驗證與自動修正
       const validationResult = validateAndRectifyDataArray(finalDataToSend, timePeriod)
 
       // 生成簡潔的驗證報告
       const summaryReport = generateValidationSummary(validationResult)
-      console.log(summaryReport)
+      logInfo(summaryReport)
 
       // 如果有修正，生成詳細報告
       if (validationResult.rectifiedRecords > 0) {
-        console.log(`\n⚠️ 發現 ${validationResult.rectifiedRecords} 筆數據超出範圍，已自動修正：`)
+        logInfo(`\n⚠️ 發現 ${validationResult.rectifiedRecords} 筆數據超出範圍，已自動修正：`)
         const detailedReport = generateValidationReport(validationResult)
-        console.log(detailedReport)
+        logInfo(detailedReport)
       } else {
-        console.log(`\n✅ 全部 ${validationResult.totalRecords} 筆數據都符合時段特徵範圍，無需修正。`)
+        logInfo(`\n✅ 全部 ${validationResult.totalRecords} 筆數據都符合時段特徵範圍，無需修正。`)
       }
 
       // 修正後的數據已直接寫入 finalDataToSend，可以安全地發送
-      console.log(`\n✅ 【步驟 2】數據品質確認 - 準備發送修正後的數據到後端...`)
+      logInfo(`\n✅ 【步驟 2】數據品質確認 - 準備發送修正後的數據到後端...`)
 
       // 🎯 【修正】先保存數據快照,再發送事件和 API
       window.lastNormalizedDataArray = normalizedDataArray // 正規化後的數據（品質檢查後）
       window.lastApiVDDataArray = finalDataToSend // 原始 API 數據（實際發送）
-      console.log('💾 [TrafficLightController] 已保存數據快照:')
-      console.log('  - window.lastNormalizedDataArray: 正規化數據（品質檢查後）')
-      console.log('  - window.lastApiVDDataArray: 原始 API 數據（實際發送）')
+      logInfo('💾 [TrafficLightController] 已保存數據快照:')
+      logInfo('  - window.lastNormalizedDataArray: 正規化數據（品質檢查後）')
+      logInfo('  - window.lastApiVDDataArray: 原始 API 數據（實際發送）')
 
       // 發送 API 開始事件 (數據已保存,前端可以讀取)
       window.dispatchEvent(new CustomEvent('trafficApiSending', { detail: { timestamp: new Date().toISOString() } }))
 
-      const response = await fetch(this.apiEndpoint, {
+      // 🎯【重試機制】使用帶重試的 fetch 函數
+      const response = await fetchWithRetry(this.apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(finalDataToSend),
       })
 
       // ✅ 【新增】發送成功確認訊息
-      console.log('✅ 【VD 數據已成功發送到後端】')
-      console.log(`✅ 已發送 ${normalizedDataArray.length} 筆交叉路口數據`)
-      console.log(`✅ 時段: ${firstData.scenario}`)
+      logInfo('✅ 【VD 數據已成功發送到後端】')
+      logInfo(`✅ 已發送 ${normalizedDataArray.length} 筆交叉路口數據`)
+      logInfo(`✅ 時段: ${firstData.scenario}`)
 
       if (!response.ok) {
         // 嘗試獲取錯誤信息
@@ -1203,14 +1294,14 @@ export default class TrafficLightController {
             errorBody = '無法讀取響應體'
           }
         }
-        console.error(`❌ [API 錯誤詳情]`)
-        console.error(`  - 狀態碼: ${response.status}`)
-        console.error(`  - 錯誤信息: ${errorBody}`)
+        logError(`❌ [API 錯誤詳情]`)
+        logError(`  - 狀態碼: ${response.status}`)
+        logError(`  - 錯誤信息: ${errorBody}`)
         throw new Error(`HTTP error! status: ${response.status}, body: ${errorBody}`)
       }
 
       const result = await response.json()
-      console.log('🤖 收到真實 AI 預測結果:', result)
+      logInfo('🤖 收到真實 AI 預測結果:', result)
 
       // 清空特徵模擬數據
       if (window.trafficDataCollector && typeof window.trafficDataCollector.reset === 'function') {
@@ -1226,8 +1317,8 @@ export default class TrafficLightController {
       this.updatePredictionResult(result, '正式')
       return result
     } catch (error) {
-      console.warn('⚠️ 真實 API 呼叫失敗:', error.message)
-      console.log('🔄 啟用本地模擬 AI 作為備援方案...')
+      logWarn('⚠️ 真實 API 呼叫失敗:', error.message)
+      logInfo('🔄 啟用本地模擬 AI 作為備援方案...')
 
       // *** 備援方案：呼叫本地模擬 AI ***
       // 🎯 優先使用生成的 VD 數據，備用方案才用本地收集數據
