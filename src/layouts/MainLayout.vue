@@ -171,11 +171,7 @@
 
               <!-- 控制與統計 -->
               <div class="control-stats-row">
-                <div
-                  class="frequency-control"
-                  @mouseenter="showLumoTooltip('frequencyControl')"
-                  @mouseleave="hideLumoTooltip"
-                >
+                <div class="frequency-control">
                   <span class="freq-label">生成間隔</span>
                   <input
                     type="range"
