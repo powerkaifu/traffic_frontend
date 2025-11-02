@@ -875,7 +875,25 @@ export default class Vehicle {
                 return
               }
 
-              // 🚨 簡化碰撞檢測系統 - 區分第一台車和後續車輛
+              // � 【優化】已通過停止線的車輛無需碰撞檢測和跟隨
+              // 在綠燈通行時，車子只需保持勻速前進，跳過所有碰撞邏輯
+              if (this.hasPassedStopLine) {
+                // 車輛已通過停止線，恢復到正常速度並繼續前進
+                if (this.movementTimeline) {
+                  const currentTimeScale = this.movementTimeline.timeScale()
+                  if (currentTimeScale < 1) {
+                    gsap.to(this.movementTimeline, {
+                      timeScale: 1,
+                      duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH,
+                      ease: 'power2.out',
+                    })
+                    this.currentState = 'throughIntersection'
+                  }
+                }
+                return // 跳過所有碰撞檢測和跟隨邏輯
+              }
+
+              // �🚨 簡化碰撞檢測系統 - 區分第一台車和後續車輛
               const shouldStop = this.collisionController.checkSimpleCollision(allVehicles)
               const isFirstVehicle = this.collisionController.isClosestToStopLine(allVehicles)
 

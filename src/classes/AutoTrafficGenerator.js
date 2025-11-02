@@ -1,7 +1,12 @@
 /**
  * AutoTrafficGenerator.js - 自動車流分派系統
  */
-import { getScenarioByTime, getScenarioByKey, defaultConfig } from './config/trafficScenarioConfig.js'
+import {
+  getScenarioByTime,
+  getScenarioByKey,
+  defaultConfig,
+  STOP_LINE_VEHICLE_LIMITS,
+} from './config/trafficScenarioConfig.js'
 import {
   FOLLOWING_CONFIG,
   GENERATION_CONFIG,
@@ -880,8 +885,20 @@ export default class AutoTrafficGenerator {
 
     const dirs = ['east', 'west', 'north', 'south']
 
-    // 🚨 新增：車道級別冷卻檢查 - 過濾掉冷卻中的方向
-    const availableDirs = dirs.filter((dir) => {
+    // � 【新增】停止線車輛限制檢查 - 先過濾掉停止線已滿的方向
+    const nonFullDirs = dirs.filter((dir) => {
+      const stopLineCount = this.trafficController ? this.trafficController.getVehiclesWaitingAtStopLine(dir) : 0
+      const stopLineLimit = STOP_LINE_VEHICLE_LIMITS[dir] || 30
+
+      if (stopLineCount >= stopLineLimit) {
+        console.log(`🚦 [停止線限制] ${dir}方向停止線已滿 (${stopLineCount}/${stopLineLimit})，暫停生成`)
+        return false
+      }
+      return true
+    })
+
+    // �🚨 新增：車道級別冷卻檢查 - 過濾掉冷卻中的方向（在停止線檢查之後）
+    const availableDirs = nonFullDirs.filter((dir) => {
       const laneKey = dir // 可以後續擴展為 `${dir}_${laneNumber}`
       const lastGenTime = this.laneGenerationCooldown[laneKey] || 0
       const timeSinceLastGen = now - lastGenTime

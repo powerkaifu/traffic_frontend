@@ -41,7 +41,22 @@ export const defaultConfig = {
 }
 
 // ============================================
-// 📋 【手動情景模式】用 - 三個預設情景
+// � 【停止線車輛限制配置】
+// ============================================
+// 用途：限制每個方向停止線前的最大車輛數量
+// 調用：AutoTrafficGenerator._generateVehicle() 前檢查
+// 作用：當停止線前的車輛達到上限時，停止生成新車輛
+// ✅ 可在此調整，無需修改其他地方
+// ============================================
+export const STOP_LINE_VEHICLE_LIMITS = {
+  east: 30, // 東向停止線最大車輛數
+  west: 30, // 西向停止線最大車輛數
+  north: 30, // 北向停止線最大車輛數
+  south: 30, // 南向停止線最大車輛數
+}
+
+// ============================================
+// �📋 【手動情景模式】用 - 三個預設情景
 // ============================================
 // 用途：MainLayout.vue 中的【情景切換】按鈕使用
 // 調用：switchToScenarioMode('peak_hours' | 'off_peak' | 'late_night')
@@ -79,7 +94,7 @@ export const timeScenarios = [
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
       vehiclesPerInterval: { min: 1, max: 3 },
-      interval: { min: 2000, max: 8000, normal: 3000 }, // ✅ 改為更長的基礎間隔
+      interval: { min: 2000, max: 8000, normal: 4000 }, // ✅ 改為更長的基礎間隔
       peakMultiplier: 1, // 👈 尖峰倍數
       displayMultiplier: 1.5, // 🎭 視覺層倍數：前端動畫放大 1.5 倍
 
@@ -129,7 +144,7 @@ export const timeScenarios = [
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
       vehiclesPerInterval: { min: 1, max: 3 }, // 👈 🎯 每個 interval 生成 1-3 台車
-      interval: { min: 5000, max: 10000, normal: 5000 }, // ⏱️ 生成間隔，恢復原本設定
+      interval: { min: 5000, max: 10000, normal: 6000 }, // ⏱️ 生成間隔，恢復原本設定
       peakMultiplier: 1.0, // 👈 離峰不加倍
       displayMultiplier: 1.2, // 🎭 視覺層倍數
 
