@@ -1566,7 +1566,7 @@ function getTooltipMessage(messageOrKey) {
   if (typeof messageOrKey === 'string' && !messageOrKey.includes('：') && window.lumoConfig?.tooltips) {
     const configValue = window.lumoConfig.tooltips[messageOrKey]
     if (configValue) {
-      console.log(`💬 [Tooltip] 使用配置: ${messageOrKey} => ${configValue.substring(0, 30)}...`)
+      // console.log(`💬 [Tooltip] 使用配置: ${messageOrKey} => ${configValue.substring(0, 30)}...`)
       return configValue
     }
   }
@@ -1584,10 +1584,6 @@ function showLumoTooltip(messageOrKey) {
     console.warn('⚠️ [Tooltip] 訊息為空，跳過顯示')
     return
   }
-
-  console.log('🎯 showLumoTooltip called with message:', message)
-  console.log('🔍 window.lumoTooltipManager:', window.lumoTooltipManager)
-  console.log('🔍 isTooltipEnabled:', window.lumoTooltipManager?.isTooltipEnabled)
 
   if (window.lumoTooltipManager) {
     window.lumoTooltipManager.show(message)

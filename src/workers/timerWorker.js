@@ -20,7 +20,7 @@ self.onmessage = (event) => {
 
   if (action === 'start') {
     // ✅ 開始倒數
-    console.log(`[Worker] 開始倒數：${seconds} 秒`)
+    // console.log(`[Worker] 開始倒數：${seconds} 秒`)
     remainingSeconds = seconds
     isRunning = true
 
@@ -56,7 +56,7 @@ self.onmessage = (event) => {
     })
   } else if (action === 'stop') {
     // ⏹️ 停止倒數
-    console.log('[Worker] 停止倒數')
+    // console.log('[Worker] 停止倒數')
     isRunning = false
     if (interval) clearInterval(interval)
     self.postMessage({
@@ -65,7 +65,7 @@ self.onmessage = (event) => {
     })
   } else if (action === 'reset') {
     // 🔄 重置倒數
-    console.log('[Worker] 重置倒數')
+    // console.log('[Worker] 重置倒數')
     isRunning = false
     remainingSeconds = 0
     if (interval) clearInterval(interval)
@@ -75,7 +75,7 @@ self.onmessage = (event) => {
     })
   } else if (action === 'pause') {
     // ⏸️ 暫停倒數（保留當前秒數）
-    console.log(`[Worker] 暫停倒數（剩餘 ${remainingSeconds} 秒）`)
+    // console.log(`[Worker] 暫停倒數（剩餘 ${remainingSeconds} 秒）`)
     isRunning = false
     if (interval) clearInterval(interval)
     self.postMessage({
@@ -85,7 +85,7 @@ self.onmessage = (event) => {
     })
   } else if (action === 'resume') {
     // ▶️ 繼續倒數
-    console.log(`[Worker] 繼續倒數（剩餘 ${remainingSeconds} 秒）`)
+    // console.log(`[Worker] 繼續倒數（剩餘 ${remainingSeconds} 秒）`)
     isRunning = true
 
     if (interval) clearInterval(interval)
@@ -118,7 +118,7 @@ self.onmessage = (event) => {
 
 // 🔧 錯誤處理
 self.onerror = (error) => {
-  console.error('[Worker] 錯誤:', error.message)
+  // console.error('[Worker] 錯誤:', error.message)
   self.postMessage({
     type: 'error',
     message: error.message,
@@ -126,7 +126,7 @@ self.onerror = (error) => {
 }
 
 // 👋 Worker 初始化完成
-console.log('[Worker] timerWorker.js 已加載並準備就緒')
+// console.log('[Worker] timerWorker.js 已加載並準備就緒')
 self.postMessage({
   type: 'initialized',
 })

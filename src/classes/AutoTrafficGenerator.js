@@ -760,7 +760,10 @@ export default class AutoTrafficGenerator {
       }
 
       const displayMult = scenario.displayMultiplier
-      console.log(`🎭 [自動模式] 時段 ${hours}:00 -> displayMultiplier = ${displayMult}`)
+      // 🔴【移除】此日誌過度輸出，已完全禁用
+      // if (window.__DEBUG_DISPLAY_MULTIPLIER__) {
+      //   console.log(`🎭 [自動模式] 時段 ${hours}:00 -> displayMultiplier = ${displayMult}`)
+      // }
       return displayMult
     }
 

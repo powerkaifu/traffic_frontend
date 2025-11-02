@@ -438,13 +438,12 @@ function getTooltipMessage(messageOrKey) {
   if (typeof messageOrKey === 'string' && !messageOrKey.includes('：') && window.lumoConfig?.tooltips) {
     const configValue = window.lumoConfig.tooltips[messageOrKey]
     if (configValue) {
-      if (process.env.DEV) console.log(`💬 [Tooltip] 使用配置: ${messageOrKey} => ${configValue.substring(0, 30)}...`)
+      // if (process.env.DEV) console.log(`💬 [Tooltip] 使用配置: ${messageOrKey} => ${configValue.substring(0, 30)}...`)
       return configValue
     }
   }
 
   // 否則直接返回訊息
-  if (process.env.DEV) console.log(`💬 [Tooltip] 使用直接訊息: ${String(messageOrKey).substring(0, 30)}...`)
   return messageOrKey
 }
 

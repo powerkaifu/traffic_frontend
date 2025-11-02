@@ -13,8 +13,8 @@ import {
 } from './config/vdMapping.js' // 版本 2.5：VD 時段特徵映射
 import {
   validateAndRectifyDataArray,
-  generateValidationSummary,
-  generateValidationReport,
+  // generateValidationSummary,
+  // generateValidationReport,
 } from './utils/DataQualityValidator.js' // 【版本 2.5 新增】數據品質驗證與修正系統
 
 // 🎯 【優化】全局日誌系統 - 區分開發和生產環境
@@ -244,13 +244,13 @@ export default class TrafficLightController {
             // 📊 每秒更新秒數
             this.updateCountdown(remainingSeconds)
           } else if (type === 'completed') {
-            logInfo('✅ [Worker] 綠燈時間已結束')
+            // logInfo('✅ [Worker] 綠燈時間已結束')
             // 發送信號進行相位切換
             window.dispatchEvent(new Event('greenLightCompleted'))
           } else if (type === 'started') {
-            logInfo(`✅ [Worker] 開始倒數：${remainingSeconds} 秒`)
+            // logInfo(`✅ [Worker] 開始倒數：${remainingSeconds} 秒`)
           } else if (type === 'stopped') {
-            logInfo('⏹️ [Worker] 倒數已停止')
+            // logInfo('⏹️ [Worker] 倒數已停止')
           }
         }
 
@@ -769,7 +769,7 @@ export default class TrafficLightController {
     const vdData = []
 
     // 🔧 添加日誌：顯示當前 vehicleData 狀態
-    logInfo('📊 [數據收集] 當前 vehicleData 原始狀態:', JSON.stringify(this.vehicleData, null, 2))
+    // logInfo('📊 [數據收集] 當前 vehicleData 原始狀態:', JSON.stringify(this.vehicleData, null, 2))
 
     // Strategy Pattern: VD_ID 映射策略
     const vdMapping = {
@@ -1189,10 +1189,10 @@ export default class TrafficLightController {
       const firstData = normalizedDataArray[0] || {}
 
       // 🔍 調試：檢查 finalDataToSend 的 Volume_L
-      logInfo('🔍 [TrafficLightController] finalDataToSend 中各方向的 Volume_L：')
-      finalDataToSend.forEach((data, index) => {
-        logInfo(`  方向 ${index} (${data.VD_ID}, LaneID: ${data.LaneID}): Volume_L = ${data.Volume_L}`)
-      })
+      // logInfo('🔍 [TrafficLightController] finalDataToSend 中各方向的 Volume_L：')
+      // finalDataToSend.forEach((data, index) => {
+      //   logInfo(`  方向 ${index} (${data.VD_ID}, LaneID: ${data.LaneID}): Volume_L = ${data.Volume_L}`)
+      // })
 
       // ✅ 【版本 2.5】VD 數據已生成並應用時段特徵對齐
       // console.log('✅ 【版本 2.5 - VD 時段特徵對齊已應用】')
@@ -1203,12 +1203,12 @@ export default class TrafficLightController {
       // console.log(`  - 映射到 VD 特徵: Volume_T = ${firstData.Volume_T} 輛`)
 
       // 【新增】打印完整的數據陣列（物件形式，可用 Copy object 複製）
-      logInfo('📦 【完整的數據陣列 - 右鍵 Copy object 複製】:')
-      logInfo(normalizedDataArray)
+      // logInfo('📦 【完整的數據陣列 - 右鍵 Copy object 複製】:')
+      // logInfo(normalizedDataArray)
 
       // 【新增】打印格式化的 JSON 字符串（便於閱讀和檢查）
-      logInfo('📋 【格式化的 JSON 字符串 - 便於閱讀】:')
-      logInfo(JSON.stringify(normalizedDataArray, null, 2))
+      // logInfo('📋 【格式化的 JSON 字符串 - 便於閱讀】:')
+      // logInfo(JSON.stringify(normalizedDataArray, null, 2))
 
       // logInfo('🚦 發送 VD 數據到後端 AI 系統:')
       // logInfo(`  - 交叉路口數量: ${normalizedDataArray.length}`)
@@ -1217,55 +1217,55 @@ export default class TrafficLightController {
       // logInfo(`  - 時段信息: ${firstData.scenario}`)
 
       // ✅ 【新增】打印完整的數據
-      logInfo('📊 【VD 數據詳情】以下是要發送給後端的 4 筆交叉路口數據 (版本 2.5):')
-      normalizedDataArray.forEach((data, index) => {
-        logInfo(`  [交叉路口 ${index + 1}] ${data.VD_ID} (${data.scenario}):`)
-        logInfo(
-          `    - 流量 (VD映射): Volume_T=${data.Volume_T}, Volume_M=${data.Volume_M}, Volume_S=${data.Volume_S}, Volume_L=${data.Volume_L}`,
-        )
-        logInfo(
-          `    - 速度: Speed_T=${data.Speed_T}, Speed_M=${data.Speed_M}, Speed_S=${data.Speed_S}, Speed_L=${data.Speed_L}`,
-        )
-        logInfo(`    - 佔有率: ${data.Occupancy}%`)
-        console.log(`    - 時段: ${data.scenario}`)
-        console.log(`    - 小時 (VD映射): ${data.Hour}`)
-        // 🌤️ 【新增】顯示天氣信息
-        console.log(`    - 天氣: ${data.weather} (倍數: ${data.weather_multiplier?.toFixed(2)}x)`)
-      })
-      console.log('✅ VD 數據已準備完畢，即將發送到後端...')
+      // logInfo('📊 【VD 數據詳情】以下是要發送給後端的 4 筆交叉路口數據 (版本 2.5):')
+      // normalizedDataArray.forEach((data, index) => {
+      //   logInfo(`  [交叉路口 ${index + 1}] ${data.VD_ID} (${data.scenario}):`)
+      //   logInfo(
+      //     `    - 流量 (VD映射): Volume_T=${data.Volume_T}, Volume_M=${data.Volume_M}, Volume_S=${data.Volume_S}, Volume_L=${data.Volume_L}`,
+      //   )
+      //   logInfo(
+      //     `    - 速度: Speed_T=${data.Speed_T}, Speed_M=${data.Speed_M}, Speed_S=${data.Speed_S}, Speed_L=${data.Speed_L}`,
+      //   )
+      //   logInfo(`    - 佔有率: ${data.Occupancy}%`)
+      //   console.log(`    - 時段: ${data.scenario}`)
+      //   console.log(`    - 小時 (VD映射): ${data.Hour}`)
+      //   // 🌤️ 【新增】顯示天氣信息
+      //   console.log(`    - 天氣: ${data.weather} (倍數: ${data.weather_multiplier?.toFixed(2)}x)`)
+      // })
+      // console.log('✅ VD 數據已準備完畢，即將發送到後端...')
 
       // ═══════════════════════════════════════════════════════════════════════
       // 🔍【版本 2.5 新增】數據品質驗證與修正 - 三層防線
       // ═══════════════════════════════════════════════════════════════════════
       const timePeriod = firstData.scenario || getCurrentTimePeriod()
 
-      logInfo(`\n🔍 【步驟 1】驗證數據品質 - 檢查是否符合 "${timePeriod}" 時段的特徵範圍...`)
+      // logInfo(`\n🔍 【步驟 1】驗證數據品質 - 檢查是否符合 "${timePeriod}" 時段的特徵範圍...`)
 
       // 執行驗證與自動修正
       const validationResult = validateAndRectifyDataArray(finalDataToSend, timePeriod)
 
       // 生成簡潔的驗證報告
-      const summaryReport = generateValidationSummary(validationResult)
-      logInfo(summaryReport)
+      // const summaryReport = generateValidationSummary(validationResult)
+      // logInfo(summaryReport)
 
       // 如果有修正，生成詳細報告
       if (validationResult.rectifiedRecords > 0) {
-        logInfo(`\n⚠️ 發現 ${validationResult.rectifiedRecords} 筆數據超出範圍，已自動修正：`)
-        const detailedReport = generateValidationReport(validationResult)
-        logInfo(detailedReport)
+        // logInfo(`\n⚠️ 發現 ${validationResult.rectifiedRecords} 筆數據超出範圍，已自動修正：`)
+        // const detailedReport = generateValidationReport(validationResult)
+        // logInfo(detailedReport)
       } else {
-        logInfo(`\n✅ 全部 ${validationResult.totalRecords} 筆數據都符合時段特徵範圍，無需修正。`)
+        // logInfo(`\n✅ 全部 ${validationResult.totalRecords} 筆數據都符合時段特徵範圍，無需修正。`)
       }
 
       // 修正後的數據已直接寫入 finalDataToSend，可以安全地發送
-      logInfo(`\n✅ 【步驟 2】數據品質確認 - 準備發送修正後的數據到後端...`)
+      // logInfo(`\n✅ 【步驟 2】數據品質確認 - 準備發送修正後的數據到後端...`)
 
       // 🎯 【修正】先保存數據快照,再發送事件和 API
       window.lastNormalizedDataArray = normalizedDataArray // 正規化後的數據（品質檢查後）
       window.lastApiVDDataArray = finalDataToSend // 原始 API 數據（實際發送）
-      logInfo('💾 [TrafficLightController] 已保存數據快照:')
-      logInfo('  - window.lastNormalizedDataArray: 正規化數據（品質檢查後）')
-      logInfo('  - window.lastApiVDDataArray: 原始 API 數據（實際發送）')
+      // logInfo('💾 [TrafficLightController] 已保存數據快照:')
+      // logInfo('  - window.lastNormalizedDataArray: 正規化數據（品質檢查後）')
+      // logInfo('  - window.lastApiVDDataArray: 原始 API 數據（實際發送）')
 
       // 發送 API 開始事件 (數據已保存,前端可以讀取)
       window.dispatchEvent(new CustomEvent('trafficApiSending', { detail: { timestamp: new Date().toISOString() } }))
@@ -1280,7 +1280,7 @@ export default class TrafficLightController {
       // ✅ 【新增】發送成功確認訊息
       logInfo('✅ 【VD 數據已成功發送到後端】')
       logInfo(`✅ 已發送 ${normalizedDataArray.length} 筆交叉路口數據`)
-      logInfo(`✅ 時段: ${firstData.scenario}`)
+      // logInfo(`✅ 時段: ${firstData.scenario}`) // scenario 是非可列舉屬性，logInfo 無法讀取
 
       if (!response.ok) {
         // 嘗試獲取錯誤信息

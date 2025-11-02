@@ -146,6 +146,9 @@ export default class Vehicle {
     // Factory Pattern: 生成唯一識別ID
     this.id = 'vehicle_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5)
 
+    // 🔴【防重複】標記是否已被移除
+    this.isRemoved = false
+
     // Composite Pattern: 等待一個幀以確保 DOM 已準備好，再設置車輛的初始視覺屬性
     Promise.resolve().then(() => {
       gsap.set(this.element, {
@@ -1130,6 +1133,7 @@ export default class Vehicle {
                 hasBeenRemovedFromCollision = true
                 onVehicleOutOfBounds(this.id)
               }
+
               this.remove() // 🚨 動畫完成強制移除 DOM
               resolve()
             },
@@ -1813,6 +1817,12 @@ export default class Vehicle {
 
   // Template Method Pattern: 移除車輛的清理模板方法
   remove() {
+    // 🔴【防重複】確保 remove() 只執行一次
+    if (this.isRemoved) {
+      return
+    }
+    this.isRemoved = true
+
     // 記錄移除時間
     this.movementEndTime = new Date().toISOString()
 

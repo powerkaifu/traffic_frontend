@@ -79,7 +79,7 @@ export const timeScenarios = [
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
       vehiclesPerInterval: { min: 1, max: 3 },
-      interval: { min: 2000, max: 8000, normal: 5000 }, // ✅ 改為更長的基礎間隔
+      interval: { min: 2000, max: 8000, normal: 3000 }, // ✅ 改為更長的基礎間隔
       peakMultiplier: 1, // 👈 尖峰倍數
       displayMultiplier: 1.5, // 🎭 視覺層倍數：前端動畫放大 1.5 倍
 
@@ -98,9 +98,6 @@ export const timeScenarios = [
       // 📝 【描述信息】- 僅供參考
       // =========================================
       description: '尖峰時段 - 高流量中等佔有率中速度 (早峰/晚峰)',
-      // 💡 計算參考：
-      // 目標：11輛/5分鐘
-      // 實際：4000ms × 1.0倍數 × 1輛 = 約 7輛/5分鐘
     },
   },
   {
@@ -280,7 +277,7 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 40 },
         { type: 'large', weight: 0 },
       ],
-      description: '深夜時段 - 極低流量（參考: late_night）',
+      description: '深夜時段 - 極低流量',
     }
   }
 
@@ -320,7 +317,7 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 50 },
         { type: 'large', weight: 10 },
       ],
-      description: '早尖峰時段 - 極高流量（參考: peak_hours）',
+      description: '早尖峰時段 - 極高流量',
     }
   }
 
@@ -360,7 +357,7 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 65 },
         { type: 'large', weight: 5 },
       ],
-      description: '午間時段 - 中等流量（參考: off_peak）',
+      description: '午間時段 - 中等流量',
     }
   }
 
@@ -378,7 +375,7 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 63 },
         { type: 'large', weight: 5 },
       ],
-      description: '下午時段 - 中等流量（參考: off_peak）',
+      description: '下午時段 - 中等流量',
     }
   }
 
@@ -418,7 +415,7 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 50 },
         { type: 'large', weight: 10 },
       ],
-      description: '晚尖峰時段 - 極高流量（參考: peak_hours）',
+      description: '晚尖峰時段 - 極高流量',
     }
   }
 
@@ -436,7 +433,7 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 63 },
         { type: 'large', weight: 5 },
       ],
-      description: '晚間時段 - 中等流量（參考: off_peak）',
+      description: '晚間時段 - 中等流量',
     }
   }
 
@@ -476,7 +473,7 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 40 },
         { type: 'large', weight: 0 },
       ],
-      description: '深夜時段 - 極低流量（參考: late_night）',
+      description: '深夜時段 - 極低流量',
     }
   }
 }
