@@ -69,8 +69,8 @@ export const timeScenarios = [
       speed: 42, // 平均速度：42 km/h
       volumeByType: {
         motor: 4, // 機車：約 35-40%
-        small: 6, // 小客車：約 55-65%
-        large: 1, // 大客車：約 5-10%
+        small: 4, // 小客車：約 55-65%
+        large: 2, // 大客車：約 5-10%
       },
     },
 
@@ -128,8 +128,8 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 3 }, // 👈 🎯 每個 interval 生成 1-3 台車
-      interval: { min: 5000, max: 10000, normal: 8000 }, // ⏱️ 生成間隔，恢復原本設定
+      vehiclesPerInterval: { min: 1, max: 2 }, // 👈 🎯 每個 interval 生成 1-3 台車
+      interval: { min: 5000, max: 10000, normal: 5000 }, // ⏱️ 生成間隔，恢復原本設定
       peakMultiplier: 1.0, // 👈 離峰不加倍
       displayMultiplier: 1.0, // 🎭 視覺層倍數：不放大
 
