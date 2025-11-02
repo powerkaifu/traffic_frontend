@@ -29,6 +29,7 @@ yarn-error.log*
 *.ntvs*
 *.njsproj
 *.sln
+vd_data
 
 # local .env files
 .env.local*
