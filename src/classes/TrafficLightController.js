@@ -789,21 +789,22 @@ export default class TrafficLightController {
       let scaledMotor, scaledSmall, scaledLarge
 
       if (totalRaw === 0) {
-        // 沒有車輛時使用最小值 + 隨機波動，增加變化性
-        // ✅ 添加 ±30% 的隨機波動，使每筆數據都有差異
-        const baseMotor = 2
-        const baseSmall = 2
-        const baseLarge = 1
+        // 沒有車輛時使用更大的基礎值 + 隨機波動，增加 API 預測的變動性
+        // 🔧【改進 v2】進一步擴大基礎車流量範圍到 40-65 秒
+        // 使用更大的隨機基礎值（每筆都不同），增加 API 預測的多樣性
+        const baseMotor = 2 + Math.floor(Math.random() * 10) // 2-11 輛機車（範圍更大）
+        const baseSmall = 3 + Math.floor(Math.random() * 12) // 3-14 輛小客車（範圍更大）
+        const baseLarge = 1 + Math.floor(Math.random() * 5) // 1-5 輛大客車（範圍更大）
 
-        // 隨機波動因子：0.7-1.3（±30%）
-        const variation = 0.7 + Math.random() * 0.6
+        // 再加上額外的 ±25% 波動（比之前增加）
+        const variation = 0.75 + Math.random() * 0.5
 
         scaledMotor = Math.max(1, Math.round(baseMotor * variation))
         scaledSmall = Math.max(1, Math.round(baseSmall * variation))
         scaledLarge = Math.max(1, Math.round(baseLarge * variation))
 
         logInfo(
-          `⚠️ [數據收集] ${direction} 方向無車輛，使用基礎值+隨機波動 (×${variation.toFixed(2)}): motor=${scaledMotor}, small=${scaledSmall}, large=${scaledLarge}`,
+          `⚠️ [數據收集] ${direction} 方向無車輛，使用大範圍隨機值+波動 (×${variation.toFixed(2)}): motor=${scaledMotor}, small=${scaledSmall}, large=${scaledLarge}`,
         )
       } else {
         // 有車輛時使用真實數據（應用縮放因子）
