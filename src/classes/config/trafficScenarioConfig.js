@@ -88,8 +88,8 @@ export const timeScenarios = [
       // =========================================
       vehicleTypes: [
         { type: 'motor', weight: 40 }, // 機車 40%
-        { type: 'small', weight: 50 }, // 小客車 50%
-        { type: 'large', weight: 10 }, // 大客車 10%
+        { type: 'small', weight: 40 }, // 小客車 40%
+        { type: 'large', weight: 20 }, // 大客車 20%
       ],
       maxLiveVehicles: GLOBAL_MAX_LIVE_VEHICLES, // ✅ 使用全局配置
       densityThresholds: { light: 15, moderate: 25, heavy: 35, congested: 45 },
@@ -138,8 +138,8 @@ export const timeScenarios = [
       // =========================================
       vehicleTypes: [
         { type: 'motor', weight: 30 }, // 機車 30%
-        { type: 'small', weight: 65 }, // 小客車 65%
-        { type: 'large', weight: 5 }, // 大客車 5%
+        { type: 'small', weight: 60 }, // 小客車 60%
+        { type: 'large', weight: 10 }, // 大客車 10%
       ],
       maxLiveVehicles: GLOBAL_MAX_LIVE_VEHICLES, // ✅ 使用全局配置
       densityThresholds: { light: 10, moderate: 18, heavy: 28, congested: 40 },
