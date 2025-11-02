@@ -128,10 +128,10 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 2 }, // 👈 🎯 每個 interval 生成 1-3 台車
+      vehiclesPerInterval: { min: 1, max: 3 }, // 👈 🎯 每個 interval 生成 1-3 台車
       interval: { min: 5000, max: 10000, normal: 5000 }, // ⏱️ 生成間隔，恢復原本設定
       peakMultiplier: 1.0, // 👈 離峰不加倍
-      displayMultiplier: 1.0, // 🎭 視覺層倍數：不放大
+      displayMultiplier: 1.2, // 🎭 視覺層倍數
 
       // =========================================
       // 🚌 【次常調整】- 車型與系統參數

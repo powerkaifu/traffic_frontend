@@ -136,6 +136,9 @@ export default class TrafficLightController {
     this.lastTimePeriod = getCurrentTimePeriod()
     this.timePeriodChangeCount = 0
 
+    // 🎯【新增】API 呼叫防重複標記 - 確保每個綠燈周期只呼叫一次
+    this.apiAlreadySentInCycle = false
+
     // 🎯【新增】左轉綠燈時間配置
     this.leftTurnTiming = {
       duration: 8, // 左轉綠燈持續時間（秒）
@@ -734,10 +737,6 @@ export default class TrafficLightController {
 
   // Strategy Pattern: 收集路口數據（VD 格式）- 數據收集策略
   collectIntersectionData() {
-    // 🎯【新增】增加 API 呼叫計數，用於第一/二次呼叫時的隨機化
-    this.apiCallCount = (this.apiCallCount || 0) + 1
-    logInfo(`📞 [API 計數] 第 ${this.apiCallCount} 次呼叫`)
-
     // 🎯【CRITICAL FIX】在自動模式下使用模擬時間，否則使用系統時間或配置時間
     let dayOfWeek, hour, minute, second, isPeakHour
 
@@ -971,6 +970,17 @@ export default class TrafficLightController {
   // Strategy Pattern: 發送數據到後端 API（提前 10 秒請求）
   async sendDataToBackend(vdData = null) {
     try {
+      // 🎯【新增】防止同一個綠燈周期內多次發送 API
+      if (this.apiAlreadySentInCycle) {
+        logInfo(`⚠️ [API 防重複] 本週期已發送過 API，跳過重複發送 (計次: ${this.apiCallCount})`)
+        return null
+      }
+
+      // 🎯【新增】增加 API 呼叫計數，只在實際發送時遞增（不在收集時）
+      this.apiCallCount = (this.apiCallCount || 0) + 1
+      this.apiAlreadySentInCycle = true
+      logInfo(`📞 [API 計數] 第 ${this.apiCallCount} 次呼叫`)
+
       // 🎯【重要】優先使用 AutoTrafficGenerator 生成的 4-方向 API 數據陣列
       let dataToSend = null
       if (vdData) {
@@ -1483,6 +1493,9 @@ export default class TrafficLightController {
   // 為下一輪重置交通數據
   resetTrafficDataForNextCycle() {
     console.log('🔄 開始新週期，重置交通數據...')
+
+    // 🎯【新增】重置 API 防重複標記
+    this.apiAlreadySentInCycle = false
 
     // 1. 保存當前週期數據到歷史記錄
     this.saveCurrentCycleToHistory()
