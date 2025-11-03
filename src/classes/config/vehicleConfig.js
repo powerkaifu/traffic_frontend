@@ -12,7 +12,7 @@
 // ===== 動畫與時間設定 =====
 export const ANIMATION_CONFIG = {
   // 🎬 全域動畫控制
-  TIME_MULTIPLIER: 0.2, // 控制整體動畫速度：越小越快，越大越慢（0.5=2倍速，2=半速）
+  TIME_MULTIPLIER: 0.3, // 控制整體動畫速度：越小越快，越大越慢（0.5=2倍速，2=半速）
   // ⚡ 速度變化動畫時間 (秒)
   SPEED_CHANGE_DURATION: {
     INSTANT: 0.05, // 幾乎立即的速度變化（紅燈停車用）
@@ -28,7 +28,7 @@ export const ANIMATION_CONFIG = {
   COOLDOWN_TIMES: {
     GLOBAL_ANTI_SHAKE: 100, // 全域抖動防護冷卻時間
     POSITION_ADJUST: 500, // 位置調整冷卻時間
-    TIMESCALE_DEBOUNCE: 200, // 時間縮放變更防抖延遲
+    TIMESCALE_DEBOUNCE: 50, // ✅ 改為 50ms，匹配 SPEED_CHANGE_DURATION.INSTANT
   },
 
   // 🎯 動畫緩動設定
@@ -154,8 +154,8 @@ export const FOLLOWING_CONFIG = {
     },
   },
 
-  // ⚡ 跟車檢測間隔 (毫秒)
-  CHECK_INTERVAL: 500, // 跟車狀態檢查間隔（優化：從1500ms降低到500ms以提高響應速度）
+  // ⏱️ 跟車檢測間隔 (毫秒)
+  CHECK_INTERVAL: 100, // ✅ 改為 100ms，與碰撞檢測同步
 
   // 🔄 推力設定
   PUSH_FORCE: {
@@ -174,7 +174,7 @@ export const FOLLOWING_CONFIG = {
   // 🚗 碰撞後自動跟隨設定
   AUTO_FOLLOW_AFTER_COLLISION: {
     ENABLED: true, // 啟用碰撞後自動跟隨
-    MIN_FOLLOW_DISTANCE: 8, // 最小跟隨距離（px）- 低於此距離停止
+    MIN_FOLLOW_DISTANCE: 15, // ✅ 改為 15px，防止重疊
     TARGET_FOLLOW_DISTANCE: 25, // 目標跟隨距離（px）- 理想間距
     MAX_FOLLOW_DISTANCE: 50, // 最大跟隨距離（px）- 超過此距離啟動跟隨
 
@@ -233,8 +233,8 @@ export const COLLISION_CONFIG = {
   },
 
   // ⏱️ 檢測間隔設定（毫秒）
-  CHECK_INTERVAL: 100, // 碰撞檢查間隔
-  SIMPLE_CHECK_INTERVAL: 50, // 簡單碰撞檢查間隔（優化：更頻繁的檢查）
+  CHECK_INTERVAL: 50, // ✅ 改為 50ms，提高碰撞檢測頻率
+  SIMPLE_CHECK_INTERVAL: 25, // ✅ 改為 25ms，也提高頻率
 
   // 🆕 TIME_MULTIPLIER 補償設定 - 解決快速動畫時碰撞失效問題
   // 當 TIME_MULTIPLIER < 1（動畫加速）時，自動調整檢查間隔
