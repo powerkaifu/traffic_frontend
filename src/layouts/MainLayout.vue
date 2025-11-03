@@ -6,7 +6,7 @@
           <div
             @mouseenter.stop="showLumoTooltip('logo')"
             @mouseleave.stop="hideLumoTooltip"
-            style="pointer-events: auto; cursor: auto"
+            style="pointer-events: auto; cursor: auto; display: inline-block"
           >
             <img src="/images/logo.png" width="200" alt="AI 智慧交通控制系統" />
             <span class="ai-gradient animate"> 【智慧綠燈控 &nbsp;AI 算你行】</span>
