@@ -788,11 +788,17 @@ export class CollisionController {
       // 距離範圍：10-400px（至少 10px 安全距離，最多 400px）
       if (distance > 10 && distance < 400 && otherSpeed <= 0.15) {
         // 確保前方車輛確實在停止或等待狀態
+        // 🚨 重要：包含所有可能導致車輛停止的狀態
         const isInQueue =
           other.isAtStopLine ||
           other.waitingForGreen ||
           other.currentState === 'stopped' ||
-          other.currentState === 'gapRecovery'
+          other.currentState === 'gapRecovery' ||
+          other.currentState === 'collision' || // ✅ 車輛在碰撞狀態
+          other.currentState === 'safetyStopped' || // ✅ 車輛安全停止
+          other.currentState === 'rejoiningQueue' || // ✅ 車輛正在重新加入隊列
+          other.currentState === 'autoFollowing' || // ✅ 車輛自動跟隨
+          other.currentState === 'following' // ✅ 車輛跟隨
 
         if (isInQueue) {
           return true // ✅ 應該融入隊伍！
