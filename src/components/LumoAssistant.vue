@@ -532,7 +532,7 @@ function openDialog() {
       const time = index * messageInterval
       dialogTimeline.add(() => {
         showDialogMessage(index)
-        state.currentMessageIndex = (index + 1) % config.dialog.messages.length
+        state.currentMessageIndex = index
       }, time)
     })
 
