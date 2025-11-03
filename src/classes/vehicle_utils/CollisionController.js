@@ -815,20 +815,27 @@ export class CollisionController {
    * @returns {Vehicle|null} 隊伍最後方的車輛
    */
   findQueueTailVehicle(allVehicles) {
-    const samePathVehicles = allVehicles.filter(
-      (v) =>
-        v.id !== this.vehicle.id &&
-        v.direction === this.vehicle.direction &&
-        v.laneNumber === this.vehicle.laneNumber &&
-        (v.isAtStopLine || v.waitingForGreen || v.currentState === 'stopped'),
-    )
+    const myPos = this.vehicle.getCurrentPosition()
+    const mySpeed = this.vehicle.movementTimeline ? this.vehicle.movementTimeline.timeScale() : 0
+
+    // 🚨 修復：不只找停止的車輛，也要找所有在同方向同車道且速度低於我們的車輛
+    // 這樣即使前方車輛正在減速，碰撞車輛也能跟在它後面融入隊伍
+    const samePathVehicles = allVehicles.filter((v) => {
+      if (v.id === this.vehicle.id) return false
+      if (v.direction !== this.vehicle.direction) return false
+      if (v.laneNumber !== this.vehicle.laneNumber) return false
+
+      const vSpeed = v.movementTimeline ? v.movementTimeline.timeScale() : 0
+
+      // 🚨 條件：前方車輛要麼停止，要麼速度比我們低（表示在減速/排隊）
+      return vSpeed <= 0.15 || vSpeed <= mySpeed - 0.1
+    })
 
     if (samePathVehicles.length === 0) {
       return null
     }
 
-    // 找到最接近停止線的停止車輛（即隊伍最後方）
-    const myPos = this.vehicle.getCurrentPosition()
+    // 找到離我最近的停止/減速車輛（即隊伍最後方）
     let closestToMe = null
     let maxDistance = -Infinity
 
@@ -1102,6 +1109,14 @@ export class CollisionController {
       // 🚨 極速下防穿透：距離太近立即停止
       if (distance >= 0 && distance < ABSOLUTE_MIN_GAP) {
         // 極端情況：完全停止
+        // 🚨 修復：如果前方車輛是停止狀態，返回 rejoin_queue 而不是 emergency_gap_recovery
+        // 這允許車輛在停止後仍能朝向隊伍前進
+        const otherSpeed = other.movementTimeline ? other.movementTimeline.timeScale() : 0
+        if (otherSpeed <= 0.15) {
+          // 前方車輛停止，不返回緊急恢復，讓車輛進入 rejoin_queue 邏輯
+          return null
+        }
+
         return {
           action: 'emergency_gap_recovery',
           vehicle: other,
@@ -1114,6 +1129,13 @@ export class CollisionController {
         }
       } else if (distance >= 0 && distance < ABSOLUTE_MIN_GAP + 5) {
         // 接近但未到危險邊緣，極慢速
+        // 🚨 修復：如果前方車輛是停止狀態，返回 rejoin_queue 而不是 gap_recovery
+        const otherSpeed = other.movementTimeline ? other.movementTimeline.timeScale() : 0
+        if (otherSpeed <= 0.15) {
+          // 前方車輛停止，不返回間距恢復，讓車輛進入 rejoin_queue 邏輯
+          return null
+        }
+
         return {
           action: 'gap_recovery',
           vehicle: other,
