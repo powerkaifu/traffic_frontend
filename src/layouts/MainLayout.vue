@@ -444,6 +444,11 @@ function getTooltipMessage(messageOrKey) {
 }
 
 function showLumoTooltip(messageOrKey) {
+  // ✅ 【關鍵修復】檢查 Tooltip 是否啟用
+  if (!isTooltipEnabled.value) {
+    return  // 如果 Tooltip 關閉，直接返回，不顯示任何訊息
+  }
+
   const message = getTooltipMessage(messageOrKey)
 
   if (!message) {
