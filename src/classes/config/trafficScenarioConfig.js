@@ -341,7 +341,7 @@ export function getScenarioByTime(currentTime) {
       interval: { min: 2000, max: 8000, normal: 5000 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 3 },
+      vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
         { type: 'motor', weight: 40 },
         { type: 'small', weight: 50 },
@@ -431,7 +431,7 @@ export function getScenarioByTime(currentTime) {
     }
   }
 
-  // 17:00-19:00 晚尖峰（第二高峰）
+  // 17:00-19:00 晚尖峰（高峰）
   // 參考：peak_hours 情景模式
   else if (currentHour >= 17 && currentHour < 19) {
     return {
@@ -439,7 +439,7 @@ export function getScenarioByTime(currentTime) {
       interval: { min: 2000, max: 8000, normal: 5000 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 3 },
+      vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
         { type: 'motor', weight: 40 },
         { type: 'small', weight: 50 },
