@@ -784,7 +784,10 @@ export default class AutoTrafficGenerator {
       }
 
       const displayMult = scenario.displayMultiplier
-      console.log(`🎭 [自動模式] 時段 ${hours}:00 -> displayMultiplier = ${displayMult}`)
+      // 🔴【優化】僅在開發環境或首次時打印，避免過度輸出
+      if (window.__DEBUG_DISPLAY_MULTIPLIER__) {
+        console.log(`🎭 [自動模式] 時段 ${hours}:00 -> displayMultiplier = ${displayMult}`)
+      }
       return displayMult
     }
 
@@ -792,7 +795,10 @@ export default class AutoTrafficGenerator {
     // ✅ 改為從 this.config 讀取，而不是依賴 currentScenarioMode
     if (this.config && this.config.displayMultiplier !== undefined) {
       const displayMult = this.config.displayMultiplier
-      console.log(`🎭 [手動模式] displayMultiplier = ${displayMult} (來自 this.config)`)
+      // 🔴【優化】僅在開發環境或首次時打印，避免過度輸出
+      if (window.__DEBUG_DISPLAY_MULTIPLIER__) {
+        console.log(`🎭 [手動模式] displayMultiplier = ${displayMult} (來自 this.config)`)
+      }
       return displayMult
     }
 
@@ -801,7 +807,9 @@ export default class AutoTrafficGenerator {
       const scenario = getScenarioByKey(this.currentScenarioMode)
       if (scenario && scenario.config && scenario.config.displayMultiplier) {
         const displayMult = scenario.config.displayMultiplier
-        console.log(`🎭 [手動模式-兼容] displayMultiplier = ${displayMult} (來自 currentScenarioMode)`)
+        if (window.__DEBUG_DISPLAY_MULTIPLIER__) {
+          console.log(`🎭 [手動模式-兼容] displayMultiplier = ${displayMult} (來自 currentScenarioMode)`)
+        }
         return displayMult
       }
     }
