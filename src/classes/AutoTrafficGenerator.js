@@ -107,7 +107,16 @@ export default class AutoTrafficGenerator {
         interval: scenarioConfig.config.interval,
         vehiclesPerInterval: scenarioConfig.config.vehiclesPerInterval,
         peakMultiplier: scenarioConfig.config.peakMultiplier,
+        displayMultiplier: scenarioConfig.config.displayMultiplier,
       })
+      
+      // 🔍 【診斷】詳細檢查 displayMultiplier
+      console.log(`🎭 [AutoTrafficGenerator] displayMultiplier 詳細信息:
+        - 情景 Key: ${scenario}
+        - displayMultiplier 值: ${scenarioConfig.config.displayMultiplier}
+        - 類型: ${typeof scenarioConfig.config.displayMultiplier}
+        - VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier: ${VOLUME_LIMITS_CONFIG['peak_hours']?.displayMultiplier}
+      `)
 
       // 更新配置（這會觸發 updateConfig 中的動態調整邏輯）
       this.updateConfig(scenarioConfig.config)
@@ -119,6 +128,16 @@ export default class AutoTrafficGenerator {
   // 切換場景：完全覆蓋（手動模式）
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig }
+    
+    // 🔍 【診斷】追蹤 displayMultiplier
+    if (newConfig.displayMultiplier !== undefined) {
+      console.log(`🎭 [AutoTrafficGenerator] updateConfig 中的 displayMultiplier:
+        - 新值: ${newConfig.displayMultiplier}
+        - 類型: ${typeof newConfig.displayMultiplier}
+        - 現在 this.config.displayMultiplier: ${this.config.displayMultiplier}
+      `)
+    }
+    
     // 若 newConfig 有 maxLiveVehicles，則同步更新
     if (typeof newConfig.maxLiveVehicles === 'number') {
       this.maxLiveVehicles = newConfig.maxLiveVehicles
@@ -765,22 +784,29 @@ export default class AutoTrafficGenerator {
       }
 
       const displayMult = scenario.displayMultiplier
-      // 🔴【移除】此日誌過度輸出，已完全禁用
-      // if (window.__DEBUG_DISPLAY_MULTIPLIER__) {
-      //   console.log(`🎭 [自動模式] 時段 ${hours}:00 -> displayMultiplier = ${displayMult}`)
-      // }
+      console.log(`🎭 [自動模式] 時段 ${hours}:00 -> displayMultiplier = ${displayMult}`)
       return displayMult
     }
 
-    // 手動情景模式：從當前情景配置中取得 displayMultiplier
+    // 手動模式：從 this.config 中直接取得 displayMultiplier
+    // ✅ 改為從 this.config 讀取，而不是依賴 currentScenarioMode
+    if (this.config && this.config.displayMultiplier !== undefined) {
+      const displayMult = this.config.displayMultiplier
+      console.log(`🎭 [手動模式] displayMultiplier = ${displayMult} (來自 this.config)`)
+      return displayMult
+    }
+
+    // 向後兼容：如果 this.config 中沒有，嘗試從 currentScenarioMode 讀取
     if (this.currentScenarioMode) {
       const scenario = getScenarioByKey(this.currentScenarioMode)
       if (scenario && scenario.config && scenario.config.displayMultiplier) {
         const displayMult = scenario.config.displayMultiplier
+        console.log(`🎭 [手動模式-兼容] displayMultiplier = ${displayMult} (來自 currentScenarioMode)`)
         return displayMult
       }
     }
 
+    console.warn(`⚠️ 無法獲取 displayMultiplier，使用預設值 1`)
     return 1
   }
 
