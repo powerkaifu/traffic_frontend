@@ -401,22 +401,22 @@ export default class Vehicle {
 
     const vehicleConfigs = {
       large: {
-        east: { width: 35, height: 20, image: '/images/car/lCar_east.png', rotation: 0 },
-        west: { width: 35, height: 20, image: '/images/car/lCar_east.png', rotation: 0, scaleX: -1 },
-        north: { width: 35, height: 20, image: '/images/car/lCar_east.png', rotation: -90 },
-        south: { width: 35, height: 20, image: '/images/car/lCar_east.png', rotation: 90 },
+        east: { width: 35, height: 20, image: '/images/car/lCar_east.webp', rotation: 0 },
+        west: { width: 35, height: 20, image: '/images/car/lCar_east.webp', rotation: 0, scaleX: -1 },
+        north: { width: 35, height: 20, image: '/images/car/lCar_east.webp', rotation: -90 },
+        south: { width: 35, height: 20, image: '/images/car/lCar_east.webp', rotation: 90 },
       },
       small: {
-        east: { width: 30, height: 18, image: '/images/car/sCar_east.png', rotation: 0 },
-        west: { width: 30, height: 18, image: '/images/car/sCar_east.png', rotation: 0, scaleX: -1 },
-        north: { width: 30, height: 18, image: '/images/car/sCar_east.png', rotation: -90 },
-        south: { width: 30, height: 18, image: '/images/car/sCar_east.png', rotation: 90 },
+        east: { width: 30, height: 18, image: '/images/car/sCar_east.webp', rotation: 0 },
+        west: { width: 30, height: 18, image: '/images/car/sCar_east.webp', rotation: 0, scaleX: -1 },
+        north: { width: 30, height: 18, image: '/images/car/sCar_east.webp', rotation: -90 },
+        south: { width: 30, height: 18, image: '/images/car/sCar_east.webp', rotation: 90 },
       },
       motor: {
-        east: { width: 25, height: 15, image: '/images/car/mCar_east.png', rotation: 0 },
-        west: { width: 25, height: 15, image: '/images/car/mCar_east.png', rotation: 0, scaleX: -1 },
-        north: { width: 25, height: 15, image: '/images/car/mCar_east.png', rotation: -90 },
-        south: { width: 25, height: 15, image: '/images/car/mCar_east.png', rotation: 90 },
+        east: { width: 25, height: 15, image: '/images/car/mCar_east.webp', rotation: 0 },
+        west: { width: 25, height: 15, image: '/images/car/mCar_east.webp', rotation: 0, scaleX: -1 },
+        north: { width: 25, height: 15, image: '/images/car/mCar_east.webp', rotation: -90 },
+        south: { width: 25, height: 15, image: '/images/car/mCar_east.webp', rotation: 90 },
       },
     }
     return vehicleConfigs[this.vehicleType]?.[this.direction] || vehicleConfigs.large.east

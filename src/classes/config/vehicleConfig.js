@@ -12,7 +12,8 @@
 // ===== 動畫與時間設定 =====
 export const ANIMATION_CONFIG = {
   // 🎬 全域動畫控制
-  TIME_MULTIPLIER: 0.3, // 控制整體動畫速度：越小越快，越大越慢（0.5=2倍速，2=半速）
+  TIME_MULTIPLIER: 0.45, // 控制整體動畫速度：越小越快，越大越慢（0.5=2倍速，2=半速）
+  // ✅ Scenario 3: 0.3 → 0.45（動畫 2.2x 速度，合理平衡）
   // ⚡ 速度變化動畫時間 (秒)
   SPEED_CHANGE_DURATION: {
     INSTANT: 0.05, // 幾乎立即的速度變化（紅燈停車用）
@@ -233,7 +234,7 @@ export const COLLISION_CONFIG = {
   },
 
   // ⏱️ 檢測間隔設定（毫秒）
-  CHECK_INTERVAL: 50, // ✅ 改為 50ms，提高碰撞檢測頻率
+  CHECK_INTERVAL: 120, // ✅ Scenario 3: 50 → 120（碰撞檢測間隔增加 2.4x）
   SIMPLE_CHECK_INTERVAL: 25, // ✅ 改為 25ms，也提高頻率
 
   // 🆕 TIME_MULTIPLIER 補償設定 - 解決快速動畫時碰撞失效問題
@@ -369,9 +370,9 @@ export const VOLUME_LIMITS_CONFIG = {
   // 🎭【尖峰時段】- 早晨 07:00-09:00 / 傍晚 17:00-19:00
   peak_hours: {
     // 前端動畫層（動畫上限）
-    maxLiveVehicles: 100, // 前端允許最多 100 輛動畫車輛
-    displayMultiplier: 7, // 視覺倍數（前端顯示會乘以 7）
-    // 實際視覺：100 × 7 = 700 輛的擁擠感（但實際數據只有 ~100 輛）
+    maxLiveVehicles: 70, // ✅ Scenario 3: 100 → 70（減少並發動畫）
+    displayMultiplier: 10, // ✅ Scenario 3: 7 → 10（增加視覺倍數補償）
+    // 實際視覺：70 × 10 = 700 輛的擁擠感（但實際數據只有 ~70 輛）
 
     // 後端 API 層（數據上限）
     maxLiveVehiclesForBackend: 30, // API 最多傳 30 輛的數據
@@ -379,33 +380,33 @@ export const VOLUME_LIMITS_CONFIG = {
     // 保守設定為 30 輛以匹配訓練範圍
 
     // 描述
-    description: '尖峰時段 - 前端 100 輛 × 7 倍 = 視覺 700 輛 / 後端傳 30 輛',
+    description: '尖峰時段 - 前端 70 輛 × 10 倍 = 視覺 700 輛 / 後端傳 30 輛',
   },
 
   // 🌞【離峰時段】- 白天 09:00-17:00 / 晚間 19:00-23:00
   off_peak: {
-    maxLiveVehicles: 100,
-    displayMultiplier: 3,
-    // 實際視覺：100 × 3 = 300 輛
+    maxLiveVehicles: 70, // ✅ Scenario 3: 100 → 70
+    displayMultiplier: 5, // ✅ Scenario 3: 3 → 5（增加視覺倍數補償）
+    // 實際視覺：70 × 5 = 350 輛
 
     maxLiveVehiclesForBackend: 20,
     // 原因：VD 訓練數據中離峰約 3-4 輛/車道 × 4 車道 ≈ 12-16 輛
     // 保守設定為 20 輛
 
-    description: '離峰時段 - 前端 100 輛 × 3 倍 = 視覺 300 輛 / 後端傳 20 輛',
+    description: '離峰時段 - 前端 70 輛 × 5 倍 = 視覺 350 輛 / 後端傳 20 輛',
   },
 
   // 🌙【凌晨時段】- 深夜 23:00-07:00
   late_night: {
-    maxLiveVehicles: 100,
-    displayMultiplier: 1.5,
-    // 實際視覺：100 × 1.5 = 150 輛
+    maxLiveVehicles: 70, // ✅ Scenario 3: 100 → 70
+    displayMultiplier: 2, // ✅ Scenario 3: 1.5 → 2（增加視覺倍數補償）
+    // 實際視覺：70 × 2 = 140 輛
 
     maxLiveVehiclesForBackend: 8,
     // 原因：VD 訓練數據中凌晨約 1-2 輛/車道 × 4 車道 ≈ 4-8 輛
     // 保守設定為 8 輛
 
-    description: '凌晨時段 - 前端 100 輛 × 1.5 倍 = 視覺 150 輛 / 後端傳 8 輛',
+    description: '凌晨時段 - 前端 70 輛 × 2 倍 = 視覺 140 輛 / 後端傳 8 輛',
   },
 
   // 📊 工作日 vs 假日調整
