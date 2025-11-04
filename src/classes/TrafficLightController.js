@@ -686,9 +686,17 @@ export default class TrafficLightController {
           precision: 100,
         })
 
-        // 等待 complete 消息
+        // 監聽 Worker 消息（包括 tick 和 complete）
         const handleMessage = (event) => {
-          if (event.data.type === 'complete') {
+          const { type, remaining } = event.data
+
+          if (type === 'tick') {
+            // 💡 關鍵修復：在每個 tick 消息時更新 UI
+            if (this.onTimerUpdate) {
+              this.onTimerUpdate(null, remaining)
+            }
+          } else if (type === 'complete') {
+            // 倒數完成
             this.countdownWorker.removeEventListener('message', handleMessage)
             resolve()
           }
@@ -754,9 +762,14 @@ export default class TrafficLightController {
 
         // 監聽 Worker 消息
         const handleMessage = (event) => {
-          const { type } = event.data
+          const { type, remaining } = event.data
 
-          if (type === 'complete') {
+          if (type === 'tick') {
+            // 💡 關鍵修復：在每個 tick 消息時更新 UI
+            if (this.onTimerUpdate) {
+              this.onTimerUpdate(null, remaining)
+            }
+          } else if (type === 'complete') {
             this.countdownWorker.removeEventListener('message', handleMessage)
             if (!apiTriggered) {
               logWarn(`⚠️ [API觸發失敗] 南北向綠燈 ${totalSeconds} 秒已結束，但未觸發API`)

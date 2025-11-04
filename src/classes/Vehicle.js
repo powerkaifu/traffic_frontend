@@ -1086,12 +1086,14 @@ export default class Vehicle {
                 this.isAtStopLine = true
                 const lightState = trafficController.getCurrentLightState(this.direction)
 
-                // 🚨 修正：1號車道的特殊燈號邏輯
+                // 🚨 修正：決定是否在停止線等待
+                // - 非1號車道：在 red/yellow/allRed/非綠燈 時停止；綠燈時放行
+                // - 1號車道（左轉）：在 red/yellow/allRed/直行綠燈 時停止；左轉綠燈時放行
                 const shouldStop =
                   lightState === 'red' ||
                   lightState === 'yellow' ||
                   lightState === 'allRed' ||
-                  (this.laneNumber === 1 && lightState === 'green') // 1號車道在直行綠燈時也要停止等待左轉綠燈
+                  (this.laneNumber === 1 && lightState === 'green') // ✅ 只在"直行綠燈"時停止，"左轉綠燈"時放行
 
                 if (shouldStop) {
                   if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
