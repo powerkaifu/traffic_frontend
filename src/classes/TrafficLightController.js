@@ -275,7 +275,7 @@ export default class TrafficLightController {
             let lastReportedSecond = null
 
             self.onmessage = (event) => {
-              const { command, duration: messageDuration, precision = 100 } = event.data
+              const { command, duration: messageDuration, precision = 50 } = event.data
 
               if (command === 'startCountdown') {
                 if (countdownInterval) {
@@ -296,6 +296,7 @@ export default class TrafficLightController {
                   const elapsed = Date.now() - startTime
                   const remaining = Math.max(0, Math.floor((duration - elapsed) / 1000))
 
+                  // ✅ 改進：確保秒數改變時一定發送，提高精度
                   if (remaining !== lastReportedSecond) {
                     lastReportedSecond = remaining
                     self.postMessage({
@@ -305,9 +306,20 @@ export default class TrafficLightController {
                     })
                   }
 
-                  if (elapsed >= duration) {
+                  // ✅ 精確檢查完成條件：允許 ±50ms 的偏差
+                  if (elapsed >= duration - 50) {
                     clearInterval(countdownInterval)
                     countdownInterval = null
+                    
+                    // ✅ 確保最後發送完成時的秒數為 0
+                    if (remaining !== 0) {
+                      self.postMessage({
+                        type: 'tick',
+                        remaining: 0,
+                        elapsed: duration,
+                      })
+                    }
+                    
                     self.postMessage({
                       type: 'complete',
                       totalElapsed: elapsed,
@@ -570,33 +582,38 @@ export default class TrafficLightController {
           // 南北向綠燈結束
           window.dispatchEvent(new CustomEvent('greenLightEnded'))
 
-          // 🎯【階段2】南北向直行黃燈
+          // 🎯【階段2】南北向直行黃燈 - 立即更新燈色
+          logInfo('🟡 [燈號轉換] 南北向 綠燈 → 黃燈（立即更新，無延遲）')
           this.updateLightState('south', 'yellow')
           this.updateLightState('north', 'yellow')
           this.updateTimer('南北向\n直行黃燈', this.phaseTimings.yellow.straight)
           await this.countdownDelay(this.phaseTimings.yellow.straight * 1000)
 
-          // 🎯【階段3】全紅階段 - 安全緩衝
+          // 🎯【階段3】全紅階段 - 安全緩衝 - 立即更新燈色
+          logInfo('🔴 [燈號轉換] 南北向 黃燈 → 全紅（立即更新，無延遲）')
           this.updateLightState('south', 'red')
           this.updateLightState('north', 'red')
           this.updateTimer('全紅階段\n安全緩衝', this.phaseTimings.allRed.duration)
           await this.countdownDelay(this.phaseTimings.allRed.duration * 1000)
 
-          // 🎯【階段4】南北向左轉綠燈（後左轉）
+          // 🎯【階段4】南北向左轉綠燈（後左轉）- 立即更新燈色
+          logInfo('🟢 [燈號轉換] 南北向 全紅 → 左轉綠燈（立即更新，無延遲）')
           this.updateLightState('south', 'leftGreen') // 南向左轉綠燈(redLeftLight.png)
           this.updateLightState('north', 'leftGreen') // 北向左轉綠燈(redLeftLight.png)
 
           this.updateTimer('南北向\n左轉綠燈', this.phaseTimings.leftTurnGreen.duration)
           await this.countdownDelay(this.phaseTimings.leftTurnGreen.duration * 1000)
 
-          // 🎯【階段5】左轉黃燈
+          // 🎯【階段5】左轉黃燈 - 立即更新燈色
+          logInfo('🟡 [燈號轉換] 南北向 左轉綠燈 → 左轉黃燈（立即更新，無延遲）')
           this.updateLightState('south', 'leftYellow') // 南向左轉黃燈(yellowLight.png)
           this.updateLightState('north', 'leftYellow') // 北向左轉黃燈(yellowLight.png)
 
           this.updateTimer('南北向\n左轉黃燈', this.phaseTimings.yellow.leftTurn)
           await this.countdownDelay(this.phaseTimings.yellow.leftTurn * 1000)
 
-          // 🎯【階段6】左轉紅燈
+          // 🎯【階段6】左轉紅燈 - 立即更新燈色
+          logInfo('🔴 [燈號轉換] 南北向 左轉黃燈 → 全紅（立即更新，無延遲）')
           this.updateLightState('south', 'red') // 南向左轉紅燈(redLight.png)
           this.updateLightState('north', 'red') // 北向左轉紅燈(redLight.png)
 
@@ -629,33 +646,38 @@ export default class TrafficLightController {
           // 東西向綠燈結束
           window.dispatchEvent(new CustomEvent('greenLightEnded'))
 
-          // 🎯【階段2】東西向直行黃燈
+          // 🎯【階段2】東西向直行黃燈 - 立即更新燈色
+          logInfo('🟡 [燈號轉換] 東西向 綠燈 → 黃燈（立即更新，無延遲）')
           this.updateLightState('east', 'yellow')
           this.updateLightState('west', 'yellow')
           this.updateTimer('東西向\n直行黃燈', this.phaseTimings.yellow.straight)
           await this.countdownDelay(this.phaseTimings.yellow.straight * 1000)
 
-          // 🎯【階段3】全紅階段 - 安全緩衝
+          // 🎯【階段3】全紅階段 - 安全緩衝 - 立即更新燈色
+          logInfo('🔴 [燈號轉換] 東西向 黃燈 → 全紅（立即更新，無延遲）')
           this.updateLightState('east', 'red')
           this.updateLightState('west', 'red')
           this.updateTimer('全紅階段\n安全緩衝', this.phaseTimings.allRed.duration)
           await this.countdownDelay(this.phaseTimings.allRed.duration * 1000)
 
-          // 🎯【階段4】東西向左轉綠燈（後左轉）
+          // 🎯【階段4】東西向左轉綠燈（後左轉）- 立即更新燈色
+          logInfo('🟢 [燈號轉換] 東西向 全紅 → 左轉綠燈（立即更新，無延遲）')
           this.updateLightState('east', 'leftGreen') // 東向左轉綠燈(redLeftLight.png)
           this.updateLightState('west', 'leftGreen') // 西向左轉綠燈(redLeftLight.png)
 
           this.updateTimer('東西向\n左轉綠燈', this.phaseTimings.leftTurnGreen.duration)
           await this.countdownDelay(this.phaseTimings.leftTurnGreen.duration * 1000)
 
-          // 🎯【階段5】左轉黃燈
+          // 🎯【階段5】左轉黃燈 - 立即更新燈色
+          logInfo('🟡 [燈號轉換] 東西向 左轉綠燈 → 左轉黃燈（立即更新，無延遲）')
           this.updateLightState('east', 'leftYellow') // 東向左轉黃燈(yellowLight.png)
           this.updateLightState('west', 'leftYellow') // 西向左轉黃燈(yellowLight.png)
 
           this.updateTimer('東西向\n左轉黃燈', this.phaseTimings.yellow.leftTurn)
           await this.countdownDelay(this.phaseTimings.yellow.leftTurn * 1000)
 
-          // 🎯【階段6】左轉紅燈
+          // 🎯【階段6】左轉紅燈 - 立即更新燈色
+          logInfo('🔴 [燈號轉換] 東西向 左轉黃燈 → 全紅（立即更新，無延遲）')
           this.updateLightState('east', 'red') // 東向左轉紅燈(redLight.png)
           this.updateLightState('west', 'red') // 西向左轉紅燈(redLight.png)
 

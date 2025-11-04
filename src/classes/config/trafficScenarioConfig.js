@@ -95,8 +95,8 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 4 },
-      interval: { min: 2000, max: 8000, normal: 3000 }, // ✅ 改為更長的基礎間隔
+      vehiclesPerInterval: { min: 1, max: 1 },
+      interval: { min: 1000, max: 8000, normal: 1000 }, // ✅ 改為更長的基礎間隔
       peakMultiplier: 1, // 👈 尖峰倍數
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
 
