@@ -376,42 +376,25 @@ export const VOLUME_LIMITS_CONFIG = {
   peak_hours: {
     // 前端動畫層（動畫上限）
     maxLiveVehicles: 100, // ✅ 實際運行 100 輛
-    displayMultiplier: 1.5, // ✅ 改為 1.5（從 10）- 畫面最多 100 輛，視覺倍數 1.5x 顯示擁擠感
-    // 實際視覺：100 × 1.5 = 150 輛的擁擠感（合理範圍內）
-
-    // 後端 API 層（數據上限）
+    displayMultiplier: 1.0, // ✅ 所見即所得：100 輛 = 100 輛（無倍增）
     maxLiveVehiclesForBackend: 30, // API 最多傳 30 輛的數據
-    // 原因：VD 訓練數據中尖峰時段約 9-11 輛/車道 × 4 車道 ≈ 40-44 輛
-    // 保守設定為 30 輛以匹配訓練範圍
-
-    // 描述
-    description: '尖峰時段 - 前端 100 輛 × 1.5 倍 = 視覺 150 輛擁擠感 / 後端傳 30 輛',
+    description: '尖峰時段 - 前端 100 輛 × 1.0 倍 = 視覺 100 輛 / 後端傳 30 輛',
   },
 
   // 🌞【離峰時段】- 白天 09:00-17:00 / 晚間 19:00-23:00
   off_peak: {
     maxLiveVehicles: 100, // ✅ 實際運行 100 輛
-    displayMultiplier: 1.0, // ✅ 改為 1.0（從 5）- 畫面顯示正常的 100 輛
-    // 實際視覺：100 × 1.0 = 100 輛正常顯示
-
+    displayMultiplier: 1.0, // ✅ 所見即所得
     maxLiveVehiclesForBackend: 20,
-    // 原因：VD 訓練數據中離峰約 3-4 輛/車道 × 4 車道 ≈ 12-16 輛
-    // 保守設定為 20 輛
-
-    description: '離峰時段 - 前端 100 輛 × 1.0 倍 = 視覺 100 輛正常 / 後端傳 20 輛',
+    description: '離峰時段 - 前端 100 輛 × 1.0 倍 = 視覺 100 輛 / 後端傳 20 輛',
   },
 
   // 🌙【凌晨時段】- 深夜 23:00-07:00
   late_night: {
     maxLiveVehicles: 100, // ✅ 實際運行 100 輛
-    displayMultiplier: 0.8, // ✅ 改為 0.8（從 2）- 畫面顯示稍微稀疏的 80 輛
-    // 實際視覺：100 × 0.8 = 80 輛稀疏顯示
-
+    displayMultiplier: 1.0, // ✅ 所見即所得
     maxLiveVehiclesForBackend: 8,
-    // 原因：VD 訓練數據中凌晨約 1-2 輛/車道 × 4 車道 ≈ 4-8 輛
-    // 保守設定為 8 輛
-
-    description: '凌晨時段 - 前端 100 輛 × 0.8 倍 = 視覺 80 輛稀疏 / 後端傳 8 輛',
+    description: '凌晨時段 - 前端 100 輛 × 1.0 倍 = 視覺 100 輛 / 後端傳 8 輛',
   },
 
   // 📊 工作日 vs 假日調整
