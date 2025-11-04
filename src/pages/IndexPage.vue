@@ -1558,6 +1558,45 @@ onMounted(async () => {
   console.log('═══════════════════════════════════════════════════════════')
   console.log('✅ [IndexPage] onMounted 完成')
   console.log('═══════════════════════════════════════════════════════════')
+
+  // 🚨 【新增】內存診斷工具 - 按 Ctrl+Shift+M 查看
+  window.diagnostics = {
+    showMemoryDiagnostics() {
+      try {
+        const liveVehicles = window.liveVehicles || []
+        const gsapTweens = gsap.getTweensOf()  // ← 可能出現異常，需要保護
+        
+        const diagnostics = {
+          '📊 活躍車輛數': liveVehicles.length,
+          '🎬 GSAP 動畫堆': gsapTweens?.length || 0,
+          '🚨 洩漏指標': gsapTweens?.length > liveVehicles.length ? `⚠️ 異常高 (${gsapTweens.length - liveVehicles.length} 多餘)` : '✅ 正常',
+          '💾 預估內存': `~${Math.round(liveVehicles.length * 0.4)} MB`,
+          '⏰ 時間戳': new Date().toLocaleTimeString(),
+        }
+        
+        console.group('🔧 內存診斷面板')
+        Object.entries(diagnostics).forEach(([key, value]) => {
+          console.log(`${key}: ${value}`)
+        })
+        console.groupEnd()
+        
+        return diagnostics
+      } catch (e) {
+        console.error('❌ 診斷異常:', e.message)
+        return null
+      }
+    },
+  }
+
+  // 🚨 【新增】快捷鍵：Ctrl+Shift+M 查看內存診斷
+  window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && e.code === 'KeyM') {
+      e.preventDefault()
+      window.diagnostics?.showMemoryDiagnostics()
+    }
+  })
+
+  console.log('✅ [診斷工具已啟用] 按 Ctrl+Shift+M 查看內存診斷')
 })
 
 // 💡 獲取 tooltip 訊息的輔助函數 - 支援配置鍵或直接訊息

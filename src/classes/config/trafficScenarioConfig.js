@@ -1,10 +1,13 @@
 /**
- * 交通情境配置檔
- * 統一管理所有交通相關的參數設定，包括時段情境、車型組合、密度閾值等
+ * 交通情景配置檔
+ * 統一管理所有交通相關的參數設定，包括時段情景、車型組合、密度閾值等
  */
 
+// 🚨 導入 displayMultiplier 配置
+import { VOLUME_LIMITS_CONFIG } from './vehicleConfig.js'
+
 // ============================================
-// �️ 【全局車輛管理配置】
+// 🛠️ 【全局車輛管理配置】
 // ============================================
 // 用途：全系統範圍內控制同時在場的車輛數量上限
 // 調用：AutoTrafficGenerator.checkVehicleLimit()、IndexPage.cleanupVehicles()
@@ -274,6 +277,18 @@ export const vehicleMixes = {
 export function getScenarioByTime(currentTime) {
   const currentHour = currentTime.getHours()
 
+  // 🎯 根據時段決定時段類型
+  let timePeriod = 'off_peak'
+  if ((currentHour >= 7 && currentHour < 10) || (currentHour >= 17 && currentHour < 20)) {
+    timePeriod = 'peak_hours'
+  } else if (currentHour >= 0 && currentHour < 7) {
+    timePeriod = 'late_night'
+  }
+
+  // 🚨 從 VOLUME_LIMITS_CONFIG 讀取正確的 displayMultiplier
+  const timeLimitConfig = VOLUME_LIMITS_CONFIG[timePeriod] || VOLUME_LIMITS_CONFIG['off_peak']
+  const displayMultiplier = timeLimitConfig?.displayMultiplier ?? 1
+
   // ==========================================
   // 🌙 午夜-清晨時段 (00:00-07:00)
   // ==========================================
@@ -285,7 +300,7 @@ export function getScenarioByTime(currentTime) {
       name: '深夜',
       interval: { min: 15000, max: 40000, normal: 20000 },
       peakMultiplier: 1.0,
-      displayMultiplier: 1.0,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
         { type: 'motor', weight: 60 },
@@ -303,7 +318,7 @@ export function getScenarioByTime(currentTime) {
       name: '清晨',
       interval: { min: 12000, max: 20000, normal: 15000 },
       peakMultiplier: 1.0,
-      displayMultiplier: 1.0,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
         { type: 'motor', weight: 55 },
@@ -325,7 +340,7 @@ export function getScenarioByTime(currentTime) {
       name: '早尖峰',
       interval: { min: 2000, max: 8000, normal: 5000 },
       peakMultiplier: 1.0,
-      displayMultiplier: 1.5,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
         { type: 'motor', weight: 40 },
@@ -343,7 +358,7 @@ export function getScenarioByTime(currentTime) {
       name: '上午',
       interval: { min: 5000, max: 9000, normal: 6500 },
       peakMultiplier: 1.0,
-      displayMultiplier: 1.2,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
         { type: 'motor', weight: 35 },
@@ -365,7 +380,7 @@ export function getScenarioByTime(currentTime) {
       name: '午間',
       interval: { min: 5000, max: 10000, normal: 8000 },
       peakMultiplier: 1.0,
-      displayMultiplier: 1.0,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
         { type: 'motor', weight: 30 },
@@ -383,7 +398,7 @@ export function getScenarioByTime(currentTime) {
       name: '下午',
       interval: { min: 5000, max: 10000, normal: 8000 },
       peakMultiplier: 1.0,
-      displayMultiplier: 1.0,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
         { type: 'motor', weight: 32 },
@@ -405,7 +420,7 @@ export function getScenarioByTime(currentTime) {
       name: '傍晚前',
       interval: { min: 4000, max: 9000, normal: 6500 },
       peakMultiplier: 1.0,
-      displayMultiplier: 1.2,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
         { type: 'motor', weight: 36 },
@@ -423,7 +438,7 @@ export function getScenarioByTime(currentTime) {
       name: '晚尖峰',
       interval: { min: 2000, max: 8000, normal: 5000 },
       peakMultiplier: 1.0,
-      displayMultiplier: 1.5,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
         { type: 'motor', weight: 40 },
@@ -441,7 +456,7 @@ export function getScenarioByTime(currentTime) {
       name: '晚間',
       interval: { min: 5000, max: 10000, normal: 8000 },
       peakMultiplier: 1.0,
-      displayMultiplier: 1.0,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
         { type: 'motor', weight: 32 },
@@ -463,7 +478,7 @@ export function getScenarioByTime(currentTime) {
       name: '深夜前',
       interval: { min: 12000, max: 20000, normal: 15000 },
       peakMultiplier: 1.0,
-      displayMultiplier: 1.0,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
         { type: 'motor', weight: 50 },
@@ -481,7 +496,7 @@ export function getScenarioByTime(currentTime) {
       name: '深夜',
       interval: { min: 15000, max: 40000, normal: 20000 },
       peakMultiplier: 1.0,
-      displayMultiplier: 1.0,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
         { type: 'motor', weight: 60 },
