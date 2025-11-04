@@ -78,7 +78,6 @@ export const timeScenarios = [
       { start: 17, end: 19 },
     ],
 
-    // 🎯 目標特徵（基於 VD 配置文檔統計數據）
     // 早峰/晚峰：9-11輛/車道，占有率 12-15%，速度 38-45 km/h
     // 🎭 API 層：後端接收的原始數據（不放大）
     targetFeatures: {
@@ -96,7 +95,7 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 2 },
+      vehiclesPerInterval: { min: 1, max: 5 },
       interval: { min: 2000, max: 8000, normal: 3000 }, // ✅ 改為更長的基礎間隔
       peakMultiplier: 1, // 👈 尖峰倍數
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier, // ✅ 改為從配置讀取（=10）
