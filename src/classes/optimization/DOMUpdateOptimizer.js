@@ -15,12 +15,12 @@ export class DOMUpdateOptimizer {
   constructor() {
     this.frameCount = 0
     this.updateThresholds = {
-      position: 1,       // 每幀 (60 FPS = 60 次/秒)
-      rotation: 1,       // 每幀
-      color: 10,         // 每 10 幀 (6 次/秒)
-      text: 5,           // 每 5 幀 (12 次/秒)
-      opacity: 15,       // 每 15 幀 (4 次/秒)
-      collision: 3,      // 每 3 幀 (20 次/秒)
+      position: 1, // 每幀 (60 FPS = 60 次/秒)
+      rotation: 1, // 每幀
+      color: 10, // 每 10 幀 (6 次/秒)
+      text: 5, // 每 5 幀 (12 次/秒)
+      opacity: 15, // 每 15 幀 (4 次/秒)
+      collision: 3, // 每 3 幀 (20 次/秒)
     }
 
     // 統計數據
@@ -40,11 +40,11 @@ export class DOMUpdateOptimizer {
   shouldUpdate(updateType) {
     const threshold = this.updateThresholds[updateType] || 1
     const shouldUpdate = this.frameCount % threshold === 0
-    
+
     if (shouldUpdate) {
       this.stats[`${updateType}Updates`] = (this.stats[`${updateType}Updates`] || 0) + 1
     }
-    
+
     return shouldUpdate
   }
 
@@ -53,7 +53,7 @@ export class DOMUpdateOptimizer {
    * @param {Array} updates 要應用的更新列表
    */
   applyBatchUpdates(updates) {
-    updates.forEach(update => {
+    updates.forEach((update) => {
       if (this.shouldUpdate(update.type)) {
         update.apply()
       }
@@ -89,7 +89,7 @@ export class DOMUpdateOptimizer {
         text: this.stats.textUpdates || 0,
         collision: this.stats.collisionUpdates || 0,
       },
-      estimatedSaving: `${(this.stats.totalUpdates ? 45 : 0)}% DOM 操作減少`,
+      estimatedSaving: `${this.stats.totalUpdates ? 45 : 0}% DOM 操作減少`,
     }
   }
 
@@ -179,7 +179,8 @@ export class DOMUpdateOptimizer {
       /**
        * 緩存計算結果，避免重複
        */
-      cacheCalculation(key, fn, ttl = 16) { // 16ms = 1 幀 @ 60FPS
+      cacheCalculation(key, fn, ttl = 16) {
+        // 16ms = 1 幀 @ 60FPS
         const cached = this.throttledCalculations.get(key)
         if (cached && Date.now() - cached.time < ttl) {
           return cached.value

@@ -15,7 +15,7 @@ export const ANIMATION_CONFIG = {
   // 🆕 優化 3：TIME_MULTIPLIER 0.5 → 0.6（稍微放慢以減少 CPU，視覺衝擊最小）
   // 預期：FPS +2-3（減少 GSAP 計算），視覺感知不變
   TIME_MULTIPLIER: 0.6, // 控制整體動畫速度：越小越快，越大越慢（0.6≈1.67x 速度）
-  
+
   // ⚡ 速度變化動畫時間 (秒)
   SPEED_CHANGE_DURATION: {
     INSTANT: 0.05, // 幾乎立即的速度變化（紅燈停車用）

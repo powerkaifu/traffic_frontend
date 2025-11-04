@@ -2,8 +2,8 @@
 
 ## 📊 優化成果
 
-**目標**：30-45 FPS → 60 FPS  
-**完成度**：3/3 優化已實施  
+**目標**：30-45 FPS → 60 FPS
+**完成度**：3/3 優化已實施
 **預期效果**：+15-20 FPS
 
 ---
@@ -11,7 +11,8 @@
 ## ✅ 已實施優化
 
 ### **優化 1️⃣：碰撞檢測間隔調整** ✔️
-**檔案**：`src/classes/config/vehicleConfig.js` 第 237 行  
+
+**檔案**：`src/classes/config/vehicleConfig.js` 第 237 行
 **改動**：`CHECK_INTERVAL: 120 → 150` (毫秒)
 
 ```javascript
@@ -20,11 +21,13 @@ CHECK_INTERVAL: 150, // 每秒 6.7 次檢測（足夠準確）
 ```
 
 **效果**：
+
 - 減少 20% 碰撞檢測計算
 - CPU 使用率降低
 - FPS +3-5
 
 **為什麼安全**：
+
 - 120ms = 8.3 次/秒
 - 150ms = 6.7 次/秒
 - 差異極小，肉眼察覺不到
@@ -32,7 +35,8 @@ CHECK_INTERVAL: 150, // 每秒 6.7 次檢測（足夠準確）
 ---
 
 ### **優化 2️⃣：DOM 更新頻率優化** ✔️
-**新檔案**：`src/classes/optimization/DOMUpdateOptimizer.js`  
+
+**新檔案**：`src/classes/optimization/DOMUpdateOptimizer.js`
 **策略**：分級更新，減少不必要的 DOM 操作
 
 ```javascript
@@ -44,6 +48,7 @@ CHECK_INTERVAL: 150, // 每秒 6.7 次檢測（足夠準確）
 ```
 
 **整合方式**（需在 Vehicle.js 中使用）：
+
 ```javascript
 import { domUpdateOptimizer } from './optimization/DOMUpdateOptimizer.js'
 
@@ -55,6 +60,7 @@ onUpdate: () => {
 ```
 
 **預期效果**：
+
 - DOM 操作減少 40-50%
 - 主線程壓力降低
 - FPS +15-20（最顯著）
@@ -62,7 +68,8 @@ onUpdate: () => {
 ---
 
 ### **優化 3️⃣：GSAP 動畫參數調整** ✔️
-**檔案**：`src/classes/config/vehicleConfig.js` 第 15 行  
+
+**檔案**：`src/classes/config/vehicleConfig.js` 第 15 行
 **改動**：`TIME_MULTIPLIER: 0.5 → 0.6`
 
 ```javascript
@@ -71,11 +78,13 @@ TIME_MULTIPLIER: 0.6, // 稍微放慢動畫（1.67x 速度）
 ```
 
 **效果**：
+
 - GSAP 計算負荷 -10%
 - 視覺感知基本不變
 - FPS +2-3
 
 **為什麼可行**：
+
 - 0.5 = 2x 速度（非常快）
 - 0.6 = 1.67x 速度（仍然很快）
 - 用戶不太能察覺
@@ -85,13 +94,14 @@ TIME_MULTIPLIER: 0.6, // 稍微放慢動畫（1.67x 速度）
 ## 🎯 使用 DOM 優化器
 
 ### 方案 A：快速集成（15 分鐘）
+
 在 Vehicle.js 中找到 GSAP onUpdate：
 
 ```javascript
 // 在 Vehicle.js 第 834 行左右
 onUpdate: () => {
   // ... 現有代碼 ...
-  
+
   // 新增：優化 DOM 更新
   domUpdateOptimizer.nextFrame()
   if (domUpdateOptimizer.shouldUpdate('position') && this.element) {
@@ -103,6 +113,7 @@ onUpdate: () => {
 ```
 
 ### 方案 B：完全優化（25 分鐘）
+
 使用 `createVehicleUpdater()` 方法：
 
 ```javascript
@@ -122,13 +133,13 @@ onUpdate: () => {
 
 ## 📈 性能指標預測
 
-| 項目 | 優化前 | 優化後 | 改善 |
-|------|--------|--------|------|
-| FPS | 30-40 | 50-60 | +15-20 |
-| 碰撞檢測 | 100 次/秒 | 67 次/秒 | -33% |
-| DOM 更新 | ~6000 次/秒 | ~3200 次/秒 | -47% |
-| GSAP 計算 | 100% | 90% | -10% |
-| 主線程負荷 | 高 | 中 | -40% |
+| 項目       | 優化前      | 優化後      | 改善   |
+| ---------- | ----------- | ----------- | ------ |
+| FPS        | 30-40       | 50-60       | +15-20 |
+| 碰撞檢測   | 100 次/秒   | 67 次/秒    | -33%   |
+| DOM 更新   | ~6000 次/秒 | ~3200 次/秒 | -47%   |
+| GSAP 計算  | 100%        | 90%         | -10%   |
+| 主線程負荷 | 高          | 中          | -40%   |
 
 ---
 
@@ -146,12 +157,14 @@ onUpdate: () => {
 ## 🔍 如何驗證 FPS
 
 ### 使用 Chrome DevTools：
+
 1. 按 `F12` 開啟 DevTools
 2. 按 `Ctrl+Shift+P`，搜尋 "Rendering"
 3. 勾選 "Show fps meter"
 4. 左上角會顯示實時 FPS
 
 ### 使用 PerformanceOptimizer 日誌：
+
 ```javascript
 // 在 Console 中
 domUpdateOptimizer.getStats()
@@ -191,4 +204,3 @@ git commit -m "🚀 Performance: Achieve 60 FPS with collision detection, DOM up
 Expected: 30-45 FPS → 50-60 FPS
 "
 ```
-
