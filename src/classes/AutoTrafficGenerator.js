@@ -109,7 +109,7 @@ export default class AutoTrafficGenerator {
         peakMultiplier: scenarioConfig.config.peakMultiplier,
         displayMultiplier: scenarioConfig.config.displayMultiplier,
       })
-      
+
       // 🔍 【診斷】詳細檢查 displayMultiplier
       console.log(`🎭 [AutoTrafficGenerator] displayMultiplier 詳細信息:
         - 情景 Key: ${scenario}
@@ -128,7 +128,7 @@ export default class AutoTrafficGenerator {
   // 切換場景：完全覆蓋（手動模式）
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig }
-    
+
     // 🔍 【診斷】追蹤 displayMultiplier
     if (newConfig.displayMultiplier !== undefined) {
       console.log(`🎭 [AutoTrafficGenerator] updateConfig 中的 displayMultiplier:
@@ -137,7 +137,7 @@ export default class AutoTrafficGenerator {
         - 現在 this.config.displayMultiplier: ${this.config.displayMultiplier}
       `)
     }
-    
+
     // 若 newConfig 有 maxLiveVehicles，則同步更新
     if (typeof newConfig.maxLiveVehicles === 'number') {
       this.maxLiveVehicles = newConfig.maxLiveVehicles
