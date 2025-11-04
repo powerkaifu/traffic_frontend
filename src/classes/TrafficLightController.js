@@ -525,6 +525,15 @@ export default class TrafficLightController {
       this.lights[direction].setState(state)
     }
     this.notifyObservers(direction, state) // Observer Pattern
+
+    // 🎯 【新增】發送燈號變化事件，讓等待的車輛立即響應
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('lightStateChanged', {
+          detail: { direction, state },
+        }),
+      )
+    }
   }
 
   // 🎯【新增】左轉燈號狀態更新方法

@@ -186,6 +186,27 @@ export default class Vehicle {
       this.onWeatherChanged(event.detail)
     }
     window.addEventListener('weatherChanged', this.weatherChangeHandler)
+
+    // 🚦 【新增】監聽燈號變化事件，讓等待的車輛立即響應
+    this.lightStateChangeHandler = (event) => {
+      const { direction, state } = event.detail
+
+      // 只關注本方向的燈號變化
+      if (direction !== this.direction) {
+        return
+      }
+
+      // 如果車輛在停止線等待且燈號變化，重新檢查是否可以通行
+      if (this.waitingForGreen && this.isAtStopLine) {
+        // 異步重新評估，避免在事件處理中進行複雜操作
+        setTimeout(() => {
+          // 重置狀態以便重新檢查停止線邏輯
+          this.isAtStopLine = false
+          this.waitingForGreen = false
+        }, 50) // 短暫延遲確保燈號狀態已完全更新
+      }
+    }
+    window.addEventListener('lightStateChanged', this.lightStateChangeHandler)
   }
 
   // 🚨 新增：防停滯機制
@@ -1922,6 +1943,12 @@ export default class Vehicle {
     if (this.weatherChangeHandler) {
       window.removeEventListener('weatherChanged', this.weatherChangeHandler)
       this.weatherChangeHandler = null
+    }
+
+    // 🚦 【新增】移除燈號變化事件監聽器
+    if (this.lightStateChangeHandler) {
+      window.removeEventListener('lightStateChanged', this.lightStateChangeHandler)
+      this.lightStateChangeHandler = null
     }
 
     // 移除DOM元素

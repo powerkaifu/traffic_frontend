@@ -98,7 +98,7 @@ export const timeScenarios = [
       vehiclesPerInterval: { min: 1, max: 4 },
       interval: { min: 2000, max: 8000, normal: 3000 }, // ✅ 改為更長的基礎間隔
       peakMultiplier: 1, // 👈 尖峰倍數
-      displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier, // ✅ 改為從配置讀取（=10）
+      displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
 
       // =========================================
       // 🚌 【次常調整】- 車型與系統參數
