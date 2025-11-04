@@ -1,9 +1,9 @@
 /**
  * 倒數計時 Web Worker
- * 
+ *
  * 使用獨立 Worker 線程執行倒數計時，完全獨立於主線程
  * 即使主線程被車輛碰撞檢測阻塞，倒數也能精確進行
- * 
+ *
  * 通信格式：
  * - 發送：{ command: 'startCountdown', duration: 5000, precision: 100 }
  * - 接收：{ type: 'tick', remaining: 4, elapsed: 1000 }
