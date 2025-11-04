@@ -559,22 +559,45 @@ export default class TrafficLightController {
     }
   }
 
-  // Template Method Pattern: 倒數延遲函數
+  // Template Method Pattern: 倒數延遲函數 - 使用實時時間（不受主線程堵塞影響）
   async countdownDelay(totalMs) {
     const totalSeconds = Math.floor(totalMs / 1000)
+    const startTime = Date.now()
+    let lastReportedSecond = totalSeconds
 
-    for (let i = totalSeconds; i > 0; i--) {
-      if (this.onTimerUpdate) {
-        this.onTimerUpdate(null, i)
+    return new Promise((resolve) => {
+      const checkCountdown = () => {
+        const elapsedMs = Date.now() - startTime
+        const remainingMs = totalMs - elapsedMs
+        const remainingSeconds = Math.max(0, Math.floor(remainingMs / 1000))
+
+        // ✅ 只在秒數真正改變時更新（基於系統時間）
+        if (remainingSeconds !== lastReportedSecond) {
+          lastReportedSecond = remainingSeconds
+          if (this.onTimerUpdate) {
+            this.onTimerUpdate(null, remainingSeconds)
+          }
+        }
+
+        if (remainingMs <= 0) {
+          // 倒數完成
+          resolve()
+        } else {
+          // 繼續檢查（每 100ms 檢查一次，精度高但不占用太多資源）
+          setTimeout(checkCountdown, 100)
+        }
       }
-      await this.delay(1000)
-    }
+
+      checkCountdown()
+    })
   }
 
   // Template Method Pattern: 帶API觸發的倒數延遲函數（專用於南北向綠燈）
   async countdownDelayWithAPI(totalMs, apiTriggerSeconds) {
     const totalSeconds = Math.floor(totalMs / 1000)
+    const startTime = Date.now()
     let apiTriggered = false
+    let lastReportedSecond = totalSeconds
 
     // 🔧 修正：計算實際觸發時機，確保不會錯過
     const actualTriggerSeconds = Math.min(apiTriggerSeconds, totalSeconds)
@@ -583,37 +606,54 @@ export default class TrafficLightController {
       `🕐 [API觸發檢查] 總綠燈時間: ${totalSeconds}秒, 設定觸發時間: ${apiTriggerSeconds}秒, 實際觸發時間: ${actualTriggerSeconds}秒`,
     )
 
-    for (let i = totalSeconds; i > 0; i--) {
-      if (this.onTimerUpdate) {
-        this.onTimerUpdate(null, i)
+    return new Promise((resolve) => {
+      const checkCountdown = () => {
+        const elapsedMs = Date.now() - startTime
+        const remainingMs = totalMs - elapsedMs
+        const remainingSeconds = Math.max(0, Math.floor(remainingMs / 1000))
+
+        // ✅ 只在秒數真正改變時更新（基於系統時間）
+        if (remainingSeconds !== lastReportedSecond) {
+          lastReportedSecond = remainingSeconds
+          if (this.onTimerUpdate) {
+            this.onTimerUpdate(null, remainingSeconds)
+          }
+
+          // Strategy Pattern: 在剩餘指定秒數時觸發API
+          if (remainingSeconds === actualTriggerSeconds && !apiTriggered) {
+            logInfo(`⏰ [API觸發] 剩餘 ${remainingSeconds} 秒，開始 AI 預測流程...`)
+            logInfo(`📊 [API觸發] 當前相位: ${this.currentPhase}, 綠燈總時間: ${totalSeconds}秒`)
+
+            // 1. 收集當前週期的完整數據
+            const currentCycleData = this.collectIntersectionData()
+
+            // 2. 發送到 AI 後端（異步）
+            this.sendDataToBackend(currentCycleData)
+
+            // 3. 立即更新特徵模擬數據顯示
+            this.updateFeatureSimulationDisplay(currentCycleData)
+
+            logInfo('ℹ️ [API觸發] 數據已發送，將在相位切換時重置數據')
+
+            apiTriggered = true
+          }
+        }
+
+        if (remainingMs <= 0) {
+          // 倒數完成
+          // 🔧 安全檢查：如果整個循環結束都沒觸發，記錄警告
+          if (!apiTriggered) {
+            logWarn(`⚠️ [API觸發失敗] 南北向綠燈 ${totalSeconds} 秒已結束，但未觸發API（設定值: ${apiTriggerSeconds}秒）`)
+          }
+          resolve()
+        } else {
+          // 繼續檢查（每 100ms 檢查一次）
+          setTimeout(checkCountdown, 100)
+        }
       }
 
-      // Strategy Pattern: 在剩餘指定秒數時觸發API
-      if (i === actualTriggerSeconds && !apiTriggered) {
-        logInfo(`⏰ [API觸發] 剩餘 ${i} 秒，開始 AI 預測流程...`)
-        logInfo(`📊 [API觸發] 當前相位: ${this.currentPhase}, 綠燈總時間: ${totalSeconds}秒`)
-
-        // 1. 收集當前週期的完整數據
-        const currentCycleData = this.collectIntersectionData()
-
-        // 2. 發送到 AI 後端（異步）
-        this.sendDataToBackend(currentCycleData)
-
-        // 3. 立即更新特徵模擬數據顯示
-        this.updateFeatureSimulationDisplay(currentCycleData)
-
-        logInfo('ℹ️ [API觸發] 數據已發送，將在相位切換時重置數據')
-
-        apiTriggered = true
-      }
-
-      await this.delay(1000)
-    }
-
-    // 🔧 安全檢查：如果整個循環結束都沒觸發，記錄警告
-    if (!apiTriggered) {
-      logWarn(`⚠️ [API觸發失敗] 南北向綠燈 ${totalSeconds} 秒已結束，但未觸發API（設定值: ${apiTriggerSeconds}秒）`)
-    }
+      checkCountdown()
+    })
   }
 
   // ==========================================
