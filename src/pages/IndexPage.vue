@@ -1597,6 +1597,74 @@ onMounted(async () => {
   })
 
   console.log('✅ [診斷工具已啟用] 按 Ctrl+Shift+M 查看內存診斷')
+
+  // 🚨 【新增】實時性能監測工具 - 按 Ctrl+Shift+P 查看
+  window.performanceMonitor = {
+    isMonitoring: false,
+    monitorInterval: null,
+    
+    start() {
+      if (this.isMonitoring) return
+      this.isMonitoring = true
+      
+      console.log('🔴 性能監測已啟動...')
+      
+      this.monitorInterval = setInterval(() => {
+        const liveVehicles = window.liveVehicles || []
+        const trafficGen = this.trafficGenerator
+        
+        // 獲取 GSAP 動畫數量（安全）
+        let gsapCount = 0
+        try {
+          // 不使用 getTweensOf()，改為查看 globalTimeline
+          gsapCount = gsap._ticker.fps || 0
+        } catch {
+          gsapCount = '計算中'
+        }
+        
+        // 獲取當前配置
+        const currentTimePeriod = trafficGen?.trafficController?.getCurrentTimePeriod?.() || 'unknown'
+        const displayMult = trafficGen?._getDisplayMultiplierAdjustment?.() || 0
+        const maxLiveVehicles = trafficGen?.config?.maxLiveVehicles || 0
+        
+        console.group('📊 【實時性能監測】')
+        console.log(`⏰ 時間: ${new Date().toLocaleTimeString()}`)
+        console.log(`🚗 活躍車輛: ${liveVehicles.length}/${maxLiveVehicles}`)
+        console.log(`🎭 時段: ${currentTimePeriod} | displayMult: ${displayMult}`)
+        console.log(`🎬 GSAP 狀態: ${gsapCount === 'N/A' ? '⚠️ 無法計算' : '✅ 運行中'}`)
+        console.log(`📦 Vue 數據大小: ${JSON.stringify(this.$data).length} bytes`)
+        
+        // 檢查是否達到上限
+        if (liveVehicles.length >= maxLiveVehicles * 0.9) {
+          console.warn(`⚠️ 接近車輛上限！(${liveVehicles.length}/${maxLiveVehicles})`)
+        }
+        console.groupEnd()
+      }, 10000)  // 每 10 秒輸出一次
+    },
+    
+    stop() {
+      if (this.monitorInterval) {
+        clearInterval(this.monitorInterval)
+        this.monitorInterval = null
+        this.isMonitoring = false
+        console.log('⚫ 性能監測已停止')
+      }
+    },
+  }
+
+  // 🚨 【新增】快捷鍵：Ctrl+Shift+P 開始/停止性能監測
+  window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && e.code === 'KeyP') {
+      e.preventDefault()
+      if (window.performanceMonitor.isMonitoring) {
+        window.performanceMonitor.stop()
+      } else {
+        window.performanceMonitor.start()
+      }
+    }
+  })
+
+  console.log('✅ [性能監測工具已啟用] 按 Ctrl+Shift+P 開始/停止監測')
 })
 
 // 💡 獲取 tooltip 訊息的輔助函數 - 支援配置鍵或直接訊息

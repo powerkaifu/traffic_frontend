@@ -14,7 +14,7 @@ import { VOLUME_LIMITS_CONFIG } from './vehicleConfig.js'
 // 作用：防止車輛生成過多導致記憶體溢出和卡頓
 // ✅ 可在此調整，無需修改其他地方
 // ============================================
-export const GLOBAL_MAX_LIVE_VEHICLES = 100 // 🎯 全局車輛上限（無論何種情景或模式）
+export const GLOBAL_MAX_LIVE_VEHICLES = 70 // ✅ 改為 70，與前端動畫上限一致，減少顯示對象頻繁變化
 
 // ============================================
 // �🌍 系統預設配置 - 初始化時使用
