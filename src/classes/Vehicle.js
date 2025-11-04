@@ -1862,13 +1862,13 @@ export default class Vehicle {
     })
 
     // Template Method Pattern: 定義車輛移除的標準清理流程
-    
+
     // 🚨【關鍵】完全殺死所有 GSAP 動畫 - 防止僵屍動畫繼續計算
     try {
       // 殺死針對此對象的所有動畫
       gsap.killTweensOf(this)
       gsap.killTweensOf(this.element)
-      
+
       // 如果有其他關鍵屬性存儲了動畫，也要殺死
       if (this.displayObject) {
         gsap.killTweensOf(this.displayObject)

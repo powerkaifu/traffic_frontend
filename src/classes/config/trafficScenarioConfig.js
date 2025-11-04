@@ -96,10 +96,10 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 3 },
+      vehiclesPerInterval: { min: 1, max: 2 },
       interval: { min: 2000, max: 8000, normal: 3000 }, // ✅ 改為更長的基礎間隔
       peakMultiplier: 1, // 👈 尖峰倍數
-      displayMultiplier: 1.5, // 🎭 視覺層倍數：前端動畫放大 1.5 倍
+      displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier, // ✅ 改為從配置讀取（=10）
 
       // =========================================
       // 🚌 【次常調整】- 車型與系統參數
@@ -146,10 +146,10 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 3 }, // 👈 🎯 每個 interval 生成 1-3 台車
+      vehiclesPerInterval: { min: 1, max: 2 }, // 👈 🎯 每個 interval 生成 1-2 台車
       interval: { min: 5000, max: 10000, normal: 6000 }, // ⏱️ 生成間隔，恢復原本設定
       peakMultiplier: 1.0, // 👈 離峰不加倍
-      displayMultiplier: 1.2, // 🎭 視覺層倍數
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // ✅ 改為從配置讀取（=5）
 
       // =========================================
       // 🚌 【次常調整】- 車型與系統參數
@@ -202,7 +202,7 @@ export const timeScenarios = [
       vehiclesPerInterval: { min: 1, max: 1 }, // 👈 🎯 每個 interval 生成 1-2 台車
       interval: { min: 15000, max: 40000, normal: 20000 }, // ⏱️ 生成間隔，恢復原本設定
       peakMultiplier: 1.0, // 👈 凌晨不加倍
-      displayMultiplier: 1.0, // 🎭 視覺層倍數：不放大
+      displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier, // ✅ 改為從配置讀取（=2）
 
       // =========================================
       // 🚌 【次常調整】- 車型與系統參數

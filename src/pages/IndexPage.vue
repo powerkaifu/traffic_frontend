@@ -1564,22 +1564,25 @@ onMounted(async () => {
     showMemoryDiagnostics() {
       try {
         const liveVehicles = window.liveVehicles || []
-        const gsapTweens = gsap.getTweensOf()  // ← 可能出現異常，需要保護
-        
+        const gsapTweens = gsap.getTweensOf() // ← 可能出現異常，需要保護
+
         const diagnostics = {
           '📊 活躍車輛數': liveVehicles.length,
           '🎬 GSAP 動畫堆': gsapTweens?.length || 0,
-          '🚨 洩漏指標': gsapTweens?.length > liveVehicles.length ? `⚠️ 異常高 (${gsapTweens.length - liveVehicles.length} 多餘)` : '✅ 正常',
+          '🚨 洩漏指標':
+            gsapTweens?.length > liveVehicles.length
+              ? `⚠️ 異常高 (${gsapTweens.length - liveVehicles.length} 多餘)`
+              : '✅ 正常',
           '💾 預估內存': `~${Math.round(liveVehicles.length * 0.4)} MB`,
           '⏰ 時間戳': new Date().toLocaleTimeString(),
         }
-        
+
         console.group('🔧 內存診斷面板')
         Object.entries(diagnostics).forEach(([key, value]) => {
           console.log(`${key}: ${value}`)
         })
         console.groupEnd()
-        
+
         return diagnostics
       } catch (e) {
         console.error('❌ 診斷異常:', e.message)
@@ -1602,17 +1605,17 @@ onMounted(async () => {
   window.performanceMonitor = {
     isMonitoring: false,
     monitorInterval: null,
-    
+
     start() {
       if (this.isMonitoring) return
       this.isMonitoring = true
-      
+
       console.log('🔴 性能監測已啟動...')
-      
+
       this.monitorInterval = setInterval(() => {
         const liveVehicles = window.liveVehicles || []
         const trafficGen = this.trafficGenerator
-        
+
         // 獲取 GSAP 動畫數量（安全）
         let gsapCount = 0
         try {
@@ -1621,27 +1624,27 @@ onMounted(async () => {
         } catch {
           gsapCount = '計算中'
         }
-        
+
         // 獲取當前配置
         const currentTimePeriod = trafficGen?.trafficController?.getCurrentTimePeriod?.() || 'unknown'
         const displayMult = trafficGen?._getDisplayMultiplierAdjustment?.() || 0
         const maxLiveVehicles = trafficGen?.config?.maxLiveVehicles || 0
-        
+
         console.group('📊 【實時性能監測】')
         console.log(`⏰ 時間: ${new Date().toLocaleTimeString()}`)
         console.log(`🚗 活躍車輛: ${liveVehicles.length}/${maxLiveVehicles}`)
         console.log(`🎭 時段: ${currentTimePeriod} | displayMult: ${displayMult}`)
         console.log(`🎬 GSAP 狀態: ${gsapCount === 'N/A' ? '⚠️ 無法計算' : '✅ 運行中'}`)
         console.log(`📦 Vue 數據大小: ${JSON.stringify(this.$data).length} bytes`)
-        
+
         // 檢查是否達到上限
         if (liveVehicles.length >= maxLiveVehicles * 0.9) {
           console.warn(`⚠️ 接近車輛上限！(${liveVehicles.length}/${maxLiveVehicles})`)
         }
         console.groupEnd()
-      }, 10000)  // 每 10 秒輸出一次
+      }, 10000) // 每 10 秒輸出一次
     },
-    
+
     stop() {
       if (this.monitorInterval) {
         clearInterval(this.monitorInterval)
