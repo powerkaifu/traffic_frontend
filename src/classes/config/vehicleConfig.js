@@ -12,8 +12,10 @@
 // ===== 動畫與時間設定 =====
 export const ANIMATION_CONFIG = {
   // 🎬 全域動畫控制
-  TIME_MULTIPLIER: 0.5, // 控制整體動畫速度：越小越快，越大越慢（0.5=2倍速，2=半速）
-  // ✅ Scenario 3: 0.3 → 0.45（動畫 2.2x 速度，合理平衡）
+  // 🆕 優化 3：TIME_MULTIPLIER 0.5 → 0.6（稍微放慢以減少 CPU，視覺衝擊最小）
+  // 預期：FPS +2-3（減少 GSAP 計算），視覺感知不變
+  TIME_MULTIPLIER: 0.6, // 控制整體動畫速度：越小越快，越大越慢（0.6≈1.67x 速度）
+  
   // ⚡ 速度變化動畫時間 (秒)
   SPEED_CHANGE_DURATION: {
     INSTANT: 0.05, // 幾乎立即的速度變化（紅燈停車用）
@@ -234,7 +236,9 @@ export const COLLISION_CONFIG = {
   },
 
   // ⏱️ 檢測間隔設定（毫秒）
-  CHECK_INTERVAL: 120, // ✅ Scenario 3: 50 → 120（碰撞檢測間隔增加 2.4x）
+  // 🆕 優化 1：120ms → 150ms（減少 20% CPU 計算，保持碰撞準確度）
+  // 預期: FPS +3-5, CPU 使用率 -20%
+  CHECK_INTERVAL: 150, // 改為 150ms，每秒 6.7 次檢測（足夠準確）
   SIMPLE_CHECK_INTERVAL: 25, // ✅ 改為 25ms，也提高頻率
 
   // 🆕 TIME_MULTIPLIER 補償設定 - 解決快速動畫時碰撞失效問題
