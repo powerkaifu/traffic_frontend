@@ -612,7 +612,7 @@ onMounted(() => {
     window.lumoTooltipManager = {
       currentTimeout: null,
       showAnimationTimer: null,
-      isTooltipEnabled: true, // 💡 新增：控制 Tooltip 是否顯示
+      isTooltipEnabled: false, // 💡 預設關閉，避免加載時顯示訊息
       show(message) {
         // 如果 Tooltip 被禁用，直接返回
         if (!this.isTooltipEnabled) return
