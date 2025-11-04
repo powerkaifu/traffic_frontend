@@ -123,6 +123,10 @@ export default class TrafficLightController {
     this.currentPhase = 'northSouth' // eastWest 或 northSouth - 一開始以南北向為主
     this.onTimerUpdate = null // 倒數更新回調函數
 
+    // 🎯 【Web Worker 倒數計時】獨立線程，不受主線程阻塞影響
+    this.countdownWorker = null
+    this.initCountdownWorker()
+
     // Observer Pattern: 觀察者模式相關
     this.observers = [] // 觀察者列表
     // State Pattern: 管理所有方向的燈號狀態
@@ -247,6 +251,117 @@ export default class TrafficLightController {
     this.observers.forEach((callback) => {
       callback(direction, state)
     })
+  }
+
+  // ==========================================
+  // 🎯 Web Worker 倒數計時系統
+  // ==========================================
+
+  /**
+   * 初始化 Web Worker 用於獨立倒數計時
+   * 完全獨立於主線程，即使主線程被車輛碰撞檢測阻塞也能精確計時
+   */
+  initCountdownWorker() {
+    try {
+      // 檢查是否在瀏覽器環境且支持 Worker
+      if (typeof window !== 'undefined' && typeof Worker !== 'undefined') {
+        try {
+          // 在 Vite 環境中使用動態 import
+          // 注意：Worker 文件需要放在 src/classes/ 目錄中
+          const workerCode = `
+            let countdownInterval = null
+            let startTime = null
+            let duration = null
+            let lastReportedSecond = null
+
+            self.onmessage = (event) => {
+              const { command, duration: messageDuration, precision = 100 } = event.data
+
+              if (command === 'startCountdown') {
+                if (countdownInterval) {
+                  clearInterval(countdownInterval)
+                }
+
+                duration = messageDuration
+                startTime = Date.now()
+                lastReportedSecond = Math.floor(duration / 1000)
+
+                self.postMessage({
+                  type: 'tick',
+                  remaining: lastReportedSecond,
+                  elapsed: 0,
+                })
+
+                countdownInterval = setInterval(() => {
+                  const elapsed = Date.now() - startTime
+                  const remaining = Math.max(0, Math.floor((duration - elapsed) / 1000))
+
+                  if (remaining !== lastReportedSecond) {
+                    lastReportedSecond = remaining
+                    self.postMessage({
+                      type: 'tick',
+                      remaining,
+                      elapsed,
+                    })
+                  }
+
+                  if (elapsed >= duration) {
+                    clearInterval(countdownInterval)
+                    countdownInterval = null
+                    self.postMessage({
+                      type: 'complete',
+                      totalElapsed: elapsed,
+                    })
+                  }
+                }, precision)
+              } else if (command === 'stopCountdown') {
+                if (countdownInterval) {
+                  clearInterval(countdownInterval)
+                  countdownInterval = null
+                }
+                self.postMessage({
+                  type: 'stopped',
+                })
+              }
+            }
+          `
+
+          // 使用 Blob + URL.createObjectURL 創建 Worker（更可靠）
+          const blob = new Blob([workerCode], { type: 'application/javascript' })
+          const workerUrl = URL.createObjectURL(blob)
+          this.countdownWorker = new Worker(workerUrl)
+
+          // 監聽 Worker 消息
+          if (this.countdownWorker) {
+            this.countdownWorker.onmessage = (event) => {
+              const { type, remaining } = event.data
+
+              if (type === 'tick') {
+                // 更新 UI 倒數顯示
+                if (this.onTimerUpdate) {
+                  this.onTimerUpdate(null, remaining)
+                }
+              } else if (type === 'complete') {
+                logInfo('✅ Countdown Worker 倒數完成')
+              }
+            }
+
+            this.countdownWorker.onerror = (error) => {
+              logError('❌ Countdown Worker 錯誤:', error)
+              this.countdownWorker = null
+            }
+
+            logInfo('✅ Countdown Web Worker 已初始化（Blob 方式）')
+          }
+        } catch (error) {
+          logWarn('⚠️ 無法初始化 Countdown Worker:', error)
+          this.countdownWorker = null
+        }
+      }
+    } catch (error) {
+      logWarn('⚠️ 無法初始化 Countdown Worker（可能在 Node.js 環境或不支援 Worker）:', error)
+      this.countdownWorker = null
+    }
   }
 
   // ==========================================
@@ -559,8 +674,31 @@ export default class TrafficLightController {
     }
   }
 
-  // Template Method Pattern: 倒數延遲函數 - 使用實時時間（不受主線程堵塞影響）
+  // Template Method Pattern: 倒數延遲函數 - 使用 Web Worker 或實時時間
   async countdownDelay(totalMs) {
+    // ✅ 如果 Worker 可用，使用 Worker 倒數（完全獨立於主線程）
+    if (this.countdownWorker) {
+      return new Promise((resolve) => {
+        // 發送倒數命令到 Worker
+        this.countdownWorker.postMessage({
+          command: 'startCountdown',
+          duration: totalMs,
+          precision: 100,
+        })
+
+        // 等待 complete 消息
+        const handleMessage = (event) => {
+          if (event.data.type === 'complete') {
+            this.countdownWorker.removeEventListener('message', handleMessage)
+            resolve()
+          }
+        }
+
+        this.countdownWorker.addEventListener('message', handleMessage)
+      })
+    }
+
+    // ❌ Worker 不可用，回到實時時間計時（主線程備用方案）
     const totalSeconds = Math.floor(totalMs / 1000)
     const startTime = Date.now()
     let lastReportedSecond = totalSeconds
@@ -595,16 +733,70 @@ export default class TrafficLightController {
   // Template Method Pattern: 帶API觸發的倒數延遲函數（專用於南北向綠燈）
   async countdownDelayWithAPI(totalMs, apiTriggerSeconds) {
     const totalSeconds = Math.floor(totalMs / 1000)
-    const startTime = Date.now()
-    let apiTriggered = false
-    let lastReportedSecond = totalSeconds
-
-    // 🔧 修正：計算實際觸發時機，確保不會錯過
     const actualTriggerSeconds = Math.min(apiTriggerSeconds, totalSeconds)
+    let apiTriggered = false
 
     logInfo(
       `🕐 [API觸發檢查] 總綠燈時間: ${totalSeconds}秒, 設定觸發時間: ${apiTriggerSeconds}秒, 實際觸發時間: ${actualTriggerSeconds}秒`,
     )
+
+    // ✅ 如果 Worker 可用，使用 Worker（獨立線程計時 + 主線程 API 觸發）
+    if (this.countdownWorker) {
+      return new Promise((resolve) => {
+        const startTime = Date.now()
+
+        // 發送倒數命令到 Worker
+        this.countdownWorker.postMessage({
+          command: 'startCountdown',
+          duration: totalMs,
+          precision: 100,
+        })
+
+        // 監聽 Worker 消息
+        const handleMessage = (event) => {
+          const { type } = event.data
+
+          if (type === 'complete') {
+            this.countdownWorker.removeEventListener('message', handleMessage)
+            if (!apiTriggered) {
+              logWarn(`⚠️ [API觸發失敗] 南北向綠燈 ${totalSeconds} 秒已結束，但未觸發API`)
+            }
+            resolve()
+          }
+        }
+
+        this.countdownWorker.addEventListener('message', handleMessage)
+
+        // 在主線程監控 API 觸發時機（確保能捕捉到觸發點）
+        const apiCheckInterval = setInterval(() => {
+          const elapsed = Date.now() - startTime
+          const remaining = Math.max(0, Math.floor((totalMs - elapsed) / 1000))
+
+          if (remaining === actualTriggerSeconds && !apiTriggered) {
+            clearInterval(apiCheckInterval)
+            logInfo(`⏰ [API觸發] 剩餘 ${remaining} 秒，開始 AI 預測流程...`)
+
+            // 收集數據並發送 API
+            const currentCycleData = this.collectIntersectionData()
+            this.sendDataToBackend(currentCycleData)
+            this.updateFeatureSimulationDisplay(currentCycleData)
+
+            apiTriggered = true
+          } else if (elapsed >= totalMs) {
+            clearInterval(apiCheckInterval)
+          }
+        }, 100)
+
+        // 倒數結束時清理 interval
+        setTimeout(() => {
+          clearInterval(apiCheckInterval)
+        }, totalMs + 100)
+      })
+    }
+
+    // ❌ Worker 不可用，回到實時時間計時（主線程備用方案）
+    const startTime = Date.now()
+    let lastReportedSecond = totalSeconds
 
     return new Promise((resolve) => {
       const checkCountdown = () => {
@@ -622,18 +814,11 @@ export default class TrafficLightController {
           // Strategy Pattern: 在剩餘指定秒數時觸發API
           if (remainingSeconds === actualTriggerSeconds && !apiTriggered) {
             logInfo(`⏰ [API觸發] 剩餘 ${remainingSeconds} 秒，開始 AI 預測流程...`)
-            logInfo(`📊 [API觸發] 當前相位: ${this.currentPhase}, 綠燈總時間: ${totalSeconds}秒`)
 
-            // 1. 收集當前週期的完整數據
+            // 收集數據並發送 API
             const currentCycleData = this.collectIntersectionData()
-
-            // 2. 發送到 AI 後端（異步）
             this.sendDataToBackend(currentCycleData)
-
-            // 3. 立即更新特徵模擬數據顯示
             this.updateFeatureSimulationDisplay(currentCycleData)
-
-            logInfo('ℹ️ [API觸發] 數據已發送，將在相位切換時重置數據')
 
             apiTriggered = true
           }
@@ -641,9 +826,8 @@ export default class TrafficLightController {
 
         if (remainingMs <= 0) {
           // 倒數完成
-          // 🔧 安全檢查：如果整個循環結束都沒觸發，記錄警告
           if (!apiTriggered) {
-            logWarn(`⚠️ [API觸發失敗] 南北向綠燈 ${totalSeconds} 秒已結束，但未觸發API（設定值: ${apiTriggerSeconds}秒）`)
+            logWarn(`⚠️ [API觸發失敗] 南北向綠燈 ${totalSeconds} 秒已結束，但未觸發API`)
           }
           resolve()
         } else {
