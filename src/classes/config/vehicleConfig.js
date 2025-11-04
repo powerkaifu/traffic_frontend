@@ -12,7 +12,7 @@
 // ===== 動畫與時間設定 =====
 export const ANIMATION_CONFIG = {
   // 🎬 全域動畫控制
-  TIME_MULTIPLIER: 0.45, // 控制整體動畫速度：越小越快，越大越慢（0.5=2倍速，2=半速）
+  TIME_MULTIPLIER: 0.5, // 控制整體動畫速度：越小越快，越大越慢（0.5=2倍速，2=半速）
   // ✅ Scenario 3: 0.3 → 0.45（動畫 2.2x 速度，合理平衡）
   // ⚡ 速度變化動畫時間 (秒)
   SPEED_CHANGE_DURATION: {
