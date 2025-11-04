@@ -276,18 +276,6 @@ export const vehicleMixes = {
 export function getScenarioByTime(currentTime) {
   const currentHour = currentTime.getHours()
 
-  // 🎯 根據時段決定時段類型
-  let timePeriod = 'off_peak'
-  if ((currentHour >= 7 && currentHour < 10) || (currentHour >= 17 && currentHour < 20)) {
-    timePeriod = 'peak_hours'
-  } else if (currentHour >= 0 && currentHour < 7) {
-    timePeriod = 'late_night'
-  }
-
-  // 🚨 從 VOLUME_LIMITS_CONFIG 讀取正確的 displayMultiplier
-  const timeLimitConfig = VOLUME_LIMITS_CONFIG[timePeriod] || VOLUME_LIMITS_CONFIG['off_peak']
-  const displayMultiplier = timeLimitConfig?.displayMultiplier ?? 1
-
   // ==========================================
   // 🌙 午夜-清晨時段 (00:00-07:00)
   // ==========================================
