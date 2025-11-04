@@ -464,8 +464,8 @@ function hideLumoTooltip() {
   }
 }
 
-// 💡 Tooltip 開關狀態
-const isTooltipEnabled = ref(true)
+// 💡 Tooltip 開關狀態 - 預設關閉，避免滑鼠移過時顯示訊息
+const isTooltipEnabled = ref(false)
 
 // 💡 切換 Tooltip 顯示
 function toggleTooltip() {
