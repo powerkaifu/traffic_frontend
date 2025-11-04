@@ -286,15 +286,13 @@ export default class TrafficLightController {
                 startTime = Date.now()
                 lastReportedSecond = Math.floor(duration / 1000)
 
-                self.postMessage({
-                  type: 'tick',
-                  remaining: lastReportedSecond,
-                  elapsed: 0,
-                })
+                // ❌ 不立即發送初始 tick
+                // 原因：初始值由 updateTimer() 設置，Worker 只負責發送秒數變化
+                // 這樣秒數 2 會完整顯示 1 秒，而不是立即跳到 1
 
                 countdownInterval = setInterval(() => {
                   const elapsed = Date.now() - startTime
-                  const remaining = Math.max(0, Math.floor((duration - elapsed) / 1000))
+                  const remaining = Math.max(0, Math.ceil((duration - elapsed) / 1000))
 
                   // ✅ 改進：確保秒數改變時一定發送，提高精度
                   if (remaining !== lastReportedSecond) {
@@ -310,7 +308,7 @@ export default class TrafficLightController {
                   if (elapsed >= duration - 50) {
                     clearInterval(countdownInterval)
                     countdownInterval = null
-                    
+
                     // ✅ 確保最後發送完成時的秒數為 0
                     if (remaining !== 0) {
                       self.postMessage({
@@ -319,7 +317,7 @@ export default class TrafficLightController {
                         elapsed: duration,
                       })
                     }
-                    
+
                     self.postMessage({
                       type: 'complete',
                       totalElapsed: elapsed,
@@ -343,28 +341,16 @@ export default class TrafficLightController {
           const workerUrl = URL.createObjectURL(blob)
           this.countdownWorker = new Worker(workerUrl)
 
-          // 監聽 Worker 消息
-          if (this.countdownWorker) {
-            this.countdownWorker.onmessage = (event) => {
-              const { type, remaining } = event.data
+          // ❌ 不再使用全局 onmessage，改為在 countdownDelay() 中使用 addEventListener
+          // 原因：全局 onmessage 會導致多個倒數循環同時監聽，造成混亂
+          // this.countdownWorker.onmessage = (event) => { ... }
 
-              if (type === 'tick') {
-                // 更新 UI 倒數顯示
-                if (this.onTimerUpdate) {
-                  this.onTimerUpdate(null, remaining)
-                }
-              } else if (type === 'complete') {
-                logInfo('✅ Countdown Worker 倒數完成')
-              }
-            }
-
-            this.countdownWorker.onerror = (error) => {
-              logError('❌ Countdown Worker 錯誤:', error)
-              this.countdownWorker = null
-            }
-
-            logInfo('✅ Countdown Web Worker 已初始化（Blob 方式）')
+          this.countdownWorker.onerror = (error) => {
+            logError('❌ Countdown Worker 錯誤:', error)
+            this.countdownWorker = null
           }
+
+          logInfo('✅ Countdown Web Worker 已初始化（Blob 方式）')
         } catch (error) {
           logWarn('⚠️ 無法初始化 Countdown Worker:', error)
           this.countdownWorker = null
@@ -738,15 +724,14 @@ export default class TrafficLightController {
     }
 
     // ❌ Worker 不可用，回到實時時間計時（主線程備用方案）
-    const totalSeconds = Math.floor(totalMs / 1000)
     const startTime = Date.now()
-    let lastReportedSecond = totalSeconds
+    let lastReportedSecond = null // ✅ 初始化為 null，確保第一個秒數會被發送
 
     return new Promise((resolve) => {
       const checkCountdown = () => {
         const elapsedMs = Date.now() - startTime
         const remainingMs = totalMs - elapsedMs
-        const remainingSeconds = Math.max(0, Math.floor(remainingMs / 1000))
+        const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000))
 
         // ✅ 只在秒數真正改變時更新（基於系統時間）
         if (remainingSeconds !== lastReportedSecond) {
@@ -760,8 +745,8 @@ export default class TrafficLightController {
           // 倒數完成
           resolve()
         } else {
-          // 繼續檢查（每 100ms 檢查一次，精度高但不占用太多資源）
-          setTimeout(checkCountdown, 100)
+          // 繼續檢查（每 50ms 檢查一次，精度高但不占用太多資源）
+          setTimeout(checkCountdown, 50)
         }
       }
 
@@ -814,7 +799,7 @@ export default class TrafficLightController {
         // 在主線程監控 API 觸發時機（確保能捕捉到觸發點）
         const apiCheckInterval = setInterval(() => {
           const elapsed = Date.now() - startTime
-          const remaining = Math.max(0, Math.floor((totalMs - elapsed) / 1000))
+          const remaining = Math.max(0, Math.ceil((totalMs - elapsed) / 1000))
 
           if (remaining === actualTriggerSeconds && !apiTriggered) {
             clearInterval(apiCheckInterval)
@@ -840,13 +825,13 @@ export default class TrafficLightController {
 
     // ❌ Worker 不可用，回到實時時間計時（主線程備用方案）
     const startTime = Date.now()
-    let lastReportedSecond = totalSeconds
+    let lastReportedSecond = null // ✅ 初始化為 null，確保第一個秒數會被發送
 
     return new Promise((resolve) => {
       const checkCountdown = () => {
         const elapsedMs = Date.now() - startTime
         const remainingMs = totalMs - elapsedMs
-        const remainingSeconds = Math.max(0, Math.floor(remainingMs / 1000))
+        const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000))
 
         // ✅ 只在秒數真正改變時更新（基於系統時間）
         if (remainingSeconds !== lastReportedSecond) {
@@ -875,8 +860,8 @@ export default class TrafficLightController {
           }
           resolve()
         } else {
-          // 繼續檢查（每 100ms 檢查一次）
-          setTimeout(checkCountdown, 100)
+          // 繼續檢查（每 50ms 檢查一次）
+          setTimeout(checkCountdown, 50)
         }
       }
 

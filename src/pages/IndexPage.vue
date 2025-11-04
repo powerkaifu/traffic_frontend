@@ -1367,9 +1367,14 @@ onMounted(async () => {
     // 設置倒數更新回調
     trafficController.setTimerUpdateCallback((phase, seconds) => {
       if (phase !== null) {
+        // 燈色改變時，同時設置 phase 和初始 countdown 值
         currentPhase.value = phase
+        countdown.value = seconds // ✅ 設置初始值
+      } else {
+        // Worker 的 tick 消息（phase === null）
+        // 只在秒數真正變化時更新 countdown
+        countdown.value = seconds
       }
-      countdown.value = seconds
     })
 
     // 設置AI預測更新回調
