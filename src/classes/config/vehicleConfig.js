@@ -254,7 +254,8 @@ export const COLLISION_CONFIG = {
 // ===== 生成間隔設定 =====
 export const GENERATION_CONFIG = {
   // 🚗 每個車道的最大車輛數
-  MAX_VEHICLES_PER_LANE: 25,
+  // ✅ 統一分配方案：全域 100 ÷ 方向 4 ÷ 車道 4 = 25 ÷ 4 ≈ 7 輛
+  MAX_VEHICLES_PER_LANE: 7,
 
   // 🚗 車道入口最小間距
   LANE_ENTRANCE_MIN_SPACING: 20,
