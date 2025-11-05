@@ -156,6 +156,94 @@ export class CollisionController {
   }
 
   /**
+   * 🆕 Phase 6：判斷車輛是否在停止線附近（燈號感知碰撞檢測）
+   * @returns {Object} {isNear: boolean, distance: number, lightState: string}
+   */
+  isNearStopLineForCollisionDetection() {
+    try {
+      if (typeof window === 'undefined' || !window.trafficController) {
+        return { isNear: false, distance: Infinity, lightState: 'unknown' }
+      }
+
+      const currentLightState = window.trafficController.getCurrentLightState(this.vehicle.direction)
+      const stopLine = this.vehicle.getStopLinePosition()
+      const myPos = this.vehicle.getCurrentPosition()
+
+      if (!stopLine || !myPos) {
+        return { isNear: false, distance: Infinity, lightState: currentLightState }
+      }
+
+      // 計算到停止線的有向距離
+      let distance = 0
+      switch (this.vehicle.direction) {
+        case 'east':
+          distance = stopLine.x - myPos.x
+          break
+        case 'west':
+          distance = myPos.x - stopLine.x
+          break
+        case 'north':
+          distance = myPos.y - stopLine.y
+          break
+        case 'south':
+          distance = stopLine.y - myPos.y
+          break
+      }
+
+      // 根據燈號狀態決定檢測距離
+      let checkDistance = 0
+      if (currentLightState === 'yellow') {
+        checkDistance = COLLISION_CONFIG.YELLOW_LIGHT_CHECK_DISTANCE || 120
+      } else if (currentLightState === 'red') {
+        checkDistance = COLLISION_CONFIG.STOP_LINE_CHECK_DISTANCE || 80
+      } else {
+        // 綠燈時不需要停止線限制（Phase 5E 已處理）
+        return { isNear: false, distance: distance, lightState: currentLightState }
+      }
+
+      // 判斷是否在停止線附近（允許往後超過停止線）
+      const isNear = distance >= -20 && distance <= checkDistance
+
+      return { isNear, distance, lightState: currentLightState }
+    } catch (error) {
+      console.warn(`[${this.vehicle.id}] 停止線距離檢查失敗:`, error)
+      return { isNear: false, distance: Infinity, lightState: 'unknown' }
+    }
+  }
+
+  /**
+   * 🆕 Phase 6：根據燈號獲取適當的碰撞檢查間隔
+   * @returns {number} 碰撞檢查間隔（毫秒）
+   */
+  getAdaptiveCollisionCheckInterval() {
+    try {
+      if (typeof window === 'undefined' || !window.trafficController) {
+        return COLLISION_CONFIG.CHECK_INTERVAL || 175
+      }
+
+      const currentLightState = window.trafficController.getCurrentLightState(this.vehicle.direction)
+      const stopLineInfo = this.isNearStopLineForCollisionDetection()
+
+      // 只在停止線附近才進行碰撞檢測
+      if (!stopLineInfo.isNear) {
+        return Infinity // 遠離停止線，不需要檢測
+      }
+
+      // 在停止線附近時，根據燈號狀態選擇檢查間隔
+      if (currentLightState === 'yellow') {
+        return COLLISION_CONFIG.YELLOW_LIGHT_CHECK_INTERVAL || 75
+      } else if (currentLightState === 'red') {
+        return COLLISION_CONFIG.RED_LIGHT_CHECK_INTERVAL || 175
+      }
+
+      return COLLISION_CONFIG.CHECK_INTERVAL || 175
+    } catch (error) {
+      console.warn(`[${this.vehicle.id}] 適應性碰撞檢查間隔計算失敗:`, error)
+      return COLLISION_CONFIG.CHECK_INTERVAL || 175
+    }
+  }
+
+  /**
    * 🚀 DRY 優化：計算車輛到停止線的距離（統一方法）
    * 用於避免重複的 4 向距離計算代碼
    * @param {Object} vehicle - 車輛對象
@@ -861,11 +949,22 @@ export class CollisionController {
    * @returns {Object|null} 碰撞結果或null
    */
   checkSimpleCollision(allVehicles) {
+    // 🆕 Phase 6：停止線限制碰撞檢測
+    // 獲取適應性檢查間隔（根據燈號和停止線距離）
+    const adaptiveInterval = this.getAdaptiveCollisionCheckInterval()
+    
     // 性能優化：限制檢查頻率
     const now = Date.now()
-    if (now - this.lastCheckTime < this.checkInterval) {
+    if (now - this.lastCheckTime < adaptiveInterval) {
       return null
     }
+    
+    // 🆕 如果遠離停止線且不是紅/黃燈，完全跳過碰撞檢測
+    const stopLineInfo = this.isNearStopLineForCollisionDetection()
+    if (!stopLineInfo.isNear && stopLineInfo.lightState !== 'red' && stopLineInfo.lightState !== 'yellow') {
+      return null // 遠離停止線且非紅/黃燈，無需檢測
+    }
+    
     this.lastCheckTime = now
 
     const myPos = this.vehicle.getCurrentPosition()

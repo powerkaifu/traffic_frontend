@@ -14,7 +14,7 @@ export const ANIMATION_CONFIG = {
   // 🎬 全域動畫控制
   // 🆕 優化 3：TIME_MULTIPLIER 0.5 → 0.6（稍微放慢以減少 CPU，視覺衝擊最小）
   // 預期：FPS +2-3（減少 GSAP 計算），視覺感知不變
-  TIME_MULTIPLIER: 0.3, // 控制整體動畫速度：越小越快，越大越慢（0.6≈1.67x 速度）
+  TIME_MULTIPLIER: 0.4, // 控制整體動畫速度：越小越快，越大越慢（0.6≈1.67x 速度）
 
   // ⚡ 速度變化動畫時間 (秒)
   SPEED_CHANGE_DURATION: {
@@ -241,6 +241,12 @@ export const COLLISION_CONFIG = {
   // 說明: 每秒檢測從 6.7 次 → 5.7 次，碰撞準確度仍可維持
   CHECK_INTERVAL: 175, // 改為 175ms，每秒 5.7 次檢測（足夠準確，更省 CPU）
   SIMPLE_CHECK_INTERVAL: 25, // ✅ 保持 25ms（簡化檢測保持高頻）
+  
+  // 🆕 Phase 6：燈號感知碰撞檢測設定
+  YELLOW_LIGHT_CHECK_INTERVAL: 75, // 黃燈檢測間隔（75ms，每秒 13.3 次 - 2.3倍高頻）
+  RED_LIGHT_CHECK_INTERVAL: 175, // 紅燈檢測間隔（與一般相同）
+  STOP_LINE_CHECK_DISTANCE: 80, // 紅燈停止線檢測距離（±80px）
+  YELLOW_LIGHT_CHECK_DISTANCE: 120, // 黃燈停止線檢測距離（±120px，更寬鬆）
 
   // 🆕 TIME_MULTIPLIER 補償設定 - 解決快速動畫時碰撞失效問題
   // 當 TIME_MULTIPLIER < 1（動畫加速）時，自動調整檢查間隔
