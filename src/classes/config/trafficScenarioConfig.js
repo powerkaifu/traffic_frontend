@@ -97,7 +97,7 @@ export const timeScenarios = [
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
       vehiclesPerInterval: { min: 1, max: 1 },
-      interval: { min: 1000, max: 8000, normal: 2000 },
+      interval: { min: 2000, max: 5000, normal: 3500 },
       peakMultiplier: 1, // 👈 尖峰倍數
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
 
@@ -146,8 +146,8 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 2 }, // 👈 🎯 每個 interval 生成 1-2 台車
-      interval: { min: 5000, max: 10000, normal: 6000 }, // ⏱️ 生成間隔，恢復原本設定
+      vehiclesPerInterval: { min: 1, max: 1 }, // 👈 🎯 每個 interval 生成 1 台車
+      interval: { min: 5000, max: 10000, normal: 7000 }, // ⏱️ 生成間隔，恢復原本設定
       peakMultiplier: 1.0, // 👈 離峰不加倍
       displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // ✅ 從配置讀取（預設為 1.0）
 
@@ -304,7 +304,7 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 6 && currentHour < 7) {
     return {
       name: '清晨',
-      interval: { min: 12000, max: 20000, normal: 15000 },
+      interval: { min: 12000, max: 20000, normal: 16000 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 1 },
@@ -327,10 +327,10 @@ export function getScenarioByTime(currentTime) {
     return {
       name: '早尖峰',
       // 與手動情景 peak_hours 保持一致：更短的平均生成間隔與較高的每 interval 車量
-      interval: { min: 2000, max: 8000, normal: 2500 },
+      interval: { min: 2000, max: 8000, normal: 3500 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 3 },
+      vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
         { type: 'motor', weight: 40 },
         { type: 'small', weight: 50 },
@@ -345,10 +345,10 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 9 && currentHour < 11) {
     return {
       name: '上午',
-      interval: { min: 5000, max: 9000, normal: 6500 },
+      interval: { min: 5000, max: 9000, normal: 7500 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 2 },
+      vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
         { type: 'motor', weight: 35 },
         { type: 'small', weight: 55 },
@@ -367,10 +367,10 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 11 && currentHour < 14) {
     return {
       name: '午間',
-      interval: { min: 5000, max: 10000, normal: 8000 },
+      interval: { min: 5000, max: 10000, normal: 8500 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 2 },
+      vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
         { type: 'motor', weight: 30 },
         { type: 'small', weight: 65 },
@@ -385,10 +385,10 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 14 && currentHour < 16) {
     return {
       name: '下午',
-      interval: { min: 5000, max: 10000, normal: 8000 },
+      interval: { min: 5000, max: 10000, normal: 8500 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 2 },
+      vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
         { type: 'motor', weight: 32 },
         { type: 'small', weight: 63 },
@@ -407,10 +407,10 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 16 && currentHour < 17) {
     return {
       name: '傍晚前',
-      interval: { min: 4000, max: 9000, normal: 6500 },
+      interval: { min: 4000, max: 9000, normal: 7000 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 2 },
+      vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
         { type: 'motor', weight: 36 },
         { type: 'small', weight: 58 },
@@ -426,10 +426,10 @@ export function getScenarioByTime(currentTime) {
     return {
       name: '晚尖峰',
       // 與手動情景 peak_hours 保持一致
-      interval: { min: 2000, max: 8000, normal: 2500 },
+      interval: { min: 2000, max: 8000, normal: 3500 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 3 },
+      vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
         { type: 'motor', weight: 40 },
         { type: 'small', weight: 50 },
@@ -444,10 +444,10 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 19 && currentHour < 21) {
     return {
       name: '晚間',
-      interval: { min: 5000, max: 10000, normal: 8000 },
+      interval: { min: 5000, max: 10000, normal: 8500 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 2 },
+      vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
         { type: 'motor', weight: 32 },
         { type: 'small', weight: 63 },
@@ -466,7 +466,7 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 21 && currentHour < 23) {
     return {
       name: '深夜前',
-      interval: { min: 12000, max: 20000, normal: 15000 },
+      interval: { min: 12000, max: 20000, normal: 16000 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 1 },
