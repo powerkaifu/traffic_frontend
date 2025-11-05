@@ -429,23 +429,23 @@ const isCarInStartArea = (carPos, direction) => {
       // 東向起始點 x=0，向右移動到停止線 x≈700
       // 起始區域：x ∈ [0, 300]
       return carPos.x < startAreaThreshold
-      
+
     case 'west':
       // 西向起始點 x=800，向左移動到停止線 x≈700
       // 起始區域：x ∈ [500, 1100]
       // 🔧 修復：不應該檢查 x > 1100（右邊界），應該檢查 x 在 800 ± 300 範圍內
       return carPos.x > 500 && carPos.x < 1100
-      
+
     case 'north':
       // 北向起始點 y=600，向上移動到停止線 y≈0
       // 起始區域：y ∈ [300, 600]
       return carPos.y < startAreaThreshold // 🔧 修復：往北起點在 y=600，向上移動到 y=0，所以起始區域應該是 y < 300，不是 > 700
-      
+
     case 'south':
       // 南向起始點 y=0，向下移動到停止線 y≈500
       // 起始區域：y ∈ [0, 300]
       return carPos.y < startAreaThreshold
-      
+
     default:
       return false
   }
