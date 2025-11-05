@@ -29,7 +29,12 @@ export default class AutoTrafficGenerator {
     this.laneGenerationCooldown = {} // 記錄每個車道的最後生成時間
     this.minLaneInterval = 2000 // 同一車道最小生成間隔（2秒）
 
-    // 🚗 從配置中獲取安全距離，並計算合適的生成間隔
+    // �【Phase 5D 新增】快取機制 - 減少重複計算停止線擁塞率
+    this._congestionCache = {} // 快取各方向的擁塞率
+    this._cacheTimestamp = 0 // 快取時間戳
+    this._CACHE_DURATION = 150 // 快取有效期 (ms) - 150ms 內使用快取值
+
+    // �🚗 從配置中獲取安全距離，並計算合適的生成間隔
     this.updateGenerationIntervalsFromConfig()
 
     // 使用共用配置
@@ -814,7 +819,7 @@ export default class AutoTrafficGenerator {
       }
     }
 
-    console.warn(`⚠️ 無法獲取 displayMultiplier，使用預設值 1`)
+    // console.warn(`⚠️ 無法獲取 displayMultiplier，使用預設值 1`)
     return 1
   }
 
@@ -925,7 +930,10 @@ export default class AutoTrafficGenerator {
       const stopLineLimit = this.getAdaptiveStopLineLimit(dir) // 🚦【Phase 5C】使用動態限制而非固定值
 
       if (stopLineCount >= stopLineLimit) {
-        console.log(`🚦 [停止線限制] ${dir}方向停止線已滿 (${stopLineCount}/${stopLineLimit})，暫停生成`)
+        // 🚀【Phase 5D】禁用 console.log 以優化 CPU - 只在開發模式下打印
+        if (process.env.DEV) {
+          console.log(`🚦 [停止線限制] ${dir}方向停止線已滿 (${stopLineCount}/${stopLineLimit})，暫停生成`)
+        }
         return false
       }
       return true
@@ -1209,12 +1217,19 @@ export default class AutoTrafficGenerator {
   /**
    * 🚦【Phase 5C 新增】根據下游擁塞率計算自適應停止線限制
    * 如果下游方向擁塞，則減少當前方向的放行車輛數
+   * 🚀【Phase 5D 優化】添加快取機制以避免重複計算
    * @param {string} direction - 方向 ('east', 'west', 'north', 'south')
    * @returns {number} 動態調整後的停止線限制
    */
   getAdaptiveStopLineLimit(direction) {
     try {
-      // 獲取基礎限制值
+      // 🚀【Phase 5D】檢查快取是否有效
+      const now = Date.now()
+      if (now - this._cacheTimestamp < this._CACHE_DURATION && this._congestionCache[direction] !== undefined) {
+        return this._congestionCache[direction]
+      }
+
+      // 快取失效或過期，重新計算
       const baseLimit = STOP_LINE_VEHICLE_LIMITS[direction] || 25
 
       // 如果沒有 trafficController，使用基礎限制
@@ -1241,17 +1256,23 @@ export default class AutoTrafficGenerator {
       if (oppositeCongestionRate > 0.85) {
         // 對向高度擁塞（> 85%）→ 限制為基礎的 30%
         dynamicLimit = Math.ceil(baseLimit * 0.3)
-        console.log(
-          `🚦 [動態限制] ${direction}方向: 對向 ${opposite} 高度擁塞 (${(oppositeCongestionRate * 100).toFixed(1)}%), ` +
-            `限制調整 ${baseLimit} → ${dynamicLimit} 台車`,
-        )
+        // 🚀【Phase 5D】禁用 console.log 以優化 CPU - 只在開發模式下打印
+        if (process.env.DEV) {
+          console.log(
+            `🚦 [動態限制] ${direction}方向: 對向 ${opposite} 高度擁塞 (${(oppositeCongestionRate * 100).toFixed(1)}%), ` +
+              `限制調整 ${baseLimit} → ${dynamicLimit} 台車`,
+          )
+        }
       } else if (oppositeCongestionRate > 0.7) {
         // 對向中度擁塞（> 70%）→ 限制為基礎的 60%
         dynamicLimit = Math.ceil(baseLimit * 0.6)
-        console.log(
-          `🚦 [動態限制] ${direction}方向: 對向 ${opposite} 中度擁塞 (${(oppositeCongestionRate * 100).toFixed(1)}%), ` +
-            `限制調整 ${baseLimit} → ${dynamicLimit} 台車`,
-        )
+        // 🚀【Phase 5D】禁用 console.log 以優化 CPU - 只在開發模式下打印
+        if (process.env.DEV) {
+          console.log(
+            `🚦 [動態限制] ${direction}方向: 對向 ${opposite} 中度擁塞 (${(oppositeCongestionRate * 100).toFixed(1)}%), ` +
+              `限制調整 ${baseLimit} → ${dynamicLimit} 台車`,
+          )
+        }
       } else if (oppositeCongestionRate > 0.5) {
         // 對向低度擁塞（> 50%）→ 限制為基礎的 80%
         dynamicLimit = Math.ceil(baseLimit * 0.8)
@@ -1263,6 +1284,10 @@ export default class AutoTrafficGenerator {
         }
       }
       // 否則使用基礎限制，不記錄日誌以減少噪音
+
+      // 🚀【Phase 5D】快取計算結果
+      this._congestionCache[direction] = dynamicLimit
+      this._cacheTimestamp = now
 
       return dynamicLimit
     } catch (error) {
