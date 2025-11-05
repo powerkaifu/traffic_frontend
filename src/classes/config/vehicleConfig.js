@@ -241,7 +241,7 @@ export const COLLISION_CONFIG = {
   // 說明: 每秒檢測從 6.7 次 → 5.7 次，碰撞準確度仍可維持
   CHECK_INTERVAL: 175, // 改為 175ms，每秒 5.7 次檢測（足夠準確，更省 CPU）
   SIMPLE_CHECK_INTERVAL: 25, // ✅ 保持 25ms（簡化檢測保持高頻）
-  
+
   // 🆕 Phase 6：燈號感知碰撞檢測設定
   YELLOW_LIGHT_CHECK_INTERVAL: 75, // 黃燈檢測間隔（75ms，每秒 13.3 次 - 2.3倍高頻）
   RED_LIGHT_CHECK_INTERVAL: 175, // 紅燈檢測間隔（與一般相同）

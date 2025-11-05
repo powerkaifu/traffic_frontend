@@ -952,19 +952,30 @@ export class CollisionController {
     // 🆕 Phase 6：停止線限制碰撞檢測
     // 獲取適應性檢查間隔（根據燈號和停止線距離）
     const adaptiveInterval = this.getAdaptiveCollisionCheckInterval()
-    
+
     // 性能優化：限制檢查頻率
     const now = Date.now()
     if (now - this.lastCheckTime < adaptiveInterval) {
       return null
     }
-    
-    // 🆕 如果遠離停止線且不是紅/黃燈，完全跳過碰撞檢測
+
+    // 🆕 Phase 6：根據燈號狀態判斷是否需要檢測碰撞
     const stopLineInfo = this.isNearStopLineForCollisionDetection()
-    if (!stopLineInfo.isNear && stopLineInfo.lightState !== 'red' && stopLineInfo.lightState !== 'yellow') {
-      return null // 遠離停止線且非紅/黃燈，無需檢測
+    
+    // 碰撞檢測觸發條件：
+    // 1. 綠燈時：完全跳過（Phase 5E 邏輯）
+    // 2. 紅燈 OR 黃燈時：始終檢測（無論距離）
+    // 3. 其他情況：只在停止線附近檢測
+    if (stopLineInfo.lightState === 'green') {
+      return null // 綠燈完全跳過碰撞檢測
     }
     
+    // 紅燈和黃燈時，始終進行碰撞檢測（不受停止線距離限制）
+    // 其他狀態只在停止線附近檢測
+    if (stopLineInfo.lightState !== 'red' && stopLineInfo.lightState !== 'yellow' && !stopLineInfo.isNear) {
+      return null // 非紅/黃燈且遠離停止線，不檢測
+    }
+
     this.lastCheckTime = now
 
     const myPos = this.vehicle.getCurrentPosition()
