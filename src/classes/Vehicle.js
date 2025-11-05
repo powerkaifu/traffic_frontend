@@ -593,40 +593,48 @@ export default class Vehicle {
     }
   }
 
-  // 🚨 P0 FIX #2：計算轉向最大安全速度
-  calculateMaxTurnSpeed(estimatedTurnRadius = null) {
-    // 檢查配置是否啟用轉向速度控制
-    if (!TURN_SPEED_CONFIG.TURN_DETECTION.ENABLED) {
-      return this.getMaximumBaseSpeed()
+  // 🚨 P0 FIX #2：檢測車輛是否在轉向路段
+  isOnTurnSection() {
+    if (!this.position || !this.position.progress) {
+      return false
     }
 
-    // 如果沒有提供轉向半徑，使用預設值
-    let turnRadius = estimatedTurnRadius || 70
+    // 根據方向判斷轉向部分的進度範圍
+    // 轉向通常發生在路徑的 15-40% 部分（路口中心轉向區域）
+    const progress = this.position.progress
+    const turnStartProgress = 0.15
+    const turnEndProgress = 0.45
 
-    // 根據轉向半徑查表獲得最大安全速度
-    const radiusToSpeedMap = TURN_SPEED_CONFIG.TURN_RADIUS_TO_SPEED
-    let maxTurnSpeed = radiusToSpeedMap.NORMAL_70PX
+    const isInTurnZone = progress > turnStartProgress && progress < turnEndProgress
 
-    if (turnRadius <= 30) {
-      maxTurnSpeed = radiusToSpeedMap.TIGHT_30PX
-    } else if (turnRadius <= 50) {
-      maxTurnSpeed = radiusToSpeedMap.TIGHT_50PX
-    } else if (turnRadius <= 100) {
-      maxTurnSpeed = radiusToSpeedMap.NORMAL_70PX
-    } else if (turnRadius <= 150) {
-      maxTurnSpeed = radiusToSpeedMap.WIDE_100PX
-    } else {
-      maxTurnSpeed = radiusToSpeedMap.VERY_WIDE_150PX
+    if (TURN_SPEED_CONFIG.DEBUG.ENABLED) {
+      console.log(`🔄 [${this.id}] 轉向檢測: progress=${progress.toFixed(3)}, inTurn=${isInTurnZone}`)
     }
 
-    // 應用路口轉向速度上限
-    if (this.isNearIntersection && this.isNearIntersection()) {
-      maxTurnSpeed = Math.min(maxTurnSpeed, TURN_SPEED_CONFIG.INTERSECTION_TURN_SPEED)
+    return isInTurnZone
+  }
+
+  // 🚨 P0 FIX #2：根據路徑曲率估計轉向半徑
+  estimateTurnRadius() {
+    // 簡化估計：根據不同方向和車道的典型轉向半徑
+    // 實際應用中，應根據SVG路徑的控制點計算
+
+    if (this.laneNumber === 1) {
+      // 左轉車道：較小的轉向半徑
+      if (this.direction === 'east') return 30  // 東向左轉
+      if (this.direction === 'north') return 30 // 北向左轉
+      if (this.direction === 'west') return 30  // 西向左轉
+      if (this.direction === 'south') return 30 // 南向左轉
     }
 
-    // 返回速度比例（相對於基礎速度）
-    const baseSpeed = this.getMaximumBaseSpeed()
-    return Math.min(maxTurnSpeed / baseSpeed, 1.0)
+    // 直行車道（其他車道）：較大的轉向半徑
+    if (this.direction === 'east') return 70    // 東向直行
+    if (this.direction === 'north') return 70   // 北向直行
+    if (this.direction === 'west') return 70    // 西向直行
+    if (this.direction === 'south') return 70   // 南向直行
+
+    // 預設值
+    return 70
   }
 
   // 🚨 新增：獲取當前速度比例的輔助方法
@@ -977,6 +985,41 @@ export default class Vehicle {
                 lastTime = currentTime
               }
 
+              // 🚨 P0 FIX #2：轉向速度控制 - 檢查是否在轉向區域
+              let isOnTurnSection = false
+              if (this.hasPassedStopLine && TURN_SPEED_CONFIG.TURN_DETECTION.ENABLED) {
+                isOnTurnSection = this.isOnTurnSection()
+                
+                if (isOnTurnSection) {
+                  // 車輛正在轉向：應用轉向速度限制
+                  const turnRadius = this.estimateTurnRadius()
+                  const maxTurnSpeedRatio = this.calculateMaxTurnSpeed(turnRadius)
+                  const currentTimeScale = this.movementTimeline.timeScale()
+                  
+                  // 只在需要減速時調整（避免不必要的動畫）
+                  if (currentTimeScale > maxTurnSpeedRatio + 0.05) {
+                    gsap.to(this.movementTimeline, {
+                      timeScale: maxTurnSpeedRatio,
+                      duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH,
+                      ease: 'power2.out',
+                    })
+                    if (TURN_SPEED_CONFIG.DEBUG.ENABLED) {
+                      console.log(`🔄 [${this.id}] 轉向減速: radius=${turnRadius}, speedRatio=${maxTurnSpeedRatio.toFixed(2)}`)
+                    }
+                  }
+                } else if (this.hasPassedStopLine) {
+                  // 不在轉向區域：可以恢復正常速度
+                  const currentTimeScale = this.movementTimeline.timeScale()
+                  if (currentTimeScale < 0.95) {
+                    gsap.to(this.movementTimeline, {
+                      timeScale: 1,
+                      duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH,
+                      ease: 'power2.out',
+                    })
+                  }
+                }
+              }
+
               // 檢測佈局變化
               this.checkLayoutChange()
 
@@ -991,11 +1034,13 @@ export default class Vehicle {
 
               // � 【優化】已通過停止線的車輛無需碰撞檢測和跟隨
               // 在綠燈通行時，車子只需保持勻速前進，跳過所有碰撞邏輯
+              // 【優化】已通過停止線的車輛無需碰撞檢測和跟隨
+              // 在綠燈通行時，車子只需保持勻速前進，跳過所有碰撞邏輯
               if (this.hasPassedStopLine) {
                 // 車輛已通過停止線，恢復到正常速度並繼續前進
-                if (this.movementTimeline) {
+                if (this.movementTimeline && !isOnTurnSection) {
                   const currentTimeScale = this.movementTimeline.timeScale()
-                  if (currentTimeScale < 1) {
+                  if (currentTimeScale < 0.95) {
                     gsap.to(this.movementTimeline, {
                       timeScale: 1,
                       duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH,
