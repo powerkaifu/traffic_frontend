@@ -224,19 +224,46 @@ export class CollisionController {
       const currentLightState = window.trafficController.getCurrentLightState(this.vehicle.direction)
       const stopLineInfo = this.isNearStopLineForCollisionDetection()
 
-      // 只在停止線附近才進行碰撞檢測
-      if (!stopLineInfo.isNear) {
-        return Infinity // 遠離停止線，不需要檢測
+      // 🔧 根據車輛速度動態調整檢查間隔
+      // 高速車輛（特別是機車）需要更頻繁的碰撞檢測
+      const vehicleSpeed = this.vehicle.currentSpeed || 0
+      let speedAdjustedInterval = COLLISION_CONFIG.CHECK_INTERVAL || 175
+
+      // 當速度 > 1.5 時，開始加密檢查
+      if (vehicleSpeed > 1.5) {
+        // 根據速度線性遞減檢查間隔
+        // 例如：speed=2 → interval=120ms, speed=3 → interval=70ms, speed=4+ → interval=30ms
+        speedAdjustedInterval = Math.max(30, 175 - (vehicleSpeed - 1.5) * 30)
+      }
+
+      // 只在停止線附近才進行碰撞檢測（除非車輛速度很快）
+      if (!stopLineInfo.isNear && vehicleSpeed <= 1.5) {
+        return Infinity // 遠離停止線且低速，不需要檢測
+      }
+
+      // 高速車輛即使遠離停止線也要檢測（防止機車重疊）
+      if (!stopLineInfo.isNear && vehicleSpeed > 1.5) {
+        return speedAdjustedInterval // 高速車輛保持頻繁檢測
       }
 
       // 在停止線附近時，根據燈號狀態選擇檢查間隔
       if (currentLightState === 'yellow') {
-        return COLLISION_CONFIG.YELLOW_LIGHT_CHECK_INTERVAL || 75
+        const yellowInterval = COLLISION_CONFIG.YELLOW_LIGHT_CHECK_INTERVAL || 75
+        // 高速時進一步加密檢查
+        if (vehicleSpeed > 1.5) {
+          return Math.min(yellowInterval, speedAdjustedInterval)
+        }
+        return yellowInterval
       } else if (currentLightState === 'red') {
-        return COLLISION_CONFIG.RED_LIGHT_CHECK_INTERVAL || 175
+        const redInterval = COLLISION_CONFIG.RED_LIGHT_CHECK_INTERVAL || 175
+        // 高速時採用速度調整的間隔
+        if (vehicleSpeed > 1.5) {
+          return Math.min(redInterval, speedAdjustedInterval)
+        }
+        return redInterval
       }
 
-      return COLLISION_CONFIG.CHECK_INTERVAL || 175
+      return speedAdjustedInterval
     } catch (error) {
       console.warn(`[${this.vehicle.id}] 適應性碰撞檢查間隔計算失敗:`, error)
       return COLLISION_CONFIG.CHECK_INTERVAL || 175
@@ -949,8 +976,8 @@ export class CollisionController {
    * @returns {Object|null} 碰撞結果或null
    */
   checkSimpleCollision(allVehicles) {
-    // 🆕 Phase 6：停止線限制碰撞檢測
-    // 獲取適應性檢查間隔（根據燈號和停止線距離）
+    // 🆕 Phase 6：停止線限制碰撞檢測 + 速度感知
+    // 獲取適應性檢查間隔（根據燈號和停止線距離和車速）
     const adaptiveInterval = this.getAdaptiveCollisionCheckInterval()
 
     // 性能優化：限制檢查頻率
@@ -961,19 +988,26 @@ export class CollisionController {
 
     // 🆕 Phase 6：根據燈號狀態判斷是否需要檢測碰撞
     const stopLineInfo = this.isNearStopLineForCollisionDetection()
-    
+    const vehicleSpeed = this.vehicle.currentSpeed || 0
+
     // 碰撞檢測觸發條件：
     // 1. 綠燈時：完全跳過（Phase 5E 邏輯）
     // 2. 紅燈 OR 黃燈時：始終檢測（無論距離）
-    // 3. 其他情況：只在停止線附近檢測
-    if (stopLineInfo.lightState === 'green') {
-      return null // 綠燈完全跳過碰撞檢測
+    // 3. 高速車輛（速度 > 1.5）：始終檢測（防止重疊）
+    // 4. 其他情況：只在停止線附近檢測
+    if (stopLineInfo.lightState === 'green' && vehicleSpeed <= 1.5) {
+      return null // 綠燈且低速時完全跳過碰撞檢測
     }
-    
+
+    // 高速車輛即使綠燈也要檢測（防止高速重疊）
+    if (stopLineInfo.lightState === 'green' && vehicleSpeed > 1.5) {
+      // 高速綠燈仍需檢測
+    }
+
     // 紅燈和黃燈時，始終進行碰撞檢測（不受停止線距離限制）
     // 其他狀態只在停止線附近檢測
-    if (stopLineInfo.lightState !== 'red' && stopLineInfo.lightState !== 'yellow' && !stopLineInfo.isNear) {
-      return null // 非紅/黃燈且遠離停止線，不檢測
+    if (stopLineInfo.lightState !== 'red' && stopLineInfo.lightState !== 'yellow' && !stopLineInfo.isNear && vehicleSpeed <= 1.5) {
+      return null // 非紅/黃燈且遠離停止線且低速，不檢測
     }
 
     this.lastCheckTime = now
