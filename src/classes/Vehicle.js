@@ -546,9 +546,9 @@ export default class Vehicle {
     }
 
     // 獲取當前速度和位置
-    const currentSpeed = this.getSpeedRatio() || 0
+    const currentSpeed = this.getCurrentSpeedRatio() || 0
     const distanceToStopLine = this.getDistanceToStopLine()
-    
+
     // 無法計算距離時，採用保守策略（停止）
     if (distanceToStopLine === null || distanceToStopLine === undefined) {
       return { action: 'brake', decision: 'unknown_distance' }
@@ -563,7 +563,7 @@ export default class Vehicle {
     // 公式：stopping_distance = (speed²) / (2 × deceleration) + safety_margin
     const deceleration = YELLOW_LIGHT_DECISION_CONFIG.DECELERATION_RATE
     const speedInPixelsPerFrame = currentSpeed * this.getMaximumBaseSpeed()
-    const stoppingDistance = 
+    const stoppingDistance =
       (speedInPixelsPerFrame * speedInPixelsPerFrame) / (2 * deceleration) +
       YELLOW_LIGHT_DECISION_CONFIG.SAFE_STOPPING_MARGIN
 
@@ -571,24 +571,28 @@ export default class Vehicle {
     if (distanceToStopLine > stoppingDistance) {
       // 能夠安全停止 → 減速停車
       if (YELLOW_LIGHT_DECISION_CONFIG.DEBUG.LOG_DECISIONS) {
-        console.log(`🟡 [${this.id}] 黃燈決策：停止 (距離=${distanceToStopLine.toFixed(1)}, 停止距=${stoppingDistance.toFixed(1)})`)
+        console.log(
+          `🟡 [${this.id}] 黃燈決策：停止 (距離=${distanceToStopLine.toFixed(1)}, 停止距=${stoppingDistance.toFixed(1)})`,
+        )
       }
-      return { 
-        action: 'brake', 
+      return {
+        action: 'brake',
         decision: 'safe_to_stop',
         stoppingDistance: stoppingDistance,
-        distanceToStopLine: distanceToStopLine
+        distanceToStopLine: distanceToStopLine,
       }
     } else {
       // 無法安全停止 → 加速通過
       if (YELLOW_LIGHT_DECISION_CONFIG.DEBUG.LOG_DECISIONS) {
-        console.log(`🟡 [${this.id}] 黃燈決策：衝過 (距離=${distanceToStopLine.toFixed(1)}, 停止距=${stoppingDistance.toFixed(1)})`)
+        console.log(
+          `🟡 [${this.id}] 黃燈決策：衝過 (距離=${distanceToStopLine.toFixed(1)}, 停止距=${stoppingDistance.toFixed(1)})`,
+        )
       }
-      return { 
-        action: 'accelerate', 
+      return {
+        action: 'accelerate',
         decision: 'cannot_stop_safely',
         stoppingDistance: stoppingDistance,
-        distanceToStopLine: distanceToStopLine
+        distanceToStopLine: distanceToStopLine,
       }
     }
   }
@@ -621,17 +625,17 @@ export default class Vehicle {
 
     if (this.laneNumber === 1) {
       // 左轉車道：較小的轉向半徑
-      if (this.direction === 'east') return 30  // 東向左轉
+      if (this.direction === 'east') return 30 // 東向左轉
       if (this.direction === 'north') return 30 // 北向左轉
-      if (this.direction === 'west') return 30  // 西向左轉
+      if (this.direction === 'west') return 30 // 西向左轉
       if (this.direction === 'south') return 30 // 南向左轉
     }
 
     // 直行車道（其他車道）：較大的轉向半徑
-    if (this.direction === 'east') return 70    // 東向直行
-    if (this.direction === 'north') return 70   // 北向直行
-    if (this.direction === 'west') return 70    // 西向直行
-    if (this.direction === 'south') return 70   // 南向直行
+    if (this.direction === 'east') return 70 // 東向直行
+    if (this.direction === 'north') return 70 // 北向直行
+    if (this.direction === 'west') return 70 // 西向直行
+    if (this.direction === 'south') return 70 // 南向直行
 
     // 預設值
     return 70
@@ -989,13 +993,13 @@ export default class Vehicle {
               let isOnTurnSection = false
               if (this.hasPassedStopLine && TURN_SPEED_CONFIG.TURN_DETECTION.ENABLED) {
                 isOnTurnSection = this.isOnTurnSection()
-                
+
                 if (isOnTurnSection) {
                   // 車輛正在轉向：應用轉向速度限制
                   const turnRadius = this.estimateTurnRadius()
                   const maxTurnSpeedRatio = this.calculateMaxTurnSpeed(turnRadius)
                   const currentTimeScale = this.movementTimeline.timeScale()
-                  
+
                   // 只在需要減速時調整（避免不必要的動畫）
                   if (currentTimeScale > maxTurnSpeedRatio + 0.05) {
                     gsap.to(this.movementTimeline, {
@@ -1004,7 +1008,9 @@ export default class Vehicle {
                       ease: 'power2.out',
                     })
                     if (TURN_SPEED_CONFIG.DEBUG.ENABLED) {
-                      console.log(`🔄 [${this.id}] 轉向減速: radius=${turnRadius}, speedRatio=${maxTurnSpeedRatio.toFixed(2)}`)
+                      console.log(
+                        `🔄 [${this.id}] 轉向減速: radius=${turnRadius}, speedRatio=${maxTurnSpeedRatio.toFixed(2)}`,
+                      )
                     }
                   }
                 } else if (this.hasPassedStopLine) {
@@ -1057,9 +1063,10 @@ export default class Vehicle {
               // 當燈號變綠且車輛準備通過停止線時，無條件加速（跳過碰撞檢測）
               const currentLightStateForGreen = trafficController.getCurrentLightState(this.direction)
               const isGreenLightReady =
-                (this.laneNumber === 1 && (currentLightStateForGreen === 'leftGreen' || currentLightStateForGreen === 'green')) ||
+                (this.laneNumber === 1 &&
+                  (currentLightStateForGreen === 'leftGreen' || currentLightStateForGreen === 'green')) ||
                 (this.laneNumber !== 1 && currentLightStateForGreen === 'green')
-              
+
               if (isGreenLightReady && this.position && this.position.distance < 50) {
                 // ✅ 綠燈 + 接近停止線距離 < 50px = 無條件加速
                 // 預期效果：消除綠燈時因碰撞檢測導致的加速延遲 (50% 碰撞時機點消除)
@@ -1269,20 +1276,18 @@ export default class Vehicle {
 
                 // 🚨 P0 FIX #1：改進黃燈決策邏輯
                 let shouldStop = false
-                
+
                 if (lightState === 'yellow') {
                   // 🟡 黃燈時：使用新的決策邏輯
                   const decision = this.makeYellowLightDecision()
-                  shouldStop = (decision.action === 'brake')
+                  shouldStop = decision.action === 'brake'
                   if (YELLOW_LIGHT_DECISION_CONFIG.DEBUG.ENABLED) {
                     console.log(`🟡 [${this.id}] 黃燈決策執行: ${decision.decision} → ${decision.action}`)
                   }
                 } else {
                   // 紅燈、全紅、或其他燈號
                   shouldStop =
-                    lightState === 'red' ||
-                    lightState === 'allRed' ||
-                    (this.laneNumber === 1 && lightState === 'green') // ✅ 只在"直行綠燈"時停止，"左轉綠燈"時放行
+                    lightState === 'red' || lightState === 'allRed' || (this.laneNumber === 1 && lightState === 'green') // ✅ 只在"直行綠燈"時停止，"左轉綠燈"時放行
                 }
 
                 if (shouldStop) {
@@ -1634,20 +1639,18 @@ export default class Vehicle {
 
               // � P0 FIX #1：改進黃燈決策邏輯（第二處理位置）
               let shouldStopAtLine = false
-              
+
               if (lightState === 'yellow') {
                 // 🟡 黃燈時：使用新的決策邏輯
                 const decision = this.makeYellowLightDecision()
-                shouldStopAtLine = (decision.action === 'brake')
+                shouldStopAtLine = decision.action === 'brake'
                 if (YELLOW_LIGHT_DECISION_CONFIG.DEBUG.ENABLED) {
                   console.log(`🟡 [${this.id}] 黃燈決策執行 (第二位置): ${decision.decision} → ${decision.action}`)
                 }
               } else {
                 // 紅燈、全紅、或其他燈號
                 shouldStopAtLine =
-                  lightState === 'red' ||
-                  lightState === 'allRed' ||
-                  (this.laneNumber === 1 && lightState === 'green') // 左轉車道在直行綠燈時停止
+                  lightState === 'red' || lightState === 'allRed' || (this.laneNumber === 1 && lightState === 'green') // 左轉車道在直行綠燈時停止
               }
 
               if (shouldStopAtLine) {
