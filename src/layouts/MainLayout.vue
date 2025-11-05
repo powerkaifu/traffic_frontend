@@ -176,7 +176,7 @@
                   <input
                     type="range"
                     v-model="manualInterval"
-                    min="1000"
+                    min="2000"
                     max="30000"
                     :step="100"
                     @input="onSliderInput"
@@ -545,8 +545,8 @@ function selectVDScenario(scenario) {
 }
 
 const currentTimeScenario = ref(INITIAL_VD_SCENARIO)
-const manualInterval = ref(1000)
-const currentInterval = ref(1.0) // 初始化為 1 秒（與 manualInterval 預設值 1000ms 一致）
+const manualInterval = ref(2000) // ✅ 改為 2000ms (2秒) - 最低值限制
+const currentInterval = ref(2.0) // ✅ 初始化為 2 秒（與 manualInterval 預設值 2000ms 一致）
 
 // timeScenarios 已從 trafficScenarioConfig.js 匯入
 // 🔄 v2.6 更新：使用 VD_DISPLAY_CONFIG 中的配置
