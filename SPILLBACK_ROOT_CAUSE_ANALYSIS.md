@@ -13,11 +13,13 @@
 ### **1️⃣ TrafficLightController.js** - 主要責任：❌ 號誌配時固定，無下游預測
 
 **📍 檔案位置**
+
 ```
 src/classes/TrafficLightController.js（共1840行）
 ```
 
 **📍 核心問題**
+
 ```javascript
 // ❌ 第 565 行：固定配時邏輯
 this.updateTimer('南北向\n直行綠燈', this.dynamicTiming.northSouth)
@@ -28,6 +30,7 @@ await this.countdownDelayWithAPI(this.dynamicTiming.northSouth * 1000, ...)
 ```
 
 **🔍 完整的號誌轉換流程**（第 565-680 行）
+
 ```
 南北向時相流程：
 ├─ 【階段1】南北向直行綠燈（20 秒）❌ 無下游檢查
@@ -50,6 +53,7 @@ await this.countdownDelayWithAPI(this.dynamicTiming.northSouth * 1000, ...)
 ```
 
 **🎯 需要添加的邏輯**
+
 ```javascript
 // ✅ 應該在給綠燈前檢查：下游（東西向）是否滿
 async runCycle() {
@@ -57,7 +61,7 @@ async runCycle() {
     if (this.currentPhase === 'northSouth') {
       // ✨ 新增：預測下游（東西向）擁塞狀態
       const eastWestCongestionRate = await this.predictDownstreamCongestion('eastWest')
-      
+
       // ✨ 新增：根據擁塞率調整綠燈時間
       let greenDuration = this.phaseTimings.straight.green // 預設 20 秒
       if (eastWestCongestionRate > 0.85) {
@@ -65,7 +69,7 @@ async runCycle() {
         greenDuration = Math.ceil(this.phaseTimings.straight.green * 0.5)
         logWarn(`⚠️ 下游擁塞 ${(eastWestCongestionRate * 100).toFixed(1)}%，南北向綠燈縮短至 ${greenDuration}s`)
       }
-      
+
       this.updateLightState('south', 'green')
       this.updateLightState('north', 'green')
       this.updateTimer('南北向\n直行綠燈', greenDuration)
@@ -78,39 +82,41 @@ async runCycle() {
 
 **🔑 關鍵方法需要添加**
 
-| 方法名 | 功能 | 參數 | 返回值 |
-|--------|------|------|--------|
-| `predictDownstreamCongestion(direction)` | 預測下游擁塞率 | 相位方向 (南北/東西) | 0.0-1.0 (擁塞百分比) |
-| `adjustTimingBasedOnPrediction(phase, baseTiming)` | 根據預測調整配時 | 相位, 基礎時間 | 調整後的時間(秒) |
-| `getDownstreamDirection(phase)` | 獲取下游方向 | 相位方向 | 對向方向 |
+| 方法名                                             | 功能             | 參數                 | 返回值               |
+| -------------------------------------------------- | ---------------- | -------------------- | -------------------- |
+| `predictDownstreamCongestion(direction)`           | 預測下游擁塞率   | 相位方向 (南北/東西) | 0.0-1.0 (擁塞百分比) |
+| `adjustTimingBasedOnPrediction(phase, baseTiming)` | 根據預測調整配時 | 相位, 基礎時間       | 調整後的時間(秒)     |
+| `getDownstreamDirection(phase)`                    | 獲取下游方向     | 相位方向             | 對向方向             |
 
 ---
 
 ### **2️⃣ CollisionController.js** - 主要責任：❌ 無法告訴系統「我已經滿了」
 
 **📍 檔案位置**
+
 ```
 src/classes/vehicle_utils/CollisionController.js（共1312行）
 ```
 
 **📍 核心問題**
+
 ```javascript
 // ✅ 現有功能：檢測碰撞
-isVehiclePassedStopLine()          // ✅ 已有
-detectNearbyCollisions()           // ✅ 已有
-applyCollisionBehavior()           // ✅ 已有
+isVehiclePassedStopLine() // ✅ 已有
+detectNearbyCollisions() // ✅ 已有
+applyCollisionBehavior() // ✅ 已有
 
 // ❌ 缺失功能：計算停止線擁塞率
 getStopLineCongestionRate(direction) // ❌ 不存在
-getVehiclesAtStopLine(direction)     // ❌ 不存在
+getVehiclesAtStopLine(direction) // ❌ 不存在
 ```
 
 **🔍 現有停止線檢測方式**（不夠完善）
+
 ```javascript
 // AutoTrafficGenerator.js 第 924 行
-const stopLineCount = this.trafficController ? 
-  this.trafficController.getVehiclesWaitingAtStopLine(dir) : 0
-const stopLineLimit = STOP_LINE_VEHICLE_LIMITS[dir] || 30  // ✅ 會檢查
+const stopLineCount = this.trafficController ? this.trafficController.getVehiclesWaitingAtStopLine(dir) : 0
+const stopLineLimit = STOP_LINE_VEHICLE_LIMITS[dir] || 30 // ✅ 會檢查
 
 if (stopLineCount >= stopLineLimit) {
   console.log(`🚦 [停止線限制] ${dir}方向停止線已滿`)
@@ -119,6 +125,7 @@ if (stopLineCount >= stopLineLimit) {
 ```
 
 **❌ 問題分析**
+
 ```
 現狀（只在 AutoTrafficGenerator 中檢查）：
 ├─ ✅ 防止新車過度生成
@@ -154,15 +161,15 @@ getStopLineCongestionRate(direction) {
  */
 getVehiclesAtStopLine(direction) {
   if (!window.liveVehicles) return []
-  
+
   const stopLine = this.vehicle.getStopLinePosition()
   if (!stopLine) return []
-  
+
   // 根據方向篩選在停止線前的車輛
   return window.liveVehicles.filter(v => {
     if (v.direction !== direction) return false
     if (v.hasPassedStopLine) return false // 已通過的不算
-    
+
     const pos = v.getCurrentPosition()
     switch (direction) {
       case 'east': return pos.x < stopLine.x + 50  // 停止線前50像素
@@ -185,6 +192,7 @@ getStopLineVehicleCount(direction) {
 ```
 
 **🔑 被調用的位置**
+
 ```
 TrafficLightController.runCycle()
   └─> predictDownstreamCongestion()
@@ -196,20 +204,22 @@ TrafficLightController.runCycle()
 ### **3️⃣ AutoTrafficGenerator.js** - 主要責任：❌ 停止線限制固定，無動態調整
 
 **📍 檔案位置**
+
 ```
 src/classes/AutoTrafficGenerator.js（共1316行）
 ```
 
 **📍 核心問題**
+
 ```javascript
 // ✅ 第 924-928 行：停止線檢查
 const stopLineCount = this.trafficController.getVehiclesWaitingAtStopLine(dir)
-const stopLineLimit = STOP_LINE_VEHICLE_LIMITS[dir] || 30  // ❌ 固定值 25
+const stopLineLimit = STOP_LINE_VEHICLE_LIMITS[dir] || 30 // ❌ 固定值 25
 const stopLineLimit = STOP_LINE_VEHICLE_LIMITS[dir] || 30
 
 if (stopLineCount >= stopLineLimit) {
   console.log(`🚦 [停止線限制] ${dir}方向停止線已滿`)
-  return  // 停止生成
+  return // 停止生成
 }
 
 // ❌ 問題：不考慮「下游是否擁塞」
@@ -218,12 +228,13 @@ if (stopLineCount >= stopLineLimit) {
 ```
 
 **🔍 現有停止線限制配置**（trafficScenarioConfig.js 第 60-70 行）
+
 ```javascript
 export const STOP_LINE_VEHICLE_LIMITS = {
-  east: 25,   // ❌ 固定 25 台車
-  west: 25,   // ❌ 固定 25 台車
-  north: 25,  // ❌ 固定 25 台車
-  south: 25,  // ❌ 固定 25 台車
+  east: 25, // ❌ 固定 25 台車
+  west: 25, // ❌ 固定 25 台車
+  north: 25, // ❌ 固定 25 台車
+  south: 25, // ❌ 固定 25 台車
 }
 
 // 這樣的配置無法應對：
@@ -233,6 +244,7 @@ export const STOP_LINE_VEHICLE_LIMITS = {
 ```
 
 **❌ 造成回堵的完整鏈條**
+
 ```
 T=0:00   東西向停止線有 5 台車（未滿）
          北向停止線有 20 台車（未滿）
@@ -266,13 +278,13 @@ T=1:10   綠燈 10 秒後仍未疏散
  */
 getAdaptiveStopLineLimit(direction) {
   const oppositeDirection = this._getOppositeDirection(direction)
-  
+
   // ✨ 新增：獲取對向停止線的擁塞率
   const oppositeCongestionRate = this.trafficController
     ?.getStopLineCongestionRate?.(oppositeDirection) || 0
-  
+
   const baseLimit = STOP_LINE_VEHICLE_LIMITS[direction]
-  
+
   // 根據對向擁塞率動態調整限制
   if (oppositeCongestionRate > 0.85) {
     // 對向 85% 滿 → 當前方向限制為基礎的 30%
@@ -303,7 +315,7 @@ _getOppositeDirection(direction) {
 }
 ```
 
-**✅ 修改 _generateVehicle() 方法**（第 924-928 行）
+**✅ 修改 \_generateVehicle() 方法**（第 924-928 行）
 
 ```javascript
 // ❌ 舊代碼：
@@ -313,11 +325,11 @@ if (stopLineCount >= stopLineLimit) {
 }
 
 // ✅ 新代碼：
-const stopLineLimit = this.getAdaptiveStopLineLimit(dir)  // 使用動態限制
+const stopLineLimit = this.getAdaptiveStopLineLimit(dir) // 使用動態限制
 if (stopLineCount >= stopLineLimit) {
   console.log(
     `🚦 [動態停止線限制] ${dir}方向 (當前: ${stopLineCount}/${stopLineLimit}, ` +
-    `下游擁塞: ${(oppositeCongestion * 100).toFixed(1)}%)`
+      `下游擁塞: ${(oppositeCongestion * 100).toFixed(1)}%)`,
   )
   return
 }
@@ -330,11 +342,13 @@ if (stopLineCount >= stopLineLimit) {
 ### **4️⃣ trafficScenarioConfig.js** - 配置文件
 
 **📍 檔案位置**
+
 ```
 src/classes/config/trafficScenarioConfig.js（共516行）
 ```
 
 **❌ 現有配置問題**
+
 ```javascript
 // ❌ 第 60-70 行：完全靜態的停止線限制
 export const STOP_LINE_VEHICLE_LIMITS = {
@@ -352,33 +366,33 @@ export const STOP_LINE_VEHICLE_LIMITS = {
 ```javascript
 // ✨ 新增：回堵防止配置
 export const SPILLBACK_PREVENTION_CONFIG = {
-  enabled: true,  // 是否啟用回堵防止
-  
+  enabled: true, // 是否啟用回堵防止
+
   // 擁塞判定標準
   congestionThresholds: {
-    low: 0.50,      // 低擁塞：< 50%
-    moderate: 0.70, // 中等擁塞：50-70%
-    high: 0.85,     // 高擁塞：> 85%
+    low: 0.5, // 低擁塞：< 50%
+    moderate: 0.7, // 中等擁塞：50-70%
+    high: 0.85, // 高擁塞：> 85%
   },
-  
+
   // 根據擁塞率調整停止線限制的係數
   limitAdjustmentFactors: {
-    high: 0.30,      // 高擁塞 → 限制為 30%
-    moderate: 0.60,  // 中等擁塞 → 限制為 60%
-    low: 0.80,       // 低擁塞 → 限制為 80%
-    clear: 1.0,      // 暢通 → 100% 限制
+    high: 0.3, // 高擁塞 → 限制為 30%
+    moderate: 0.6, // 中等擁塞 → 限制為 60%
+    low: 0.8, // 低擁塞 → 限制為 80%
+    clear: 1.0, // 暢通 → 100% 限制
   },
-  
+
   // 綠燈時間調整係數
   timingAdjustmentFactors: {
-    highCongestion: 0.5,  // 下游高擁塞 → 綠燈 50%
-    moderateCongestion: 0.75,  // 中等 → 75%
-    normal: 1.0,  // 正常 → 100%
+    highCongestion: 0.5, // 下游高擁塞 → 綠燈 50%
+    moderateCongestion: 0.75, // 中等 → 75%
+    normal: 1.0, // 正常 → 100%
   },
-  
+
   // 最小/最大停止線限制（保護機制）
-  minStopLineLimit: 5,    // 最少放行 5 台車
-  maxStopLineLimit: 30,   // 最多放行 30 台車
+  minStopLineLimit: 5, // 最少放行 5 台車
+  maxStopLineLimit: 30, // 最多放行 30 台車
 }
 ```
 
@@ -387,6 +401,7 @@ export const SPILLBACK_PREVENTION_CONFIG = {
 ### **5️⃣ stopLineConfig.js** - 停止線配置
 
 **📍 檔案位置**
+
 ```
 src/classes/config/stopLineConfig.js（若存在）
 ```
@@ -400,6 +415,7 @@ src/classes/config/stopLineConfig.js（若存在）
 ### **6️⃣ Vehicle.js** - 驗證項目
 
 **📍 驗證內容**
+
 - ✅ 車輛 `onUpdate()` 方法是否正確處理綠燈
 - ✅ 是否優先進入路口而不是等待
 - ✅ 是否正確識別停止線位置
@@ -407,6 +423,7 @@ src/classes/config/stopLineConfig.js（若存在）
 ### **7️⃣ IndexPage.vue** - UI 提示（可選）
 
 **📍 改進內容**
+
 - 🆕 添加「回堵狀態指示器」
 - 🆕 顯示各方向停止線擁塞率（%）
 - 🆕 顯示綠燈是否被下游阻擋
@@ -445,25 +462,30 @@ CollisionController.js 缺陷
 ## 🎯 Phase 5 實施計劃（修復策略）
 
 ### **Step 1: TrafficLightController.js - 添加下游預測**
+
 - 添加 `predictDownstreamCongestion(direction)` 方法
 - 修改 `runCycle()` 方法，在給綠燈前檢查下游
 - 根據下游擁塞率動態調整綠燈時間
 
 ### **Step 2: CollisionController.js - 添加擁塞率計算**
+
 - 添加 `getStopLineCongestionRate(direction)` 方法
 - 添加 `getVehiclesAtStopLine(direction)` 方法
 - 供 TrafficLightController 和 AutoTrafficGenerator 查詢
 
 ### **Step 3: AutoTrafficGenerator.js - 動態停止線限制**
+
 - 添加 `getAdaptiveStopLineLimit(direction)` 方法
 - 修改 `_generateVehicle()` 方法，使用動態限制
 - 根據對向擁塞率調整放行車輛數
 
 ### **Step 4: trafficScenarioConfig.js - 添加配置**
+
 - 添加 `SPILLBACK_PREVENTION_CONFIG` 配置
 - 定義擁塞判定標準和調整係數
 
 ### **Step 5: 可選 - IndexPage.vue - 添加提示**
+
 - 顯示各方向擁塞率
 - 顯示回堵防止機制狀態
 
@@ -471,23 +493,23 @@ CollisionController.js 缺陷
 
 ## 📊 預期改善效果
 
-| 指標 | 現在 | 修復後 | 改善 |
-|-----|------|--------|------|
-| CPU 使用率 | 32-41% | 32-41% | 無影響 ✅ |
-| 回堵現象 | 嚴重 🔴 | 消除 ✅ | -100% |
-| 綠燈有效率 | 60% | 95% | +35% |
-| 車流通過率 | 低 | 高 | +50% |
-| 車輛平均速度 | 10 km/h | 25 km/h | +150% |
+| 指標         | 現在    | 修復後  | 改善      |
+| ------------ | ------- | ------- | --------- |
+| CPU 使用率   | 32-41%  | 32-41%  | 無影響 ✅ |
+| 回堵現象     | 嚴重 🔴 | 消除 ✅ | -100%     |
+| 綠燈有效率   | 60%     | 95%     | +35%      |
+| 車流通過率   | 低      | 高      | +50%      |
+| 車輛平均速度 | 10 km/h | 25 km/h | +150%     |
 
 ---
 
 ## 🚀 修復啟動條件
 
 ✅ **已滿足所有診斷條件**
+
 - ✅ 根本原因已確認：缺少下游預測機制
 - ✅ 3 個主要問題檔案已定位
 - ✅ 5 個關鍵修改點已明確
 - ✅ 配置方案已設計完整
 
 **下一步：開始 Phase 5 實施** 🚀
-

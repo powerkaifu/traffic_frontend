@@ -5,7 +5,7 @@
 ```
 用戶報告：「綠燈卻無法控制車輛行為」
         ↓
-系統表現：綠燈亮起但車輛無法通行 
+系統表現：綠燈亮起但車輛無法通行
         ↓
 現象名稱：Spillback（回堵現象）
         ↓
@@ -35,17 +35,17 @@ T=30秒    ✅ 綠燈           🚗 20/25 車輛        ⚠️  東西接近飽
 T=60秒    ⏰ 綠燈結束        🚗 25/25 車輛 (飽)   🔴 都已滿！
          開始轉黃          ─────────
          ⚠️  但東西還是滿   100% 使用
-         
+
          問題出現！
-         └─ 南北向綠燈 ✅ 
+         └─ 南北向綠燈 ✅
          └─ 但東西向停止線已滿 🔴
          └─ 南北向車輛進不了路口 ❌
          └─ 綠燈變無效！❌❌❌
 
 T=90秒    ⏰ 黃燈           🚗 23/25 (東西開始疏散)  🔴 南北開始回堵
-         開始疏散         
+         開始疏散
          └─ 但南北停止線已堆滿！
-         
+
          回堵現象確認！🔴
          ├─ 南北向停止線開始積累車輛
          ├─ 雖然有綠燈，但進不了路口
@@ -60,6 +60,7 @@ T=90秒    ⏰ 黃燈           🚗 23/25 (東西開始疏散)  🔴 南北開�
 ### **Problem #1: TrafficLightController.js**
 
 **症狀**
+
 ```javascript
 // 第 565 行：給南北綠燈
 this.updateLightState('south', 'green')
@@ -70,6 +71,7 @@ this.updateLightState('north', 'green')
 ```
 
 **可視化**
+
 ```
 給綠燈時的決策樹：
 
@@ -81,30 +83,31 @@ TrafficLightController.runCycle() {
     ├─ ❌ 未檢查：東西向停止線是否滿？ ← 問題在這！
     ├─ ❌ 未檢查：下游通行能力？ ← 缺失邏輯
     └─ ❌ 未檢查：是否會造成回堵？ ← 無預測機制
-    
+
     結果：給綠燈 ✅ (無考量下游)
-    
+
     所以當東西向停止線是滿的時...
-    → 南北向綠燈 ✅ 但車進不去 ❌ 
+    → 南北向綠燈 ✅ 但車進不去 ❌
     → 綠燈無效 ❌
 }
 ```
 
 **修復邏輯**
+
 ```javascript
 // ✨ 應該改為：
 TrafficLightController.runCycle() {
   if (currentPhase === 'northSouth') {
     // ✨ 新增：預測下游 (東西向) 擁塞率
     const eastWestCongestion = await this.predictDownstreamCongestion('eastWest')
-    
+
     // ✨ 新增：根據下游狀況決策
     let greenDuration = 20  // 預設 20 秒
     if (eastWestCongestion > 0.85) {
       greenDuration = 10  // 如果東西向 > 85% 滿，縮短到 10 秒
       logWarn(`⚠️ 下游擁塞 ${(eastWestCongestion * 100).toFixed(0)}%，綠燈縮短`)
     }
-    
+
     // 給綠燈 ✅ (已考量下游)
     this.updateLightState('south', 'green')
     this.updateLightState('north', 'green')
@@ -119,13 +122,14 @@ TrafficLightController.runCycle() {
 ### **Problem #2: AutoTrafficGenerator.js**
 
 **症狀**
+
 ```javascript
 // 第 925 行：固定停止線限制
-const stopLineLimit = STOP_LINE_VEHICLE_LIMITS[dir] || 30  // 永遠是 25
+const stopLineLimit = STOP_LINE_VEHICLE_LIMITS[dir] || 30 // 永遠是 25
 
 if (stopLineCount >= stopLineLimit) {
   console.log(`🚦 停止線已滿`)
-  return  // 停止生成
+  return // 停止生成
 }
 
 // ❌ 問題：不考慮「對向停止線擁塞」
@@ -134,6 +138,7 @@ if (stopLineCount >= stopLineLimit) {
 ```
 
 **可視化**
+
 ```
 現狀（固定限制）：
 
@@ -180,15 +185,16 @@ if (stopLineCount >= stopLineLimit) {
 ```
 
 **修復邏輯**
+
 ```javascript
 // ✨ 應該改為：
 getAdaptiveStopLineLimit(direction) {
   // 獲取對向擁塞率
   const opposite = this._getOppositeDirection(direction)
   const congestionRate = this.trafficController.getStopLineCongestionRate(opposite)
-  
+
   const baseLimit = STOP_LINE_VEHICLE_LIMITS[direction]  // 基礎值：25 台車
-  
+
   // 根據對向擁塞率動態調整
   if (congestionRate > 0.85) {
     return Math.ceil(baseLimit * 0.30)  // 高度擁塞 → 30% = 7 台車
@@ -217,14 +223,15 @@ _generateVehicle() {
 ### **Problem #3: CollisionController.js**
 
 **症狀**
+
 ```javascript
 // ❌ 現有方法：
-isVehiclePassedStopLine()      // ✅ 有
-detectNearbyCollisions()       // ✅ 有
+isVehiclePassedStopLine() // ✅ 有
+detectNearbyCollisions() // ✅ 有
 
 // ❌ 缺失方法：
-getStopLineCongestionRate()    // ❌ 無
-getVehiclesAtStopLine()        // ❌ 無
+getStopLineCongestionRate() // ❌ 無
+getVehiclesAtStopLine() // ❌ 無
 
 // ❌ 結果：
 // TrafficLightController 無法查詢「東西向停止線現在幾%滿？」
@@ -232,6 +239,7 @@ getVehiclesAtStopLine()        // ❌ 無
 ```
 
 **可視化**
+
 ```
 信息流斷裂：
 
@@ -260,6 +268,7 @@ AutoTrafficGenerator._generateVehicle()
 ```
 
 **修復邏輯**
+
 ```javascript
 // ✨ 在 CollisionController 中添加：
 
@@ -281,18 +290,18 @@ getStopLineCongestionRate(direction) {
  */
 getVehiclesAtStopLine(direction) {
   if (!window.liveVehicles) return []
-  
+
   const stopLine = this.vehicle.getStopLinePosition()
   if (!stopLine) return []
-  
+
   // 篩選停止線前 50px 內、未通過停止線的車輛
   return window.liveVehicles.filter(v => {
     if (v.direction !== direction) return false
     if (v.hasPassedStopLine) return false
-    
+
     const pos = v.getCurrentPosition()
     const BUFFER = 50  // 停止線前 50px
-    
+
     switch (direction) {
       case 'east':   return pos.x < stopLine.x + BUFFER
       case 'west':   return pos.x > stopLine.x - BUFFER
@@ -357,13 +366,13 @@ TrafficLightController          AutoTrafficGenerator
 
 ## ✅ 診斷總結
 
-| 項目 | 現狀 | 根本原因 |
-|-----|------|--------|
-| **綠燈無效** | ✅ 確認 | ❌ 缺少下游擁塞預測 |
-| **回堵現象** | ✅ 確認 | ❌ 停止線限制固定 |
-| **無法平衡流量** | ✅ 確認 | ❌ 無擁塞率信息 |
-| **影響檔案數** | ✅ 確認 | 3 個主檔案 + 2 個配置 |
-| **解決方案** | ✅ 完整設計 | Phase 5 實施 |
+| 項目             | 現狀        | 根本原因              |
+| ---------------- | ----------- | --------------------- |
+| **綠燈無效**     | ✅ 確認     | ❌ 缺少下游擁塞預測   |
+| **回堵現象**     | ✅ 確認     | ❌ 停止線限制固定     |
+| **無法平衡流量** | ✅ 確認     | ❌ 無擁塞率信息       |
+| **影響檔案數**   | ✅ 確認     | 3 個主檔案 + 2 個配置 |
+| **解決方案**     | ✅ 完整設計 | Phase 5 實施          |
 
 ---
 
@@ -378,7 +387,6 @@ TrafficLightController          AutoTrafficGenerator
 
 ---
 
-**git commit hash**: db69bd1  
-**日期**: 2024  
+**git commit hash**: db69bd1
+**日期**: 2024
 **狀態**: 🟢 診斷完成，準備修復
-

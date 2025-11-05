@@ -12,25 +12,25 @@
 
 ### 🔴 PRIORITY 1 - 最可能造成回堵的 3 檔案（必須修改）
 
-| # | 檔案 | 行數 | 主要問題 | 修改內容 |
-|---|-----|------|--------|--------|
-| **1** | **TrafficLightController.js** | 1840 | 號誌固定配時，無下游預測 | ✨ 添加 `predictDownstreamCongestion()` + 動態綠燈調整 |
-| **2** | **CollisionController.js** | 1312 | 無法計算停止線擁塞率 | ✨ 添加 `getStopLineCongestionRate()` + `getVehiclesAtStopLine()` |
-| **3** | **AutoTrafficGenerator.js** | 1316 | 停止線限制固定，無動態調整 | ✨ 添加 `getAdaptiveStopLineLimit()` + 動態限制邏輯 |
+| #     | 檔案                          | 行數 | 主要問題                   | 修改內容                                                          |
+| ----- | ----------------------------- | ---- | -------------------------- | ----------------------------------------------------------------- |
+| **1** | **TrafficLightController.js** | 1840 | 號誌固定配時，無下游預測   | ✨ 添加 `predictDownstreamCongestion()` + 動態綠燈調整            |
+| **2** | **CollisionController.js**    | 1312 | 無法計算停止線擁塞率       | ✨ 添加 `getStopLineCongestionRate()` + `getVehiclesAtStopLine()` |
+| **3** | **AutoTrafficGenerator.js**   | 1316 | 停止線限制固定，無動態調整 | ✨ 添加 `getAdaptiveStopLineLimit()` + 動態限制邏輯               |
 
 ### 🟡 PRIORITY 2 - 應該修改的 2 檔案（配置 + 支持）
 
-| # | 檔案 | 行數 | 主要問題 | 修改內容 |
-|---|-----|------|--------|--------|
-| **4** | **trafficScenarioConfig.js** | 516 | 靜態停止線配置 | ✨ 添加 `SPILLBACK_PREVENTION_CONFIG` 配置 |
-| **5** | **stopLineConfig.js** | - | 無動態管理 | ✨ 若存在則添加，否則在 trafficScenarioConfig.js 中補充 |
+| #     | 檔案                         | 行數 | 主要問題       | 修改內容                                                |
+| ----- | ---------------------------- | ---- | -------------- | ------------------------------------------------------- |
+| **4** | **trafficScenarioConfig.js** | 516  | 靜態停止線配置 | ✨ 添加 `SPILLBACK_PREVENTION_CONFIG` 配置              |
+| **5** | **stopLineConfig.js**        | -    | 無動態管理     | ✨ 若存在則添加，否則在 trafficScenarioConfig.js 中補充 |
 
 ### 🟢 PRIORITY 3 - 驗證檔案（通常不需修改）
 
-| # | 檔案 | 行數 | 驗證項目 |
-|---|-----|------|---------|
-| **6** | **Vehicle.js** | - | ✓ 驗證綠燈優先級邏輯 |
-| **7** | **IndexPage.vue** | - | 🆕 可選：添加回堵狀態顯示 |
+| #     | 檔案              | 行數 | 驗證項目                  |
+| ----- | ----------------- | ---- | ------------------------- |
+| **6** | **Vehicle.js**    | -    | ✓ 驗證綠燈優先級邏輯      |
+| **7** | **IndexPage.vue** | -    | 🆕 可選：添加回堵狀態顯示 |
 
 ---
 
@@ -54,9 +54,9 @@ await this.countdownDelayWithAPI(this.dynamicTiming.northSouth * 1000, ...)
 
 ```javascript
 // ❌ 第 925 行：現狀
-const stopLineLimit = STOP_LINE_VEHICLE_LIMITS[dir] || 30  // 固定 25 台車
+const stopLineLimit = STOP_LINE_VEHICLE_LIMITS[dir] || 30 // 固定 25 台車
 if (stopLineCount >= stopLineLimit) {
-  return  // 停止生成
+  return // 停止生成
 }
 
 // ❌ 問題：不考慮對向停止線是否擁塞
@@ -68,13 +68,13 @@ if (stopLineCount >= stopLineLimit) {
 
 ```javascript
 // ❌ 現狀：只能檢測碰撞，無法計算擁塞率
-isVehiclePassedStopLine()    // ✅ 有
-detectNearbyCollisions()     // ✅ 有
-applyCollisionBehavior()     // ✅ 有
+isVehiclePassedStopLine() // ✅ 有
+detectNearbyCollisions() // ✅ 有
+applyCollisionBehavior() // ✅ 有
 
 // ❌ 缺失：
-getStopLineCongestionRate()  // ❌ 無 (需要添加)
-getVehiclesAtStopLine()      // ❌ 無 (需要添加)
+getStopLineCongestionRate() // ❌ 無 (需要添加)
+getVehiclesAtStopLine() // ❌ 無 (需要添加)
 
 // ❌ 結果：TrafficLightController 無法查詢下游狀況
 ```
@@ -112,6 +112,7 @@ T=60s  輪到東西綠燈...等等，東西停止線也滿了 🔴
 ## 🚀 Phase 5 修復（3 步完成）
 
 ### **Step 1: TrafficLightController.js**
+
 ```javascript
 // ✨ 添加方法
 async predictDownstreamCongestion(direction) {
@@ -127,6 +128,7 @@ if (downstreamCongestion > 0.85) {
 ```
 
 ### **Step 2: CollisionController.js**
+
 ```javascript
 // ✨ 添加方法
 getStopLineCongestionRate(direction) {
@@ -141,12 +143,13 @@ getVehiclesAtStopLine(direction) {
 ```
 
 ### **Step 3: AutoTrafficGenerator.js**
+
 ```javascript
 // ✨ 添加方法
 getAdaptiveStopLineLimit(direction) {
   const opposite = this._getOppositeDirection(direction)
   const congestion = this.trafficController.getStopLineCongestionRate(opposite)
-  
+
   if (congestion > 0.85) return Math.ceil(25 * 0.3)   // 7 台車
   if (congestion > 0.70) return Math.ceil(25 * 0.6)   // 15 台車
   if (congestion > 0.50) return Math.ceil(25 * 0.8)   // 20 台車
@@ -161,12 +164,12 @@ const stopLineLimit = this.getAdaptiveStopLineLimit(dir)  // 動態限制
 
 ## 📊 預期效果
 
-| 指標 | 現況 | 修復後 |
-|-----|------|--------|
-| 回堵現象 | 嚴重 🔴 | 消除 ✅ |
-| 綠燈有效率 | 60% | 95% |
-| 車流通過 | 緩慢 | 順暢 |
-| CPU 影響 | - | 無 (±0%) |
+| 指標       | 現況    | 修復後   |
+| ---------- | ------- | -------- |
+| 回堵現象   | 嚴重 🔴 | 消除 ✅  |
+| 綠燈有效率 | 60%     | 95%      |
+| 車流通過   | 緩慢    | 順暢     |
+| CPU 影響   | -       | 無 (±0%) |
 
 ---
 
@@ -192,4 +195,3 @@ const stopLineLimit = this.getAdaptiveStopLineLimit(dir)  // 動態限制
 **🎯 根本原因確認**: ✅ 缺少下游擁塞預測 + 動態信號協調
 **🚀 修復方案**: ✅ 3 個主檔案 + 2 個配置檔案
 **⏱️ 預計工作量**: 2-3 小時 (三個主要檔案各 30-40 分鐘)
-
