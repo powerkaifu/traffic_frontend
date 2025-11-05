@@ -61,27 +61,27 @@ export const YELLOW_LIGHT_DECISION_CONFIG = {
   // 🟡 黃燈安全停止距離計算參數
   DECELERATION_RATE: 0.8, // 減速率 (pixels/frame²)
   SAFE_STOPPING_MARGIN: 80, // 安全停止邊界 (px) - 停止線外至少保持此距離
-  
+
   // 🟡 黃燈決策邏輯
   MAX_SAFE_YELLOW_SPEED: 60, // 最大安全速度 (px/s) - 超過此速度必須開始減速
   YELLOW_LIGHT_BRAKING_FORCE: 1.0, // 黃燈減速力度 (x倍基礎減速)
-  
+
   // 🟡 黃燈時長 (秒) - 與 trafficScenarioConfig 中的黃燈時長同步
   YELLOW_LIGHT_DURATION: 3.0,
-  
+
   // 🟡 決策邏輯
   DECISION_LOGIC: {
     ENABLED: true, // 啟用黃燈決策邏輯
     SAFE_STOP_PROBABILITY: 1.0, // 安全停止的機率 (100% = 嚴格遵守)
     RISKY_PASS_PROBABILITY: 0.0, // 冒險通過的機率 (0% = 不冒險)
-    DESCRIPTION: '根據停止距離計算決定是否衝過黃燈或停止'
+    DESCRIPTION: '根據停止距離計算決定是否衝過黃燈或停止',
   },
-  
+
   // 🟡 除錯模式
   DEBUG: {
     ENABLED: false, // 啟用除錯訊息
     LOG_DECISIONS: false, // 記錄決策過程
-  }
+  },
 }
 
 // ===== 🚨 P0 FIX #2：轉向速度控制配置 =====
@@ -89,42 +89,42 @@ export const TURN_SPEED_CONFIG = {
   // 🔄 轉向半徑到速度的映射表
   // 根據轉彎半徑決定最大安全速度
   TURN_RADIUS_TO_SPEED: {
-    TIGHT_30PX: 25,    // 30px半徑 → 25 px/s (機車/小客車快速左轉)
-    TIGHT_50PX: 35,    // 50px半徑 → 35 px/s (一般左轉)
-    NORMAL_70PX: 45,   // 70px半徑 → 45 px/s (正常轉向)
-    WIDE_100PX: 55,    // 100px半徑 → 55 px/s (緩轉)
+    TIGHT_30PX: 25, // 30px半徑 → 25 px/s (機車/小客車快速左轉)
+    TIGHT_50PX: 35, // 50px半徑 → 35 px/s (一般左轉)
+    NORMAL_70PX: 45, // 70px半徑 → 45 px/s (正常轉向)
+    WIDE_100PX: 55, // 100px半徑 → 55 px/s (緩轉)
     VERY_WIDE_150PX: 65, // 150px半徑 → 65 px/s (極緩轉)
   },
-  
+
   // 🔄 側向加速度限制 (pixels/frame²)
   MAX_LATERAL_ACCELERATION: 1.2,
-  
+
   // 🔄 路口轉向速度限制
   INTERSECTION_TURN_SPEED: 30, // 路口轉向速度上限 (px/s) - 最安全的轉向速度
-  
+
   // 🔄 車道寬度約束
   LANE_WIDTH: 40, // 道路車道寬度 (px)
   LANE_BOUNDARY_MARGIN: 5, // 車道邊界安全邊界 (px)
-  
+
   // 🔄 轉向檢測
   TURN_DETECTION: {
     ENABLED: true, // 啟用轉向檢測
     ANGLE_THRESHOLD: 30, // 轉向角度閾值 (度) - 超過此角度認為是轉向
     PATH_CURVATURE_THRESHOLD: 0.005, // 路徑曲率閾值 - 用於檢測曲線路段
   },
-  
+
   // 🔄 速度恢復設定
   SPEED_RECOVERY: {
     ENABLED: true, // 啟用轉向後速度恢復
     RECOVERY_ACCELERATION: 0.3, // 恢復加速度 (pixels/frame²)
     RECOVERY_DISTANCE: 100, // 轉向後多少距離恢復正常速度 (px)
   },
-  
+
   // 🔄 除錯模式
   DEBUG: {
     ENABLED: false, // 啟用除錯訊息
     LOG_SPEEDS: false, // 記錄速度變化
-  }
+  },
 }
 
 // ===== 車輛尺寸設定 (改進：解決重疊問題) =====
