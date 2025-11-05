@@ -641,6 +641,47 @@ export default class Vehicle {
     return 70
   }
 
+  // 🚨 P0 FIX #2：根據轉向半徑計算最大轉向速度
+  calculateMaxTurnSpeed(turnRadius) {
+    // 根據轉向半徑從配置表中獲取最大速度
+    const speedMap = TURN_SPEED_CONFIG.TURN_RADIUS_TO_SPEED
+    let maxTurnSpeed = speedMap.VERY_WIDE_150PX // 預設值：最寬轉向
+
+    if (turnRadius <= 30) {
+      maxTurnSpeed = speedMap.TIGHT_30PX
+    } else if (turnRadius <= 50) {
+      maxTurnSpeed = speedMap.TIGHT_50PX
+    } else if (turnRadius <= 70) {
+      maxTurnSpeed = speedMap.NORMAL_70PX
+    } else if (turnRadius <= 100) {
+      maxTurnSpeed = speedMap.WIDE_100PX
+    } else {
+      maxTurnSpeed = speedMap.VERY_WIDE_150PX
+    }
+
+    // 🚨 進一步應用路口轉向速度上限（額外安全限制）
+    const intersectionLimit = TURN_SPEED_CONFIG.INTERSECTION_TURN_SPEED
+    maxTurnSpeed = Math.min(maxTurnSpeed, intersectionLimit)
+
+    // 📊 計算速度比例 (相對於 initialSpeed)
+    // initialSpeed 的單位是 km/h，需要轉換為像素/秒進行比較
+    // 假設 100px = 15m，100 km/h ≈ 27.78 m/s ≈ 185 px/s
+    const speedMultiplier = 1.85 // px/s per 1 km/h
+    const currentMaxPixelSpeed = (this.initialSpeed || 50) * speedMultiplier
+    const speedRatio = Math.max(0, Math.min(1, maxTurnSpeed / currentMaxPixelSpeed))
+
+    if (TURN_SPEED_CONFIG.DEBUG.ENABLED) {
+      console.log(
+        `🚗 [${this.id}] calculateMaxTurnSpeed: radius=${turnRadius}, ` +
+          `maxSpeed=${maxTurnSpeed.toFixed(0)}px/s, currentMax=${currentMaxPixelSpeed.toFixed(0)}px/s, ` +
+          `ratio=${speedRatio.toFixed(3)}`,
+      )
+    }
+
+    // 確保比例在 0-1 之間，最低 0.2 (避免完全停止轉向)
+    return Math.max(0.2, Math.min(1, speedRatio))
+  }
+
   // 🚨 新增：獲取當前速度比例的輔助方法
   getCurrentSpeedRatio() {
     // 🚀 DRY 優化：使用工具類計算當前速度比例
