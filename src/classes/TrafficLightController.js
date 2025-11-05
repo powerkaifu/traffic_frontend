@@ -1824,6 +1824,89 @@ export default class TrafficLightController {
   }
 
   /**
+   * 🚦【Phase 5B 新增】預測下游擁塞狀況
+   * 查詢對向停止線的擁塞率，用於決策是否調整當前相位的綠燈時間
+   * @param {string} phase - 相位方向 ('northSouth' 或 'eastWest')
+   * @returns {Promise<number>} 下游擁塞率 (0.0 = 空, 1.0 = 滿)
+   */
+  async predictDownstreamCongestion(phase) {
+    try {
+      // 確定下游方向
+      const downstreamDirection = phase === 'northSouth' ? 'eastWest' : 'northSouth'
+
+      // 獲取下游方向的所有方向
+      const downstreamDirections = downstreamDirection === 'northSouth' ? ['north', 'south'] : ['east', 'west']
+
+      // 收集各下游方向的擁塞率
+      const congestionRates = []
+      for (const direction of downstreamDirections) {
+        const count = this.getVehiclesWaitingAtStopLine(direction)
+        const limit = STOP_LINE_VEHICLE_LIMITS[direction] || 25
+        const rate = Math.min(1.0, count / limit)
+        congestionRates.push(rate)
+      }
+
+      // 返回平均擁塞率
+      const averageCongestion = congestionRates.reduce((a, b) => a + b, 0) / congestionRates.length
+
+      // 只在 DEV 模式記錄
+      if (process.env.DEV) {
+        logInfo(
+          `🔍 [下游預測] ${phase} → ${downstreamDirection}: ` +
+            `${downstreamDirections.map((d) => `${d}=${(this.getVehiclesWaitingAtStopLine(d))}/${STOP_LINE_VEHICLE_LIMITS[d]}`).join(', ')} = ` +
+            `平均擁塞率 ${(averageCongestion * 100).toFixed(1)}%`,
+        )
+      }
+
+      return averageCongestion
+    } catch (error) {
+      logWarn(`⚠️ [下游預測] 計算失敗: ${error.message}`)
+      return 0 // 失敗時預設為無擁塞
+    }
+  }
+
+  /**
+   * 🚦【Phase 5B 新增】根據下游擁塞率調整綠燈時間
+   * @param {string} phase - 相位 ('northSouth' 或 'eastWest')
+   * @param {number} baseTiming - 基礎綠燈時間（秒）
+   * @param {number} downstreamCongestion - 下游擁塞率 (0.0-1.0)
+   * @returns {number} 調整後的綠燈時間（秒）
+   */
+  adjustTimingBasedOnCongestion(phase, baseTiming, downstreamCongestion) {
+    // 擁塞閾值配置
+    const CONGESTION_THRESHOLDS = {
+      high: 0.85, // 高度擁塞 > 85%
+      moderate: 0.70, // 中度擁塞 > 70%
+      low: 0.50, // 低度擁塞 > 50%
+    }
+
+    let adjustedTiming = baseTiming
+    let reason = '無調整'
+
+    if (downstreamCongestion > CONGESTION_THRESHOLDS.high) {
+      // 下游高度擁塞 → 縮短綠燈到 50%
+      adjustedTiming = Math.ceil(baseTiming * 0.5)
+      reason = `高度擁塞 (${(downstreamCongestion * 100).toFixed(1)}%) → 綠燈縮短至 50%`
+    } else if (downstreamCongestion > CONGESTION_THRESHOLDS.moderate) {
+      // 下游中度擁塞 → 縮短綠燈到 75%
+      adjustedTiming = Math.ceil(baseTiming * 0.75)
+      reason = `中度擁塞 (${(downstreamCongestion * 100).toFixed(1)}%) → 綠燈縮短至 75%`
+    } else if (downstreamCongestion > CONGESTION_THRESHOLDS.low) {
+      // 下游低度擁塞 → 保持 90%
+      adjustedTiming = Math.ceil(baseTiming * 0.9)
+      reason = `低度擁塞 (${(downstreamCongestion * 100).toFixed(1)}%) → 綠燈保持 90%`
+    } else {
+      // 下游暢通 → 使用完整綠燈
+      adjustedTiming = baseTiming
+      reason = '下游暢通 → 使用完整綠燈'
+    }
+
+    logInfo(`⚡ [綠燈調整] ${phase}: ${reason} (${baseTiming}s → ${adjustedTiming}s)`)
+
+    return adjustedTiming
+  }
+
+  /**
    * 檢查指定方向是否已達停止線車輛上限
    * @param {string} direction - 方向
    * @param {number} limit - 上限（預設從配置讀取）

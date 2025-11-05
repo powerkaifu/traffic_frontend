@@ -1276,6 +1276,86 @@ export class CollisionController {
   }
 
   /**
+   * 🚦【Phase 5A 新增】獲取某方向停止線的擁塞率
+   * 用於 TrafficLightController 的下游預測和 AutoTrafficGenerator 的動態限制
+   * @param {string} direction - 方向 ('north', 'south', 'east', 'west')
+   * @returns {number} 擁塞率 (0.0 = 空, 1.0 = 滿)
+   */
+  getStopLineCongestionRate(direction) {
+    const vehicles = this.getVehiclesAtStopLine(direction)
+    const limit = this._getStopLineLimit(direction)
+    return Math.min(1.0, vehicles.length / limit)
+  }
+
+  /**
+   * 🚦【Phase 5A 新增】獲取停止線前等待的車輛
+   * 篩選停止線前 50px 內、未通過停止線的車輛
+   * @param {string} direction - 方向 ('north', 'south', 'east', 'west')
+   * @returns {Array<Vehicle>} 停止線前的車輛陣列
+   */
+  getVehiclesAtStopLine(direction) {
+    if (!window.liveVehicles) return []
+
+    const stopLine = this.vehicle.getStopLinePosition()
+    if (!stopLine || (!stopLine.x && !stopLine.y)) return []
+
+    const BUFFER = 50 // 停止線前 50px 內算作「在停止線前」
+
+    return window.liveVehicles.filter((v) => {
+      // 方向必須一致
+      if (v.direction !== direction) return false
+
+      // 已通過停止線的不算
+      if (v.hasPassedStopLine) return false
+
+      const pos = v.getCurrentPosition()
+      if (!pos) return false
+
+      // 根據方向判斷是否在停止線前
+      switch (direction) {
+        case 'east':
+          return pos.x < stopLine.x + BUFFER && pos.x >= stopLine.x - 100
+        case 'west':
+          return pos.x > stopLine.x - BUFFER && pos.x <= stopLine.x + 100
+        case 'north':
+          return pos.y > stopLine.y - BUFFER && pos.y <= stopLine.y + 100
+        case 'south':
+          return pos.y < stopLine.y + BUFFER && pos.y >= stopLine.y - 100
+        default:
+          return false
+      }
+    })
+  }
+
+  /**
+   * 🚦【Phase 5A 新增】獲取某方向停止線的車輛數量
+   * @param {string} direction - 方向
+   * @returns {number} 車輛數量
+   */
+  getStopLineVehicleCount(direction) {
+    return this.getVehiclesAtStopLine(direction).length
+  }
+
+  /**
+   * 🚦【Phase 5A 新增】獲取停止線限制
+   * 從配置中獲取停止線限制值
+   * @param {string} direction - 方向
+   * @returns {number} 停止線限制 (預設 25)
+   */
+  _getStopLineLimit(direction) {
+    try {
+      // 嘗試從全局配置獲取
+      if (window.STOP_LINE_VEHICLE_LIMITS && window.STOP_LINE_VEHICLE_LIMITS[direction]) {
+        return window.STOP_LINE_VEHICLE_LIMITS[direction]
+      }
+    } catch {
+      // 忽略錯誤
+    }
+    // 預設值
+    return 25
+  }
+
+  /**
    * 設置檢查間隔
    */
   setCheckInterval(interval) {

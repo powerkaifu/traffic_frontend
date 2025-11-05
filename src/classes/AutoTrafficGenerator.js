@@ -922,7 +922,7 @@ export default class AutoTrafficGenerator {
     // � 【新增】停止線車輛限制檢查 - 先過濾掉停止線已滿的方向
     const nonFullDirs = dirs.filter((dir) => {
       const stopLineCount = this.trafficController ? this.trafficController.getVehiclesWaitingAtStopLine(dir) : 0
-      const stopLineLimit = STOP_LINE_VEHICLE_LIMITS[dir] || 30
+      const stopLineLimit = this.getAdaptiveStopLineLimit(dir) // 🚦【Phase 5C】使用動態限制而非固定值
 
       if (stopLineCount >= stopLineLimit) {
         console.log(`🚦 [停止線限制] ${dir}方向停止線已滿 (${stopLineCount}/${stopLineLimit})，暫停生成`)
@@ -1204,6 +1204,86 @@ export default class AutoTrafficGenerator {
       }),
     )
     this.statistics.total++
+  }
+
+  /**
+   * 🚦【Phase 5C 新增】根據下游擁塞率計算自適應停止線限制
+   * 如果下游方向擁塞，則減少當前方向的放行車輛數
+   * @param {string} direction - 方向 ('east', 'west', 'north', 'south')
+   * @returns {number} 動態調整後的停止線限制
+   */
+  getAdaptiveStopLineLimit(direction) {
+    try {
+      // 獲取基礎限制值
+      const baseLimit = STOP_LINE_VEHICLE_LIMITS[direction] || 25
+
+      // 如果沒有 trafficController，使用基礎限制
+      if (!this.trafficController) {
+        return baseLimit
+      }
+
+      // 獲取對向方向
+      const opposite = this._getOppositeDirection(direction)
+      if (!opposite) {
+        return baseLimit
+      }
+
+      // 獲取對向停止線的車輛數和限制
+      const oppositeCount = this.trafficController.getVehiclesWaitingAtStopLine(opposite) || 0
+      const oppositeLimit = STOP_LINE_VEHICLE_LIMITS[opposite] || 25
+
+      // 計算對向擁塞率
+      const oppositeCongestionRate = Math.min(1.0, oppositeCount / oppositeLimit)
+
+      // 根據擁塞率調整當前方向的限制
+      let dynamicLimit = baseLimit
+
+      if (oppositeCongestionRate > 0.85) {
+        // 對向高度擁塞（> 85%）→ 限制為基礎的 30%
+        dynamicLimit = Math.ceil(baseLimit * 0.3)
+        console.log(
+          `🚦 [動態限制] ${direction}方向: 對向 ${opposite} 高度擁塞 (${(oppositeCongestionRate * 100).toFixed(1)}%), ` +
+            `限制調整 ${baseLimit} → ${dynamicLimit} 台車`,
+        )
+      } else if (oppositeCongestionRate > 0.70) {
+        // 對向中度擁塞（> 70%）→ 限制為基礎的 60%
+        dynamicLimit = Math.ceil(baseLimit * 0.6)
+        console.log(
+          `🚦 [動態限制] ${direction}方向: 對向 ${opposite} 中度擁塞 (${(oppositeCongestionRate * 100).toFixed(1)}%), ` +
+            `限制調整 ${baseLimit} → ${dynamicLimit} 台車`,
+        )
+      } else if (oppositeCongestionRate > 0.50) {
+        // 對向低度擁塞（> 50%）→ 限制為基礎的 80%
+        dynamicLimit = Math.ceil(baseLimit * 0.8)
+        if (process.env.DEV) {
+          console.log(
+            `🚦 [動態限制] ${direction}方向: 對向 ${opposite} 低度擁塞 (${(oppositeCongestionRate * 100).toFixed(1)}%), ` +
+              `限制調整 ${baseLimit} → ${dynamicLimit} 台車`,
+          )
+        }
+      }
+      // 否則使用基礎限制，不記錄日誌以減少噪音
+
+      return dynamicLimit
+    } catch (error) {
+      console.warn(`⚠️ [動態限制] 計算失敗: ${error.message}`)
+      return STOP_LINE_VEHICLE_LIMITS[direction] || 25
+    }
+  }
+
+  /**
+   * 🚦【Phase 5C 新增】獲取相反方向
+   * @param {string} direction - 方向
+   * @returns {string|null} 相反方向
+   */
+  _getOppositeDirection(direction) {
+    const opposites = {
+      north: 'south',
+      south: 'north',
+      east: 'west',
+      west: 'east',
+    }
+    return opposites[direction] || null
   }
 
   _getDensity(dir) {
