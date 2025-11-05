@@ -607,6 +607,137 @@ export class CurrentSpeedUtils {
       return 1.0
     }
   }
+
+  /**
+   * 計算停止距離（基於黃燈決策邏輯）
+   * 公式：stopping_distance = (speed²) / (2 × deceleration) + safety_margin
+   *
+   * @param {number} currentSpeedRatio - 當前速度比例 (0-1)
+   * @param {number} initialSpeed - 初始速度 (px/frame)
+   * @param {number} deceleration - 減速度 (px/frame²)
+   * @param {number} safetyMargin - 安全邊距 (px)
+   * @returns {number} 停止距離
+   */
+  static calculateStoppingDistance(currentSpeedRatio, initialSpeed, deceleration, safetyMargin = 0) {
+    if (!currentSpeedRatio || !initialSpeed || !deceleration) {
+      return 0
+    }
+
+    const speedInPixelsPerFrame = currentSpeedRatio * initialSpeed
+    const stoppingDistance = (speedInPixelsPerFrame * speedInPixelsPerFrame) / (2 * deceleration) + safetyMargin
+
+    return Math.max(0, stoppingDistance)
+  }
+
+  /**
+   * 計算轉彎時的最大速度
+   * 根據轉彎半徑計算速度比例
+   *
+   * @param {number} turningRadius - 轉彎半徑 (px)
+   * @param {number} maxSpeed - 最大速度 (px/s)
+   * @returns {number} 轉彎最大速度比例 (0-1)
+   */
+  static calculateTurnSpeedRatio(turningRadius, maxSpeed = 30) {
+    if (!turningRadius || turningRadius <= 0 || !maxSpeed) {
+      return 1.0
+    }
+
+    // 根據轉彎半徑計算速度比例
+    // 轉彎半徑越小，速度比例越低
+    const speedRatio = Math.max(0.2, Math.min(1.0, turningRadius / 100))
+    return speedRatio
+  }
+
+  /**
+   * 根據燈號狀態計算應用的速度比例
+   * 用於黃燈、紅燈等特殊燈號狀態
+   *
+   * @param {string} lightState - 燈號狀態 (red, yellow, green, leftGreen, allRed)
+   * @param {number} currentSpeedRatio - 當前速度比例
+   * @param {boolean} shouldBrake - 是否應該剎車
+   * @returns {number} 應用的速度比例
+   */
+  static getSpeedRatioForLightState(lightState, currentSpeedRatio = 1.0, shouldBrake = false) {
+    if (shouldBrake) {
+      return 0 // 剎車到完全停止
+    }
+
+    // 對於不同的燈號狀態返回相應的速度比例
+    switch (lightState) {
+      case 'red':
+      case 'allRed':
+        return 0 // 紅燈時停止
+      case 'yellow':
+        return currentSpeedRatio // 黃燈時保持當前速度（由決策邏輯控制）
+      case 'green':
+      case 'leftGreen':
+        return currentSpeedRatio // 綠燈時正常速度
+      default:
+        return currentSpeedRatio
+    }
+  }
+
+  /**
+   * 計算平滑加速/減速的速度進度
+   * 使用緩動曲線計算中間速度
+   *
+   * @param {number} startSpeed - 起始速度
+   * @param {number} endSpeed - 結束速度
+   * @param {number} progress - 進度 (0-1)
+   * @param {string} easing - 緩動函式 (linear, ease-in, ease-out, ease-in-out)
+   * @returns {number} 當前速度
+   */
+  static interpolateSpeed(startSpeed, endSpeed, progress, easing = 'linear') {
+    if (progress <= 0) return startSpeed
+    if (progress >= 1) return endSpeed
+
+    let easedProgress = progress
+
+    // 應用緩動函式
+    switch (easing) {
+      case 'ease-in':
+        easedProgress = progress * progress
+        break
+      case 'ease-out':
+        easedProgress = 1 - (1 - progress) * (1 - progress)
+        break
+      case 'ease-in-out':
+        easedProgress = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress
+        break
+      case 'linear':
+      default:
+        easedProgress = progress
+        break
+    }
+
+    return startSpeed + (endSpeed - startSpeed) * easedProgress
+  }
+
+  /**
+   * 驗證速度是否有效
+   *
+   * @param {number} speed - 速度值
+   * @returns {boolean} 是否有效
+   */
+  static isValidSpeed(speed) {
+    return typeof speed === 'number' && isFinite(speed) && speed >= 0
+  }
+
+  /**
+   * 規範化速度到有效範圍
+   *
+   * @param {number} speed - 速度值
+   * @param {number} min - 最小值
+   * @param {number} max - 最大值
+   * @returns {number} 規範化後的速度
+   */
+  static normalizeSpeed(speed, min = 0, max = 1) {
+    if (!this.isValidSpeed(speed)) {
+      return min
+    }
+
+    return Math.max(min, Math.min(max, speed))
+  }
 }
 
 /**
