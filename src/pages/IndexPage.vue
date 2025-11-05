@@ -430,7 +430,7 @@ const isCarInStartArea = (carPos, direction) => {
     case 'west':
       return carPos.x > 1400 - startAreaThreshold // SVG 寬度 1400
     case 'north':
-      return carPos.y > 1000 - startAreaThreshold // SVG 高度 1000
+      return carPos.y < startAreaThreshold // 🔧 修復：往北起點在 y=600，向上移動到 y=0，所以起始區域應該是 y < 300，不是 > 700
     case 'south':
       return carPos.y < startAreaThreshold
     default:
