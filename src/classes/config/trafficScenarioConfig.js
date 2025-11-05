@@ -12,7 +12,8 @@ import { VOLUME_LIMITS_CONFIG } from './vehicleConfig.js'
 // 用途：全系統範圍內控制同時在場的車輛數量上限
 // 調用：AutoTrafficGenerator.checkVehicleLimit()、IndexPage.cleanupVehicles()
 // 作用：防止車輛生成過多導致記憶體溢出和卡頓
-// ✅ 統一分配方案：全局 100 → 每方向 25（100÷4） → 每車道 7（25÷4）
+// ✅ 統一分配方案：全域 100 → 每方向 25（100÷4） → 每車道 6（取整後 25÷4 ≈ 6.25）
+// 說明：使用 6 輛/車道可確保每方向不會超過 24 輛 (6 * 4 = 24)，低於 GLOBAL_MAX_LIVE_VEHICLES/方向 25 的上限
 // ============================================
 export const GLOBAL_MAX_LIVE_VEHICLES = 100 // ✅ 改為 100，統一分配方案基礎
 
@@ -95,8 +96,8 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 3 },
-      interval: { min: 1000, max: 8000, normal: 2500 }, // ✅ 改為更長的基礎間隔
+      vehiclesPerInterval: { min: 1, max: 1 },
+      interval: { min: 1000, max: 8000, normal: 2000 },
       peakMultiplier: 1, // 👈 尖峰倍數
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
 
@@ -148,7 +149,7 @@ export const timeScenarios = [
       vehiclesPerInterval: { min: 1, max: 2 }, // 👈 🎯 每個 interval 生成 1-2 台車
       interval: { min: 5000, max: 10000, normal: 6000 }, // ⏱️ 生成間隔，恢復原本設定
       peakMultiplier: 1.0, // 👈 離峰不加倍
-      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // ✅ 改為從配置讀取（=5）
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // ✅ 從配置讀取（預設為 1.0）
 
       // =========================================
       // 🚌 【次常調整】- 車型與系統參數
@@ -201,7 +202,7 @@ export const timeScenarios = [
       vehiclesPerInterval: { min: 1, max: 1 }, // 👈 🎯 每個 interval 生成 1-2 台車
       interval: { min: 15000, max: 40000, normal: 20000 }, // ⏱️ 生成間隔，恢復原本設定
       peakMultiplier: 1.0, // 👈 凌晨不加倍
-      displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier, // ✅ 改為從配置讀取（=2）
+      displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier, // ✅ 從配置讀取（預設為 1.0）
 
       // =========================================
       // 🚌 【次常調整】- 車型與系統參數
@@ -325,10 +326,11 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 7 && currentHour < 9) {
     return {
       name: '早尖峰',
-      interval: { min: 2000, max: 8000, normal: 5000 },
+      // 與手動情景 peak_hours 保持一致：更短的平均生成間隔與較高的每 interval 車量
+      interval: { min: 2000, max: 8000, normal: 2500 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 2 },
+      vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
         { type: 'motor', weight: 40 },
         { type: 'small', weight: 50 },
@@ -423,10 +425,11 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 17 && currentHour < 19) {
     return {
       name: '晚尖峰',
-      interval: { min: 2000, max: 8000, normal: 5000 },
+      // 與手動情景 peak_hours 保持一致
+      interval: { min: 2000, max: 8000, normal: 2500 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 2 },
+      vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
         { type: 'motor', weight: 40 },
         { type: 'small', weight: 50 },

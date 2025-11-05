@@ -168,7 +168,7 @@ export default class TrafficLightController {
       },
       // 全紅時間
       allRed: {
-        duration: 3, // 全紅階段時間（秒）
+        duration: 2, // 全紅階段時間（秒）
       },
       // API 相關時間
       api: {
