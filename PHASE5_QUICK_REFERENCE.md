@@ -4,16 +4,16 @@
 
 ### **3 個主要檔案 + 6 個新方法**
 
-| 檔案 | 方法 | 作用 | 在哪調用 |
-|-----|------|------|--------|
-| **CollisionController.js** | `getStopLineCongestionRate(dir)` | 計算擁塞率 (0.0-1.0) | TrafficLightController |
-| | `getVehiclesAtStopLine(dir)` | 取得停止線前的車輛 | TrafficLightController |
-| | `getStopLineVehicleCount(dir)` | 取得車輛數量 | 未使用 (輔助方法) |
-| | `_getStopLineLimit(dir)` | 取得停止線限制值 | 內部使用 |
-| **TrafficLightController.js** | `predictDownstreamCongestion(phase)` | 預測下游擁塞率 | runCycle() 中 |
-| | `adjustTimingBasedOnCongestion(...)` | 調整綠燈時間 | runCycle() 中 |
-| **AutoTrafficGenerator.js** | `getAdaptiveStopLineLimit(dir)` | 動態計算停止線限制 | _generateVehicle() |
-| | `_getOppositeDirection(dir)` | 取得對向方向 | getAdaptiveStopLineLimit() |
+| 檔案                          | 方法                                 | 作用                 | 在哪調用                   |
+| ----------------------------- | ------------------------------------ | -------------------- | -------------------------- |
+| **CollisionController.js**    | `getStopLineCongestionRate(dir)`     | 計算擁塞率 (0.0-1.0) | TrafficLightController     |
+|                               | `getVehiclesAtStopLine(dir)`         | 取得停止線前的車輛   | TrafficLightController     |
+|                               | `getStopLineVehicleCount(dir)`       | 取得車輛數量         | 未使用 (輔助方法)          |
+|                               | `_getStopLineLimit(dir)`             | 取得停止線限制值     | 內部使用                   |
+| **TrafficLightController.js** | `predictDownstreamCongestion(phase)` | 預測下游擁塞率       | runCycle() 中              |
+|                               | `adjustTimingBasedOnCongestion(...)` | 調整綠燈時間         | runCycle() 中              |
+| **AutoTrafficGenerator.js**   | `getAdaptiveStopLineLimit(dir)`      | 動態計算停止線限制   | \_generateVehicle()        |
+|                               | `_getOppositeDirection(dir)`         | 取得對向方向         | getAdaptiveStopLineLimit() |
 
 ---
 
@@ -42,8 +42,8 @@ const downstreamCongestion = await this.predictDownstreamCongestion('northSouth'
 // 在 TrafficLightController 中
 const adjustedTiming = this.adjustTimingBasedOnCongestion(
   'northSouth',
-  20,          // 基礎綠燈 20 秒
-  0.85         // 下游 85% 擁塞
+  20, // 基礎綠燈 20 秒
+  0.85, // 下游 85% 擁塞
 )
 // 返回: 10 表示縮短至 10 秒
 ```
@@ -67,7 +67,7 @@ const adaptiveLimit = this.getAdaptiveStopLineLimit('south')
 // TrafficLightController.adjustTimingBasedOnCongestion() 中
 const CONGESTION_THRESHOLDS = {
   high: 0.85,      // > 85% = 高度擁塞
-  moderate: 0.70,  // > 70% = 中度擁塞  
+  moderate: 0.70,  // > 70% = 中度擁塞
   low: 0.50,       // > 50% = 低度擁塞
 }
 
@@ -96,24 +96,25 @@ const CONGESTION_THRESHOLDS = {
 
 - [x] CollisionController: 4 個方法已實現並可調用
 - [x] TrafficLightController: 2 個方法已實現並可調用
-- [x] AutoTrafficGenerator: _generateVehicle() 已修改為使用動態限制
+- [x] AutoTrafficGenerator: \_generateVehicle() 已修改為使用動態限制
 
 ### **待完成** ⏳
 
 - [ ] **runCycle() 中集成預測邏輯** (最重要!)
+
   ```javascript
   // 應在 TrafficLightController.js 第 565 行附近添加：
   if (this.currentPhase === 'northSouth') {
     // ✨ 新增：預測下游
     const downstreamCongestion = await this.predictDownstreamCongestion('northSouth')
-    
+
     // ✨ 新增：調整綠燈時間
     const adjustedTiming = this.adjustTimingBasedOnCongestion(
       'northSouth',
       this.dynamicTiming.northSouth,
       downstreamCongestion
     )
-    
+
     this.updateLightState('south', 'green')
     this.updateLightState('north', 'green')
     this.updateTimer('南北向\n直行綠燈', adjustedTiming)  // 使用調整後的時間
@@ -163,21 +164,21 @@ const CONGESTION_THRESHOLDS = {
 ```javascript
 // TrafficLightController.js - adjustTimingBasedOnCongestion() 中
 CONGESTION_THRESHOLDS = {
-  high: 0.85,      // 可改為 0.80 或 0.90
-  moderate: 0.70,  // 可改為 0.65 或 0.75
-  low: 0.50,       // 可改為 0.45 或 0.55
+  high: 0.85, // 可改為 0.80 或 0.90
+  moderate: 0.7, // 可改為 0.65 或 0.75
+  low: 0.5, // 可改為 0.45 或 0.55
 }
 
 // 綠燈調整係數
-50% (高) / 75% (中) / 90% (低) / 100% (暢通)
+;((((((50 % 高) / 75) % 中) / 90) % 低) / 100) % 暢通
 // 可改為: 40% / 70% / 85% / 100% 等
 
 // AutoTrafficGenerator.js - getAdaptiveStopLineLimit() 中
-30% (高) / 60% (中) / 80% (低) / 100% (暢通)
+;((((((30 % 高) / 60) % 中) / 80) % 低) / 100) % 暢通
 // 可改為: 25% / 50% / 75% / 100% 等
 
 // CollisionController.js - getVehiclesAtStopLine() 中
-BUFFER = 50  // 停止線前 50px 視為「在停止線前」
+BUFFER = 50 // 停止線前 50px 視為「在停止線前」
 // 可改為 30, 75, 100 等
 ```
 
@@ -186,11 +187,13 @@ BUFFER = 50  // 停止線前 50px 視為「在停止線前」
 ## 🧪 測試步驟
 
 ### **1️⃣ 啟動伺服器**
+
 ```bash
 npm run dev
 ```
 
 ### **2️⃣ 觀察控制台日誌**
+
 ```
 應看到類似日誌：
 🚦 [下游預測] ...
@@ -200,16 +203,17 @@ npm run dev
 
 ### **3️⃣ 檢查現象**
 
-| 現象 | 預期 | 說明 |
-|-----|------|------|
-| 綠燈時間不固定 | 10-20 秒可變 | 證明動態調整在工作 |
+| 現象           | 預期           | 說明               |
+| -------------- | -------------- | ------------------ |
+| 綠燈時間不固定 | 10-20 秒可變   | 證明動態調整在工作 |
 | 停止線不會過滿 | 通常 < 20 台車 | 證明動態限制在工作 |
-| 回堵現象消失 | 基本不發生 | 最終目標 |
-| 車流更順暢 | 視覺明顯 | 整體改善指標 |
+| 回堵現象消失   | 基本不發生     | 最終目標           |
+| 車流更順暢     | 視覺明顯       | 整體改善指標       |
 
 ### **4️⃣ 調整參數**
 
 如果現象未如預期，調整上述「配置參數」中的數值，如：
+
 - 擁塞閾值改高 (0.85 → 0.90) 讓綠燈縮短更少
 - 調整係數改大 (50% → 60%) 讓綠燈時間變更長
 
@@ -217,14 +221,14 @@ npm run dev
 
 ## 📋 檔案位置速查表
 
-| 方法 | 檔案路徑 | 行號 |
-|-----|---------|------|
-| `getStopLineCongestionRate()` | src/classes/vehicle_utils/CollisionController.js | L1295 |
-| `getVehiclesAtStopLine()` | src/classes/vehicle_utils/CollisionController.js | L1309 |
-| `predictDownstreamCongestion()` | src/classes/TrafficLightController.js | L1842 |
-| `adjustTimingBasedOnCongestion()` | src/classes/TrafficLightController.js | L1885 |
-| `getAdaptiveStopLineLimit()` | src/classes/AutoTrafficGenerator.js | L1208 |
-| `_generateVehicle()` 修改 | src/classes/AutoTrafficGenerator.js | L925 |
+| 方法                              | 檔案路徑                                         | 行號  |
+| --------------------------------- | ------------------------------------------------ | ----- |
+| `getStopLineCongestionRate()`     | src/classes/vehicle_utils/CollisionController.js | L1295 |
+| `getVehiclesAtStopLine()`         | src/classes/vehicle_utils/CollisionController.js | L1309 |
+| `predictDownstreamCongestion()`   | src/classes/TrafficLightController.js            | L1842 |
+| `adjustTimingBasedOnCongestion()` | src/classes/TrafficLightController.js            | L1885 |
+| `getAdaptiveStopLineLimit()`      | src/classes/AutoTrafficGenerator.js              | L1208 |
+| `_generateVehicle()` 修改         | src/classes/AutoTrafficGenerator.js              | L925  |
 
 ---
 
@@ -266,7 +270,7 @@ npm run dev
 ## ✅ 檢查清單
 
 - [x] 所有 6 個方法已實現
-- [x] AutoTrafficGenerator._generateVehicle() 已使用動態限制
+- [x] AutoTrafficGenerator.\_generateVehicle() 已使用動態限制
 - [x] 所有方法都有完整的 JSDoc 註解
 - [x] ESLint 檢查通過
 - [x] git 提交成功
@@ -284,4 +288,3 @@ npm run dev
 ---
 
 **git hash**: e61a145 (Phase 5A-5C 實施) + 4c54097 (文檔)
-

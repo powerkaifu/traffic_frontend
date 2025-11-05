@@ -1853,7 +1853,7 @@ export default class TrafficLightController {
       if (process.env.DEV) {
         logInfo(
           `🔍 [下游預測] ${phase} → ${downstreamDirection}: ` +
-            `${downstreamDirections.map((d) => `${d}=${(this.getVehiclesWaitingAtStopLine(d))}/${STOP_LINE_VEHICLE_LIMITS[d]}`).join(', ')} = ` +
+            `${downstreamDirections.map((d) => `${d}=${this.getVehiclesWaitingAtStopLine(d)}/${STOP_LINE_VEHICLE_LIMITS[d]}`).join(', ')} = ` +
             `平均擁塞率 ${(averageCongestion * 100).toFixed(1)}%`,
         )
       }
@@ -1876,8 +1876,8 @@ export default class TrafficLightController {
     // 擁塞閾值配置
     const CONGESTION_THRESHOLDS = {
       high: 0.85, // 高度擁塞 > 85%
-      moderate: 0.70, // 中度擁塞 > 70%
-      low: 0.50, // 低度擁塞 > 50%
+      moderate: 0.7, // 中度擁塞 > 70%
+      low: 0.5, // 低度擁塞 > 50%
     }
 
     let adjustedTiming = baseTiming

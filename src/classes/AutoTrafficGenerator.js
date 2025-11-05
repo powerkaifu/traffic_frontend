@@ -1245,14 +1245,14 @@ export default class AutoTrafficGenerator {
           `🚦 [動態限制] ${direction}方向: 對向 ${opposite} 高度擁塞 (${(oppositeCongestionRate * 100).toFixed(1)}%), ` +
             `限制調整 ${baseLimit} → ${dynamicLimit} 台車`,
         )
-      } else if (oppositeCongestionRate > 0.70) {
+      } else if (oppositeCongestionRate > 0.7) {
         // 對向中度擁塞（> 70%）→ 限制為基礎的 60%
         dynamicLimit = Math.ceil(baseLimit * 0.6)
         console.log(
           `🚦 [動態限制] ${direction}方向: 對向 ${opposite} 中度擁塞 (${(oppositeCongestionRate * 100).toFixed(1)}%), ` +
             `限制調整 ${baseLimit} → ${dynamicLimit} 台車`,
         )
-      } else if (oppositeCongestionRate > 0.50) {
+      } else if (oppositeCongestionRate > 0.5) {
         // 對向低度擁塞（> 50%）→ 限制為基礎的 80%
         dynamicLimit = Math.ceil(baseLimit * 0.8)
         if (process.env.DEV) {

@@ -2,11 +2,11 @@
 
 ## 📋 實施概況
 
-**日期**: 2025年11月5日  
-**狀態**: ✅ **實施完成**  
-**git commit**: e61a145  
-**影響檔案**: 4 個 (CollisionController、TrafficLightController、AutoTrafficGenerator、trafficScenarioConfig)  
-**新增方法**: 6 個  
+**日期**: 2025年11月5日
+**狀態**: ✅ **實施完成**
+**git commit**: e61a145
+**影響檔案**: 4 個 (CollisionController、TrafficLightController、AutoTrafficGenerator、trafficScenarioConfig)
+**新增方法**: 6 個
 **預期改善**: 回堵現象 -90%，綠燈有效率 +35%
 
 ---
@@ -20,6 +20,7 @@
 1. **`getStopLineCongestionRate(direction)`** (L1295)
    - 計算某方向停止線的擁塞率 (0.0-1.0)
    - 使用: TrafficLightController 下游預測、AutoTrafficGenerator 動態限制
+
    ```javascript
    // 返回: 0.8 表示 80% 滿
    const rate = controller.getStopLineCongestionRate('east')
@@ -28,6 +29,7 @@
 2. **`getVehiclesAtStopLine(direction)`** (L1309)
    - 篩選停止線前 50px 內、未通過停止線的車輛
    - 返回停止線前的車輛陣列
+
    ```javascript
    // 返回: [Vehicle, Vehicle, ...]
    const vehicles = controller.getVehiclesAtStopLine('north')
@@ -35,6 +37,7 @@
 
 3. **`getStopLineVehicleCount(direction)`** (L1340)
    - 獲取停止線前的車輛數量
+
    ```javascript
    // 返回: 15 (15 台車在停止線前)
    const count = controller.getStopLineVehicleCount('south')
@@ -56,6 +59,7 @@
    - 🎯 核心方法：預測對向停止線的擁塞率
    - 查詢對向方向的所有車道，計算平均擁塞率
    - 返回: 0.0-1.0 (擁塞百分比)
+
    ```javascript
    // 南北向綠燈時，查詢東西向擁塞
    const congestion = await controller.predictDownstreamCongestion('northSouth')
@@ -71,9 +75,9 @@
    ```javascript
    // 根據下游狀況調整
    const adjusted = controller.adjustTimingBasedOnCongestion(
-     'northSouth', 
-     20,      // 基礎綠燈 20 秒
-     0.87     // 下游 87% 擁塞
+     'northSouth',
+     20, // 基礎綠燈 20 秒
+     0.87, // 下游 87% 擁塞
    )
    // 返回: 10 (縮短至 10 秒)
    ```
@@ -94,6 +98,7 @@
    - 對向 > 70% 擁塞 → 限制 60% (25 → 15 台車)
    - 對向 > 50% 擁塞 → 限制 80% (25 → 20 台車)
    - 對向 ≤ 50% 擁塞 → 使用完整限制 (25 台車)
+
    ```javascript
    // 根據對向擁塞率調整
    const limit = generator.getAdaptiveStopLineLimit('south')
@@ -102,6 +107,7 @@
 
 2. **`_getOppositeDirection(direction)`** (L1264)
    - 私有方法：獲取相反方向
+
    ```javascript
    // 'north' → 'south', 'east' → 'west'
    const opposite = this._getOppositeDirection('north')
@@ -115,7 +121,8 @@
    // 下游擁塞時，停止線限制自動縮小
    ```
 
-**檔案位置**: 
+**檔案位置**:
+
 - 新方法: `src/classes/AutoTrafficGenerator.js` (L1208-1278)
 - 修改: `src/classes/AutoTrafficGenerator.js` (L925)
 
@@ -123,12 +130,12 @@
 
 ## 📊 修改統計
 
-| 檔案 | 新增行數 | 修改行數 | 新增方法 | 說明 |
-|-----|--------|--------|--------|------|
-| CollisionController.js | 68 | 0 | 4 | 擁塞率計算 |
-| TrafficLightController.js | 86 | 0 | 2 | 下游預測與調整 |
-| AutoTrafficGenerator.js | 71 | 1 | 2 | 動態限制 + 邏輯修改 |
-| **合計** | **225** | **1** | **8** | - |
+| 檔案                      | 新增行數 | 修改行數 | 新增方法 | 說明                |
+| ------------------------- | -------- | -------- | -------- | ------------------- |
+| CollisionController.js    | 68       | 0        | 4        | 擁塞率計算          |
+| TrafficLightController.js | 86       | 0        | 2        | 下游預測與調整      |
+| AutoTrafficGenerator.js   | 71       | 1        | 2        | 動態限制 + 邏輯修改 |
+| **合計**                  | **225**  | **1**    | **8**    | -                   |
 
 ---
 
@@ -232,13 +239,13 @@ AutoTrafficGenerator._generateVehicle() 在決定是否放行新車時：
 
 ### **量化指標**
 
-| 指標 | 現況 | 預期 | 改善 |
-|-----|------|------|------|
-| 回堵現象 | 發生頻繁 🔴 | 基本消除 ✅ | -90% |
-| 綠燈有效率 | 60% | 95% | +35% |
-| 車流通過量 | 低 | 高 | +50% |
-| 平均停等時間 | 長 | 短 | -40% |
-| CPU 影響 | - | 32-41% | 無影響 ✅ |
+| 指標         | 現況        | 預期        | 改善      |
+| ------------ | ----------- | ----------- | --------- |
+| 回堵現象     | 發生頻繁 🔴 | 基本消除 ✅ | -90%      |
+| 綠燈有效率   | 60%         | 95%         | +35%      |
+| 車流通過量   | 低          | 高          | +50%      |
+| 平均停等時間 | 長          | 短          | -40%      |
+| CPU 影響     | -           | 32-41%      | 無影響 ✅ |
 
 ---
 
@@ -247,25 +254,27 @@ AutoTrafficGenerator._generateVehicle() 在決定是否放行新車時：
 ### **需要在下次迭代完成的工作**
 
 1. **在 runCycle() 中集成預測邏輯**
+
    ```javascript
    // 應在 第 565 行（南北綠燈處）添加：
    const downstreamCongestion = await this.predictDownstreamCongestion('northSouth')
    const adjustedTiming = this.adjustTimingBasedOnCongestion(
      'northSouth',
      this.dynamicTiming.northSouth,
-     downstreamCongestion
+     downstreamCongestion,
    )
-   
+
    // 然後使用 adjustedTiming 而非 this.dynamicTiming.northSouth
    ```
 
 2. **監控日誌並調整擁塞閾值**
+
    ```javascript
    // 根據實際運行情況調整這些閾值：
    const CONGESTION_THRESHOLDS = {
-     high: 0.85,      // 可能需要調整為 0.80 或 0.90
-     moderate: 0.70,  // 可能需要調整
-     low: 0.50,       // 可能需要調整
+     high: 0.85, // 可能需要調整為 0.80 或 0.90
+     moderate: 0.7, // 可能需要調整
+     low: 0.5, // 可能需要調整
    }
    ```
 
@@ -277,11 +286,11 @@ AutoTrafficGenerator._generateVehicle() 在決定是否放行新車時：
 
 ## 📝 git 提交歷史
 
-| 提交 | 信息 | 時間 |
-|-----|------|------|
+| 提交    | 信息                          | 時間       |
+| ------- | ----------------------------- | ---------- |
 | e61a145 | Phase 5A-5C: 實施回堵防止系統 | 2025-11-05 |
-| 8f16a89 | 修復：恢復南北向倒數十秒顯示 | 前期 |
-| 7c8186c | Phase 4: 全局參數調整 | 前期 |
+| 8f16a89 | 修復：恢復南北向倒數十秒顯示  | 前期       |
+| 7c8186c | Phase 4: 全局參數調整         | 前期       |
 
 ---
 
@@ -308,7 +317,7 @@ AutoTrafficGenerator._generateVehicle() 在決定是否放行新車時：
 ```
 舊系統 (線性): 給綠燈 → 放車 → 堵住 ❌
 
-新系統 (反饋): 
+新系統 (反饋):
     查詢下游
         ↓
     做出決策
@@ -338,16 +347,19 @@ AutoTrafficGenerator._generateVehicle() 在決定是否放行新車時：
 ## 🚀 建議後續步驟
 
 ### **立即可做**
+
 1. 啟動開發伺服器測試
 2. 監控控制台日誌，觀察擁塞率數值
 3. 調整擁塞閾值 (0.85, 0.70, 0.50)
 
 ### **短期 (1-2 天)**
+
 1. Phase 5D: 在 TrafficLightController.runCycle() 中集成預測
 2. 測試綠燈時間動態調整
 3. 驗證回堵現象是否消除
 
 ### **中期 (1 週)**
+
 1. Phase 5D: 配置文件優化
 2. 性能監控 (CPU、記憶體)
 3. 微調所有參數
@@ -357,6 +369,7 @@ AutoTrafficGenerator._generateVehicle() 在決定是否放行新車時：
 ## 📌 重點結論
 
 **Phase 5A-5C 實施完成** ✅
+
 - ✅ 添加了下游擁塞預測機制
 - ✅ 實現了動態信號協調
 - ✅ 支持自適應停止線限制
@@ -369,6 +382,5 @@ AutoTrafficGenerator._generateVehicle() 在決定是否放行新車時：
 
 ---
 
-**git hash**: e61a145  
+**git hash**: e61a145
 **所有方法已完成並可直接調用** ✅
-
