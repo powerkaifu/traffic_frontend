@@ -1006,7 +1006,12 @@ export class CollisionController {
 
     // 紅燈和黃燈時，始終進行碰撞檢測（不受停止線距離限制）
     // 其他狀態只在停止線附近檢測
-    if (stopLineInfo.lightState !== 'red' && stopLineInfo.lightState !== 'yellow' && !stopLineInfo.isNear && vehicleSpeed <= 1.5) {
+    if (
+      stopLineInfo.lightState !== 'red' &&
+      stopLineInfo.lightState !== 'yellow' &&
+      !stopLineInfo.isNear &&
+      vehicleSpeed <= 1.5
+    ) {
       return null // 非紅/黃燈且遠離停止線且低速，不檢測
     }
 
