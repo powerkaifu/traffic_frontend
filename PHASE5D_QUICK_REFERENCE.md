@@ -6,12 +6,12 @@
 
 ## 根本原因 (3 個主要問題)
 
-| # | 問題 | 位置 | 影響 | 修復 |
-|---|-----|------|------|------|
-| 🔴 | Console.log 不斷打印 | L1244, L1251, L928 | -15-20% CPU | 條件化打印 |
-| 🟠 | 陣列過濾無快取 | L924, L1232 (8 次呼叫) | -10-15% CPU | 添加快取 |
-| 🟠 | 重複計算相同值 | getAdaptiveStopLineLimit() | -5-10% CPU | 快取機制 |
-| | **總計** | | **-23-32% CPU** | ✅ |
+| #   | 問題                 | 位置                       | 影響            | 修復       |
+| --- | -------------------- | -------------------------- | --------------- | ---------- |
+| 🔴  | Console.log 不斷打印 | L1244, L1251, L928         | -15-20% CPU     | 條件化打印 |
+| 🟠  | 陣列過濾無快取       | L924, L1232 (8 次呼叫)     | -10-15% CPU     | 添加快取   |
+| 🟠  | 重複計算相同值       | getAdaptiveStopLineLimit() | -5-10% CPU      | 快取機制   |
+|     | **總計**             |                            | **-23-32% CPU** | ✅         |
 
 ## 修復實施
 
@@ -20,7 +20,7 @@
 ```javascript
 // 位置: AutoTrafficGenerator.js L928, L1244, L1251
 if (process.env.DEV) {
-  console.log(`🚦 [動態限制] ...`)  // 只在開發模式打印
+  console.log(`🚦 [動態限制] ...`) // 只在開發模式打印
 }
 ```
 
@@ -30,13 +30,12 @@ if (process.env.DEV) {
 // 位置: 構造函數 L23-26
 this._congestionCache = {}
 this._cacheTimestamp = 0
-this._CACHE_DURATION = 150  // 毫秒
+this._CACHE_DURATION = 150 // 毫秒
 
 // 位置: getAdaptiveStopLineLimit() L1224
 const now = Date.now()
-if (now - this._cacheTimestamp < this._CACHE_DURATION && 
-    this._congestionCache[direction] !== undefined) {
-  return this._congestionCache[direction]  // ← 4 次檢查中只計算 1 次
+if (now - this._cacheTimestamp < this._CACHE_DURATION && this._congestionCache[direction] !== undefined) {
+  return this._congestionCache[direction] // ← 4 次檢查中只計算 1 次
 }
 ```
 
@@ -52,7 +51,7 @@ if (now - this._cacheTimestamp < this._CACHE_DURATION &&
 1. **啟動伺服器**: `quasar dev`
 2. **打開瀏覽器**: http://localhost:port
 3. **監控 CPU**: Windows 工作管理員
-4. **預期結果**: 
+4. **預期結果**:
    - ✓ CPU 回到 32-41%
    - ✓ 風扇停止聲噪
    - ✓ 系統恢復平靜
@@ -62,7 +61,7 @@ if (now - this._cacheTimestamp < this._CACHE_DURATION &&
 ```
 ✓ 動態停止線限制仍然生效
 ✓ 車輛生成正常
-✓ 交通燈控制正常  
+✓ 交通燈控制正常
 ✓ 防溢出機制有效
 ```
 
