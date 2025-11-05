@@ -236,10 +236,11 @@ export const COLLISION_CONFIG = {
   },
 
   // ⏱️ 檢測間隔設定（毫秒）
-  // 🆕 優化 1：120ms → 150ms（減少 20% CPU 計算，保持碰撞準確度）
-  // 預期: FPS +3-5, CPU 使用率 -20%
-  CHECK_INTERVAL: 150, // 改為 150ms，每秒 6.7 次檢測（足夠準確）
-  SIMPLE_CHECK_INTERVAL: 25, // ✅ 改為 25ms，也提高頻率
+  // 🆕 優化 1：120ms → 150ms → 175ms（Phase 2B 溫和方案，減少 14% CPU 計算）
+  // 預期: FPS +2-3, CPU 使用率 -5-8%
+  // 說明: 每秒檢測從 6.7 次 → 5.7 次，碰撞準確度仍可維持
+  CHECK_INTERVAL: 175, // 改為 175ms，每秒 5.7 次檢測（足夠準確，更省 CPU）
+  SIMPLE_CHECK_INTERVAL: 25, // ✅ 保持 25ms（簡化檢測保持高頻）
 
   // 🆕 TIME_MULTIPLIER 補償設定 - 解決快速動畫時碰撞失效問題
   // 當 TIME_MULTIPLIER < 1（動畫加速）時，自動調整檢查間隔
