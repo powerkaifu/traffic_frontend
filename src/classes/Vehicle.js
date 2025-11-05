@@ -519,6 +519,88 @@ export default class Vehicle {
     return StopLineUtils.shouldStop(this.stopLineController)
   }
 
+  // 🨨 新增：統一停止線檢查和交通燈響應
+  // Command Pattern: 將停止線檢查和交通燈響應邏輯封裝為一個命令
+  checkStopLineAndRespond(trafficController, allVehicles = []) {
+    // 檢查四個前置條件
+    if (this.hasPassedStopLine || !this.checkStopLine() || this.waitingForGreen || this.isAtStopLine) {
+      return // 前置條件不滿足，無需響應
+    }
+
+    // 設置已到達停止線標記
+    this.isAtStopLine = true
+    const lightState = trafficController.getCurrentLightState(this.direction)
+
+    // 🟡 P0 FIX #1：決定是否停止（基於燈號和決策邏輯）
+    let shouldStop = false
+    if (lightState === 'yellow') {
+      // 🟡 黃燈時：使用新的決策邏輯
+      const decision = this.makeYellowLightDecision()
+      shouldStop = decision.action === 'brake'
+      if (YELLOW_LIGHT_DECISION_CONFIG.DEBUG.ENABLED) {
+        console.log(`🟡 [${this.id}] 黃燈決策執行: ${decision.decision} → ${decision.action}`)
+      }
+    } else {
+      // 紅燈、全紅、或其他燈號
+      shouldStop = lightState === 'red' || lightState === 'allRed' || (this.laneNumber === 1 && lightState === 'green') // 1號車道（左轉）在直行綠燈時停止
+    }
+
+    // 🚦 執行停止邏輯
+    if (shouldStop) {
+      this._performStopAtLine(lightState)
+      return
+    }
+
+    // 🚦 檢查是否可以通過停止線
+    const canProceed = this._canProceedThroughStopLine(lightState)
+    if (canProceed) {
+      // 可以通過停止線
+      this.isAtStopLine = false
+      this.hasPassedStopLine = true
+    } else {
+      // 不能通過，需要等待
+      this._performStopAtLine(lightState)
+    }
+  }
+
+  // Helper Method: 執行停止邏輯
+  _performStopAtLine(lightState) {
+    if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
+      // 如果正在減速，平滑停止
+      gsap.to(this.movementTimeline, {
+        timeScale: 0,
+        duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.INSTANT,
+        ease: ANIMATION_CONFIG.EASING.NONE,
+        onComplete: () => {
+          this.stopMovement()
+          this.waitingForGreen = true
+          // 設置1號車道的等待狀態
+          if (this.laneNumber === 1 && lightState === 'green') {
+            this.currentState = 'waitingForLeftTurnGreen'
+          }
+        },
+      })
+    } else {
+      // 直接停止
+      this.stopMovement()
+      this.waitingForGreen = true
+      // 設置1號車道的等待狀態
+      if (this.laneNumber === 1 && lightState === 'green') {
+        this.currentState = 'waitingForLeftTurnGreen'
+      }
+    }
+  }
+
+  // Helper Method: 檢查是否可以通過停止線
+  _canProceedThroughStopLine(lightState) {
+    // 🚨 修正：檢查1號車道是否為左轉綠燈
+    const isNonLane1GreenLight = this.laneNumber !== 1 && lightState === 'green'
+    const isLane1LeftTurnGreen = this.laneNumber === 1 && lightState === 'leftGreen'
+    const isYellowAndCanAccelerate = lightState === 'yellow' && this.makeYellowLightDecision().action === 'accelerate'
+
+    return isNonLane1GreenLight || isLane1LeftTurnGreen || isYellowAndCanAccelerate
+  }
+
   // Template Method Pattern: 計算車輛到停止線距離的模板方法
   // 🚀 簡化：委託給停止線控制器
   getDistanceToStopLine() {
@@ -1293,70 +1375,7 @@ export default class Vehicle {
               }
 
               // 停止線檢查和紅綠燈控制流程
-              if (!this.hasPassedStopLine && this.checkStopLine() && !this.waitingForGreen && !this.isAtStopLine) {
-                this.isAtStopLine = true
-                const lightState = trafficController.getCurrentLightState(this.direction)
-
-                // 🚨 P0 FIX #1：改進黃燈決策邏輯
-                let shouldStop = false
-
-                if (lightState === 'yellow') {
-                  // 🟡 黃燈時：使用新的決策邏輯
-                  const decision = this.makeYellowLightDecision()
-                  shouldStop = decision.action === 'brake'
-                  if (YELLOW_LIGHT_DECISION_CONFIG.DEBUG.ENABLED) {
-                    console.log(`🟡 [${this.id}] 黃燈決策執行: ${decision.decision} → ${decision.action}`)
-                  }
-                } else {
-                  // 紅燈、全紅、或其他燈號
-                  shouldStop =
-                    lightState === 'red' || lightState === 'allRed' || (this.laneNumber === 1 && lightState === 'green') // ✅ 只在"直行綠燈"時停止，"左轉綠燈"時放行
-                }
-
-                if (shouldStop) {
-                  if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
-                    gsap.to(this.movementTimeline, {
-                      timeScale: 0,
-                      duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.INSTANT, // 幾乎立即停車，消除停止線緩速
-                      ease: ANIMATION_CONFIG.EASING.NONE,
-                      onComplete: () => {
-                        this.stopMovement()
-                        this.waitingForGreen = true
-                        // 設置1號車道的等待狀態
-                        if (this.laneNumber === 1 && lightState === 'green') {
-                          this.currentState = 'waitingForLeftTurnGreen'
-                        }
-                      },
-                    })
-                  } else {
-                    this.stopMovement()
-                    this.waitingForGreen = true
-                    // 設置1號車道的等待狀態
-                    if (this.laneNumber === 1 && lightState === 'green') {
-                      this.currentState = 'waitingForLeftTurnGreen'
-                    }
-                  }
-                } else {
-                  // 🚨 修正：檢查1號車道是否為左轉綠燈
-                  const canProceed =
-                    (this.laneNumber !== 1 && lightState === 'green') || // 非1號車道的綠燈
-                    (this.laneNumber === 1 && lightState === 'leftGreen') || // 1號車道的左轉綠燈
-                    (lightState === 'yellow' && this.makeYellowLightDecision().action === 'accelerate') // 🟡 黃燈決策允許通過
-
-                  if (canProceed) {
-                    // 可以通過停止線
-                    this.isAtStopLine = false
-                    this.hasPassedStopLine = true
-                  } else {
-                    // 不能通過，需要等待
-                    this.stopMovement()
-                    this.waitingForGreen = true
-                    if (this.laneNumber === 1) {
-                      this.currentState = 'waitingForLeftTurnGreen'
-                    }
-                  }
-                }
-              }
+              this.checkStopLineAndRespond(trafficController, allVehicles)
             },
             onComplete: () => {
               // 清理定期檢查定時器
