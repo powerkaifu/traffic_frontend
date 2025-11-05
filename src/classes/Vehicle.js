@@ -562,7 +562,7 @@ export default class Vehicle {
     // 計算安全停止距離
     // 公式：stopping_distance = (speed²) / (2 × deceleration) + safety_margin
     const deceleration = YELLOW_LIGHT_DECISION_CONFIG.DECELERATION_RATE
-    const speedInPixelsPerFrame = currentSpeed * this.getMaximumBaseSpeed()
+    const speedInPixelsPerFrame = currentSpeed * this.initialSpeed
     const stoppingDistance =
       (speedInPixelsPerFrame * speedInPixelsPerFrame) / (2 * deceleration) +
       YELLOW_LIGHT_DECISION_CONFIG.SAFE_STOPPING_MARGIN
