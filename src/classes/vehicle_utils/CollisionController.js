@@ -2,7 +2,7 @@
  * 碰撞控制器
  * 負責處理所有碰撞檢測與跟車相關邏輯，讓 Vehicle.js 保持簡潔
  * 整合了 SimpleCollisionDetector 的功能
- * 
+ *
  * 🚀 第1階段優化：集成 SpatialHashGrid
  * - 將碰撞檢測從 O(n) 優化到 O(1) 查詢
  * - 預期 CPU 減少 60-70%
@@ -1181,7 +1181,9 @@ export class CollisionController {
       // 進一步篩選只保留同方向同車道的車輛
       sameDirectionVehicles = nearbyVehicles.filter(
         (v) =>
-          v.id !== this.vehicle.id && v.direction === this.vehicle.direction && v.laneNumber === this.vehicle.laneNumber,
+          v.id !== this.vehicle.id &&
+          v.direction === this.vehicle.direction &&
+          v.laneNumber === this.vehicle.laneNumber,
       )
     }
 
@@ -1231,12 +1233,12 @@ export class CollisionController {
 
     // 首先嘗試使用緩存的前車
     const cachedFront = this.getCachedFrontVehicle(sameDirectionVehicles)
-    
+
     if (cachedFront) {
       const cachedFrontPos = cachedFront.getCurrentPosition()
       if (cachedFrontPos) {
         const cachedDistance = this.calculateDirectionalDistance(myPos, cachedFrontPos)
-        
+
         // 如果緩存的前車仍然有效（在有效檢測範圍內），直接使用
         if (cachedDistance > 0 && cachedDistance < COLLISION_CONFIG.DETECTION_DISTANCES.SLOW_DISTANCE * 1.5) {
           closestThreat = {
@@ -1252,7 +1254,11 @@ export class CollisionController {
 
             const distance = this.calculateDirectionalDistance(myPos, otherPos)
 
-            if (distance > 0 && distance < COLLISION_CONFIG.DETECTION_DISTANCES.SLOW_DISTANCE && distance < minDistance) {
+            if (
+              distance > 0 &&
+              distance < COLLISION_CONFIG.DETECTION_DISTANCES.SLOW_DISTANCE &&
+              distance < minDistance
+            ) {
               minDistance = distance
               closestThreat = {
                 vehicle: other,
@@ -1260,7 +1266,7 @@ export class CollisionController {
               }
             }
           }
-          
+
           // 更新緩存
           if (closestThreat) {
             this.cachedFrontVehicle = closestThreat.vehicle

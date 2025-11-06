@@ -10,13 +10,13 @@
 
 ### 優化前後對比
 
-| 指標 | 優化前 | 優化後 | 改進幅度 |
-|------|--------|--------|---------|
-| 碰撞檢測複雜度 | O(n²) | O(1) | **-99%** ⭐ |
-| 前車搜索頻率 | 60 Hz | 10 Hz (緩存) | **-83%** |
-| 黃燈決策頻率 | 60 Hz | 20 Hz (緩存) | **-67%** |
-| CSS 性能開銷 | 有 filter 效果 | 已清除 | **-30-50%** ✅ |
-| **估計 CPU 佔用率** | **70-85%** | **15-25%** | **-70-75%** 🎯 |
+| 指標                | 優化前         | 優化後       | 改進幅度       |
+| ------------------- | -------------- | ------------ | -------------- |
+| 碰撞檢測複雜度      | O(n²)          | O(1)         | **-99%** ⭐    |
+| 前車搜索頻率        | 60 Hz          | 10 Hz (緩存) | **-83%**       |
+| 黃燈決策頻率        | 60 Hz          | 20 Hz (緩存) | **-67%**       |
+| CSS 性能開銷        | 有 filter 效果 | 已清除       | **-30-50%** ✅ |
+| **估計 CPU 佔用率** | **70-85%**     | **15-25%**   | **-70-75%** 🎯 |
 
 ### 預期運行效果
 
@@ -45,34 +45,42 @@ class SpatialHashGrid {
   constructor(width, height, cellSize = 150) {
     this.cols = Math.ceil(width / cellSize)
     this.rows = Math.ceil(height / cellSize)
-    this.grid = this._initializeGrid()  // 2D 陣列
+    this.grid = this._initializeGrid() // 2D 陣列
   }
 
   // 插入車輛到對應網格單元
-  insert(vehicle) { /* ... */ }
+  insert(vehicle) {
+    /* ... */
+  }
 
   // 查詢指定位置附近的車輛（只檢查 3x3 區域）
-  getNearbyCells(x, y, searchRadius = 1) { /* ... */ }
+  getNearbyCells(x, y, searchRadius = 1) {
+    /* ... */
+  }
 
   // 每幀重建網格
-  rebuild(allVehicles) { /* ... */ }
+  rebuild(allVehicles) {
+    /* ... */
+  }
 }
 ```
 
 #### 集成點
 
 1. **IndexPage.vue**
+
    ```javascript
    // 在 onMounted 中初始化
    const containerRect = crossroadContainer.value.getBoundingClientRect()
    CollisionController.initializeSpatialGrid(
      containerRect.width,
      containerRect.height,
-     150  // 推薦的網格單元大小
+     150, // 推薦的網格單元大小
    )
    ```
 
 2. **Vehicle.js - onUpdate 回調**
+
    ```javascript
    // 每幀重建網格（成本: O(n)，但換得後續 O(1) 查詢）
    if (allVehicles.length > 0) {
@@ -110,10 +118,10 @@ class SpatialHashGrid {
 
 ```javascript
 // 在 constructor 中添加
-this.cachedFrontVehicle = null        // 緩存的前方車輛
-this.cachedFrontDistance = Infinity   // 緩存的距離
-this.lastFrontVehicleUpdateTime = 0   // 上次更新時間
-this.frontVehicleCacheUpdateInterval = 100  // 更新間隔 (100ms)
+this.cachedFrontVehicle = null // 緩存的前方車輛
+this.cachedFrontDistance = Infinity // 緩存的距離
+this.lastFrontVehicleUpdateTime = 0 // 上次更新時間
+this.frontVehicleCacheUpdateInterval = 100 // 更新間隔 (100ms)
 
 // 新增方法: getCachedFrontVehicle()
 // - 檢查緩存是否有效（距上次更新是否超過 100ms）
@@ -268,6 +276,7 @@ makeYellowLightDecision() {
 ### 使用 Chrome DevTools
 
 1. **打開 Performance 標籤頁**
+
    ```
    按 F12 → Performance 標籤 → 錄製 (Ctrl+Shift+E)
    ```
@@ -301,14 +310,14 @@ CollisionController.spatialGrid?.getStats()
 
 ### 運行 100 台車輛時
 
-| 指標 | 預期值 | 驗證方法 |
-|------|--------|---------|
-| FPS | 60 ± 2 | DevTools 上部 |
-| CPU 佔用 | 15-25% | Task Manager |
-| 記憶體 | 150-250 MB | Task Manager |
-| 碰撞檢測/幀 | < 100 次 | Console logs |
-| 無穿透碰撞 | 100% | 視覺檢查 |
-| 信號燈邏輯 | 100% 正確 | 邏輯驗證 |
+| 指標        | 預期值     | 驗證方法      |
+| ----------- | ---------- | ------------- |
+| FPS         | 60 ± 2     | DevTools 上部 |
+| CPU 佔用    | 15-25%     | Task Manager  |
+| 記憶體      | 150-250 MB | Task Manager  |
+| 碰撞檢測/幀 | < 100 次   | Console logs  |
+| 無穿透碰撞  | 100%       | 視覺檢查      |
+| 信號燈邏輯  | 100% 正確  | 邏輯驗證      |
 
 ---
 
@@ -319,6 +328,7 @@ CollisionController.spatialGrid?.getStats()
 **原因**: SpatialHashGrid 未正確初始化或重建
 
 **解決方案**:
+
 1. 檢查 Chrome DevTools Console 是否有初始化日誌
 2. 驗證 `CollisionController.spatialGrid` 是否非 null
 3. 檢查 `rebuild()` 是否在每幀調用
@@ -328,6 +338,7 @@ CollisionController.spatialGrid?.getStats()
 **原因**: 可能還有其他性能瓶頸 (如非 Vehicle 代碼)
 
 **解決方案**:
+
 1. 使用 Chrome DevTools Performance 錄製
 2. 查看 Main Thread 的主要耗時函數
 3. 檢查是否有無限迴圈或阻塞操作
@@ -337,6 +348,7 @@ CollisionController.spatialGrid?.getStats()
 **原因**: 決策緩存時間間隔設置不當
 
 **解決方案**:
+
 - 調整 `yellowDecisionCacheInterval` (當前 50ms)
 - 或檢查 `lastYellowDecisionTime` 的更新邏輯
 
@@ -345,9 +357,11 @@ CollisionController.spatialGrid?.getStats()
 ## 📝 代碼變更摘要
 
 ### 新增文件
+
 - `src/classes/optimization/SpatialHashGrid.js` (170 行)
 
 ### 修改文件
+
 1. **CollisionController.js**
    - 新增: 靜態 SpatialHashGrid 初始化
    - 新增: 前車緩存機制 (3 個新方法)
@@ -363,7 +377,8 @@ CollisionController.spatialGrid?.getStats()
    - 新增: SpatialHashGrid 初始化 (onMounted)
 
 ### 移除的代碼
-- ❌ 車輛元素的 `filter: drop-shadow()` 
+
+- ❌ 車輛元素的 `filter: drop-shadow()`
 - ❌ 車道標籤的 `box-shadow`
 - ❌ 未使用的 `vehicleType` 變數
 

@@ -130,12 +130,12 @@ export default class Vehicle {
 
     // 🌤️ 【新增】天氣相關屬性
     this.weatherMultiplier = 1.0 // 初始天氣倍數為 1.0 (晴天)
-    
+
     // 🚀 第3階段優化：黃燈決策降頻和緩存
     this.lastYellowDecisionTime = 0 // 上次黃燈決策的時間
     this.yellowDecisionCacheInterval = 50 // 黃燈決策檢查間隔（毫秒，20 Hz）
     this.cachedYellowDecision = null // 緩存的黃燈決策結果
-    
+
     // 嘗試從 window.liveVehicles 或 vehicleAdded 事件取得 speed
     let externalSpeed = null
     if (window.liveVehicles && Array.isArray(window.liveVehicles)) {

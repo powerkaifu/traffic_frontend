@@ -6,13 +6,13 @@
 
 ### 快速成效
 
-| 項目 | 改進 |
-|------|------|
-| 💾 碰撞檢測 | O(n²) → O(1)，減少 **99%** 計算 |
-| 🚗 前車搜索 | 60 Hz → 10 Hz (緩存)，減少 **99.7%** |
-| 🟡 黃燈決策 | 60 Hz → 20 Hz (緩存)，減少 **66.7%** |
+| 項目        | 改進                                  |
+| ----------- | ------------------------------------- |
+| 💾 碰撞檢測 | O(n²) → O(1)，減少 **99%** 計算       |
+| 🚗 前車搜索 | 60 Hz → 10 Hz (緩存)，減少 **99.7%**  |
+| 🟡 黃燈決策 | 60 Hz → 20 Hz (緩存)，減少 **66.7%**  |
 | 💨 CSS 效果 | 移除 drop-shadow，減少 **30-50%** GPU |
-| **總 CPU** | **下降 70-75%** 🎉 |
+| **總 CPU**  | **下降 70-75%** 🎉                    |
 
 ---
 
@@ -50,6 +50,7 @@ for (let i = 0; i < 25; i++) {
 5. 停止錄製，查看結果
 
 **預期指標**:
+
 - ✅ FPS: **60 ± 2**
 - ✅ CPU 使用率: **15-25%** (黃色條)
 - ✅ 記憶體: **150-250 MB**
@@ -86,13 +87,13 @@ window.autoTrafficGenerator?.switchToScenarioMode('peak_hours')
 
 ### ✅ 應該看到的改進
 
-| 現象 | 優化前 | 優化後 |
-|------|--------|--------|
+| 現象         | 優化前          | 優化後       |
+| ------------ | --------------- | ------------ |
 | 100 台車運行 | 卡頓、20-30 FPS | 平滑、60 FPS |
-| CPU 風扇 | 嗡嗡叫 | 靜默 |
-| 記憶體 | 300+ MB | 150-250 MB |
-| 碰撞穿透 | 頻繁出現 | 極少 |
-| 信號燈響應 | 延遲 2-3 秒 | 瞬間反應 |
+| CPU 風扇     | 嗡嗡叫          | 靜默         |
+| 記憶體       | 300+ MB         | 150-250 MB   |
+| 碰撞穿透     | 頻繁出現        | 極少         |
+| 信號燈響應   | 延遲 2-3 秒     | 瞬間反應     |
 
 ### ❌ 不應該出現的問題
 
@@ -111,7 +112,7 @@ window.autoTrafficGenerator?.switchToScenarioMode('peak_hours')
 
 ```
 碰撞檢測流程:
-車輛位置 (100, 200) 
+車輛位置 (100, 200)
   ↓ 所在格子 (0, 1) 中有 2 台車
     ├─ 檢查前車 1: 距離 20px → 必須停止
     ├─ 檢查前車 2: 距離 500px → 無關
@@ -120,7 +121,8 @@ window.autoTrafficGenerator?.switchToScenarioMode('peak_hours')
 結果: 從 O(100) 搜索 → O(2-3) 搜索
 ```
 
-**看得見的效果**: 
+**看得見的效果**:
+
 - DevTools 中 `checkSimpleCollision` 調用次數大幅減少
 - 每幀碰撞檢測時間 < 1ms
 
@@ -140,6 +142,7 @@ window.autoTrafficGenerator?.switchToScenarioMode('peak_hours')
 ```
 
 **看得見的效果**:
+
 - `getCachedFrontVehicle` 大部分返回緩存
 - 偶爾 1-2 幀進行實際搜索
 
@@ -161,6 +164,7 @@ Frame 5: 快取  → "accelerate"  ← 不計算
 ```
 
 **看得見的效果**:
+
 - 黃燈時車輛反應依然平滑 (視覺上無差異)
 - 決策邏輯執行次數從 3600/秒 → 1200/秒
 
@@ -208,11 +212,13 @@ Frame 5: 快取  → "accelerate"  ← 不計算
 ### 問題: FPS 仍然 < 50
 
 **檢查清單**:
+
 1. ✅ 是否啟用了其他瀏覽器擴展? (關閉試試)
 2. ✅ 記憶體是否占用過高? (監控 Task Manager)
 3. ✅ 是否同時運行其他耗資源程序?
 
 **解決**:
+
 ```javascript
 // 檢查 SpatialHashGrid 是否正確工作
 console.log(CollisionController.spatialGrid?.getStats())
@@ -222,13 +228,15 @@ console.log(CollisionController.spatialGrid?.getStats())
 ### 問題: 車輛仍然相互穿透
 
 **檢查清單**:
+
 1. ✅ Console 是否有錯誤信息?
 2. ✅ SpatialHashGrid 是否已初始化?
 
 **解決**:
+
 ```javascript
 // 檢查初始化
-console.log(CollisionController.spatialGrid)  // 應非 null
+console.log(CollisionController.spatialGrid) // 應非 null
 
 // 檢查是否在重建
 if (!CollisionController.spatialGrid) {
@@ -239,9 +247,11 @@ if (!CollisionController.spatialGrid) {
 ### 問題: 黃燈決策行為奇怪
 
 **檢查清單**:
+
 1. ✅ 是否啟用了黃燈決策邏輯?
 
 **解決**:
+
 ```javascript
 // 查看最後一次決策
 // (在 Vehicle 實例的 cachedYellowDecision 屬性)
