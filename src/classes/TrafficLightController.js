@@ -971,59 +971,43 @@ export default class TrafficLightController {
           : 0
 
       // 📊 計算占有率（基於實際發送的車輛數，不是 this.vehicleData）
-      // 根據時段獲取占有率配置
-      const timePeriod = getCurrentTimePeriod() || 'off_peak'
-      
-      // ✅ 改進：根據實際前端生成的車輛數調整占有率配置
-      // 前端生成的車輛數通常為 5-15 輛/方向，而不是 30 輛
-      const occupancyConfig = {
-        peak_hours: { 
-          targetRange: [45, 65],      // 尖峰時段占有率目標: 45-65%
-          baseOccupancy: 45, 
-          randomRange: 10, 
-          baselineVehicles: 10,       // ✅ 改為 10（實際前端生成量）
-          maxVehicles: 15,            // 最多 15 輛時達到 65%
-        },
-        off_peak: { 
-          targetRange: [20, 40],      // 離峰時段占有率目標: 20-40%
-          baseOccupancy: 20, 
-          randomRange: 8, 
-          baselineVehicles: 8,        // ✅ 改為 8（實際前端生成量）
-          maxVehicles: 12,            // 最多 12 輛時達到 40%
-        },
-        late_night: { 
-          targetRange: [8, 18],       // 凌晨時段占有率目標: 8-18%
-          baseOccupancy: 8, 
-          randomRange: 5, 
-          baselineVehicles: 5,        // ✅ 改為 5（實際前端生成量）
-          maxVehicles: 8,             // 最多 8 輛時達到 18%
-        },
-      }
-      const config = occupancyConfig[timePeriod] || occupancyConfig['off_peak']
-      const [minTarget, maxTarget] = config.targetRange
+      // 🔄 改進 v3：支持 0-100% 完整范圍的占有率計算
+      // 根據實際車輛數線性映射到占有率，不受時段限制
 
-      // ✅ 改進：使用更合理的車輛比例計算
-      // 公式：occupancy = minTarget + (maxTarget - minTarget) × (實際車輛 / 基準車輛)
-      // 當車輛數 = baselineVehicles 時，占有率 ≈ (minTarget + maxTarget) / 2
-      const vehicleRatio = Math.min(totalVehicles / config.baselineVehicles, 1.0)
+      const occupancyConfig = {
+        // ⭐ 新版本：基於車輛數的線性映射
+        // 參考：前端生成的車輛數通常為 0-20 輛/方向
+        baselineVehicles: 5, // 5 輛 → 25%
+        midpointVehicles: 10, // 10 輛 → 50%（中點）
+        maxVehicles: 20, // 20 輛 → 100%（上限）
+        randomRange: 5, // 隨機波動 ±5%
+      }
+
+      // ✅ 新公式：線性映射 0-100%
+      // 0 輛 → 0%, 10 輛 → 50%, 20 輛 → 100%
+      const vehicleRatio = totalVehicles / occupancyConfig.maxVehicles
+      let occupancyBase = vehicleRatio * 100 // 線性計算：0-100%
 
       // ✅ 添加方向特定的波動係數，確保各方向占有率不同
+      // 這些係數是乘法系數，可以在 0.6-1.4 之間調整方向差異
       const directionBias = {
-        east: 1.15, // 東向：高 15%
-        west: 0.75, // 西向：低 25%
+        east: 1.15, // 東向：高 15%（高繁忙度）
+        west: 0.75, // 西向：低 25%（低繁忙度）
         south: 1.1, // 南向：高 10%
         north: 0.95, // 北向：略低 5%
       }
       const directionFactor = directionBias[direction] || 1.0
 
-      let occupancyValue = (minTarget + (maxTarget - minTarget) * vehicleRatio) * directionFactor
+      // 應用方向係數
+      let occupancyValue = occupancyBase * directionFactor
 
-      // 加入隨機波動（API 初期）
+      // 加入隨機波動（只在 API 初期添加，避免波動過大）
       if (this.apiCallCount === 1 || this.apiCallCount === 2) {
-        const randomNoise = (Math.random() - 0.5) * config.randomRange
+        const randomNoise = (Math.random() - 0.5) * occupancyConfig.randomRange
         occupancyValue = occupancyValue + randomNoise
       }
 
+      // 確保占有率在 0-100% 范圍內
       const occupancy = Math.round(Math.max(Math.min(occupancyValue, 100), 0))
 
       // 按照 API 格式生成數據
