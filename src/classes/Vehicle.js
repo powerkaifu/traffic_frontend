@@ -263,46 +263,7 @@ export default class Vehicle {
     }
   }
 
-  // 🚨 新增：強制解除停滯
-  forceUnstuck() {
-    try {
-      // 🚨 修改：先檢查燈號狀態，只有在綠燈時才強制恢復
-      const trafficController = window.trafficController
-      if (!trafficController || !this.direction) {
-        console.warn(`⚠️ [${this.id}] 無法取得交通控制器或方向，跳過強制恢復`)
-        return
-      }
-
-      const currentLightState = trafficController.getCurrentLightState(this.direction)
-      if (currentLightState !== 'green') {
-        return
-      }
-
-      // 重置移動時間
-      this.lastMovementTime = Date.now()
-
-      // 如果有移動時間軸且被暫停，嘗試恢復
-      if (this.movementTimeline) {
-        if (this.movementTimeline.timeScale() === 0) {
-          // 恢復為原始速度，而不是慢速度
-          const targetTimeScale = this.originalTimeScale || 1
-          this.movementTimeline.timeScale(targetTimeScale)
-        }
-
-        if (this.movementTimeline.paused()) {
-          this.movementTimeline.resume()
-        }
-      }
-
-      // 更新狀態
-      this.waitingForGreen = false
-      this.currentState = 'moving'
-    } catch (error) {
-      console.error(`❌ [${this.id}] 強制恢復失敗:`, error)
-    }
-  }
-
-  // 🔧 新增：死鎖恢復進度檢查
+  //  新增：死鎖恢復進度檢查
   /**
    * 檢查並推進 gapRecovery 狀態的進度
    * 監控：
@@ -460,44 +421,6 @@ export default class Vehicle {
     // 記錄日誌便於調試
     if (newReason) {
       console.log(`🎯 [${this.id}] 停止原因更新: ${newReason}${frontVehicle ? ` (前車: ${frontVehicle.id})` : ''}`)
-    }
-  }
-
-  // 🎯 新增：根據停止原因決定是否可以恢復
-  /**
-   * 檢查是否可以根據停止原因恢復移動
-   * @param {Object} frontVehicle - 前方車輛
-   * @param {Object} collision - 碰撞檢測結果
-   * @returns {boolean} 是否可以恢復
-   */
-  canRecoverBasedOnStopReason(frontVehicle, collision) {
-    if (!this.stopReason) {
-      return true // 沒有停止原因，可以恢復
-    }
-
-    switch (this.stopReason) {
-      case 'queue':
-        // 排隊停止：前車移動時可以恢復
-        if (frontVehicle && frontVehicle.movementTimeline) {
-          const frontVehicleSpeed = frontVehicle.movementTimeline.timeScale() || 0
-          return frontVehicleSpeed > 0.1 // 前車速度 > 0.1 時恢復
-        }
-        return false
-
-      case 'collision':
-        // 碰撞停止：間距恢復到安全值時才能恢復
-        if (!collision || collision.distance === undefined) {
-          return false
-        }
-        const SAFE_GAP = 15 // 安全間距
-        return collision.distance > SAFE_GAP
-
-      case 'following':
-        // 跟隨停止：前車在移動時保持跟隨，不需要特殊恢復條件
-        return true
-
-      default:
-        return true
     }
   }
 
@@ -1027,15 +950,6 @@ export default class Vehicle {
       return this.startPosition || { x: 0, y: 0 }
     }
     return VehiclePositionSpeedUtils.getCurrentPosition(this.element)
-  }
-
-  // Strategy Pattern: 根據方向計算車頭位置的策略方法
-  getVehicleHeadPosition() {
-    // 🚀 DRY 優化：使用工具類計算車頭位置
-    const currentPos = this.getCurrentPosition()
-    const vehicleConfig = this.getVehicleConfig()
-    const vehicleSize = { width: vehicleConfig.width, height: vehicleConfig.height }
-    return HeadPositionUtils.getHeadPosition(currentPos, vehicleSize, this.direction)
   }
 
   // Factory Pattern: 獲取車輛邊界框的工廠方法
@@ -1695,27 +1609,7 @@ export default class Vehicle {
     })
   }
 
-  // 🚗 新增：檢查車輛是否已超出容器邊界
-  isVehicleExited() {
-    if (!this.element) {
-      return false
-    }
-
-    const currentPos = this.getCurrentPosition()
-    const containerWidth = window.innerWidth || document.body.clientWidth
-    const containerHeight = window.innerHeight || document.body.clientHeight
-    const margin = VEHICLE_EXIT_CONFIG.BOUNDARY_MARGIN
-
-    // 檢查車輛是否超出邊界
-    const exitedLeft = currentPos.x < -margin
-    const exitedRight = currentPos.x > containerWidth + margin
-    const exitedTop = currentPos.y < -margin
-    const exitedBottom = currentPos.y > containerHeight + margin
-
-    return exitedLeft || exitedRight || exitedTop || exitedBottom
-  }
-
-  // 🔄 新增：回收車輛（改進 7 - 循環流量機制）
+  //  新增：回收車輛（改進 7 - 循環流量機制）
   // 將超出邊界的車輛回收到相反方向的起點
   recycleVehicle() {
     // 防止重複回收
