@@ -1285,6 +1285,7 @@ export class ResumeMovementUtils {
 
   /**
    * 執行恢復移動（完整委託方法）
+   * 💡 死鎖恢復：即使碰撞停止也嘗試以超慢速恢復
    * @param {Object} vehicle - 車輛實例
    * @param {Array} allVehicles - 所有車輛陣列
    * @param {Object} animationConfig - 動畫配置
@@ -1315,8 +1316,16 @@ export class ResumeMovementUtils {
         vehicle.showAccelerationEffect(false)
       }
     } else {
-      // 有碰撞：根據距離調整速度
-      const targetSpeed = this.calculateResumeSpeed({ collision })
+      // 💡 死鎖恢復：有碰撞時根據距離調整速度
+      // 關鍵：即使 targetSpeed = 0，也要嘗試以超慢速前進以逐漸恢復空間
+      let targetSpeed = this.calculateResumeSpeed({ collision })
+      
+      // 💡 死鎖恢復機制：如果完全停止且距離極近，嘗試超慢速恢復
+      if (targetSpeed === 0 && collision.distance !== undefined && collision.distance < 5) {
+        // 碰撞停止但距離很近，嘗試以極超慢速 (0.05) 進行恢復移動
+        // 這允許車輛逐漸恢復空間而不是永久死鎖
+        targetSpeed = 0.05
+      }
 
       gsap.to(vehicle.movementTimeline, {
         timeScale: targetSpeed,
@@ -1327,6 +1336,9 @@ export class ResumeMovementUtils {
       // 更新狀態
       if (collision.autoFollowing && collision.targetSpeed > 0) {
         vehicle.currentState = 'autoFollowing'
+      } else if (collision.isEmergencyStop && targetSpeed > 0) {
+        // 💡 死鎖恢復：標記為間距恢復中
+        vehicle.currentState = 'gapRecovery'
       }
 
       // 顯示加速效果

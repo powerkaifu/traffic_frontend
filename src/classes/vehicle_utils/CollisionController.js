@@ -1572,31 +1572,32 @@ export class CollisionController {
       // 🚨 極速下防穿透：距離太近立即停止
       if (distance >= 0 && distance < ABSOLUTE_MIN_GAP) {
         // 極端情況：完全停止
-        // 🚨 修復：如果前方車輛是停止狀態，返回 rejoin_queue 而不是 emergency_gap_recovery
-        // 這允許車輛在停止後仍能朝向隊伍前進
+        // � 死鎖恢復機制：無論前車狀態如何，都返回 gap_recovery
+        // 這樣車輛會進入可恢復狀態，週期性檢查會持續嘗試恢復
         const otherSpeed = other.movementTimeline ? other.movementTimeline.timeScale() : 0
-        if (otherSpeed <= 0.15) {
-          // 前方車輛停止，不返回緊急恢復，讓車輛進入 rejoin_queue 邏輯
-          return null
-        }
-
+        
+        // 💡 關鍵改進：返回能夠觸發恢復邏輯的響應
         return {
-          action: 'emergency_gap_recovery',
+          action: 'gap_recovery',  // 改為 gap_recovery 而不是 emergency_gap_recovery
           vehicle: other,
           distance: distance,
           shouldStop: true,
-          shouldFollow: false,
-          targetSpeed: 0, // 完全停止
+          shouldFollow: true,      // 允許持續跟隨評估
+          targetSpeed: 0,           // 完全停止
           requiredGap: ABSOLUTE_MIN_GAP,
           reason: `緊急停止：距離${distance.toFixed(1)}px，避免重疊`,
+          isEmergencyStop: true,    // 標記為緊急停止
         }
       } else if (distance >= 0 && distance < ABSOLUTE_MIN_GAP + 5) {
         // 接近但未到危險邊緣，極慢速
-        // 🚨 修復：如果前方車輛是停止狀態，返回 rejoin_queue 而不是 gap_recovery
+        // � 死鎖恢復：前車停止時也嘗試以極慢速前進
         const otherSpeed = other.movementTimeline ? other.movementTimeline.timeScale() : 0
-        if (otherSpeed <= 0.15) {
-          // 前方車輛停止，不返回間距恢復，讓車輛進入 rejoin_queue 邏輯
-          return null
+        
+        // 💡 改進邏輯：根據前車狀態調整復甦速度
+        let targetSpeed = 0.001 // 預設極極慢速 (0.1%)
+        if (otherSpeed <= 0.15 && distance < 3) {
+          // 前車停止且距離極近，嘗試以稍快的速度恢復移動
+          targetSpeed = 0.02 // 稍微快一點以便逐漸恢復
         }
 
         return {
@@ -1605,7 +1606,7 @@ export class CollisionController {
           distance: distance,
           shouldStop: false,
           shouldFollow: true,
-          targetSpeed: 0.001, // 極極慢速 (0.1%)
+          targetSpeed: targetSpeed,
           requiredGap: ABSOLUTE_MIN_GAP,
           reason: `間距警告：距離${distance.toFixed(1)}px，極慢速前進`,
         }
