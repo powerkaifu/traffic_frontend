@@ -34,6 +34,28 @@ export class CollisionController {
     this.lastFrontVehicleUpdateTime = 0 // 上次更新前車緩存的時間
     this.frontVehicleCacheUpdateInterval = 100 // 前車緩存更新間隔（毫秒）
     this.frontVehicleOutOfRangeCounter = 0 // 計數器：前車超出範圍的次數
+
+    // 🚀 優化 1-8：新增快取機制
+    this.cachedPosition = null // 緩存的車輛位置
+    this.cachedPositionTime = 0 // 位置緩存時間戳
+    this.positionCacheInterval = 5 // 位置緩存間隔 (5ms)
+
+    this.cachedBoundingBox = null // 緩存的邊界框
+    this.lastBoxCacheTime = 0 // 邊界框緩存時間
+    this.boundingBoxCacheInterval = 10 // 邊界框緩存間隔 (10ms)
+
+    this.sameDirectionVehiclesCache = [] // 同方向車輛快取
+    this.lastDirectionFilterTime = 0 // 上次過濾時間
+    this.directionFilterCacheInterval = 100 // 同方向快取間隔 (100ms)
+
+    this.cachedLightState = null // 緩存的燈號狀態
+    this.cachedCanProceed = false // 緩存的通行允許
+    this.lastLightStateCacheTime = 0 // 燈號快取時間
+    this.lightStateCacheInterval = 50 // 燈號快取間隔 (50ms)
+
+    this.cachedStopLineDistance = null // 緩存的停止線距離
+    this.lastStopLineDistanceTime = 0 // 停止線距離快取時間
+    this.stopLineDistanceCacheInterval = 20 // 停止線快取間隔 (20ms)
   }
 
   /**
@@ -249,6 +271,98 @@ export class CollisionController {
     }
 
     return false // 預設不允許通行，保持安全
+  }
+
+  // ========== 優化 3：統一方向檢測方法 ==========
+  /**
+   * 統一的方向檢測，替換重複的 switch 語句
+   * @param {string} direction - 方向字符串 (例如 'east', 'west', 'north', 'south')
+   * @returns {number} 方向常數 (0-3)
+   */
+  getDirectionConstant(direction) {
+    if (!direction) return 0
+    const dirMap = { east: 0, west: 1, north: 2, south: 3, up: 0, down: 1, left: 2, right: 3 }
+    return dirMap[direction] ?? 0
+  }
+
+  /**
+   * 統一的方向向量獲取
+   * @param {number} dirConstant - 方向常數
+   * @returns {object} {x, y} 方向向量
+   */
+  getDirectionVector(dirConstant) {
+    const vectors = [
+      { x: 1, y: 0 },   // east/right
+      { x: -1, y: 0 },  // west/left
+      { x: 0, y: -1 },  // north/up
+      { x: 0, y: 1 }    // south/down
+    ]
+    return vectors[dirConstant] || { x: 0, y: 0 }
+  }
+
+  // ========== 優化 5：統一燈號狀態快取 ==========
+  /**
+   * 統一快取燈號狀態查詢
+   * @returns {string} 燈號狀態字符串
+   */
+  getCachedLightState() {
+    const now = Date.now()
+    if (this.cachedLightState !== null && 
+        (now - this.lastLightStateCacheTime) < this.lightStateCacheInterval) {
+      return this.cachedLightState
+    }
+
+    let lightState = 'unknown'
+    try {
+      if (typeof window !== 'undefined' && window.trafficController) {
+        lightState = window.trafficController.getCurrentLightState(this.vehicle.direction)
+      }
+    } catch (error) {
+      console.warn(`[${this.vehicle.id}] 燈號快取查詢失敗:`, error)
+    }
+
+    this.cachedLightState = lightState
+    this.lastLightStateCacheTime = now
+    return lightState
+  }
+
+  // ========== 優化 8：統一停止線距離計算 ==========
+  /**
+   * 統一計算停止線距離
+   * @returns {number} 到停止線的距離
+   */
+  getStopLineDistance() {
+    const now = Date.now()
+    if (this.cachedStopLineDistance !== null && 
+        (now - this.lastStopLineDistanceTime) < this.stopLineDistanceCacheInterval) {
+      return this.cachedStopLineDistance
+    }
+
+    const stopLine = this.vehicle.getStopLinePosition()
+    const currentPos = this.vehicle.getCurrentPosition()
+
+    if (!stopLine || !currentPos) {
+      this.cachedStopLineDistance = Infinity
+      this.lastStopLineDistanceTime = now
+      return Infinity
+    }
+
+    let distance = Infinity
+    const direction = this.vehicle.direction
+
+    if (direction === 'east') {
+      distance = stopLine.x - currentPos.x
+    } else if (direction === 'west') {
+      distance = currentPos.x - stopLine.x
+    } else if (direction === 'north') {
+      distance = currentPos.y - stopLine.y
+    } else if (direction === 'south') {
+      distance = stopLine.y - currentPos.y
+    }
+
+    this.cachedStopLineDistance = distance
+    this.lastStopLineDistanceTime = now
+    return distance
   }
 
   /**
@@ -561,6 +675,7 @@ export class CollisionController {
 
   /**
    * 🚗 停止線前排隊碰撞檢測 - 確保車輛逐一接近停止線
+   * 🚀 優化 4：使用同方向快取，只檢查最近的2-3輛車
    * @param {Array} allVehicles 所有車輛陣列
    * @returns {Object|null} 碰撞結果或null
    */
@@ -590,14 +705,23 @@ export class CollisionController {
       MIN_FOLLOW_DISTANCE = baseGap * 0.5 // 12.5px
     }
 
-    // 只檢查同方向同車道的車輛
-    const samePathVehicles = allVehicles.filter(
-      (v) =>
-        v.id !== this.vehicle.id && v.direction === this.vehicle.direction && v.laneNumber === this.vehicle.laneNumber,
-    )
+    // 🚀 優化 4：只檢查同方向同車道的車輛，使用快取過濾
+    const now = Date.now()
+    const needsDirectionUpdate = (now - this.lastDirectionFilterTime) > this.directionFilterCacheInterval
 
-    let closestFrontVehicle = null
-    let minDistance = Infinity
+    if (needsDirectionUpdate) {
+      this.sameDirectionVehiclesCache = allVehicles.filter(
+        (v) =>
+          v.id !== this.vehicle.id && v.direction === this.vehicle.direction && v.laneNumber === this.vehicle.laneNumber,
+      )
+      this.lastDirectionFilterTime = now
+    }
+
+    const samePathVehicles = this.sameDirectionVehiclesCache
+
+    // 🚀 優化 7：只檢查最近的2-3輛前方車輛而不是全部
+    let frontCandidates = []
+    const maxCandidates = 3 // 只檢查最近的3輛車
 
     for (let vehicle of samePathVehicles) {
       const otherBox = vehicle.getBoundingBox()
@@ -624,12 +748,18 @@ export class CollisionController {
           break
       }
 
-      // 找到最近的前方車輛
-      if (isFrontVehicle && distance < minDistance && distance >= 0) {
-        minDistance = distance
-        closestFrontVehicle = vehicle
+      if (isFrontVehicle && distance >= 0) {
+        frontCandidates.push({ vehicle, distance })
       }
     }
+
+    // 按距離排序並只保留最近的N輛
+    frontCandidates.sort((a, b) => a.distance - b.distance)
+    frontCandidates = frontCandidates.slice(0, maxCandidates)
+
+    // 找到最近的前方車輛
+    const closestFrontVehicle = frontCandidates.length > 0 ? frontCandidates[0].vehicle : null
+    const minDistance = frontCandidates.length > 0 ? frontCandidates[0].distance : Infinity
 
     // 如果沒有前方車輛，檢查是否接近停止線或前方已停車輛
     if (!closestFrontVehicle) {
@@ -1408,16 +1538,33 @@ export class CollisionController {
    * @param {Array} sameDirectionVehicles 同方向的車輛陣列
    * @returns {Object|null} 如果檢測到危險則返回減速指令
    */
+  /**
+   * 🚀 優化 7：執行最小間距檢查 - 只檢查最近的2輛車
+   * @param {Array} sameDirectionVehicles 同方向車輛列表
+   * @returns {Object|null} 衝突結果或null
+   */
   performMinimumGapCheck(sameDirectionVehicles) {
     const myPos = this.vehicle.getCurrentPosition()
     const ABSOLUTE_MIN_GAP = 2 // 極小最小間距（2px）
 
+    // 🚀 優化 7：只檢查最近的2輛前方車輛而不是全部
+    let frontVehicles = []
+    
     for (let other of sameDirectionVehicles) {
       const otherPos = other.getCurrentPosition()
       if (!otherPos) continue
 
       const distance = this.calculateDirectionalDistance(myPos, otherPos)
+      if (distance >= 0) {  // 只考慮前方車輛
+        frontVehicles.push({ vehicle: other, distance })
+      }
+    }
 
+    // 按距離排序並只保留最近的2輛
+    frontVehicles.sort((a, b) => a.distance - b.distance)
+    frontVehicles = frontVehicles.slice(0, 2)
+
+    for (let { vehicle: other, distance } of frontVehicles) {
       // 🚨 極速下防穿透：距離太近立即停止
       if (distance >= 0 && distance < ABSOLUTE_MIN_GAP) {
         // 極端情況：完全停止
