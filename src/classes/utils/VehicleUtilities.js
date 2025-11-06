@@ -1286,6 +1286,7 @@ export class ResumeMovementUtils {
   /**
    * 執行恢復移動（完整委託方法）
    * 💡 死鎖恢復：即使碰撞停止也嘗試以超慢速恢復
+   * 🎯 三態區分：區分排隊停止、碰撞停止、跟隨停止
    * @param {Object} vehicle - 車輛實例
    * @param {Array} allVehicles - 所有車輛陣列
    * @param {Object} animationConfig - 動畫配置
@@ -1298,6 +1299,15 @@ export class ResumeMovementUtils {
     // 進行碰撞檢查
     const collision = vehicle.collisionController.checkSimpleCollision(allVehicles)
 
+    // 🎯 新增：根據停止原因決定恢復邏輯
+    if (vehicle.stopReason) {
+      // 檢查是否可以根據停止原因恢復
+      if (!vehicle.canRecoverBasedOnStopReason(collision?.vehicle, collision)) {
+        // 無法恢復，保持當前速度
+        return
+      }
+    }
+
     if (!collision) {
       // 無碰撞：平滑恢復到正常速度
       gsap.to(vehicle.movementTimeline, {
@@ -1307,6 +1317,7 @@ export class ResumeMovementUtils {
       })
       vehicle.currentState = 'moving'
       vehicle.isAtStopLine = false
+      vehicle.updateStopReason(null) // 清除停止原因
 
       if (vehicle.stopLineController) {
         vehicle.stopLineController.state = 'approaching'
@@ -1333,12 +1344,23 @@ export class ResumeMovementUtils {
         ease,
       })
 
-      // 更新狀態
-      if (collision.autoFollowing && collision.targetSpeed > 0) {
+      // 🔧 新增：更新狀態轉換邏輯
+      // 在 gapRecovery 狀態時，由車輛的 checkAndProgressGapRecovery 方法決定是否轉換
+      if (vehicle.currentState === 'gapRecovery') {
+        // 保持 gapRecovery 狀態，等待 checkAndProgressGapRecovery 判斷
+        // 這允許監控恢復進度和是否達到安全間距
+        vehicle.updateStopReason('collision', collision?.vehicle) // 標記為碰撞停止
+      } else if (collision.autoFollowing && collision.targetSpeed > 0) {
+        // 進入自動跟隨模式
         vehicle.currentState = 'autoFollowing'
+        vehicle.updateStopReason('following', collision?.vehicle) // 標記為跟隨停止
       } else if (collision.isEmergencyStop && targetSpeed > 0) {
         // 💡 死鎖恢復：標記為間距恢復中
         vehicle.currentState = 'gapRecovery'
+        vehicle.updateStopReason('collision', collision?.vehicle) // 標記為碰撞停止
+      } else if (targetSpeed === 0) {
+        // 排隊停止：前車已停止，我也停止
+        vehicle.updateStopReason('queue', collision?.vehicle) // 標記為排隊停止
       }
 
       // 顯示加速效果

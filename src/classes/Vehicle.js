@@ -106,6 +106,23 @@ export default class Vehicle {
     this.isAccelerating = false // 是否正在加速
     this.lastSpeed = 0 // 上次速度（用於判斷加速）
 
+    // 🔧 新增：死鎖恢復機制追蹤
+    this.gapRecoveryStartTime = null // gapRecovery 開始時間
+    this.gapRecoveryMaxDuration = 5000 // gapRecovery 最大持續時間（毫秒）
+    this.lastGapDistance = Infinity // 上次的間距
+    this.gapRecoveryNoProgressCount = 0 // 沒有進展的計數器
+    this.gapRecoveryCheckInterval = 100 // 恢復進度檢查間隔（毫秒）
+    this.lastGapRecoveryCheck = 0 // 上次恢復進度檢查時間
+
+    // 🎯 新增：停止原因三態區分
+    // 區分排隊停止、碰撞停止、跟隨停止
+    this.stopReason = null // 停止原因：'queue', 'collision', 'following', null
+    this.stopReasonChangedTime = 0 // 停止原因改變的時間
+    this.isInQueue = false // 是否在排隊中
+    this.isInCollision = false // 是否在碰撞恢復中
+    this.queueFrontVehicle = null // 排隊的前車
+    this.collisionFrontVehicle = null // 碰撞的前車
+
     // 數據收集相關屬性
     this.createdAt = new Date().toISOString()
     this.startPosition = { x, y }
@@ -285,6 +302,205 @@ export default class Vehicle {
       this.currentState = 'moving'
     } catch (error) {
       console.error(`❌ [${this.id}] 強制恢復失敗:`, error)
+    }
+  }
+
+  // 🔧 新增：死鎖恢復進度檢查
+  /**
+   * 檢查並推進 gapRecovery 狀態的進度
+   * 監控：
+   * 1. 間距是否已恢復到安全值 → 轉換回 autoFollowing
+   * 2. 恢復是否超時 → 轉換回 autoFollowing（強制恢復）
+   * 3. 恢復進度是否停滯 → 計數增加
+   * @param {Array} allVehicles - 所有車輛陣列
+   */
+  checkAndProgressGapRecovery(allVehicles) {
+    if (!this.collisionController || this.currentState !== 'gapRecovery') {
+      return
+    }
+
+    const now = Date.now()
+
+    // 初始化恢復開始時間
+    if (this.gapRecoveryStartTime === null) {
+      this.gapRecoveryStartTime = now
+      this.lastGapDistance = Infinity
+      this.gapRecoveryNoProgressCount = 0
+      return
+    }
+
+    // 檢查超時（最多5秒）
+    const elapsedTime = now - this.gapRecoveryStartTime
+    if (elapsedTime > this.gapRecoveryMaxDuration) {
+      console.log(
+        `⏱️ [${this.id}] gapRecovery 超時（${elapsedTime}ms > ${this.gapRecoveryMaxDuration}ms），強制轉換回 autoFollowing`,
+      )
+      this._transitionFromGapRecoveryToAutoFollowing('timeout')
+      return
+    }
+
+    // 定期檢查恢復進度
+    if (now - this.lastGapRecoveryCheck < this.gapRecoveryCheckInterval) {
+      return
+    }
+
+    this.lastGapRecoveryCheck = now
+
+    // 獲取當前碰撞狀態以檢查間距
+    const collision = this.collisionController.checkSimpleCollision(allVehicles)
+
+    if (!collision) {
+      // 無碰撞 = 恢復成功
+      console.log(`✅ [${this.id}] gapRecovery 完成（無碰撞），轉換回 autoFollowing`)
+      this._transitionFromGapRecoveryToAutoFollowing('success')
+      return
+    }
+
+    // 間距恢復檢查
+    const currentDistance = collision.distance || 0
+    const SAFE_GAP = 15 // 安全間距
+    const PROGRESS_THRESHOLD = 2 // 進度檢查閾值（像素）
+
+    if (currentDistance > SAFE_GAP) {
+      // 間距已恢復到安全值
+      console.log(`✅ [${this.id}] 間距已恢復（${currentDistance.toFixed(1)}px > ${SAFE_GAP}px），轉換回 autoFollowing`)
+      this._transitionFromGapRecoveryToAutoFollowing('gap_recovered')
+      return
+    }
+
+    // 檢查恢復進度
+    if (this.lastGapDistance - currentDistance < PROGRESS_THRESHOLD) {
+      this.gapRecoveryNoProgressCount++
+
+      // 如果沒有進展次數過多，強制轉換
+      if (this.gapRecoveryNoProgressCount > 20) {
+        console.warn(
+          `⚠️ [${this.id}] gapRecovery 無進展（>20次檢查），距離: ${currentDistance.toFixed(1)}px，強制轉換回 autoFollowing`,
+        )
+        this._transitionFromGapRecoveryToAutoFollowing('no_progress')
+        return
+      }
+    } else {
+      // 有進展，重置計數器
+      this.gapRecoveryNoProgressCount = 0
+    }
+
+    // 更新上次間距
+    this.lastGapDistance = currentDistance
+  }
+
+  // 🔧 新增：從 gapRecovery 轉換到 autoFollowing
+  /**
+   * 私有方法：轉換狀態邏輯
+   * @param {string} reason - 轉換原因（'success', 'gap_recovered', 'timeout', 'no_progress'）
+   */
+  _transitionFromGapRecoveryToAutoFollowing(reason = 'unknown') {
+    // 重置恢復相關的追蹤變數
+    this.gapRecoveryStartTime = null
+    this.lastGapDistance = Infinity
+    this.gapRecoveryNoProgressCount = 0
+
+    // 轉換狀態
+    this.currentState = 'autoFollowing'
+
+    // 恢復速度到預設值
+    if (this.movementTimeline && this.movementTimeline.timeScale() <= 0.1) {
+      gsap.to(this.movementTimeline, {
+        timeScale: 0.5,
+        duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH || 0.5,
+        ease: 'power2.out',
+      })
+    }
+  }
+
+  // 🎯 新增：更新停止原因（三態區分）
+  /**
+   * 更新車輛的停止原因，區分排隊停止、碰撞停止和跟隨停止
+   * @param {string} newReason - 新的停止原因（'queue', 'collision', 'following', null）
+   * @param {Object} frontVehicle - 前方車輛（可選）
+   */
+  updateStopReason(newReason, frontVehicle = null) {
+    if (this.stopReason === newReason) {
+      // 原因未改變，不需要更新
+      return
+    }
+
+    this.stopReason = newReason
+    this.stopReasonChangedTime = Date.now()
+
+    // 根據停止原因設置相應的標記
+    switch (newReason) {
+      case 'queue':
+        // 排隊停止：前車已停止，我也停止
+        this.isInQueue = true
+        this.isInCollision = false
+        this.queueFrontVehicle = frontVehicle
+        break
+
+      case 'collision':
+        // 碰撞停止：緊急停止以避免碰撞
+        this.isInQueue = false
+        this.isInCollision = true
+        this.collisionFrontVehicle = frontVehicle
+        break
+
+      case 'following':
+        // 跟隨停止：保持安全速度跟隨前車
+        this.isInQueue = false
+        this.isInCollision = false
+        this.queueFrontVehicle = null
+        this.collisionFrontVehicle = null
+        break
+
+      default:
+        // 無停止原因
+        this.isInQueue = false
+        this.isInCollision = false
+        this.queueFrontVehicle = null
+        this.collisionFrontVehicle = null
+    }
+
+    // 記錄日誌便於調試
+    if (newReason) {
+      console.log(`🎯 [${this.id}] 停止原因更新: ${newReason}${frontVehicle ? ` (前車: ${frontVehicle.id})` : ''}`)
+    }
+  }
+
+  // 🎯 新增：根據停止原因決定是否可以恢復
+  /**
+   * 檢查是否可以根據停止原因恢復移動
+   * @param {Object} frontVehicle - 前方車輛
+   * @param {Object} collision - 碰撞檢測結果
+   * @returns {boolean} 是否可以恢復
+   */
+  canRecoverBasedOnStopReason(frontVehicle, collision) {
+    if (!this.stopReason) {
+      return true // 沒有停止原因，可以恢復
+    }
+
+    switch (this.stopReason) {
+      case 'queue':
+        // 排隊停止：前車移動時可以恢復
+        if (frontVehicle && frontVehicle.movementTimeline) {
+          const frontVehicleSpeed = frontVehicle.movementTimeline.timeScale() || 0
+          return frontVehicleSpeed > 0.1 // 前車速度 > 0.1 時恢復
+        }
+        return false
+
+      case 'collision':
+        // 碰撞停止：間距恢復到安全值時才能恢復
+        if (!collision || collision.distance === undefined) {
+          return false
+        }
+        const SAFE_GAP = 15 // 安全間距
+        return collision.distance > SAFE_GAP
+
+      case 'following':
+        // 跟隨停止：前車在移動時保持跟隨，不需要特殊恢復條件
+        return true
+
+      default:
+        return true
     }
   }
 

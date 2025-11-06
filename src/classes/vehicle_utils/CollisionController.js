@@ -1852,4 +1852,46 @@ export class CollisionController {
 
     return controller
   }
+
+  /**
+   * 🔧 新增：獲取當前碰撞狀態（用於死鎖恢復監控）
+   * @param {Array} sameDirectionVehicles - 同方向車輛陣列
+   * @returns {Object|null} 碰撞信息 {distance, vehicle, ...} 或 null
+   */
+  getCurrentCollisionState(sameDirectionVehicles) {
+    if (!sameDirectionVehicles || sameDirectionVehicles.length === 0) {
+      return null
+    }
+
+    // 使用現有的 performMinimumGapCheck 方法
+    return this.performMinimumGapCheck(sameDirectionVehicles)
+  }
+
+  /**
+   * 🔧 新增：檢查恢復進度指標
+   * 監控間距變化趨勢
+   * @param {Object} previousCollision - 上次碰撞狀態
+   * @param {Object} currentCollision - 當前碰撞狀態
+   * @returns {Object} 進度指標 {isProgressing, distanceChange, reason}
+   */
+  checkRecoveryProgress(previousCollision, currentCollision) {
+    if (!previousCollision || !currentCollision) {
+      return { isProgressing: false, distanceChange: 0, reason: '無法比較' }
+    }
+
+    const previousDistance = previousCollision.distance || 0
+    const currentDistance = currentCollision.distance || 0
+    const distanceChange = currentDistance - previousDistance // 負值表示拉近，正值表示拉遠
+
+    const MIN_PROGRESS_DISTANCE = 1 // 最小進度距離（像素）
+    const isProgressing = distanceChange > MIN_PROGRESS_DISTANCE
+
+    return {
+      isProgressing,
+      distanceChange: distanceChange.toFixed(2),
+      reason: isProgressing ? '恢復中' : '無進展',
+      previousDistance: previousDistance.toFixed(1),
+      currentDistance: currentDistance.toFixed(1),
+    }
+  }
 }
