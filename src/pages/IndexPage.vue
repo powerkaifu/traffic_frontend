@@ -363,6 +363,7 @@ import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { MotionPathHelper } from 'gsap/MotionPathHelper'
 import TrafficLightController from '../classes/TrafficLightController.js'
 import AutoTrafficGenerator from '../classes/AutoTrafficGenerator.js'
+import AdaptiveFlowController from '../classes/AdaptiveFlowController.js'
 import TrafficDataCollector from '../classes/TrafficDataCollector.js'
 import Vehicle from '../classes/Vehicle.js'
 import LumoAssistant from '../components/LumoAssistant.vue'
@@ -609,6 +610,7 @@ const vehicleContainer = ref(null) // 車輛專用容器
 const lumoRef = ref(null) // Lumo 助手組件
 const trafficController = new TrafficLightController()
 const autoTrafficGenerator = new AutoTrafficGenerator(trafficController)
+const adaptiveFlowController = new AdaptiveFlowController(trafficController)
 
 // 🚨 設置車道級別生成控制，防止碰撞
 autoTrafficGenerator.setMinLaneInterval(2000) // 同一車道2秒內不重複生成
@@ -1289,6 +1291,10 @@ onMounted(async () => {
       autoTrafficGenerator.stop()
       // 🚨 清除所有車道冷卻狀態
       autoTrafficGenerator.clearLaneCooldown()
+      // 🚨 停止自適應流量控制器
+      if (adaptiveFlowController && adaptiveFlowController.isRunning) {
+        adaptiveFlowController.stop()
+      }
     }
 
     // 將清理函數保存到 window 對象，以便在需要時調用
@@ -1417,11 +1423,19 @@ onMounted(async () => {
     } else {
       console.log('✅ 自動交通產生器已在運行')
       // 重新設置全域引用以確保 MainLayout 可以訪問
-      window.autoTrafficGenerator = autoTrafficGenerator
+      window.autotrafficGenerator = autoTrafficGenerator
     }
 
     // 再次等待一個小延遲，確保 autoTrafficGenerator 完全初始化
     await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // 🔧 設置全域 AdaptiveFlowController 供其他組件使用並啟動
+    window.adaptiveFlowController = adaptiveFlowController
+    
+    // ✅ 啟動自適應流量控制器
+    console.log('🚀 啟動自適應流量控制器')
+    adaptiveFlowController.start()
+    console.log('--------------------- 📊 自適應流量控制器已啟動 ---------------------')
 
     // 定期清理超時車輛機制
     // 🚨 動態清理間隔管理 - 根據車輛負載調整
@@ -1755,6 +1769,11 @@ onUnmounted(() => {
   if (autoTrafficGenerator && autoTrafficGenerator.isRunning) {
     console.log('🛑 停止 autoTrafficGenerator')
     autoTrafficGenerator.stop()
+  }
+
+  if (adaptiveFlowController && adaptiveFlowController.isRunning) {
+    console.log('🛑 停止 adaptiveFlowController')
+    adaptiveFlowController.stop()
   }
 
   if (trafficController && trafficController.isRunning) {

@@ -1099,11 +1099,11 @@ export default class TrafficLightController {
       },
       late_night: {
         // 凌晨時段（23:00-07:00）
-        targetRange: [8, 18], // 占有率目標範圍：8-18%
-        baseOccupancy: 8, // 基礎占有率：8%
-        randomRange: 5, // 隨機波動：±5%
-        baselineVehicles: 5, // ✅ 改為 5（實際前端生成量）
-        maxVehicles: 8, // 最多 8 輛時達到 18%
+        targetRange: [0, 10], // 占有率目標範圍：0-10% ✅ 極低流量
+        baseOccupancy: 0, // 基礎占有率：0%
+        randomRange: 3, // 隨機波動：±3%
+        baselineVehicles: 3, // ✅ 改為 3（極少前端生成量）
+        maxVehicles: 5, // 最多 5 輛時達到 10%
       },
     }
 

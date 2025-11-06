@@ -199,8 +199,8 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 1 }, // 👈 🎯 每個 interval 生成 1-2 台車
-      interval: { min: 15000, max: 40000, normal: 20000 }, // ⏱️ 生成間隔，恢復原本設定
+      vehiclesPerInterval: { min: 1, max: 1 }, // 👈 🎯 每個 interval 只生成 1 台車
+      interval: { min: 30000, max: 60000, normal: 40000 }, // ⏱️ 生成間隔 30-60 秒（超級稀疏）
       peakMultiplier: 1.0, // 👈 凌晨不加倍
       displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier, // ✅ 從配置讀取（預設為 1.0）
 
