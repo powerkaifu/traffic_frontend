@@ -4,16 +4,13 @@
 /* eslint-disable */
 import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
-import { speedConfig, stopLineConfig } from './config/trafficConfig.js' // 引入統一的速度設定和停止線配置
+import { speedConfig } from './config/trafficConfig.js' // 引入統一的速度設定
 import { StopLineController } from './vehicle_utils/StopLineController.js' // 🚀 新增：停止線控制器
 import { CollisionController } from './vehicle_utils/CollisionController.js' // 🚀 新增：碰撞控制器（整合 SimpleCollisionDetector）
-import VehicleConfig, {
+import {
   ANIMATION_CONFIG,
-  TRAFFIC_LIGHT_CONFIG,
   DISTANCE_CONFIG,
   FOLLOWING_CONFIG,
-  COLLISION_CONFIG,
-  GENERATION_CONFIG,
   VEHICLE_EXIT_CONFIG,
   VEHICLE_RECYCLING_CONFIG,
   LANE_CHANGING_CONFIG,
