@@ -296,7 +296,6 @@ export class LaneLabelUtils {
       align-items: center;
       justify-content: center;
       text-align: center;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
     `
 
     return label
@@ -484,7 +483,7 @@ export class VehicleDOMUtils {
    * @returns {HTMLElement} 車輛 DOM 元素
    */
   static createVehicleElement(vehicleConfig, options = {}) {
-    const { rotation, scaleX, vehicleType } = options
+    const { rotation, scaleX } = options
 
     // 構建 transform 樣式
     let transform = ''
@@ -498,9 +497,6 @@ export class VehicleDOMUtils {
     const div = document.createElement('div')
     div.className = 'vehicle'
 
-    // 計算陰影大小（根據車型）
-    const shadowSize = vehicleType === 'large' ? 10 : vehicleType === 'small' ? 8 : 6
-
     div.style.cssText = `
       position: absolute;
       width: ${vehicleConfig.width}px;
@@ -513,7 +509,6 @@ export class VehicleDOMUtils {
       left: 0;
       ${transform ? `transform: ${transform.trim()};` : ''}
       transform-origin: center center;
-      filter: drop-shadow(3px 3px ${shadowSize}px rgba(0, 0, 0, 0.4));
     `
 
     return div
