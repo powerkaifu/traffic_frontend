@@ -973,16 +973,39 @@ export default class TrafficLightController {
       // 📊 計算占有率（基於實際發送的車輛數，不是 this.vehicleData）
       // 根據時段獲取占有率配置
       const timePeriod = getCurrentTimePeriod() || 'off_peak'
+      
+      // ✅ 改進：根據實際前端生成的車輛數調整占有率配置
+      // 前端生成的車輛數通常為 5-15 輛/方向，而不是 30 輛
       const occupancyConfig = {
-        peak_hours: { targetRange: [45, 65], baseOccupancy: 45, randomRange: 10, backendVehicles: 30 },
-        off_peak: { targetRange: [20, 40], baseOccupancy: 20, randomRange: 8, backendVehicles: 20 },
-        late_night: { targetRange: [8, 18], baseOccupancy: 8, randomRange: 5, backendVehicles: 8 },
+        peak_hours: { 
+          targetRange: [45, 65],      // 尖峰時段占有率目標: 45-65%
+          baseOccupancy: 45, 
+          randomRange: 10, 
+          baselineVehicles: 10,       // ✅ 改為 10（實際前端生成量）
+          maxVehicles: 15,            // 最多 15 輛時達到 65%
+        },
+        off_peak: { 
+          targetRange: [20, 40],      // 離峰時段占有率目標: 20-40%
+          baseOccupancy: 20, 
+          randomRange: 8, 
+          baselineVehicles: 8,        // ✅ 改為 8（實際前端生成量）
+          maxVehicles: 12,            // 最多 12 輛時達到 40%
+        },
+        late_night: { 
+          targetRange: [8, 18],       // 凌晨時段占有率目標: 8-18%
+          baseOccupancy: 8, 
+          randomRange: 5, 
+          baselineVehicles: 5,        // ✅ 改為 5（實際前端生成量）
+          maxVehicles: 8,             // 最多 8 輛時達到 18%
+        },
       }
       const config = occupancyConfig[timePeriod] || occupancyConfig['off_peak']
       const [minTarget, maxTarget] = config.targetRange
 
-      // 基於實際發送車輛數計算占有率（不再基於 this.vehicleData）
-      const vehicleRatio = Math.min(totalVehicles / config.backendVehicles, 1.0)
+      // ✅ 改進：使用更合理的車輛比例計算
+      // 公式：occupancy = minTarget + (maxTarget - minTarget) × (實際車輛 / 基準車輛)
+      // 當車輛數 = baselineVehicles 時，占有率 ≈ (minTarget + maxTarget) / 2
+      const vehicleRatio = Math.min(totalVehicles / config.baselineVehicles, 1.0)
 
       // ✅ 添加方向特定的波動係數，確保各方向占有率不同
       const directionBias = {
@@ -1072,27 +1095,31 @@ export default class TrafficLightController {
     const timePeriod = getCurrentTimePeriod() || 'off_peak'
 
     // 🔧 根據時段配置不同的占有率範圍和基礎占有率
+    // ✅ 改進：根據實際前端生成的車輛數調整占有率配置
     const occupancyConfig = {
       peak_hours: {
         // 尖峰時段（07:00-09:00, 17:00-19:00）
         targetRange: [45, 65], // 占有率目標範圍：45-65%
         baseOccupancy: 45, // 基礎占有率：45%
         randomRange: 10, // 隨機波動：±10%
-        backendVehicles: 30, // API 傳送最多 30 輛車
+        baselineVehicles: 10, // ✅ 改為 10（實際前端生成量）
+        maxVehicles: 15, // 最多 15 輛時達到 65%
       },
       off_peak: {
         // 離峰時段（09:00-17:00, 19:00-23:00）
         targetRange: [20, 40], // 占有率目標範圍：20-40%
         baseOccupancy: 20, // 基礎占有率：20%
         randomRange: 8, // 隨機波動：±8%
-        backendVehicles: 20, // API 傳送最多 20 輛車
+        baselineVehicles: 8, // ✅ 改為 8（實際前端生成量）
+        maxVehicles: 12, // 最多 12 輛時達到 40%
       },
       late_night: {
         // 凌晨時段（23:00-07:00）
         targetRange: [8, 18], // 占有率目標範圍：8-18%
         baseOccupancy: 8, // 基礎占有率：8%
         randomRange: 5, // 隨機波動：±5%
-        backendVehicles: 8, // API 傳送最多 8 輛車
+        baselineVehicles: 5, // ✅ 改為 5（實際前端生成量）
+        maxVehicles: 8, // 最多 8 輛時達到 18%
       },
     }
 
@@ -1100,8 +1127,9 @@ export default class TrafficLightController {
     const [minTarget, maxTarget] = config.targetRange
 
     // 📊 計算基於當前車輛數的占有率
-    // 公式：當前車輛 / API 最大車輛 * (最大目標 - 最小目標) + 最小目標
-    const vehicleRatio = Math.min(totalVehicles / config.backendVehicles, 1.0)
+    // ✅ 改進：使用更合理的車輛比例計算
+    // 公式：occupancy = minTarget + (maxTarget - minTarget) × (實際車輛 / 基準車輛)
+    const vehicleRatio = Math.min(totalVehicles / config.baselineVehicles, 1.0)
 
     // ✅ 添加方向特定的波動係數，確保各方向占有率不同
     const directionBias = {
