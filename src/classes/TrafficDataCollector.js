@@ -293,20 +293,39 @@ export default class TrafficDataCollector {
   }
 
   /**
-   * 計算佔用率
+   * 計算佔用率 ✅ 改進版：使用動態最大容量（根據時段調整）
    */
   calculateOccupancy() {
     const directions = ['east', 'west', 'south', 'north']
 
+    // ✅ 導入時段判定函數，動態調整最大容量
+    const { getCurrentTimePeriod } = require('./config/vdNormalizationConfig.js')
+    const timePeriod = getCurrentTimePeriod()
+
+    // ✅ 根據時段設定不同的最大容量
+    const maxCapacityByPeriod = {
+      peak_hours: 30, // 尖峰時段：30 輛/方向（較高的占有率要求）
+      off_peak: 25, // 離峰時段：25 輛/方向（標準容量）
+      late_night: 15, // 凌晨時段：15 輛/方向（低流量）
+    }
+
+    const maxCapacity = maxCapacityByPeriod[timePeriod] || 25 // 預設為 25
+
     directions.forEach((direction) => {
       const totalVehicles = this.currentPeriodData.totalCount[direction].total
 
-      // 簡化的佔用率計算 (可以根據實際需求調整)
-      // 假設每個方向最大容量為50輛車
-      const maxCapacity = 50
+      // ✅ 占有率計算公式（標準 VD 公式）
+      // 占有率 = (當前車輛數 / 最大容量) × 100%
       const occupancy = Math.min((totalVehicles / maxCapacity) * 100, 100)
 
       this.currentPeriodData.occupancy[direction] = Math.round(occupancy * 10) / 10
+
+      // ✅ 添加日誌記錄
+      if (totalVehicles > 0) {
+        console.log(
+          `📊 [占有率計算] ${direction}方向: ${totalVehicles}輛 / ${maxCapacity}輛上限 = ${this.currentPeriodData.occupancy[direction]}% (${timePeriod})`,
+        )
+      }
     })
   }
 
@@ -420,6 +439,14 @@ export default class TrafficDataCollector {
 
     console.log('📊 開始數據正規化，確保後端AI模型兼容性...')
 
+    // ✅ 新增：速度限制配置
+    const SPEED_LIMITS = {
+      motor: { min: 0, max: 90 }, // 機車最高 90 km/h
+      small: { min: 0, max: 120 }, // 小型車最高 120 km/h
+      large: { min: 0, max: 100 }, // 大型車最高 100 km/h
+      overall: { min: 0, max: 120 }, // 整體平均最高 120 km/h
+    }
+
     let adjustmentsMade = false
 
     directions.forEach((direction) => {
@@ -437,13 +464,21 @@ export default class TrafficDataCollector {
           }
         }
 
-        // 速度範圍約束
+        // ✅ 改進：速度範圍約束（使用車型特定的限制）
         const originalSpeed = normalized.averageSpeed[direction][type]
-        if (originalSpeed > this.config.speedLimits.maxSpeed) {
-          normalized.averageSpeed[direction][type] = this.config.speedLimits.maxSpeed
+        const speedLimit = SPEED_LIMITS[type] || this.config.speedLimits
+
+        if (originalSpeed > speedLimit.max) {
+          console.warn(
+            `⚠️ [速度調整] ${direction}-${type} 速度 ${originalSpeed} km/h 超過上限 ${speedLimit.max} km/h，已修正`,
+          )
+          normalized.averageSpeed[direction][type] = speedLimit.max
           adjustmentsMade = true
-        } else if (originalSpeed < this.config.speedLimits.minSpeed) {
-          normalized.averageSpeed[direction][type] = this.config.speedLimits.minSpeed
+        } else if (originalSpeed < speedLimit.min) {
+          console.warn(
+            `⚠️ [速度調整] ${direction}-${type} 速度 ${originalSpeed} km/h 低於下限 ${speedLimit.min} km/h，已修正`,
+          )
+          normalized.averageSpeed[direction][type] = speedLimit.min
           adjustmentsMade = true
         }
       })
@@ -480,6 +515,15 @@ export default class TrafficDataCollector {
           normalized.averageSpeed[direction].small * normalized.totalCount[direction].small +
           normalized.averageSpeed[direction].large * normalized.totalCount[direction].large
         normalized.averageSpeed[direction].overall = Math.round(weightedSpeed / totalVehicles)
+
+        // ✅ 改進：檢查整體平均速度上限
+        if (normalized.averageSpeed[direction].overall > SPEED_LIMITS.overall.max) {
+          console.warn(
+            `⚠️ [整體速度調整] ${direction}方向 整體平均速度 ${normalized.averageSpeed[direction].overall} km/h 超過上限，已修正至 ${SPEED_LIMITS.overall.max}`,
+          )
+          normalized.averageSpeed[direction].overall = SPEED_LIMITS.overall.max
+          adjustmentsMade = true
+        }
       } else {
         normalized.averageSpeed[direction].overall = 0
       }
