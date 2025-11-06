@@ -1431,7 +1431,7 @@ onMounted(async () => {
 
     // 🔧 設置全域 AdaptiveFlowController 供其他組件使用並啟動
     window.adaptiveFlowController = adaptiveFlowController
-    
+
     // ✅ 啟動自適應流量控制器
     console.log('🚀 啟動自適應流量控制器')
     adaptiveFlowController.start()

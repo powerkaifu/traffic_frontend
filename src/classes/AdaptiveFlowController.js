@@ -195,7 +195,9 @@ export default class AdaptiveFlowController {
         this.occupancyHistory[direction].shift()
       }
 
-      console.log(`📊 [${direction}] 佔有率: ${data.occupancyPercentage.toFixed(2)}% | 車輛: ${data.vehiclesInZone} | 調整係數: ${adjustmentFactor.toFixed(2)}x`)
+      console.log(
+        `📊 [${direction}] 佔有率: ${data.occupancyPercentage.toFixed(2)}% | 車輛: ${data.vehiclesInZone} | 調整係數: ${adjustmentFactor.toFixed(2)}x`,
+      )
 
       // 應用調整到生成器
       this._applyAdjustmentToGenerator(direction, adjustmentFactor)
@@ -401,7 +403,9 @@ export default class AdaptiveFlowController {
     if (newThresholds.normal !== undefined) {
       this.occupancyThresholds.normal = newThresholds.normal
     }
-    console.log(`🎚️ 佔有率臨界值更新為: underflow=${this.occupancyThresholds.underflow}%, normal=${this.occupancyThresholds.normal}%`)
+    console.log(
+      `🎚️ 佔有率臨界值更新為: underflow=${this.occupancyThresholds.underflow}%, normal=${this.occupancyThresholds.normal}%`,
+    )
   }
 
   /**
@@ -415,7 +419,9 @@ export default class AdaptiveFlowController {
     if (newAdjustments.decrease !== undefined) {
       this.generationRateAdjustment.decrease = newAdjustments.decrease
     }
-    console.log(`⚙️ 生成速率調整係數更新為: increase=${this.generationRateAdjustment.increase}, decrease=${this.generationRateAdjustment.decrease}`)
+    console.log(
+      `⚙️ 生成速率調整係數更新為: increase=${this.generationRateAdjustment.increase}, decrease=${this.generationRateAdjustment.decrease}`,
+    )
   }
 
   /**

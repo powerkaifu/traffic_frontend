@@ -3,12 +3,14 @@
 ## 環境檢查
 
 ### 1. 編譯驗證
+
 ```bash
 npm run build
 # 預期: ✅ Build succeeded (0 errors, 0 warnings)
 ```
 
 ### 2. 開發服務器啟動
+
 ```bash
 npm run dev
 # 或使用現有任務: quasar dev
@@ -28,6 +30,7 @@ npm run dev
 ### 第二步: 驗證全局訪問
 
 在控制臺執行：
+
 ```javascript
 // 確認實例存在
 console.log(window.adaptiveFlowController)
@@ -41,14 +44,18 @@ console.log(window.adaptiveFlowController.isRunning)
 ### 第三步: 監控佔有率
 
 #### 方法 1: 實時監控單個方向
+
 ```javascript
 setInterval(() => {
   const data = window.adaptiveFlowController.getOccupancyData('east')
-  console.log(`東向: ${data.occupancyPercentage.toFixed(2)}% (${data.vehiclesInZone} 輛) × ${data.adjustmentFactor.toFixed(2)}`)
+  console.log(
+    `東向: ${data.occupancyPercentage.toFixed(2)}% (${data.vehiclesInZone} 輛) × ${data.adjustmentFactor.toFixed(2)}`,
+  )
 }, 5000)
 ```
 
 #### 方法 2: 監控所有方向
+
 ```javascript
 setInterval(() => {
   const status = window.adaptiveFlowController.getStatusSummary()
@@ -57,6 +64,7 @@ setInterval(() => {
 ```
 
 #### 方法 3: 監控完整狀態
+
 ```javascript
 setInterval(() => {
   const allData = window.adaptiveFlowController.getAllOccupancyData()
@@ -83,6 +91,7 @@ setInterval(() => {
 執行以下測試序列：
 
 #### 測試 A: 低佔有率調整
+
 ```javascript
 // 1. 查看當前佔有率
 window.adaptiveFlowController.getOccupancyData('east').occupancyPercentage
@@ -93,6 +102,7 @@ console.log(window.autoTrafficGenerator.config.interval)
 ```
 
 #### 測試 B: 高佔有率調整
+
 ```javascript
 // 1. 快速生成大量車輛 (如果有此功能)
 // 2. 查看佔有率是否上升
@@ -101,6 +111,7 @@ console.log(window.autoTrafficGenerator.config.interval)
 ```
 
 #### 測試 C: 正常範圍
+
 ```javascript
 // 佔有率在 30-70% 之間時
 // adjustmentFactor 應該為 1.0x
@@ -110,6 +121,7 @@ console.log(window.autoTrafficGenerator.config.interval)
 ## 數據驗證
 
 ### 檢查歷史記錄
+
 ```javascript
 // 獲取最近 5 條歷史記錄
 const history = window.adaptiveFlowController.getOccupancyHistory('east', 5)
@@ -128,6 +140,7 @@ console.table(history)
 ```
 
 ### 檢查停止線檢測
+
 ```javascript
 // 驗證停止線位置是否正確
 const detector = window.adaptiveFlowController
@@ -144,6 +157,7 @@ console.log('北方停止線:', detector._getStopLinePosition('north'))
 ```
 
 ### 檢查檢測區大小
+
 ```javascript
 console.log('檢測區長度:', window.adaptiveFlowController.DETECTION_ZONE_LENGTH, 'px')
 console.log('檢測區長度:', window.adaptiveFlowController.DETECTION_ZONE_LENGTH / 10, 'm')
@@ -154,6 +168,7 @@ console.log('檢測區長度:', window.adaptiveFlowController.DETECTION_ZONE_LEN
 ## 性能測試
 
 ### CPU 使用率監控
+
 ```javascript
 // 在控制臺執行，觀察系統性能
 console.time('occupancy-calculation')
@@ -165,10 +180,13 @@ console.timeEnd('occupancy-calculation')
 ```
 
 ### 內存使用測試
+
 ```javascript
 // 檢查歷史記錄大小
-const totalHistory = Object.values(window.adaptiveFlowController.occupancyHistory)
-  .reduce((sum, arr) => sum + arr.length, 0)
+const totalHistory = Object.values(window.adaptiveFlowController.occupancyHistory).reduce(
+  (sum, arr) => sum + arr.length,
+  0,
+)
 console.log('歷史記錄總數:', totalHistory)
 // 預期: 最多 100 × 4 = 400 條記錄
 ```
@@ -180,6 +198,7 @@ console.log('歷史記錄總數:', totalHistory)
 **可能原因**: 檢測區內未檢測到車輛
 
 **排查步驟**:
+
 ```javascript
 // 1. 檢查是否有車輛在運動
 console.log('活躍車輛:', window.liveVehicles?.length || 0)
@@ -188,7 +207,7 @@ console.log('活躍車輛:', window.liveVehicles?.length || 0)
 const stopLine = window.adaptiveFlowController._getStopLinePosition('east')
 const zone = {
   start: stopLine - window.adaptiveFlowController.DETECTION_ZONE_LENGTH,
-  end: stopLine
+  end: stopLine,
 }
 console.log('東向檢測區:', zone)
 
@@ -205,6 +224,7 @@ window.liveVehicles?.forEach((v, i) => {
 ### 問題 2: 控制臺報錯
 
 **常見錯誤**:
+
 ```javascript
 // 錯誤: Cannot read property 'vehicles' of undefined
 // 原因: trafficController 未正確傳入
@@ -214,6 +234,7 @@ window.liveVehicles?.forEach((v, i) => {
 ### 問題 3: 生成速率無法調整
 
 **排查步驟**:
+
 ```javascript
 // 1. 確認 AutoTrafficGenerator 實例存在
 console.log(window.autoTrafficGenerator)
@@ -232,6 +253,7 @@ console.log('調整係數:', data.adjustmentFactor)
 ## 功能完整性檢查清單
 
 ### 核心功能
+
 - [ ] 控制器成功初始化
 - [ ] 控制器成功啟動
 - [ ] 每 100ms 更新一次被佔用時間
@@ -240,24 +262,28 @@ console.log('調整係數:', data.adjustmentFactor)
 - [ ] 調整係數根據佔有率正確變化
 
 ### 數據收集
+
 - [ ] 歷史記錄正確保存
 - [ ] 歷史記錄限制在 100 條
 - [ ] 時間戳準確
 - [ ] 車輛計數正確
 
 ### 控制行為
+
 - [ ] 低佔有率 (< 30%) 時，係數 = 1.2x
 - [ ] 高佔有率 (> 70%) 時，係數 = 0.8x
 - [ ] 正常佔有率 (30-70%) 時，係數 = 1.0x
 - [ ] 生成間隔根據係數被修改
 
 ### 全局集成
+
 - [ ] window.adaptiveFlowController 可訪問
 - [ ] 所有公共 API 可用
 - [ ] 停止時正確清理資源
 - [ ] 頁面卸載時正確停止
 
 ### 性能
+
 - [ ] 不卡頓（FPS > 30）
 - [ ] CPU 使用率 < 5%
 - [ ] 內存使用穩定
@@ -265,6 +291,7 @@ console.log('調整係數:', data.adjustmentFactor)
 ## 生成測試方案
 
 ### 方案 A: 自動低佔有率測試（無需手動操作）
+
 ```javascript
 // 凌晨時段，車流稀疏
 // 預期: 佔有率 < 30%，系統自動增加生成速率
@@ -272,6 +299,7 @@ console.log('調整係數:', data.adjustmentFactor)
 ```
 
 ### 方案 B: 手動高佔有率測試
+
 ```javascript
 // 快速生成大量車輛
 // 可以添加臨時函數到 IndexPage.vue
@@ -279,7 +307,7 @@ const rapidGenerate = async () => {
   for (let i = 0; i < 50; i++) {
     // 觸發生成邏輯
     window.autoTrafficGenerator._generateVehicle('east', 2)
-    await new Promise(r => setTimeout(r, 100))
+    await new Promise((r) => setTimeout(r, 100))
   }
 }
 
@@ -288,6 +316,7 @@ const rapidGenerate = async () => {
 ```
 
 ### 方案 C: 持續監控測試
+
 ```javascript
 // 在控制臺執行此代碼監控整個過程
 const monitor = setInterval(() => {
@@ -302,15 +331,17 @@ const monitor = setInterval(() => {
 ## 數據分析
 
 ### 收集數據進行分析
+
 ```javascript
 // 收集 5 分鐘的數據
 const analysisData = {
   startTime: Date.now(),
-  records: []
+  records: [],
 }
 
 const collector = setInterval(() => {
-  if (Date.now() - analysisData.startTime > 300000) { // 5 分鐘
+  if (Date.now() - analysisData.startTime > 300000) {
+    // 5 分鐘
     clearInterval(collector)
     analyzeData(analysisData.records)
     return
@@ -325,9 +356,9 @@ const collector = setInterval(() => {
 
 function analyzeData(records) {
   const avg = records.reduce((sum, r) => sum + r.occupancy.reduce((a, b) => a + b) / 4, 0) / records.length
-  const max = Math.max(...records.map(r => Math.max(...r.occupancy)))
-  const min = Math.min(...records.map(r => Math.min(...r.occupancy)))
-  
+  const max = Math.max(...records.map((r) => Math.max(...r.occupancy)))
+  const min = Math.min(...records.map((r) => Math.min(...r.occupancy)))
+
   console.log('5 分鐘分析結果:')
   console.log('平均佔有率:', avg.toFixed(2), '%')
   console.log('最高佔有率:', max.toFixed(2), '%')
