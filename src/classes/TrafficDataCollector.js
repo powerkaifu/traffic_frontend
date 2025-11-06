@@ -320,13 +320,6 @@ export default class TrafficDataCollector {
       const occupancy = Math.min((totalVehicles / maxCapacity) * 100, 100)
 
       this.currentPeriodData.occupancy[direction] = Math.round(occupancy * 10) / 10
-
-      // ✅ 添加日誌記錄
-      if (totalVehicles > 0) {
-        console.log(
-          `📊 [占有率計算] ${direction}方向: ${totalVehicles}輛 / ${maxCapacity}輛上限 = ${this.currentPeriodData.occupancy[direction]}% (${timePeriod})`,
-        )
-      }
     })
   }
 
