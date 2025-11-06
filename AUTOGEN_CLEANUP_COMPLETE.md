@@ -8,7 +8,8 @@
 
 ## 🎯 移除的方法
 
-### 1. `getGenerationIntervalForCurrentTime()` ✅ 
+### 1. `getGenerationIntervalForCurrentTime()` ✅
+
 - **位置**: 原 Line 206-223（18 行代碼）
 - **功能**: 根據當前時間段獲取生成間隔（秒）
 - **驗證方式**: grep 搜尋確認零外部調用
@@ -31,6 +32,7 @@ getGenerationIntervalForCurrentTime() {
 ```
 
 ### 2. `getMaxVehiclesForCurrentTime()` ✅
+
 - **位置**: 原 Line 225-227（3 行代碼）
 - **功能**: 根據時間段獲取最大車輛數
 - **驗證方式**: grep 搜尋確認零外部調用
@@ -45,11 +47,11 @@ getMaxVehiclesForCurrentTime() {
 
 ## 📈 代碼統計
 
-| 指標 | 數值 |
-|------|------|
-| 原始行數 | 1421 |
-| 最終行數 | 1392 |
-| 移除行數 | 29 |
+| 指標       | 數值  |
+| ---------- | ----- |
+| 原始行數   | 1421  |
+| 最終行數   | 1392  |
+| 移除行數   | 29    |
 | 減少百分比 | 2.04% |
 
 ## ✅ 驗證清單
@@ -63,6 +65,7 @@ getMaxVehiclesForCurrentTime() {
 ## 🔍 驗證命令結果
 
 ### grep 搜尋結果
+
 ```bash
 Query: "\.getGenerationIntervalForCurrentTime\(|\.getMaxVehiclesForCurrentTime\("
 Result: NO MATCHES found
@@ -70,6 +73,7 @@ Conclusion: 兩個方法都已確認 100% 未被使用
 ```
 
 ### 構建結果
+
 ```
 Build succeeded ✓
 - SPA UI compiled with success by Vite
