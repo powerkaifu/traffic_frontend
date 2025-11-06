@@ -292,10 +292,10 @@ export class CollisionController {
    */
   getDirectionVector(dirConstant) {
     const vectors = [
-      { x: 1, y: 0 },   // east/right
-      { x: -1, y: 0 },  // west/left
-      { x: 0, y: -1 },  // north/up
-      { x: 0, y: 1 }    // south/down
+      { x: 1, y: 0 }, // east/right
+      { x: -1, y: 0 }, // west/left
+      { x: 0, y: -1 }, // north/up
+      { x: 0, y: 1 }, // south/down
     ]
     return vectors[dirConstant] || { x: 0, y: 0 }
   }
@@ -307,8 +307,7 @@ export class CollisionController {
    */
   getCachedLightState() {
     const now = Date.now()
-    if (this.cachedLightState !== null && 
-        (now - this.lastLightStateCacheTime) < this.lightStateCacheInterval) {
+    if (this.cachedLightState !== null && now - this.lastLightStateCacheTime < this.lightStateCacheInterval) {
       return this.cachedLightState
     }
 
@@ -333,8 +332,10 @@ export class CollisionController {
    */
   getStopLineDistance() {
     const now = Date.now()
-    if (this.cachedStopLineDistance !== null && 
-        (now - this.lastStopLineDistanceTime) < this.stopLineDistanceCacheInterval) {
+    if (
+      this.cachedStopLineDistance !== null &&
+      now - this.lastStopLineDistanceTime < this.stopLineDistanceCacheInterval
+    ) {
       return this.cachedStopLineDistance
     }
 
@@ -707,12 +708,14 @@ export class CollisionController {
 
     // 🚀 優化 4：只檢查同方向同車道的車輛，使用快取過濾
     const now = Date.now()
-    const needsDirectionUpdate = (now - this.lastDirectionFilterTime) > this.directionFilterCacheInterval
+    const needsDirectionUpdate = now - this.lastDirectionFilterTime > this.directionFilterCacheInterval
 
     if (needsDirectionUpdate) {
       this.sameDirectionVehiclesCache = allVehicles.filter(
         (v) =>
-          v.id !== this.vehicle.id && v.direction === this.vehicle.direction && v.laneNumber === this.vehicle.laneNumber,
+          v.id !== this.vehicle.id &&
+          v.direction === this.vehicle.direction &&
+          v.laneNumber === this.vehicle.laneNumber,
       )
       this.lastDirectionFilterTime = now
     }
@@ -1549,13 +1552,14 @@ export class CollisionController {
 
     // 🚀 優化 7：只檢查最近的2輛前方車輛而不是全部
     let frontVehicles = []
-    
+
     for (let other of sameDirectionVehicles) {
       const otherPos = other.getCurrentPosition()
       if (!otherPos) continue
 
       const distance = this.calculateDirectionalDistance(myPos, otherPos)
-      if (distance >= 0) {  // 只考慮前方車輛
+      if (distance >= 0) {
+        // 只考慮前方車輛
         frontVehicles.push({ vehicle: other, distance })
       }
     }
