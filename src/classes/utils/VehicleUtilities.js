@@ -1319,7 +1319,7 @@ export class ResumeMovementUtils {
       // 💡 死鎖恢復：有碰撞時根據距離調整速度
       // 關鍵：即使 targetSpeed = 0，也要嘗試以超慢速前進以逐漸恢復空間
       let targetSpeed = this.calculateResumeSpeed({ collision })
-      
+
       // 💡 死鎖恢復機制：如果完全停止且距離極近，嘗試超慢速恢復
       if (targetSpeed === 0 && collision.distance !== undefined && collision.distance < 5) {
         // 碰撞停止但距離很近，嘗試以極超慢速 (0.05) 進行恢復移動
