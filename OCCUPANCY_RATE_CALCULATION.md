@@ -160,7 +160,7 @@ if (this.apiCallCount === 1 || this.apiCallCount === 2) {
 finalOccupancy = Math.max(Math.min(finalOccupancy, 100), 0)
 
 // 6️⃣ 返回結果（保留 1 位小數）
-return finalOccupancy.toFixed(1)  // 例如："35.2"
+return finalOccupancy.toFixed(1) // 例如："35.2"
 ```
 
 ---
@@ -169,30 +169,30 @@ return finalOccupancy.toFixed(1)  // 例如："35.2"
 
 ### 場景 1：離峰時段 - 10 輛車
 
-| 指標 | 舊機制 | 新機制 | 說明 |
-|------|--------|--------|------|
-| totalVehicles | 10 | 10 | 相同 |
-| maxCapacity/backendVehicles | 60 | 20 | 新機制基於 API 層 |
-| 計算 | 15 + (10/60)×100 | 20 + (10/20)×20 | 新機制時段感知 |
-| 占有率 | 15 + 16.7 = 31.7% | 20 + 10 = 30% | ✅ 更合理 |
+| 指標                        | 舊機制            | 新機制          | 說明              |
+| --------------------------- | ----------------- | --------------- | ----------------- |
+| totalVehicles               | 10                | 10              | 相同              |
+| maxCapacity/backendVehicles | 60                | 20              | 新機制基於 API 層 |
+| 計算                        | 15 + (10/60)×100  | 20 + (10/20)×20 | 新機制時段感知    |
+| 占有率                      | 15 + 16.7 = 31.7% | 20 + 10 = 30%   | ✅ 更合理         |
 
 ### 場景 2：尖峰時段 - 25 輛車
 
-| 指標 | 舊機制 | 新機制 | 說明 |
-|------|--------|--------|------|
-| totalVehicles | 25 | 25 | 相同 |
-| maxCapacity/backendVehicles | 60 | 30 | 新機制基於 API 層 |
-| 計算 | 15 + (25/60)×100 | 45 + (25/30)×20 | 新機制時段感知 |
-| 占有率 | 15 + 41.7 = 56.7% | 45 + 16.7 = 61.7% | ✅ 反映尖峰特性 |
+| 指標                        | 舊機制            | 新機制            | 說明              |
+| --------------------------- | ----------------- | ----------------- | ----------------- |
+| totalVehicles               | 25                | 25                | 相同              |
+| maxCapacity/backendVehicles | 60                | 30                | 新機制基於 API 層 |
+| 計算                        | 15 + (25/60)×100  | 45 + (25/30)×20   | 新機制時段感知    |
+| 占有率                      | 15 + 41.7 = 56.7% | 45 + 16.7 = 61.7% | ✅ 反映尖峰特性   |
 
 ### 場景 3：凌晨時段 - 5 輛車
 
-| 指標 | 舊機制 | 新機制 | 說明 |
-|------|--------|--------|------|
-| totalVehicles | 5 | 5 | 相同 |
-| maxCapacity/backendVehicles | 60 | 8 | 新機制基於 API 層 |
-| 計算 | 15 + (5/60)×100 | 8 + (5/8)×10 | 新機制時段感知 |
-| 占有率 | 15 + 8.3 = 23.3% | 8 + 6.25 = 14.25% | ✅ 反映凌晨特性 |
+| 指標                        | 舊機制           | 新機制            | 說明              |
+| --------------------------- | ---------------- | ----------------- | ----------------- |
+| totalVehicles               | 5                | 5                 | 相同              |
+| maxCapacity/backendVehicles | 60               | 8                 | 新機制基於 API 層 |
+| 計算                        | 15 + (5/60)×100  | 8 + (5/8)×10      | 新機制時段感知    |
+| 占有率                      | 15 + 8.3 = 23.3% | 8 + 6.25 = 14.25% | ✅ 反映凌晨特性   |
 
 ---
 
@@ -200,11 +200,11 @@ return finalOccupancy.toFixed(1)  // 例如："35.2"
 
 ### 改進 1：時段感知
 
-| 時段 | 占有率範圍 | 適用場景 |
-|------|-----------|---------|
-| peak_hours | 45-65% | 早晚尖峰，交通繁忙 |
-| off_peak | 20-40% | 白天和晚間，中等流量 |
-| late_night | 8-18% | 深夜，交通稀少 |
+| 時段       | 占有率範圍 | 適用場景             |
+| ---------- | ---------- | -------------------- |
+| peak_hours | 45-65%     | 早晚尖峰，交通繁忙   |
+| off_peak   | 20-40%     | 白天和晚間，中等流量 |
+| late_night | 8-18%      | 深夜，交通稀少       |
 
 ### 改進 2：與 API 層同步
 
@@ -224,7 +224,7 @@ return finalOccupancy.toFixed(1)  // 例如："35.2"
 
 ```
 舊機制：
-所有時段隨機 10-24% 
+所有時段隨機 10-24%
 ↓
 尖峰 10% 太低，凌晨 24% 太高
 
@@ -256,11 +256,11 @@ const vehicleRatio = Math.min(totalVehicles / config.backendVehicles, 1.0)
 
 ### 邊界情況
 
-| 情況 | 結果 | 說明 |
-|------|------|------|
-| 0 輛車 | 45% / 20% / 8% | 基礎占有率 |
+| 情況            | 結果                 | 說明                 |
+| --------------- | -------------------- | -------------------- |
+| 0 輛車          | 45% / 20% / 8%       | 基礎占有率           |
 | 超出 API 最大值 | 上限 65% / 40% / 18% | 被 vehicleRatio 限制 |
-| 無效時段 | 20-40% | 默認使用 off_peak |
+| 無效時段        | 20-40%               | 默認使用 off_peak    |
 
 ---
 
@@ -268,12 +268,12 @@ const vehicleRatio = Math.min(totalVehicles / config.backendVehicles, 1.0)
 
 ### 計算複雜度
 
-| 操作 | 複雜度 | 影響 |
-|------|--------|------|
-| 時段查詢 | O(1) | 即時，無延遲 |
-| 配置讀取 | O(1) | 字典查詢，極快 |
-| 數學計算 | O(1) | 5 個算術操作 |
-| 隨機波動 | O(1) | Math.random() 調用 |
+| 操作     | 複雜度 | 影響               |
+| -------- | ------ | ------------------ |
+| 時段查詢 | O(1)   | 即時，無延遲       |
+| 配置讀取 | O(1)   | 字典查詢，極快     |
+| 數學計算 | O(1)   | 5 個算術操作       |
+| 隨機波動 | O(1)   | Math.random() 調用 |
 
 ### 內存占用
 
@@ -308,7 +308,7 @@ const vehicleRatio = Math.min(totalVehicles / config.backendVehicles, 1.0)
 // 測試不同場景
 console.log('尖峰 30 輛:', controller.calculateOccupancy('east')) // 應該 ~65%
 console.log('離峰 10 輛:', controller.calculateOccupancy('east')) // 應該 ~30%
-console.log('凌晨 5 輛:', controller.calculateOccupancy('east'))  // 應該 ~13%
+console.log('凌晨 5 輛:', controller.calculateOccupancy('east')) // 應該 ~13%
 ```
 
 ---
@@ -325,7 +325,7 @@ calculateOccupancy(direction) {
   // ===== 💡 改進的占有率計算機制 =====
   // 根據當前時段獲取配置，確保占有率與實際車輛生成和 API 發送量一致
   const timePeriod = this.getCurrentTimePeriod?.() || 'off_peak'
-  
+
   // 🔧 根據時段配置不同的占有率範圍和基礎占有率
   const occupancyConfig = {
     peak_hours: {
@@ -361,7 +361,7 @@ calculateOccupancy(direction) {
 
   // 🎲 加入隨機波動（模擬實際路況變化）
   let finalOccupancy = vehicleBasedOccupancy
-  
+
   // 第 1、2 次 API 呼叫時加入額外隨機波動（模擬初始狀態不穩定）
   if (this.apiCallCount === 1 || this.apiCallCount === 2) {
     const randomNoise = (Math.random() - 0.5) * config.randomRange
@@ -370,7 +370,7 @@ calculateOccupancy(direction) {
 
   // 🔐 確保占有率在合理範圍內 [0, 100]
   finalOccupancy = Math.max(Math.min(finalOccupancy, 100), 0)
-  
+
   return finalOccupancy.toFixed(1)
 }
 ```
@@ -397,19 +397,20 @@ peak_hours: {
 
 ## 📊 改進效果總結
 
-| 指標 | 改進前 | 改進後 | 提升 |
-|------|--------|--------|------|
-| 時段感知 | ❌ 無 | ✅ 有 | 新增 |
-| 占有率準確度 | ❌ 低 | ✅ 高 | +70% |
-| 與 API 對應 | ❌ 否 | ✅ 是 | 新增 |
-| 隨機波動合理性 | ❌ 否 | ✅ 是 | 新增 |
-| 占有率上限保護 | ✅ 有 | ✅ 有 | 維持 |
+| 指標           | 改進前 | 改進後 | 提升 |
+| -------------- | ------ | ------ | ---- |
+| 時段感知       | ❌ 無  | ✅ 有  | 新增 |
+| 占有率準確度   | ❌ 低  | ✅ 高  | +70% |
+| 與 API 對應    | ❌ 否  | ✅ 是  | 新增 |
+| 隨機波動合理性 | ❌ 否  | ✅ 是  | 新增 |
+| 占有率上限保護 | ✅ 有  | ✅ 有  | 維持 |
 
 ---
 
 ## 🎉 總結
 
 ✅ **占有率計算現在完全與車輛生成和 API 層同步**
+
 - 時段感知（尖峰 45-65%，離峰 20-40%，凌晨 8-18%）
 - 基於 API 實際車輛限制（30/20/8）
 - 合理的隨機波動
