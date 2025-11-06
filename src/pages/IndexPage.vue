@@ -442,7 +442,9 @@ const handleAutoGenerate = (event) => {
   // ✅ 【新增】如果 selectOptimalLane 返回 null，表示該方向所有車道都已滿
   if (laneNumber === null) {
     // 延遲重新嘗試生成
-    setTimeout(() => AutoTrafficGenerator.instance._scheduleNext(), 1000)
+    if (window.autoTrafficGenerator && window.autoTrafficGenerator._scheduleNext) {
+      setTimeout(() => window.autoTrafficGenerator._scheduleNext(), 1000)
+    }
     return
   }
 
