@@ -202,31 +202,7 @@ export default class AutoTrafficGenerator {
     }
   }
 
-  // � 新增：根據當前時間段獲取生成間隔（秒）
-  getGenerationIntervalForCurrentTime() {
-    // 獲取當前時間（若在自動模式則使用模擬時間，否則使用實際時間）
-    const timeToUse = this.isAutoMode ? this.simulationTime : new Date()
-    const hour = timeToUse.getHours()
-
-    // 根據時間段判斷，使用 vdDisplayConfig 中的可配置間隔
-    if (hour >= 0 && hour < 7) {
-      // 午夜段 (00:00-06:59)
-      return VD_DISPLAY_CONFIG.late_night.generation_interval
-    } else if ((hour >= 7 && hour < 10) || (hour >= 17 && hour < 20)) {
-      // 尖峰時段 (07:00-09:59, 17:00-19:59)
-      return VD_DISPLAY_CONFIG.peak_hours.generation_interval
-    } else {
-      // 離峰時段 (10:00-16:59, 20:00-23:59)
-      return VD_DISPLAY_CONFIG.off_peak.generation_interval
-    }
-  }
-
-  // 🚗 新增：根據時間段獲取最大車輛數
-  getMaxVehiclesForCurrentTime() {
-    return GENERATION_CONFIG.MAX_VEHICLES_PER_LANE
-  }
-
-  // �🔧 新增：統一清除情景模式計時器和狀態（避免重複造輪子）
+  // 🔧 新增：統一清除情景模式計時器和狀態（避免重複造輪子）
   _stopScenarioModeLoop() {
     if (this.scenarioModeTimer) {
       clearInterval(this.scenarioModeTimer)
