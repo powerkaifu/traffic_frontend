@@ -429,10 +429,6 @@ const selectOptimalLane = (direction) => {
   // 如果有多個車道車輛數量相同，隨機選擇一個
   const selectedLane = optimalLanes[Math.floor(Math.random() * optimalLanes.length)]
 
-  console.log(
-    `🚗 [車道分配] ${direction}方向: 選擇車道${selectedLane.laneNumber} (目前 ${selectedLane.count}/${MAX_VEHICLES_PER_LANE} 輛)`,
-  )
-
   return selectedLane.laneNumber
 }
 
