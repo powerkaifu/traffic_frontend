@@ -176,7 +176,7 @@
                   <input
                     type="range"
                     v-model="manualInterval"
-                    min="2000"
+                    min="1000"
                     max="30000"
                     :step="100"
                     @input="onSliderInput"
