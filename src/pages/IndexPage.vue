@@ -371,6 +371,7 @@ import { stopLineConfig, lightColorConfig } from '../classes/config/trafficConfi
 import WeatherController from '../classes/WeatherController.js'
 import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
 import { CollisionController } from '../classes/vehicle_utils/CollisionController.js'
+import { GENERATION_CONFIG } from '../classes/config/vehicleConfig.js'
 
 // 註冊 GSAP MotionPathPlugin 和 MotionPathHelper
 gsap.registerPlugin(MotionPathPlugin, MotionPathHelper)
@@ -396,67 +397,58 @@ const handleScenarioChange = (event) => {
 const selectOptimalLane = (direction) => {
   // 🎯 修正：自動生成器避免使用車道1（左轉專用車道）
   // 只從車道2,3,4中選擇，車道1保留給專門的左轉車輛生成
+  
+  // ✅ 【新增】硬性限制：每車道最多 MAX_VEHICLES_PER_LANE 輛車
+  const MAX_VEHICLES_PER_LANE = GENERATION_CONFIG.MAX_VEHICLES_PER_LANE || 6
+  
   const laneCounts = [2, 3, 4].map((laneNum) => {
-    // 計算該車道最近生成的車輛數量
-    const recentVehiclesInLane = activeCars.value.filter((car) => {
-      if (car.direction !== direction || car.laneNumber !== laneNum) return false
-
-      // 檢查車輛是否在起始區域（剛生成不久）
-      const carPos = car.getCurrentPosition()
-      const isInStartArea = isCarInStartArea(carPos, direction)
-
-      return isInStartArea
+    // 🔧 改進：計算該車道的**全部車輛**數量，而不只是起始區域的車輛
+    const totalVehiclesInLane = activeCars.value.filter((car) => {
+      return car.direction === direction && car.laneNumber === laneNum
     }).length
 
-    return { laneNumber: laneNum, count: recentVehiclesInLane }
+    return { laneNumber: laneNum, count: totalVehiclesInLane }
   })
 
-  // 找出車輛數量最少的車道
-  const minCount = Math.min(...laneCounts.map((lane) => lane.count))
-  const availableLanes = laneCounts.filter((lane) => lane.count === minCount)
+  // 找出車輛數量最少且未超過限制的車道
+  const availableLanes = laneCounts.filter((lane) => lane.count < MAX_VEHICLES_PER_LANE)
+
+  // 如果沒有可用車道，記錄警告並返回 null
+  if (availableLanes.length === 0) {
+    const laneStatus = laneCounts.map((lane) => `車道${lane.laneNumber}: ${lane.count}輛`).join(', ')
+    console.warn(
+      `⚠️ [車道限制] ${direction}方向所有車道已滿 (${laneStatus})，已達到每車道 ${MAX_VEHICLES_PER_LANE} 輛的上限，暫停生成新車輛`,
+    )
+    return null
+  }
+
+  // 在可用車道中找出車輛數量最少的
+  const minCount = Math.min(...availableLanes.map((lane) => lane.count))
+  const optimalLanes = availableLanes.filter((lane) => lane.count === minCount)
 
   // 如果有多個車道車輛數量相同，隨機選擇一個
-  const selectedLane = availableLanes[Math.floor(Math.random() * availableLanes.length)]
+  const selectedLane = optimalLanes[Math.floor(Math.random() * optimalLanes.length)]
+
+  console.log(
+    `🚗 [車道分配] ${direction}方向: 選擇車道${selectedLane.laneNumber} (目前 ${selectedLane.count}/${MAX_VEHICLES_PER_LANE} 輛)`,
+  )
 
   return selectedLane.laneNumber
 }
 
 // 檢查車輛是否在起始區域的輔助函數
-const isCarInStartArea = (carPos, direction) => {
-  const startAreaThreshold = 300 // 起始區域範圍
-
-  switch (direction) {
-    case 'east':
-      // 東向起始點 x=0，向右移動到停止線 x≈700
-      // 起始區域：x ∈ [0, 300]
-      return carPos.x < startAreaThreshold
-
-    case 'west':
-      // 西向起始點 x=800，向左移動到停止線 x≈700
-      // 起始區域：x ∈ [500, 1100]
-      // 🔧 修復：不應該檢查 x > 1100（右邊界），應該檢查 x 在 800 ± 300 範圍內
-      return carPos.x > 500 && carPos.x < 1100
-
-    case 'north':
-      // 北向起始點 y=600，向上移動到停止線 y≈0
-      // 起始區域：y ∈ [300, 600]
-      return carPos.y < startAreaThreshold // 🔧 修復：往北起點在 y=600，向上移動到 y=0，所以起始區域應該是 y < 300，不是 > 700
-
-    case 'south':
-      // 南向起始點 y=0，向下移動到停止線 y≈500
-      // 起始區域：y ∈ [0, 300]
-      return carPos.y < startAreaThreshold
-
-    default:
-      return false
-  }
-}
-
 // 自動產生車輛的事件處理函數
 const handleAutoGenerate = (event) => {
   const { direction, vehicleType, initialProgress } = event.detail
 
   const laneNumber = selectOptimalLane(direction)
+
+  // ✅ 【新增】如果 selectOptimalLane 返回 null，表示該方向所有車道都已滿
+  if (laneNumber === null) {
+    // 延遲重新嘗試生成
+    setTimeout(() => AutoTrafficGenerator.instance._scheduleNext(), 1000)
+    return
+  }
 
   // 使用路徑起始位置生成車輛
   const pathStartPosition = Vehicle.getPathStartPosition(direction, laneNumber)

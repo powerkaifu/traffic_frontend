@@ -980,17 +980,17 @@ export default class TrafficLightController {
       }
       const config = occupancyConfig[timePeriod] || occupancyConfig['off_peak']
       const [minTarget, maxTarget] = config.targetRange
-      
+
       // 基於實際發送車輛數計算占有率（不再基於 this.vehicleData）
       const vehicleRatio = Math.min(totalVehicles / config.backendVehicles, 1.0)
       let occupancyValue = minTarget + (maxTarget - minTarget) * vehicleRatio
-      
+
       // 加入隨機波動（API 初期）
       if (this.apiCallCount === 1 || this.apiCallCount === 2) {
         const randomNoise = (Math.random() - 0.5) * config.randomRange
         occupancyValue = occupancyValue + randomNoise
       }
-      
+
       const occupancy = Math.round(Math.max(Math.min(occupancyValue, 100), 0))
 
       // 按照 API 格式生成數據
