@@ -1039,7 +1039,7 @@ export default class TrafficLightController {
     const totalVehicles = data.motor + data.small + data.large
     // ===== 💡 改進的占有率計算機制 =====
     // 根據當前時段獲取配置，確保占有率與實際車輛生成和 API 發送量一致
-    const timePeriod = this.getCurrentTimePeriod?.() || 'off_peak'
+    const timePeriod = getCurrentTimePeriod() || 'off_peak'
 
     // 🔧 根據時段配置不同的占有率範圍和基礎占有率
     const occupancyConfig = {
