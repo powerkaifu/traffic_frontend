@@ -983,16 +983,16 @@ export default class TrafficLightController {
 
       // 基於實際發送車輛數計算占有率（不再基於 this.vehicleData）
       const vehicleRatio = Math.min(totalVehicles / config.backendVehicles, 1.0)
-      
+
       // ✅ 添加方向特定的波動係數，確保各方向占有率不同
       const directionBias = {
-        east: 1.15,    // 東向：高 15%
-        west: 0.75,    // 西向：低 25%
-        south: 1.10,   // 南向：高 10%
-        north: 0.95,   // 北向：略低 5%
+        east: 1.15, // 東向：高 15%
+        west: 0.75, // 西向：低 25%
+        south: 1.1, // 南向：高 10%
+        north: 0.95, // 北向：略低 5%
       }
       const directionFactor = directionBias[direction] || 1.0
-      
+
       let occupancyValue = (minTarget + (maxTarget - minTarget) * vehicleRatio) * directionFactor
 
       // 加入隨機波動（API 初期）
@@ -1102,16 +1102,16 @@ export default class TrafficLightController {
     // 📊 計算基於當前車輛數的占有率
     // 公式：當前車輛 / API 最大車輛 * (最大目標 - 最小目標) + 最小目標
     const vehicleRatio = Math.min(totalVehicles / config.backendVehicles, 1.0)
-    
+
     // ✅ 添加方向特定的波動係數，確保各方向占有率不同
     const directionBias = {
-      east: 1.15,    // 東向：高 15%
-      west: 0.75,    // 西向：低 25%
-      south: 1.10,   // 南向：高 10%
-      north: 0.95,   // 北向：略低 5%
+      east: 1.15, // 東向：高 15%
+      west: 0.75, // 西向：低 25%
+      south: 1.1, // 南向：高 10%
+      north: 0.95, // 北向：略低 5%
     }
     const directionFactor = directionBias[direction] || 1.0
-    
+
     const vehicleBasedOccupancy = (minTarget + (maxTarget - minTarget) * vehicleRatio) * directionFactor
 
     // � 加入隨機波動（模擬實際路況變化）
