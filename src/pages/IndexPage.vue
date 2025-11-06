@@ -397,10 +397,10 @@ const handleScenarioChange = (event) => {
 const selectOptimalLane = (direction) => {
   // 🎯 修正：自動生成器避免使用車道1（左轉專用車道）
   // 只從車道2,3,4中選擇，車道1保留給專門的左轉車輛生成
-  
+
   // ✅ 【新增】硬性限制：每車道最多 MAX_VEHICLES_PER_LANE 輛車
   const MAX_VEHICLES_PER_LANE = GENERATION_CONFIG.MAX_VEHICLES_PER_LANE || 6
-  
+
   const laneCounts = [2, 3, 4].map((laneNum) => {
     // 🔧 改進：計算該車道的**全部車輛**數量，而不只是起始區域的車輛
     const totalVehiclesInLane = activeCars.value.filter((car) => {
