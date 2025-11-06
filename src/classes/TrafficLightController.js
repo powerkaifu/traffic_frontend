@@ -1037,17 +1037,55 @@ export default class TrafficLightController {
   calculateOccupancy(direction) {
     const data = this.vehicleData[direction]
     const totalVehicles = data.motor + data.small + data.large
-    // 調整占有率計算：增加基礎占有率以模擬中等流量情況
-    const maxCapacity = 60 // 降低最大容量以提高占有率敏感度，模擬較繁忙路段
-    let baseOccupancy = 15 // 基礎占有率，確保即使車輛較少時也有一定的占有率
-
-    // 🎯【新增】第一次 API 呼叫時加入隨機波動，使占有率不固定
-    if (this.apiCallCount === 1 || this.apiCallCount === 2) {
-      baseOccupancy = Math.floor(Math.random() * 15) + 10 // 10-24 的隨機基礎占有率
+    // ===== 💡 改進的占有率計算機制 =====
+    // 根據當前時段獲取配置，確保占有率與實際車輛生成和 API 發送量一致
+    const timePeriod = this.getCurrentTimePeriod?.() || 'off_peak'
+    
+    // 🔧 根據時段配置不同的占有率範圍和基礎占有率
+    const occupancyConfig = {
+      peak_hours: {
+        // 尖峰時段（07:00-09:00, 17:00-19:00）
+        targetRange: [45, 65],     // 占有率目標範圍：45-65%
+        baseOccupancy: 45,         // 基礎占有率：45%
+        randomRange: 10,           // 隨機波動：±10%
+        backendVehicles: 30,       // API 傳送最多 30 輛車
+      },
+      off_peak: {
+        // 離峰時段（09:00-17:00, 19:00-23:00）
+        targetRange: [20, 40],     // 占有率目標範圍：20-40%
+        baseOccupancy: 20,         // 基礎占有率：20%
+        randomRange: 8,            // 隨機波動：±8%
+        backendVehicles: 20,       // API 傳送最多 20 輛車
+      },
+      late_night: {
+        // 凌晨時段（23:00-07:00）
+        targetRange: [8, 18],      // 占有率目標範圍：8-18%
+        baseOccupancy: 8,          // 基礎占有率：8%
+        randomRange: 5,            // 隨機波動：±5%
+        backendVehicles: 8,        // API 傳送最多 8 輛車
+      },
     }
 
-    const calculatedOccupancy = (totalVehicles / maxCapacity) * 100
-    const finalOccupancy = Math.min(baseOccupancy + calculatedOccupancy, 100)
+    const config = occupancyConfig[timePeriod] || occupancyConfig['off_peak']
+    const [minTarget, maxTarget] = config.targetRange
+
+    // 📊 計算基於當前車輛數的占有率
+    // 公式：當前車輛 / API 最大車輛 * (最大目標 - 最小目標) + 最小目標
+    const vehicleRatio = Math.min(totalVehicles / config.backendVehicles, 1.0)
+    const vehicleBasedOccupancy = minTarget + (maxTarget - minTarget) * vehicleRatio
+
+    // � 加入隨機波動（模擬實際路況變化）
+    let finalOccupancy = vehicleBasedOccupancy
+    
+    // 第 1、2 次 API 呼叫時加入額外隨機波動（模擬初始狀態不穩定）
+    if (this.apiCallCount === 1 || this.apiCallCount === 2) {
+      const randomNoise = (Math.random() - 0.5) * config.randomRange
+      finalOccupancy = vehicleBasedOccupancy + randomNoise
+    }
+
+    // 🔐 確保占有率在合理範圍內 [0, 100]
+    finalOccupancy = Math.max(Math.min(finalOccupancy, 100), 0)
+    
     return finalOccupancy.toFixed(1)
   }
 
