@@ -471,8 +471,23 @@ const handleAutoGenerate = (event) => {
 const handleAutoGenerateLeftTurn = (event) => {
   const { direction, type } = event.detail
 
-  // 強制使用車道1（左轉專用車道）
+  // ✅ 【修復】檢查車道1（左轉專用車道）是否已達容量限制
+  const MAX_VEHICLES_PER_LANE = GENERATION_CONFIG.MAX_VEHICLES_PER_LANE || 6
   const laneNumber = 1
+
+  // 計算車道1中同方向的車輛數量
+  const lane1VehicleCount = activeCars.value.filter((car) => {
+    return car.direction === direction && car.laneNumber === laneNumber
+  }).length
+
+  // 如果車道1已滿，則放棄此次生成
+  if (lane1VehicleCount >= MAX_VEHICLES_PER_LANE) {
+    console.warn(
+      `⚠️ [車道限制] ${direction}方向1號車道已滿 (${lane1VehicleCount}/${MAX_VEHICLES_PER_LANE})，暫停生成左轉車輛`,
+    )
+    return
+  }
+
   const pathStartPosition = Vehicle.getPathStartPosition(direction, laneNumber)
 
   if (!pathStartPosition) {
