@@ -2,6 +2,8 @@
  * TrafficDataCollector.js - 交通數據收集器
  */
 
+import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
+
 export default class TrafficDataCollector {
   constructor() {
     this.isCollecting = false
@@ -299,7 +301,6 @@ export default class TrafficDataCollector {
     const directions = ['east', 'west', 'south', 'north']
 
     // ✅ 導入時段判定函數，動態調整最大容量
-    const { getCurrentTimePeriod } = require('./config/vdNormalizationConfig.js')
     const timePeriod = getCurrentTimePeriod()
 
     // ✅ 根據時段設定不同的最大容量
