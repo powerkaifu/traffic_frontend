@@ -15,6 +15,7 @@
 ```
 
 **影響**：
+
 - 占有率無法正確反映不同時段的交通特性
 - 時段感知機制完全失效
 - 用戶無法看到尖峰時段的繁忙程度
@@ -52,7 +53,7 @@ const timePeriod = this.getCurrentTimePeriod?.() || 'off_peak'
 應該使用**導入的函數**：
 
 ```javascript
-import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'  // ✅ Line 6
+import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js' // ✅ Line 6
 
 // 正確使用
 const timePeriod = getCurrentTimePeriod() || 'off_peak'
@@ -80,7 +81,7 @@ const timePeriod = getCurrentTimePeriod() || 'off_peak'
 ```
 時間：任意時段
 執行步驟：
-1. this.getCurrentTimePeriod?.() 
+1. this.getCurrentTimePeriod?.()
    → undefined (方法不存在)
 2. undefined || 'off_peak'
    → 'off_peak'
@@ -133,24 +134,24 @@ const timePeriod = getCurrentTimePeriod() || 'off_peak'
 
 #### 尖峰時段 (07:00-09:00, 17:00-19:00)
 
-| 時間 | 修復前 | 修復後 | 狀態 |
-|------|--------|--------|------|
+| 時間  | 修復前 | 修復後 | 狀態 |
+| ----- | ------ | ------ | ---- |
 | 08:00 | 20% ❌ | 45% ✅ | 正常 |
 | 18:00 | 20% ❌ | 45% ✅ | 正常 |
 
 #### 離峰時段 (09:00-17:00, 19:00-23:00)
 
-| 時間 | 修復前 | 修復後 | 狀態 |
-|------|--------|--------|------|
-| 13:00 | 20% ✓ | 20% ✓ | 無變化 (本已正確) |
-| 22:00 | 20% ❌ | 20% ✓ | 巧合正確 |
+| 時間  | 修復前 | 修復後 | 狀態              |
+| ----- | ------ | ------ | ----------------- |
+| 13:00 | 20% ✓  | 20% ✓  | 無變化 (本已正確) |
+| 22:00 | 20% ❌ | 20% ✓  | 巧合正確          |
 
 #### 凌晨時段 (23:00-07:00)
 
-| 時間 | 修復前 | 修復後 | 狀態 |
-|------|--------|--------|------|
-| 02:00 | 20% ❌ | 8% ✅ | 正常 |
-| 04:00 | 20% ❌ | 8% ✅ | 正常 |
+| 時間  | 修復前 | 修復後 | 狀態 |
+| ----- | ------ | ------ | ---- |
+| 02:00 | 20% ❌ | 8% ✅  | 正常 |
+| 04:00 | 20% ❌ | 8% ✅  | 正常 |
 
 ### 核心改善
 
@@ -180,6 +181,7 @@ const timePeriod = getCurrentTimePeriod() || 'off_peak'
    - 導致無法正確調用
 
 2. **Optional Chaining 的掩蓋**
+
    ```javascript
    this.getCurrentTimePeriod?.()  // 不報錯，因為用了 ?.
                        ↑
@@ -188,7 +190,7 @@ const timePeriod = getCurrentTimePeriod() || 'off_peak'
 
 3. **默認值的"救場"**
    ```javascript
-   undefined || 'off_peak'  // 默認值遮掩了問題
+   undefined || 'off_peak' // 默認值遮掩了問題
    ```
 
 ---
@@ -196,18 +198,21 @@ const timePeriod = getCurrentTimePeriod() || 'off_peak'
 ## ✅ 驗證清單
 
 ### 編譯驗證 ✅
+
 - [x] npm run build 成功
 - [x] 編譯時間 6102ms
 - [x] 0 個編譯錯誤
 - [x] 0 個編譯警告
 
 ### 邏輯驗證 ✅
+
 - [x] `getCurrentTimePeriod()` 正確調用
 - [x] 返回值不為 undefined
 - [x] 時段判定邏輯有效
 - [x] 占有率配置正確讀取
 
 ### 功能驗證 ✅
+
 - [x] 尖峰時段占有率 ≥ 45%
 - [x] 離峰時段占有率 = 20%
 - [x] 凌晨時段占有率 ≤ 18%
@@ -223,13 +228,13 @@ const timePeriod = getCurrentTimePeriod() || 'off_peak'
 
 window.testOccupancyByTime = () => {
   const tlc = window.trafficLightController
-  
+
   console.log('=== 占有率時段測試 ===')
   console.log('當前系統時間:', new Date().toLocaleTimeString())
   console.log('當前時段判定:', getCurrentTimePeriod?.() || vdNormalizationConfig.getCurrentTimePeriod?.())
-  
+
   console.log('\n各方向占有率:')
-  ;['east', 'west', 'south', 'north'].forEach(dir => {
+  ;['east', 'west', 'south', 'north'].forEach((dir) => {
     const occ = tlc.calculateOccupancy(dir)
     console.log(`${dir}: ${occ}%`)
   })
@@ -254,17 +259,17 @@ window.testOccupancyByTime()
 ```javascript
 export function getCurrentTimePeriod() {
   const hour = new Date().getHours()
-  
+
   // 尖峰時段：07:00-09:00, 17:00-19:00
   if ((hour >= 7 && hour < 9) || (hour >= 17 && hour < 19)) {
     return 'peak_hours'
   }
-  
+
   // 凌晨時段：23:00-07:00
   if (hour >= 23 || hour < 7) {
     return 'late_night'
   }
-  
+
   // 離峰時段：09:00-17:00, 19:00-23:00
   return 'off_peak'
 }
@@ -275,19 +280,19 @@ export function getCurrentTimePeriod() {
 ```javascript
 const occupancyConfig = {
   peak_hours: {
-    baseOccupancy: 45,    // ← 尖峰基礎占有率
+    baseOccupancy: 45, // ← 尖峰基礎占有率
     targetRange: [45, 65],
     randomRange: 10,
     backendVehicles: 30,
   },
   off_peak: {
-    baseOccupancy: 20,    // ← 離峰基礎占有率
+    baseOccupancy: 20, // ← 離峰基礎占有率
     targetRange: [20, 40],
     randomRange: 8,
     backendVehicles: 20,
   },
   late_night: {
-    baseOccupancy: 8,     // ← 凌晨基礎占有率
+    baseOccupancy: 8, // ← 凌晨基礎占有率
     targetRange: [8, 18],
     randomRange: 5,
     backendVehicles: 8,
@@ -306,12 +311,12 @@ calculateOccupancy(direction) {
   const data = this.vehicleData[direction]
   const totalVehicles = data.motor + data.small + data.large
   const timePeriod = getCurrentTimePeriod() || 'off_peak'
-  
+
   // 📝 新增調試日誌
   if (this.occupancyDebugLogging) {
     console.log(`[占有率] 時段: ${timePeriod}, 車輛: ${totalVehicles}`)
   }
-  
+
   // ... 繼續計算邏輯
 }
 ```
@@ -321,13 +326,13 @@ calculateOccupancy(direction) {
 ```javascript
 calculateOccupancy(direction) {
   const timePeriod = getCurrentTimePeriod() || 'off_peak'
-  
+
   // 當時段改變時發出通知
   if (timePeriod !== this.lastTimePeriod) {
     console.log(`⏰ 時段已改變: ${this.lastTimePeriod} → ${timePeriod}`)
     this.lastTimePeriod = timePeriod
   }
-  
+
   // ... 繼續計算邏輯
 }
 ```
@@ -336,28 +341,32 @@ calculateOccupancy(direction) {
 
 ## 📊 修復前後對比總結
 
-| 方面 | 修復前 ❌ | 修復後 ✅ | 改善度 |
-|------|---------|---------|--------|
-| **時段判定** | 始終 off_peak | 動態 (3 種) | +∞ |
-| **尖峰占有率** | 20% | 45% | +125% |
-| **凌晨占有率** | 20% | 8% | -60% (合理) |
-| **時段感知** | ❌ 無 | ✅ 有 | 新增 |
-| **用戶體驗** | ⭐⭐ | ⭐⭐⭐⭐⭐ | +150% |
+| 方面           | 修復前 ❌     | 修復後 ✅   | 改善度      |
+| -------------- | ------------- | ----------- | ----------- |
+| **時段判定**   | 始終 off_peak | 動態 (3 種) | +∞          |
+| **尖峰占有率** | 20%           | 45%         | +125%       |
+| **凌晨占有率** | 20%           | 8%          | -60% (合理) |
+| **時段感知**   | ❌ 無         | ✅ 有       | 新增        |
+| **用戶體驗**   | ⭐⭐          | ⭐⭐⭐⭐⭐  | +150%       |
 
 ---
 
 ## 🏆 最終評價
 
 ### Bug 嚴重度
+
 **🔴 中等** - 占有率無法正確反映時段特性，但不影響交通模擬正常運行
 
 ### 修復難度
+
 **🟢 簡單** - 只需改 1 行代碼
 
 ### 修復價值
+
 **🟢 高** - 恢復時段感知功能，改善用戶體驗
 
 ### 代碼質量改善
+
 - ✅ 移除了不存在的方法調用
 - ✅ 使用正確的導入函數
 - ✅ 恢復時段感知機制
@@ -368,15 +377,19 @@ calculateOccupancy(direction) {
 ## 📌 總結
 
 ### 問題
+
 每次重整都顯示 20% 占有率
 
 ### 原因
+
 時段判定邏輯錯誤：`this.getCurrentTimePeriod?.()` 返回 undefined
 
 ### 解決方案
+
 改為使用導入的 `getCurrentTimePeriod()` 函數
 
 ### 結果
+
 ✅ 占有率現在正確反映時段特性
 ✅ 尖峰時段：45-65%
 ✅ 離峰時段：20-40%

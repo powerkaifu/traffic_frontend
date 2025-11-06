@@ -970,8 +970,28 @@ export default class TrafficLightController {
             )
           : 0
 
-      // 計算占有率
-      const occupancy = Math.round(parseFloat(this.calculateOccupancy(direction)))
+      // 📊 計算占有率（基於實際發送的車輛數，不是 this.vehicleData）
+      // 根據時段獲取占有率配置
+      const timePeriod = getCurrentTimePeriod() || 'off_peak'
+      const occupancyConfig = {
+        peak_hours: { targetRange: [45, 65], baseOccupancy: 45, randomRange: 10, backendVehicles: 30 },
+        off_peak: { targetRange: [20, 40], baseOccupancy: 20, randomRange: 8, backendVehicles: 20 },
+        late_night: { targetRange: [8, 18], baseOccupancy: 8, randomRange: 5, backendVehicles: 8 },
+      }
+      const config = occupancyConfig[timePeriod] || occupancyConfig['off_peak']
+      const [minTarget, maxTarget] = config.targetRange
+      
+      // 基於實際發送車輛數計算占有率（不再基於 this.vehicleData）
+      const vehicleRatio = Math.min(totalVehicles / config.backendVehicles, 1.0)
+      let occupancyValue = minTarget + (maxTarget - minTarget) * vehicleRatio
+      
+      // 加入隨機波動（API 初期）
+      if (this.apiCallCount === 1 || this.apiCallCount === 2) {
+        const randomNoise = (Math.random() - 0.5) * config.randomRange
+        occupancyValue = occupancyValue + randomNoise
+      }
+      
+      const occupancy = Math.round(Math.max(Math.min(occupancyValue, 100), 0))
 
       // 按照 API 格式生成數據
       vdData.push({
