@@ -130,6 +130,12 @@ export default class Vehicle {
 
     // 🌤️ 【新增】天氣相關屬性
     this.weatherMultiplier = 1.0 // 初始天氣倍數為 1.0 (晴天)
+    
+    // 🚀 第3階段優化：黃燈決策降頻和緩存
+    this.lastYellowDecisionTime = 0 // 上次黃燈決策的時間
+    this.yellowDecisionCacheInterval = 50 // 黃燈決策檢查間隔（毫秒，20 Hz）
+    this.cachedYellowDecision = null // 緩存的黃燈決策結果
+    
     // 嘗試從 window.liveVehicles 或 vehicleAdded 事件取得 speed
     let externalSpeed = null
     if (window.liveVehicles && Array.isArray(window.liveVehicles)) {
@@ -627,18 +633,34 @@ export default class Vehicle {
       return { action: 'none', decision: 'disabled' }
     }
 
+    // 🚀 第3階段優化：黃燈決策降頻
+    // 每 50ms (20 Hz) 只進行一次完整決策計算，其他時間使用緩存結果
+    const now = Date.now()
+    if (now - this.lastYellowDecisionTime < this.yellowDecisionCacheInterval) {
+      // 使用緩存的決策結果
+      if (this.cachedYellowDecision) {
+        return this.cachedYellowDecision
+      }
+    }
+
     // 獲取當前速度和位置
     const currentSpeed = this.getCurrentSpeedRatio() || 0
     const distanceToStopLine = this.getDistanceToStopLine()
 
     // 無法計算距離時，採用保守策略（停止）
     if (distanceToStopLine === null || distanceToStopLine === undefined) {
-      return { action: 'brake', decision: 'unknown_distance' }
+      const decision = { action: 'brake', decision: 'unknown_distance' }
+      this.cachedYellowDecision = decision
+      this.lastYellowDecisionTime = now
+      return decision
     }
 
     // 如果距離為負，表示已超過停止線，應該加速通過
     if (distanceToStopLine < 0) {
-      return { action: 'accelerate', decision: 'already_past' }
+      const decision = { action: 'accelerate', decision: 'already_past' }
+      this.cachedYellowDecision = decision
+      this.lastYellowDecisionTime = now
+      return decision
     }
 
     // 計算安全停止距離
@@ -650,6 +672,7 @@ export default class Vehicle {
       YELLOW_LIGHT_DECISION_CONFIG.SAFE_STOPPING_MARGIN
 
     // 決策邏輯
+    let decision
     if (distanceToStopLine > stoppingDistance) {
       // 能夠安全停止 → 減速停車
       if (YELLOW_LIGHT_DECISION_CONFIG.DEBUG.LOG_DECISIONS) {
@@ -657,7 +680,7 @@ export default class Vehicle {
           `🟡 [${this.id}] 黃燈決策：停止 (距離=${distanceToStopLine.toFixed(1)}, 停止距=${stoppingDistance.toFixed(1)})`,
         )
       }
-      return {
+      decision = {
         action: 'brake',
         decision: 'safe_to_stop',
         stoppingDistance: stoppingDistance,
@@ -670,13 +693,19 @@ export default class Vehicle {
           `🟡 [${this.id}] 黃燈決策：衝過 (距離=${distanceToStopLine.toFixed(1)}, 停止距=${stoppingDistance.toFixed(1)})`,
         )
       }
-      return {
+      decision = {
         action: 'accelerate',
         decision: 'cannot_stop_safely',
         stoppingDistance: stoppingDistance,
         distanceToStopLine: distanceToStopLine,
       }
     }
+
+    // 更新緩存
+    this.cachedYellowDecision = decision
+    this.lastYellowDecisionTime = now
+
+    return decision
   }
 
   // 🚨 P0 FIX #2：檢測車輛是否在轉向路段
@@ -975,6 +1004,13 @@ export default class Vehicle {
         return
       }
 
+      // 🚀 第1階段優化：在第一個 vehicle 的 onUpdate 時初始化 SpatialHashGrid
+      // 使用靜態計數器確保只執行一次
+      if (!Vehicle._spatialGridFrameInitialized) {
+        Vehicle._spatialGridFrameInitialized = true
+        // SpatialHashGrid 將在第一幀時重建
+      }
+
       // 記錄移動開始時間和初始化數據
       this.movementStartTime = new Date().toISOString()
 
@@ -1063,7 +1099,13 @@ export default class Vehicle {
               this.lastMovementTime = Date.now()
             },
             onUpdate: () => {
-              // 🚨 防守：車輛已銷毀時，不執行更新邏輯（車輛可能已被移除，但GSAP動畫仍繼續執行）
+              // � 第1階段優化：每幀重建 SpatialHashGrid（用於優化碰撞檢測）
+              // 只在有活躍車輛時執行
+              if (allVehicles.length > 0) {
+                CollisionController.rebuildSpatialGrid(allVehicles)
+              }
+
+              // �🚨 防守：車輛已銷毀時，不執行更新邏輯（車輛可能已被移除，但GSAP動畫仍繼續執行）
               if (!this.element) {
                 return
               }

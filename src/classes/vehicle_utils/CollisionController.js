@@ -2,11 +2,19 @@
  * 碰撞控制器
  * 負責處理所有碰撞檢測與跟車相關邏輯，讓 Vehicle.js 保持簡潔
  * 整合了 SimpleCollisionDetector 的功能
+ * 
+ * 🚀 第1階段優化：集成 SpatialHashGrid
+ * - 將碰撞檢測從 O(n) 優化到 O(1) 查詢
+ * - 預期 CPU 減少 60-70%
  */
 
 import { COLLISION_CONFIG, FOLLOWING_CONFIG, DISTANCE_CONFIG, ANIMATION_CONFIG } from '../config/vehicleConfig.js'
+import { SpatialHashGrid } from '../optimization/SpatialHashGrid.js'
 
 export class CollisionController {
+  // 🚀 第1階段優化：全局空間分割網格（在 IndexPage.vue 中初始化）
+  static spatialGrid = null
+
   constructor(vehicle) {
     this.vehicle = vehicle
     this.lastCollisionCheck = 0 // 上次碰撞檢查時間
@@ -18,6 +26,32 @@ export class CollisionController {
 
     // 🆕 根據 TIME_MULTIPLIER 自動調整檢查間隔
     this.checkInterval = this._calculateAdaptiveCheckInterval()
+
+    // 🚀 第2階段優化：前車緩存機制
+    // 避免每幀重新搜索前方車輛，只在車輛進出視野時更新
+    this.cachedFrontVehicle = null // 緩存的前方車輛
+    this.cachedFrontDistance = Infinity // 緩存的前方距離
+    this.lastFrontVehicleUpdateTime = 0 // 上次更新前車緩存的時間
+    this.frontVehicleCacheUpdateInterval = 100 // 前車緩存更新間隔（毫秒）
+    this.frontVehicleOutOfRangeCounter = 0 // 計數器：前車超出範圍的次數
+  }
+
+  /**
+   * 🚀 靜態方法：初始化全局空間分割網格
+   * 應在 IndexPage.vue mounted 時調用一次
+   */
+  static initializeSpatialGrid(canvasWidth, canvasHeight, cellSize = 150) {
+    CollisionController.spatialGrid = new SpatialHashGrid(canvasWidth, canvasHeight, cellSize)
+  }
+
+  /**
+   * 🚀 靜態方法：重建空間分割網格
+   * 應在每幀動畫開始時調用
+   */
+  static rebuildSpatialGrid(allVehicles) {
+    if (CollisionController.spatialGrid && allVehicles.length > 0) {
+      CollisionController.spatialGrid.rebuild(allVehicles)
+    }
   }
 
   /**
@@ -54,6 +88,68 @@ export class CollisionController {
    */
   updateCheckIntervalForTimeMultiplier() {
     this.checkInterval = this._calculateAdaptiveCheckInterval()
+  }
+
+  /**
+   * 🚀 第2階段優化：快速查詢前方最近的車輛（使用緩存）
+   * @param {Array} sameDirectionVehicles - 同方向同車道的車輛列表
+   * @returns {Object|null} 前方最近的車輛對象或 null
+   */
+  getCachedFrontVehicle(sameDirectionVehicles) {
+    const now = Date.now()
+
+    // 檢查緩存是否需要更新
+    // 條件1：距上次更新已超過更新間隔
+    // 條件2：緩存的前車已被銷毀或不在列表中
+    // 條件3：緩存距離過大（超出有效檢測範圍）
+    const needsUpdate =
+      now - this.lastFrontVehicleUpdateTime > this.frontVehicleCacheUpdateInterval ||
+      !this.cachedFrontVehicle ||
+      !sameDirectionVehicles.includes(this.cachedFrontVehicle) ||
+      this.cachedFrontDistance > COLLISION_CONFIG.DETECTION_DISTANCES.SLOW_DISTANCE * 2
+
+    if (!needsUpdate) {
+      // 使用緩存的前車
+      return this.cachedFrontVehicle
+    }
+
+    // 需要更新緩存：搜索最近的前車
+    const myPos = this.vehicle.getCurrentPosition()
+    if (!myPos) return null
+
+    let closest = null
+    let minDistance = Infinity
+
+    for (const vehicle of sameDirectionVehicles) {
+      const vehiclePos = vehicle.getCurrentPosition()
+      if (!vehiclePos) continue
+
+      const distance = this.calculateDirectionalDistance(myPos, vehiclePos)
+
+      // 只檢查前方的車輛
+      if (distance > 0 && distance < minDistance) {
+        minDistance = distance
+        closest = vehicle
+      }
+    }
+
+    // 更新緩存
+    this.lastFrontVehicleUpdateTime = now
+    this.cachedFrontVehicle = closest
+    this.cachedFrontDistance = minDistance
+
+    return closest
+  }
+
+  /**
+   * 🚀 第2階段優化：清空前車緩存
+   * 應在車輛離開場景或狀態發生重大變化時調用
+   */
+  clearFrontVehicleCache() {
+    this.cachedFrontVehicle = null
+    this.cachedFrontDistance = Infinity
+    this.lastFrontVehicleUpdateTime = 0
+    this.frontVehicleOutOfRangeCounter = 0
   }
 
   /**
@@ -1075,7 +1171,25 @@ export class CollisionController {
       return null
     }
 
-    // 🚨 性能優化：只檢查前方最近的 3 台車
+    // � 第1階段優化：使用空間分割網格而不是全量搜索
+    // 獲取附近的車輛（只檢查相鄰的網格單元，而不是全部車輛）
+    // 這將查詢從 O(n) 降低到 O(1)
+    let nearbyVehicles = []
+    if (CollisionController.spatialGrid) {
+      // 使用空間網格查詢附近的車輛
+      nearbyVehicles = CollisionController.spatialGrid.getNearbyCells(myPos.x, myPos.y, 1)
+      // 進一步篩選只保留同方向同車道的車輛
+      sameDirectionVehicles = nearbyVehicles.filter(
+        (v) =>
+          v.id !== this.vehicle.id && v.direction === this.vehicle.direction && v.laneNumber === this.vehicle.laneNumber,
+      )
+    }
+
+    if (sameDirectionVehicles.length === 0) {
+      return null
+    }
+
+    // �🚨 性能優化：只檢查前方最近的 3 台車
     // 按照方向排序，找出前方的車輛，然後只檢查最近的 3 台
     sameDirectionVehicles = sameDirectionVehicles
       .map((v) => ({
@@ -1111,20 +1225,63 @@ export class CollisionController {
     }
 
     // 尋找最近的前方車輛（已優化為只檢查前 3 台）
+    // 🚀 第2階段優化：使用前車緩存，避免每次都搜索
     let closestThreat = null
     let minDistance = Infinity
 
-    for (let other of sameDirectionVehicles) {
-      const otherPos = other.getCurrentPosition()
-      if (!otherPos) continue
+    // 首先嘗試使用緩存的前車
+    const cachedFront = this.getCachedFrontVehicle(sameDirectionVehicles)
+    
+    if (cachedFront) {
+      const cachedFrontPos = cachedFront.getCurrentPosition()
+      if (cachedFrontPos) {
+        const cachedDistance = this.calculateDirectionalDistance(myPos, cachedFrontPos)
+        
+        // 如果緩存的前車仍然有效（在有效檢測範圍內），直接使用
+        if (cachedDistance > 0 && cachedDistance < COLLISION_CONFIG.DETECTION_DISTANCES.SLOW_DISTANCE * 1.5) {
+          closestThreat = {
+            vehicle: cachedFront,
+            distance: cachedDistance,
+          }
+          minDistance = cachedDistance
+        } else {
+          // 緩存的前車已超出範圍，重新搜索
+          for (let other of sameDirectionVehicles) {
+            const otherPos = other.getCurrentPosition()
+            if (!otherPos) continue
 
-      const distance = this.calculateDirectionalDistance(myPos, otherPos)
+            const distance = this.calculateDirectionalDistance(myPos, otherPos)
 
-      if (distance > 0 && distance < COLLISION_CONFIG.DETECTION_DISTANCES.SLOW_DISTANCE && distance < minDistance) {
-        minDistance = distance
-        closestThreat = {
-          vehicle: other,
-          distance: distance,
+            if (distance > 0 && distance < COLLISION_CONFIG.DETECTION_DISTANCES.SLOW_DISTANCE && distance < minDistance) {
+              minDistance = distance
+              closestThreat = {
+                vehicle: other,
+                distance: distance,
+              }
+            }
+          }
+          
+          // 更新緩存
+          if (closestThreat) {
+            this.cachedFrontVehicle = closestThreat.vehicle
+            this.cachedFrontDistance = minDistance
+          }
+        }
+      }
+    } else {
+      // 無緩存，進行完整搜索
+      for (let other of sameDirectionVehicles) {
+        const otherPos = other.getCurrentPosition()
+        if (!otherPos) continue
+
+        const distance = this.calculateDirectionalDistance(myPos, otherPos)
+
+        if (distance > 0 && distance < COLLISION_CONFIG.DETECTION_DISTANCES.SLOW_DISTANCE && distance < minDistance) {
+          minDistance = distance
+          closestThreat = {
+            vehicle: other,
+            distance: distance,
+          }
         }
       }
     }

@@ -370,6 +370,7 @@ import { createLanePathCalculator } from '../classes/draw_utils/lanePathCalculat
 import { stopLineConfig, lightColorConfig } from '../classes/config/trafficConfig.js'
 import WeatherController from '../classes/WeatherController.js'
 import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
+import { CollisionController } from '../classes/vehicle_utils/CollisionController.js'
 
 // 註冊 GSAP MotionPathPlugin 和 MotionPathHelper
 gsap.registerPlugin(MotionPathPlugin, MotionPathHelper)
@@ -1312,6 +1313,12 @@ onMounted(async () => {
 
     // 設置全域交通控制器供其他組件使用
     window.trafficController = trafficController
+
+    // 🚀 第1階段優化：初始化空間分割網格用於碰撞檢測
+    // 網格單元大小設置為 150px（建議值，基於車輛大小和碰撞檢測半徑）
+    const containerRect = crossroadContainer.value.getBoundingClientRect()
+    CollisionController.initializeSpatialGrid(containerRect.width, containerRect.height, 150)
+    console.log(`🚀 [SpatialHashGrid] 初始化完成 (${containerRect.width}x${containerRect.height}, cellSize=150px)`)
 
     // 🎯 設置全域車輛距離配置方法
     window.setVehicleDistance = (multiplier) => {
