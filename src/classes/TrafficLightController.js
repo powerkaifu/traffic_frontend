@@ -1029,6 +1029,11 @@ export default class TrafficLightController {
         large: this.getAverageSpeed(direction, 'large'),
       }
 
+      // 🎯【v7.2 調試】確認速度變化
+      logInfo(
+        `🚗 [${direction}] 速度生成完成: Speed_M=${speeds.motor}, Speed_S=${speeds.small}, Speed_L=${speeds.large}`,
+      )
+
       // 計算整體平均速度
       const overallSpeed =
         totalVehicles > 0
@@ -1113,6 +1118,11 @@ export default class TrafficLightController {
     // 從統一的設定檔讀取速度範圍
     const range = speedConfig[vehicleType]
     if (!range) return 30
+
+    // 🎯【修復 v7.2】改用隨機速度而不是固定平均值
+    // 原問題：所有方向都用 range.avg（固定值），導致 Speed_M/S/L 相同
+    // 新做法：每次呼叫都生成隨機值，確保方向間、方向內都有變化
+
     // Strategy Pattern: 根據路段占有率調整速度的策略
     const occupancy = parseFloat(this.calculateOccupancy(direction))
     let speedFactor = 1.0 // 基礎速度因子，不再強制降低到路口速度
@@ -1127,16 +1137,19 @@ export default class TrafficLightController {
       speedFactor *= 0.9 // 正常情況下稍微降速（模擬路口減速）
     }
 
-    // 🎯【新增】第一次 API 呼叫時加入隨機波動，使速度不固定
-    // 這樣即使邏輯相同，每次呼叫也會產生不同的速度值
-    if (this.apiCallCount === 1 || this.apiCallCount === 2) {
-      const speedVariation = (Math.random() - 0.5) * 10 // -5 ~ +5 的隨機波動
-      const baseSpeed = Math.round(range.avg * speedFactor)
-      const variatedSpeed = Math.round(Math.max(20, Math.min(60, baseSpeed + speedVariation))) // 確保是整數
-      return variatedSpeed + 0.0 // 返回整數 + .0 的格式
-    }
+    // 🎯【v7.2 新增】生成隨機速度，確保每次呼叫不同
+    // 使用 min-max 範圍生成隨機速度，類似 AutoTrafficGenerator._getRandomSpeed()
+    const randomSpeed = Math.round(range.min + Math.random() * (range.max - range.min))
+    const adjustedSpeed = Math.round(randomSpeed * speedFactor)
 
-    return Math.round(range.avg * speedFactor) + 0.0
+    // 確保速度在合理範圍內 (15-70 km/h)
+    const finalSpeed = Math.max(15, Math.min(70, adjustedSpeed))
+
+    logInfo(
+      `⚡ [getAverageSpeed] ${direction} 方向 ${vehicleType}: range[${range.min}-${range.max}] → random=${randomSpeed} → occupancy×${speedFactor.toFixed(2)}=${adjustedSpeed} → final=${finalSpeed}`,
+    )
+
+    return finalSpeed + 0.0
   }
 
   // 🔧【v7 新增】根據時間判斷交通情景

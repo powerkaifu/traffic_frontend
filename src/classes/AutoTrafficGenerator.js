@@ -249,6 +249,7 @@ export default class AutoTrafficGenerator {
     this._stopScenarioModeLoop()
 
     this.isAutoMode = true
+    console.log(`🚀 [AUTO MODE] STARTED - _startAutoModeLoop() called`)
 
     // 立即套用一次當前時間的設定
     this._applyTrafficProfile()
@@ -366,7 +367,9 @@ export default class AutoTrafficGenerator {
     )
 
     // 🎯 生成該情景對應的 VD 數據
+    console.log(`🔍 [_generateScenarioVDData] CALLING for scenario: ${scenarioKey}`)
     const vdData = this._generateScenarioVDData(scenarioKey)
+    console.log(`🔍 [_generateScenarioVDData] RETURNED vdData:`, vdData)
 
     // ✅ 🔧 CRITICAL FIX：在自動模式下使用模擬時間，否則使用系統時間
     const timeToUse = this.isAutoMode ? this.simulationTime : new Date()
@@ -408,6 +411,8 @@ export default class AutoTrafficGenerator {
       console.error(`❌ 無法獲取情景 ${scenarioKey} 的目標特徵`)
       return null
     }
+
+    console.log(`🔍 [_generateScenarioVDData] scenario.targetFeatures:`, JSON.stringify(scenario.targetFeatures))
 
     // 🎯 🔧 CRITICAL FIX：根據是否在自動模式決定時間生成方式
     let hour, minute, second, isPeakHour
@@ -462,26 +467,27 @@ export default class AutoTrafficGenerator {
       occupancy = patternData.Occupancy
       speed = patternData.Speed
 
-      // 🎯 從 pattern 中推算各車型速度（簡化方式）
-      // 因為 pattern 提供總速度，需要分配給各車型
-      const baseSpeedM = 24 // 機車基準速度
-      const baseSpeedS = 32 // 小客車基準速度
-      const baseSpeedL = 18 // 大客車基準速度
+      // 🎯 從 pattern 中推算各車型速度（加入隨機波動）
+      // 因為 pattern 提供總速度，需要分配給各車型，每個車型都有不同的波動
+      const baseSpeedM = Math.round(speed * 1.0 + (Math.random() - 0.5) * 8) // 機車速度接近平均，±4
+      const baseSpeedS = Math.round(speed * 1.0 + (Math.random() - 0.5) * 8) // 小客車速度接近平均，±4
+      const baseSpeedL = Math.round(speed * 0.8 + (Math.random() - 0.5) * 6) // 大客車速度偏低，±3
 
-      speedM = Math.round(baseSpeedM * (speed / 28)) // 28 是平均速度
-      speedS = Math.round(baseSpeedS * (speed / 28))
-      speedL = Math.round(baseSpeedL * (speed / 28))
+      speedM = Math.max(1, Math.min(100, baseSpeedM))
+      speedS = Math.max(1, Math.min(100, baseSpeedS))
+      speedL = Math.max(1, Math.min(100, baseSpeedL))
 
-      console.log(`📊 [Pattern 數據] Volume_T=${volumeT}, 占有率=${occupancy}%, 速度=${speed}km/h`)
+      console.log(
+        `📊 [Pattern 數據] Volume_T=${volumeT}, 占有率=${occupancy}%, 速度=${speed}km/h, 車型速度: 機=${speedM}, 小=${speedS}, 大=${speedL}`,
+      )
     } else {
       // 手動模式或無 pattern：使用 targetFeatures 數據
       const features = scenario.targetFeatures
       const volumeByType = features.volumeByType
+      const speedByType = features.speedByType
 
       // 在目標值範圍內加入隨機波動 ±20%
       const volumeVariance = 0.8 + Math.random() * 0.4
-      const occupancyVariance = 0.8 + Math.random() * 0.4
-      const speedVariance = 0.85 + Math.random() * 0.3
 
       // ✅ 正確計算各車型數量
       volumeM = Math.round(volumeByType.motor * volumeVariance)
@@ -489,58 +495,22 @@ export default class AutoTrafficGenerator {
       volumeL = Math.round(volumeByType.large * volumeVariance)
       volumeT = 0 // ✅ 聯結車禁止進入，必定為 0
 
-      // ✅ 正確計算各車型速度
-      speedM = Math.round(features.speed * speedVariance * (0.85 + Math.random() * 0.3))
-      speedS = Math.round(features.speed * speedVariance)
-      speedL = Math.round(features.speed * speedVariance * (0.7 + Math.random() * 0.3))
-      speed = Math.round(features.speed * speedVariance)
+      // ✅ 正確計算各車型速度：支援速度範圍（物件）或固定值（數字）
+      speedM = this._getRandomSpeed(speedByType.motor)
+      speedS = this._getRandomSpeed(speedByType.small)
+      speedL = this._getRandomSpeed(speedByType.large)
+
+      // 計算加權平均速度
+      const totalVolume = volumeM + volumeS + volumeL
+      speed = totalVolume > 0 ? Math.round((speedM * volumeM + speedS * volumeS + speedL * volumeL) / totalVolume) : 0
 
       // ✅ 佔有率
-      occupancy = Math.round(features.occupancy * occupancyVariance * 10) / 10
+      occupancy = Math.round(
+        features.occupancyRange[0] + Math.random() * (features.occupancyRange[1] - features.occupancyRange[0]),
+      )
     }
 
     // ✅ 聯結車禁止進入，不需計算 speedT
-
-    const apiVDData = {
-      VD_ID: 'VLRJX20',
-      DayOfWeek: new Date().getDay(),
-      Hour: hour,
-      Minute: minute,
-      Second: second,
-      IsPeakHour: isPeakHour, // 使用正確計算的尖峰標記
-      LaneID: 0,
-      LaneType: 1,
-      // 🎯 API 層：原始車輛數據（不放大）
-      Volume_M: volumeM,
-      Volume_S: volumeS,
-      Volume_L: volumeL,
-      Volume_T: volumeT, // ✅ 使用計算的值（pattern 或 targetFeatures）
-      // 🎯 API 層：原始速度數據
-      Speed_M: speedM,
-      Speed_S: speedS,
-      Speed_L: speedL,
-      Speed_T: 0, // ✅ 聯結車禁止進入，必定為 0
-      // 🎯 API 層：原始佔有率（不放大）
-      Occupancy: occupancy,
-    }
-
-    // 🎭 視覺層數據：應用 displayMultiplier 放大（用於前端動畫）
-    const displayMultiplier = scenario?.config?.displayMultiplier || 1
-    const visualVDData = {
-      ...apiVDData,
-      // 放大後的數據用於視覺顯示
-      Volume_M: Math.round(volumeM * displayMultiplier),
-      Volume_S: Math.round(volumeS * displayMultiplier),
-      Volume_L: Math.round(volumeL * displayMultiplier),
-      Volume_T: Math.round(volumeT * displayMultiplier), // ✅ 聯結車禁止進入，必定為 0
-      // 佔有率也放大以匹配視覺流量
-      Occupancy: Math.round(occupancy * displayMultiplier * 10) / 10,
-      // 標記這是視覺層數據
-      isVisualData: true,
-      displayMultiplier: displayMultiplier,
-      // 保留原始 API 數據備用
-      apiData: apiVDData,
-    }
 
     // 🎯【重要】生成4個方向的 API 數據陣列（東、西、南、北）
     // 每個方向都是發送給後端的完整格式
@@ -551,17 +521,83 @@ export default class AutoTrafficGenerator {
       { VD_ID: 'VLRJX00', LaneID: 3, name: '往北' }, // 北向
     ]
 
-    // 計算加權平均速度（用於 Speed 欄位）
-    const totalVolume = volumeM + volumeS + volumeL
-    const weightedSpeed =
-      totalVolume > 0 ? Math.round((speedM * volumeM + speedS * volumeS + speedL * volumeL) / totalVolume) : 0
+    // 為每個方向生成**完全不同的數據**（模擬真實交通多樣性）
+    // 每個方向都有獨立的車流量、速度波動
+    const apiDataArray = []
+    directions.forEach((direction, dirIdx) => {
+      // 🎯 為每個方向生成獨立的波動倍數
+      // 尖峰時段：60-80% 的基礎流量
+      // 離峰時段：50-90% 的基礎流量
+      // 凌晨時段：40-100% 的基礎流量（有時特別少，有時有零星車流）
+      const isRushHour = isPeakHour === 1
+      let directionVariance
+      if (isRushHour) {
+        // 尖峰時段：確保各方向都有車流，但有合理變化（60-90%）
+        directionVariance = 0.6 + Math.random() * 0.3
+      } else {
+        // 非尖峰：更大的變化範圍（40-100%）
+        directionVariance = 0.4 + Math.random() * 0.6
+      }
 
-    // 為每個方向生成略微不同的數據（模擬實際情況）
-    const apiDataArray = directions.map((direction) => {
-      // 為每個方向添加隨機波動（±5-10%）
-      const variance = 0.95 + Math.random() * 0.1
+      // 🎯 為每個方向生成不同的車型流量
+      const dirVolumeM = Math.max(1, Math.round(volumeM * directionVariance * (0.7 + Math.random() * 0.6)))
+      const dirVolumeS = Math.max(1, Math.round(volumeS * directionVariance * (0.7 + Math.random() * 0.6)))
+      const dirVolumeL = Math.round(volumeL * directionVariance * (0.5 + Math.random() * 1.0))
 
-      return {
+      // 🎯 為每個方向和車型生成不同的速度
+      // 每個方向受到自身流量影響：流量大 → 速度慢，流量小 → 速度快
+      const dirTotalVolume = dirVolumeM + dirVolumeS + dirVolumeL
+      const flowDensity = dirTotalVolume / (volumeM + volumeS + volumeL || 1) // 相對流量密度
+
+      // 🎯 重點：每個方向都應該獲得**完全不同的速度值**
+      // 為該方向重新獲取各車型的基礎速度（而不是共用全局的 speedM/S/L）
+      let dirBaseSpeedM, dirBaseSpeedS, dirBaseSpeedL
+
+      // 無論自動模式還是手動模式，都使用 speedByType 配置
+      const speedByType = scenario.targetFeatures.speedByType
+      dirBaseSpeedM = this._getRandomSpeed(speedByType.motor)
+      dirBaseSpeedS = this._getRandomSpeed(speedByType.small)
+      dirBaseSpeedL = this._getRandomSpeed(speedByType.large)
+
+      // 🧪 強制測試：驗證是否真的為每個方向生成不同的值
+      console.log(
+        `🧪 [TEST FORCE] 方向 ${dirIdx}: 強制設置 dirBaseSpeedM=${32 + dirIdx * 2}, dirBaseSpeedS=${25 + dirIdx}, dirBaseSpeedL=${18 + dirIdx}`,
+      )
+      dirBaseSpeedM = 32 + dirIdx * 2
+      dirBaseSpeedS = 25 + dirIdx
+      dirBaseSpeedL = 18 + dirIdx
+
+      // 🔍 調試：檢查每個方向的基礎速度和配置
+      console.log(`🔍 [方向 ${dirIdx}: ${direction.name}] speedByType config:`, JSON.stringify(speedByType))
+      console.log(
+        `🔍 [方向 ${dirIdx}: ${direction.name}] Generated speeds - dirBaseSpeedM=${dirBaseSpeedM}, dirBaseSpeedS=${dirBaseSpeedS}, dirBaseSpeedL=${dirBaseSpeedL}`,
+      )
+
+      // 速度會因方向流量而調整
+      const speedAdjustment = Math.max(0.7, Math.min(1.3, 1 / flowDensity)) // 流量高→速度低倍數
+      const dirSpeedM = Math.max(
+        1,
+        Math.min(100, Math.round(dirBaseSpeedM * speedAdjustment * (0.85 + Math.random() * 0.3))),
+      )
+      const dirSpeedS = Math.max(
+        1,
+        Math.min(100, Math.round(dirBaseSpeedS * speedAdjustment * (0.85 + Math.random() * 0.3))),
+      )
+      const dirSpeedL = Math.max(
+        1,
+        Math.min(100, Math.round(dirBaseSpeedL * speedAdjustment * (0.85 + Math.random() * 0.3))),
+      )
+
+      // 🎯 計算該方向的加權平均速度
+      const dirWeightedSpeed =
+        dirTotalVolume > 0
+          ? Math.round((dirSpeedM * dirVolumeM + dirSpeedS * dirVolumeS + dirSpeedL * dirVolumeL) / dirTotalVolume)
+          : 0
+
+      // 🎯 佔有率也隨方向流量調整
+      const dirOccupancy = Math.round(occupancy * directionVariance * 10) / 10
+
+      apiDataArray.push({
         VD_ID: direction.VD_ID,
         DayOfWeek: new Date().getDay(),
         Hour: hour,
@@ -570,21 +606,21 @@ export default class AutoTrafficGenerator {
         IsPeakHour: isPeakHour,
         LaneID: direction.LaneID,
         LaneType: 1,
-        // 加權平均速度
-        Speed: weightedSpeed,
-        // 佔有率（各方向略有不同）
-        Occupancy: Math.round(occupancy * variance * 10) / 10,
-        // 🎯 API 層：各車型流量
-        Volume_M: Math.round(volumeM * variance),
-        Speed_M: speedM,
-        Volume_S: Math.round(volumeS * variance * 10) / 10, // 允許小數
-        Speed_S: speedS,
-        Volume_L: Math.round(volumeL * variance * 10) / 10, // 允許小數
-        Speed_L: speedL,
+        // 🎯 該方向的加權平均速度（基於該方向的車流特性）
+        Speed: dirWeightedSpeed,
+        // 🎯 該方向的佔有率
+        Occupancy: dirOccupancy,
+        // 🎯 該方向的各車型流量（完全不同的值）
+        Volume_M: dirVolumeM,
+        Speed_M: dirSpeedM,
+        Volume_S: dirVolumeS,
+        Speed_S: dirSpeedS,
+        Volume_L: dirVolumeL,
+        Speed_L: dirSpeedL,
         // 聯結車禁止進入
         Volume_T: 0,
         Speed_T: 0,
-      }
+      })
     })
 
     // 🎯【重要】保存 API 數據陣列到全局，供 MainLayout.vue 顯示特徵模擬數據面板
@@ -594,13 +630,40 @@ export default class AutoTrafficGenerator {
       scenario: scenarioKey,
     }
 
+    console.log(
+      `🔍 [window.currentGeneratedVDData] SET - apiDataArray.length=${window.currentGeneratedVDData.apiDataArray.length}`,
+    )
+    console.log(`🔍 [window.currentGeneratedVDData] Speeds:`)
+    window.currentGeneratedVDData.apiDataArray.forEach((data, idx) => {
+      console.log(`   方向 ${idx}: Speed_M=${data.Speed_M}, Speed_S=${data.Speed_S}, Speed_L=${data.Speed_L}`)
+    })
+
     // 🔍 調試：檢查每個方向的 Volume_L
     console.log('🔍 [AutoTrafficGenerator] 4 方向 API 數據 Volume_L 值：')
     apiDataArray.forEach((data, index) => {
       console.log(`  方向 ${index} (${data.VD_ID}): Volume_L = ${data.Volume_L} (小數位: ${typeof data.Volume_L})`)
     })
 
-    return visualVDData
+    // 🔍 調試：檢查每個方向的速度值
+    console.log('🔍 [AutoTrafficGenerator] 4 方向 API 數據速度值（Speed_M/S/L）：')
+    apiDataArray.forEach((data, index) => {
+      console.log(
+        `  方向 ${index} (${data.VD_ID}): Speed_M=${data.Speed_M}, Speed_S=${data.Speed_S}, Speed_L=${data.Speed_L}`,
+      )
+    })
+
+    // 🎯【重要】返回包含 4 個方向 API 數據的結構
+    // 新增：apiData 屬性包含原始 API 數據以保持向後兼容性
+    const returnData = {
+      apiDataArray: apiDataArray, // 4 筆 API 數據（東西南北）
+      apiData: apiDataArray[0], // 保留第一個方向作為預設，用於 UI 顯示和向後兼容
+      vdData: apiDataArray, // 同時提供 vdData 別名，用於 UI 消費
+    }
+
+    console.log(`🔍 [RETURN DATA] apiDataArray.length=${returnData.apiDataArray.length}`)
+    console.log(`🔍 [RETURN DATA] Full data:`, JSON.stringify(returnData, null, 2))
+
+    return returnData
   }
 
   // 🎯 獲取情景對應的小時
@@ -637,6 +700,28 @@ export default class AutoTrafficGenerator {
     return Math.floor(Math.random() * (max - min + 1)) + min
   }
 
+  // 🎯 輔助：根據速度配置獲取隨機速度
+  // 支援速度範圍物件 {min, max} 或固定值 (number)
+  _getRandomSpeed(speedConfig) {
+    console.log(`🔍 [_getRandomSpeed] INPUT speedConfig:`, speedConfig)
+
+    if (typeof speedConfig === 'object' && speedConfig.min !== undefined && speedConfig.max !== undefined) {
+      // 速度範圍：隨機選擇 min-max 之間的值
+      const result = Math.round(speedConfig.min + Math.random() * (speedConfig.max - speedConfig.min))
+      console.log(`🔍 [_getRandomSpeed] RANGE mode: min=${speedConfig.min}, max=${speedConfig.max}, result=${result}`)
+      return result
+    } else if (typeof speedConfig === 'number') {
+      // 固定速度：加入 ±3 km/h 的小波動
+      const result = Math.round(speedConfig + (Math.random() - 0.5) * 6)
+      console.log(`🔍 [_getRandomSpeed] NUMBER mode: value=${speedConfig}, result=${result}`)
+      return result
+    } else {
+      // 預設速度
+      console.log(`🔍 [_getRandomSpeed] DEFAULT mode: returning 30`)
+      return 30
+    }
+  }
+
   // 🎯 輔助：隨機浮點數
   _randomFloat(min, max) {
     return Math.random() * (max - min) + min
@@ -645,6 +730,7 @@ export default class AutoTrafficGenerator {
   // 根據模擬時間套用交通設定檔，使用於自動模式
   // 🎯 每日自動模式的核心方法：生成 VD 數據 + 傳送 API 預測
   _applyTrafficProfile() {
+    console.log(`🔍 [_applyTrafficProfile] CALLED - isAutoMode=${this.isAutoMode}`)
     // 🔧 CRITICAL FIX：如果已離開自動模式，則不執行
     if (!this.isAutoMode) {
       console.log(`⏸️ [自動模式] 已停止，跳過本次應用`)

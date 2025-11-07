@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Speed Variance Test</title>
+  <style>
+    body {
+      font-family: Arial;
+      margin: 20px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    td,
+    th {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+
+    th {
+      background-color: #4CAF50;
+      color: white;
+    }
+
+    .test-result {
+      margin: 20px 0;
+      padding: 10px;
+      background-color: #f0f0f0;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Speed Variance Test</h1>
+
+  <div class="test-result">
+    <h2>Peak Hours Speed Distribution (Should show variance)</h2>
+    <button onclick="generateTestData()">Generate Test Data</button>
+    <div id="result"></div>
+  </div>
+
+  <script>
+    // 模擬 AutoTrafficGenerator 的速度計算邏輯
+    function getRandomSpeed(speedConfig) {
+      if (typeof speedConfig === 'object' && speedConfig.min !== undefined && speedConfig.max !== undefined) {
+        // 速度範圍：隨機選擇 min-max 之間的值
+        return Math.round(speedConfig.min + Math.random() * (speedConfig.max - speedConfig.min))
+      } else if (typeof speedConfig === 'number') {
+        // 固定速度：加入 ±3 km/h 的小波動
+        return Math.round(speedConfig + (Math.random() - 0.5) * 6)
+      } else {
+        // 預設速度
+        return 30
+      }
+    }
+
+    // Peak hours speed config
+    const peakHoursSpeeds = {
+      motor: { min: 32, max: 42 },
+      small: { min: 25, max: 35 },
+      large: { min: 18, max: 25 }
+    };
+
+    function generateTestData() {
+      const samples = 20;
+      const results = [];
+
+      for (let i = 0; i < samples; i++) {
+        const speedM = getRandomSpeed(peakHoursSpeeds.motor);
+        const speedS = getRandomSpeed(peakHoursSpeeds.small);
+        const speedL = getRandomSpeed(peakHoursSpeeds.large);
+
+        results.push({ speedM, speedS, speedL });
+      }
+
+      // 生成表格
+      let html = '<table><tr><th>Sample</th><th>Motor Speed</th><th>Small Car Speed</th><th>Large Car Speed</th></tr>';
+
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        html += `<tr><td>${i + 1}</td><td>${r.speedM}</td><td>${r.speedS}</td><td>${r.speedL}</td></tr>`;
+      }
+
+      html += '</table>';
+
+      // 統計信息
+      const motorSpeeds = results.map(r => r.speedM);
+      const smallSpeeds = results.map(r => r.speedS);
+      const largeSpeeds = results.map(r => r.speedL);
+
+      const stats = `
+                <h3>Statistics</h3>
+                <p><strong>Motor:</strong> Min=${Math.min(...motorSpeeds)}, Max=${Math.max(...motorSpeeds)}, Avg=${(motorSpeeds.reduce((a, b) => a + b) / motorSpeeds.length).toFixed(1)}</p>
+                <p><strong>Small Car:</strong> Min=${Math.min(...smallSpeeds)}, Max=${Math.max(...smallSpeeds)}, Avg=${(smallSpeeds.reduce((a, b) => a + b) / smallSpeeds.length).toFixed(1)}</p>
+                <p><strong>Large Car:</strong> Min=${Math.min(...largeSpeeds)}, Max=${Math.max(...largeSpeeds)}, Avg=${(largeSpeeds.reduce((a, b) => a + b) / largeSpeeds.length).toFixed(1)}</p>
+            `;
+
+      document.getElementById('result').innerHTML = html + stats;
+    }
+
+    // Auto-generate on load
+    window.onload = generateTestData;
+  </script>
+</body>
+
+</html>

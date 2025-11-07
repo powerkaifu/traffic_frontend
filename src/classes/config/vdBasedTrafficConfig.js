@@ -18,7 +18,7 @@ export const vdBasedTimeScenarios = [
     // 目標特徵值（傳送給後端）
     targetFeatures: {
       totalVolumePer5Min: 12, // 總車流：12輛/5分鐘（高流量）
-      occupancyRange: [40, 60], // 佔有率：40-60%（壅塞）
+      occupancyRange: [15, 25], // 佔有率：15-25%（尖峰但不過度）
       speedRange: [20, 35], // 速度：20-35 km/h（慢速）
 
       // 各車種流量（基於VD VLRJX20 尖峰時段數據）
@@ -30,9 +30,9 @@ export const vdBasedTimeScenarios = [
 
       // 各車種速度（基於VD數據平均值）
       speedByType: {
-        motor: 35, // 機車速度
-        small: 28, // 小客車速度
-        large: 20, // 大客車速度（壅塞時較慢）
+        motor: { min: 32, max: 42 }, // 機車速度：32-42 km/h（尖峰壅塞時速度下降）
+        small: { min: 25, max: 35 }, // 小客車速度：25-35 km/h
+        large: { min: 18, max: 25 }, // 大客車速度：18-25 km/h（壅塞時較慢）
       },
     },
 
@@ -93,11 +93,11 @@ export const vdBasedTimeScenarios = [
         large: 1, // 大客車：1輛/5分鐘
       },
 
-      // 各車種速度
+      // 各車種速度（離峰時段速度較快）
       speedByType: {
-        motor: 43, // 機車速度
-        small: 35, // 小客車速度
-        large: 34, // 大客車速度
+        motor: { min: 40, max: 48 }, // 機車速度：40-48 km/h（流暢）
+        small: { min: 32, max: 40 }, // 小客車速度：32-40 km/h
+        large: { min: 30, max: 38 }, // 大客車速度：30-38 km/h
       },
     },
 
@@ -160,9 +160,9 @@ export const vdBasedTimeScenarios = [
 
       // 各車種速度（凌晨速度較快）
       speedByType: {
-        motor: 55, // 機車速度（接近VD最高速）
-        small: 50, // 小客車速度
-        large: 45, // 大客車速度
+        motor: { min: 50, max: 60 }, // 機車速度：50-60 km/h（接近VD最高速）
+        small: { min: 45, max: 55 }, // 小客車速度：45-55 km/h
+        large: { min: 40, max: 52 }, // 大客車速度：40-52 km/h
       },
     },
 
