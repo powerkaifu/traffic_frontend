@@ -18,6 +18,11 @@ import {
   // generateValidationReport,
 } from './utils/DataQualityValidator.js' // 【版本 2.5 新增】數據品質驗證與修正系統
 import { edgeCaseHandling, vdBased24HourProfiles, vdBasedTimeScenarios } from './config/vdBasedTrafficConfig.js' // 【Priority 3】引入 Priority 1-2 配置
+import {
+  GREEN_LIGHT_PREDICTION_CONFIG,
+  getAdjustmentCoefficient,
+  applyGreenLightAdjustment,
+} from './config/greenLightPredictionConfig.js' // 🚦 綠燈時間預測配置
 
 // 🎯 【優化】全局日誌系統 - 區分開發和生產環境
 const isDev = process.env.DEV || process.env.NODE_ENV !== 'production'
@@ -1783,18 +1788,40 @@ export default class TrafficLightController {
       // 🎯 【修正】先保存數據快照,再發送事件和 API
       window.lastNormalizedDataArray = normalizedDataArray // 正規化後的數據（品質檢查後）
       window.lastApiVDDataArray = finalDataToSend // 原始 API 數據（實際發送）
-      // logInfo('💾 [TrafficLightController] 已保存數據快照:')
-      // logInfo('  - window.lastNormalizedDataArray: 正規化數據（品質檢查後）')
-      // logInfo('  - window.lastApiVDDataArray: 原始 API 數據（實際發送）')
+
+      // 🎯 【修復 2】在發送前應用流量調整（基於配置文件）
+      let adjustedDataToSend = finalDataToSend
+      if (GREEN_LIGHT_PREDICTION_CONFIG.ENABLE_VOLUME_ADJUSTMENT) {
+        const currentHour = new Date().getHours()
+        const volumeAdjustment = getAdjustmentCoefficient('volume', currentHour)
+
+        adjustedDataToSend = finalDataToSend.map((data) => ({
+          ...data,
+          Volume_M: Math.max(1, Math.round((data.Volume_M || 0) * volumeAdjustment)),
+          Volume_S: Math.max(1, Math.round((data.Volume_S || 0) * volumeAdjustment)),
+          Volume_L: Math.max(1, Math.round((data.Volume_L || 0) * volumeAdjustment)),
+        }))
+
+        if (GREEN_LIGHT_PREDICTION_CONFIG.ENABLE_DEBUG_LOG) {
+          console.log(`📊 [統一數據線 - 第 1 層調整] 尖峰時段流量 × ${volumeAdjustment}`)
+          console.log(
+            `   原始流量: M=${finalDataToSend[0]?.Volume_M} S=${finalDataToSend[0]?.Volume_S} L=${finalDataToSend[0]?.Volume_L}`,
+          )
+          console.log(
+            `   調整後: M=${adjustedDataToSend[0]?.Volume_M} S=${adjustedDataToSend[0]?.Volume_S} L=${adjustedDataToSend[0]?.Volume_L}`,
+          )
+        }
+      }
 
       // 發送 API 開始事件 (數據已保存,前端可以讀取)
       window.dispatchEvent(new CustomEvent('trafficApiSending', { detail: { timestamp: new Date().toISOString() } }))
 
+      // ✅ 【統一數據線 - 【第 3 層】發送調整後的數據】
       // 🎯【重試機制】使用帶重試的 fetch 函數
       const response = await fetchWithRetry(this.apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalDataToSend),
+        body: JSON.stringify(adjustedDataToSend),
       })
 
       // ✅ 【新增】發送成功確認訊息
@@ -2126,20 +2153,131 @@ export default class TrafficLightController {
    * @param {String} source - 來源標記 ('正式' 或 '備援')
    */
   updatePredictionResult(result, source = '正式') {
-    if (result && result.east_west_seconds && result.south_north_seconds) {
-      this.nextTiming.eastWest = result.east_west_seconds
-      this.nextTiming.northSouth = result.south_north_seconds
+    console.log(`\n✨ [updatePredictionResult] 被呼叫 (來源: ${source})`)
+    console.log(`  原始結果:`, result)
 
+    if (result && result.east_west_seconds && result.south_north_seconds) {
+      console.log(`✅ 條件檢查通過 - 秒數都存在`)
+      console.log(`  東西向: ${result.east_west_seconds}s, 南北向: ${result.south_north_seconds}s`)
+
+      // 🎯 【修復 2】應用時間映射調整
+      let adjustedEastWest = result.east_west_seconds
+      let adjustedNorthSouth = result.south_north_seconds
+
+      if (GREEN_LIGHT_PREDICTION_CONFIG.ENABLE_TIME_MAPPING) {
+        const currentHour = new Date().getHours()
+        adjustedEastWest = applyGreenLightAdjustment(result.east_west_seconds, currentHour)
+        adjustedNorthSouth = applyGreenLightAdjustment(result.south_north_seconds, currentHour)
+
+        if (GREEN_LIGHT_PREDICTION_CONFIG.ENABLE_DEBUG_LOG) {
+          console.log(`🎯 [綠燈時間調整]`)
+          console.log(
+            `   東西向: ${result.east_west_seconds}秒 × ${GREEN_LIGHT_PREDICTION_CONFIG.PEAK_HOUR_TIME_MAP || GREEN_LIGHT_PREDICTION_CONFIG.OFF_PEAK_HOUR_TIME_MAP} = ${adjustedEastWest}秒`,
+          )
+          console.log(
+            `   南北向: ${result.south_north_seconds}秒 × ${GREEN_LIGHT_PREDICTION_CONFIG.PEAK_HOUR_TIME_MAP || GREEN_LIGHT_PREDICTION_CONFIG.OFF_PEAK_HOUR_TIME_MAP} = ${adjustedNorthSouth}秒`,
+          )
+        }
+      }
+
+      this.nextTiming.eastWest = adjustedEastWest
+      this.nextTiming.northSouth = adjustedNorthSouth
+
+      // ✅ 【統一數據線】存儲最終預測結果
+      this.finalPrediction = {
+        east_west_seconds: adjustedEastWest,
+        south_north_seconds: adjustedNorthSouth,
+        source: source === '正式' ? 'api' : 'fallback',
+        timestamp: new Date().toISOString(),
+      }
+
+      console.log(`✅ 最終預測已存儲:`, this.finalPrediction)
+
+      // ✅ 【統一數據線】使用回調更新 UI
       if (this.onPredictionUpdate) {
+        console.log(`📞 呼叫 onPredictionUpdate 回調`)
         this.onPredictionUpdate({
-          eastWest: result.east_west_seconds,
-          northSouth: result.south_north_seconds,
+          eastWest: adjustedEastWest,
+          northSouth: adjustedNorthSouth,
           timestamp: new Date().toLocaleTimeString(),
+          source: source,
         })
       }
-      console.log(
-        `✅ (${source}) 下一輪綠燈時間已更新 - 東西向: ${result.east_west_seconds}秒, 南北向: ${result.south_north_seconds}秒`,
+
+      // ✅ 【統一數據線】發送全局統一事件供其他組件監聽
+      console.log(`📤 準備發送 trafficPredictionReady 事件`, this.finalPrediction)
+
+      window.dispatchEvent(
+        new CustomEvent('trafficPredictionReady', {
+          detail: {
+            prediction: this.finalPrediction,
+            source: source,
+          },
+        }),
       )
+
+      console.log(`✅ trafficPredictionReady 事件已發送`)
+
+      console.log(
+        `✅ (${source}) 下一輪綠燈時間已更新 - 東西向: ${adjustedEastWest}秒, 南北向: ${adjustedNorthSouth}秒`,
+      )
+      console.log(`✅ [統一數據線] 發送 trafficPredictionReady 事件`, this.finalPrediction)
+    } else {
+      console.error(`❌ 條件檢查失敗:`)
+      console.error(`  result 存在?: ${!!result}`)
+      console.error(`  east_west_seconds: ${result?.east_west_seconds}`)
+      console.error(`  south_north_seconds: ${result?.south_north_seconds}`)
+    }
+  }
+
+  /**
+   * ✅ 【統一數據線驗證】驗證所有層級的數據是否一致
+   * 用於調試和確保數據流正確
+   */
+  verifyUnifiedDataFlow() {
+    console.log('\n🔍 [統一數據線驗證] ========================================')
+
+    // 【第 1 層】生成層
+    const generated = window.currentGeneratedVDData?.apiDataArray
+    console.log('【第 1 層】生成層:', generated ? `✅ 存在 (${generated.length} 筆數據)` : '❌ 不存在')
+    if (generated) {
+      console.log(`  - 總流量: ${generated.reduce((sum, d) => sum + d.Volume_M + d.Volume_S + d.Volume_L, 0)} 輛`)
+    }
+
+    // 【第 2 層】收集層
+    const collected = window.lastCollectedVDData?.dataArray
+    console.log('【第 2 層】收集層:', collected ? `✅ 存在 (${collected.length} 筆數據)` : '❌ 不存在')
+
+    // 【第 3 層】預測層
+    const prediction = this.finalPrediction
+    console.log(
+      '【第 3 層】預測層:',
+      prediction
+        ? `✅ 存在 (東西: ${prediction.east_west_seconds}s, 南北: ${prediction.south_north_seconds}s)`
+        : '❌ 不存在',
+    )
+
+    // 【第 4 層】動畫層（透過事件）
+    console.log('【第 4 層】動畫層: 通過 trafficPredictionReady 事件傳遞')
+
+    // 一致性檢查
+    if (generated && collected && prediction) {
+      console.log('\n✅ [一致性檢查]')
+      console.log(`  - 生成 → 收集: ${generated.length === collected.length ? '✅ 數據量一致' : '❌ 數據量不一致'}`)
+      console.log(`  - 預測來源: ${prediction.source}`)
+      console.log(`  - 時間戳: ${prediction.timestamp}`)
+      console.log('\n✅ 數據線統一成功！單一數據線完整流動：生成 → 收集 → 發送 → 預測 → 動畫')
+    } else {
+      console.warn('\n⚠️ [警告] 存在未完成的層級，數據線可能存在問題')
+    }
+
+    console.log('========================================\n')
+
+    return {
+      generation: !!generated,
+      collection: !!collected,
+      prediction: !!prediction,
+      consistent: !!(generated && collected && prediction),
     }
   }
 

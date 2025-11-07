@@ -1441,8 +1441,28 @@ onMounted(async () => {
       }
     })
 
-    // 設置AI預測更新回調
+    // ✅ 【統一數據線】監聽統一的預測事件（新方式 - 優先使用）
+    const handleUnifiedPrediction = (event) => {
+      const prediction = event.detail.prediction
+      console.log(`\n✨ [IndexPage 事件監聽] 收到 trafficPredictionReady 事件`)
+      console.log(`  事件詳情:`, event.detail)
+      console.log(`  預測物件:`, prediction)
+      console.log(`  東西向: ${prediction.east_west_seconds}秒`)
+      console.log(`  南北向: ${prediction.south_north_seconds}秒`)
+
+      aiPrediction.value = {
+        eastWest: prediction.east_west_seconds || 0,
+        northSouth: prediction.south_north_seconds || 0,
+        timestamp: new Date().toLocaleTimeString(),
+      }
+
+      console.log(`✅ [IndexPage 已更新] aiPrediction.value:`, aiPrediction.value)
+    }
+    window.addEventListener('trafficPredictionReady', handleUnifiedPrediction)
+
+    // 【舊方式 - 向後兼容】設置AI預測更新回調
     trafficController.setPredictionUpdateCallback((prediction) => {
+      // 仍然更新，但會被統一事件覆蓋
       aiPrediction.value = prediction
     })
 
@@ -1453,6 +1473,21 @@ onMounted(async () => {
     } else {
       console.log('✅ 交通燈已在運行，重新設置回調')
     }
+
+    // ✅ 【調試】暴露 IndexPage 狀態到 window
+    window.debugIndexPageState = () => {
+      console.log('\n════════════════════════════════════════')
+      console.log('📺 【IndexPage 當前狀態】')
+      console.log('════════════════════════════════════════')
+      console.log(`  aiPrediction.eastWest: ${aiPrediction.value.eastWest} 秒`)
+      console.log(`  aiPrediction.northSouth: ${aiPrediction.value.northSouth} 秒`)
+      console.log(`  aiPrediction.timestamp: ${aiPrediction.value.timestamp}`)
+      console.log(`  倒計時: ${countdown.value} 秒`)
+      console.log('════════════════════════════════════════')
+      return aiPrediction.value
+    }
+
+    console.log('💡 在控制台執行: window.debugIndexPageState() 查看當前顯示的秒數')
 
     // 初始化自動交通產生器
     console.log('🚦 初始化自動交通產生器...')
