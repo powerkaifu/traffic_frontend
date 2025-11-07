@@ -1465,7 +1465,7 @@ export default class TrafficLightController {
                   (singleData.Speed_L || 0) * mappedVolumeL) /
                   totalVolume,
               )
-            : 0
+            : singleData.Speed || 30 // ✅【v7.2 改進】當無車輛時回退到原始 Speed 或預設值
 
         // ✅ 返回交叉路口數據（18個欄位給後端）
         // 【版本 2.5】：使用 VD 映射的 hour 和 vehicle_count，而非原始值
