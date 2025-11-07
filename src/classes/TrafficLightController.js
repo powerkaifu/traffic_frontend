@@ -565,6 +565,16 @@ export default class TrafficLightController {
           // 完整倒數南北向綠燈，在剩餘10秒時發送API
           await this.countdownDelayWithAPI(this.dynamicTiming.northSouth * 1000, this.phaseTimings.api.callInterval)
 
+          // 【改進】倒數 0 秒時的數據驗證
+          console.log(`\n🔴 [倒數 0 秒] 南北向綠燈結束 - 數據驗證:`)
+          Object.keys(this.vehicleData).forEach((direction) => {
+            const vData = this.vehicleData[direction]
+            const total = vData.motor + vData.small + vData.large
+            console.log(
+              `  ├─ ${direction.padEnd(6)}: M=${vData.motor}, S=${vData.small}, L=${vData.large} (總計=${total})`,
+            )
+          })
+
           // 南北向綠燈結束
           window.dispatchEvent(new CustomEvent('greenLightEnded'))
 
@@ -628,6 +638,16 @@ export default class TrafficLightController {
 
           // 東西向綠燈倒數
           await this.countdownDelay(this.dynamicTiming.eastWest * 1000)
+
+          // 【改進】倒數 0 秒時的數據驗證
+          console.log(`\n🔴 [倒數 0 秒] 東西向綠燈結束 - 數據驗證:`)
+          Object.keys(this.vehicleData).forEach((direction) => {
+            const vData = this.vehicleData[direction]
+            const total = vData.motor + vData.small + vData.large
+            console.log(
+              `  ├─ ${direction.padEnd(6)}: M=${vData.motor}, S=${vData.small}, L=${vData.large} (總計=${total})`,
+            )
+          })
 
           // 東西向綠燈結束
           window.dispatchEvent(new CustomEvent('greenLightEnded'))
@@ -875,6 +895,18 @@ export default class TrafficLightController {
 
   // Strategy Pattern: 收集路口數據（VD 格式）- 數據收集策略
   collectIntersectionData() {
+    // 【改進】倒數 10 秒時的數據收集驗證
+    console.log(`\n📊 [${'='.repeat(60)}]`)
+    console.log(`📊 [倒數 10 秒] 開始收集交叉口數據`)
+    console.log(`📊 [${'='.repeat(60)}]`)
+
+    // 驗證 vehicleData 狀態
+    Object.keys(this.vehicleData).forEach((direction) => {
+      const vData = this.vehicleData[direction]
+      const total = vData.motor + vData.small + vData.large
+      console.log(`  ├─ ${direction.padEnd(6)}: M=${vData.motor}, S=${vData.small}, L=${vData.large} (總計=${total})`)
+    })
+
     // 🎯【CRITICAL FIX】在自動模式下使用模擬時間，否則使用系統時間或配置時間
     let dayOfWeek, hour, minute, second, isPeakHour
 
@@ -1135,8 +1167,10 @@ export default class TrafficLightController {
     const finalSpeed = Math.max(15, Math.min(70, adjustedSpeed))
 
     return finalSpeed + 0.0
-  } // 🔧【v7 新增】根據時間判斷交通情景
-  _getTrafficScenario(hour, isPeakHour) {
+  }
+
+  // 🔧【v7 新增】根據時間判斷交通情景
+  _getTrafficScenario(hour) {
     if (hour >= 0 && hour < 6) {
       return 'midnight' // 凌晨 00:00-05:59
     } else if (hour === 6) {
@@ -1813,6 +1847,17 @@ export default class TrafficLightController {
   resetTrafficDataForNextCycle() {
     console.log('🔄 開始新週期，重置交通數據...')
 
+    // 【改進】驗證上一週期的數據是否被正確保存
+    const prevCycleTotal = Object.values(this.vehicleData).reduce(
+      (sum, dir) => sum + (dir.motor + dir.small + dir.large),
+      0,
+    )
+    console.log(`  📊 上一週期總車輛數: ${prevCycleTotal} 輛`)
+
+    if (prevCycleTotal === 0) {
+      console.warn(`  ⚠️ 警告：上一週期無車輛數據被記錄！可能存在數據收集問題`)
+    }
+
     // 🎯【新增】重置 API 防重複標記
     this.apiAlreadySentInCycle = false
 
@@ -1821,6 +1866,7 @@ export default class TrafficLightController {
 
     // 2. 重置TrafficLightController的車輛計數器
     this.resetVehicleData()
+    console.log(`  ✅ vehicleData 已重置為零`)
 
     // 3. 重置TrafficDataCollector
     if (window.trafficDataCollector) {
