@@ -86,7 +86,57 @@ export default class AutoTrafficGenerator {
   start() {
     if (this.isRunning) return
     this.isRunning = true
+
+    // 🎯【修復 1】監聽 API 數據更新，動態調整車流生成速率
+    this._syncWithApiData()
+
     this._scheduleNext()
+  }
+
+  /**
+   * 🎯【修復 1】根據最新的 API 數據動態調整車流生成
+   * 確保前端動畫中的車輛數量與 API 返回的目標流量一致
+   */
+  _syncWithApiData() {
+    // 監聽 API 數據更新事件
+    window.addEventListener('trafficApiComplete', () => {
+      const apiData = window.lastApiVDDataArray
+
+      if (!apiData || apiData.length === 0) {
+        console.warn('⚠️ [API 同步] 無 API 數據可用')
+        return
+      }
+
+      // 計算目標總車量（平均所有方向）
+      let totalVolume = 0
+      let totalSpeed = 0
+      let occupancySum = 0
+
+      apiData.forEach((data) => {
+        const volume = (data.Volume_M || 0) + (data.Volume_S || 0) + (data.Volume_L || 0)
+        totalVolume += volume
+        totalSpeed += data.Speed || 0
+        occupancySum += data.Occupancy || 0
+      })
+
+      const avgSpeed = totalSpeed / apiData.length
+      const avgOccupancy = occupancySum / apiData.length
+
+      // 🎯 根據目標流量動態調整生成間隔
+      // API 期望在 10 秒內生成 totalVolume 輛車
+      // 則每輛車之間的平均間隔應該是 (10 * 1000) / totalVolume 毫秒
+      if (totalVolume > 0) {
+        const targetInterval = (10 * 1000) / totalVolume
+        const adjustedMinInterval = Math.max(200, Math.round(targetInterval)) // 最少 200ms
+
+        this.minLaneInterval = adjustedMinInterval
+
+        console.log(
+          `🎯 [API 同步] 目標流量=${totalVolume}/10秒 → 調整生成間隔=${adjustedMinInterval}ms` +
+            `, 平均速度=${avgSpeed.toFixed(1)}km/h, 佔有率=${avgOccupancy.toFixed(1)}%`,
+        )
+      }
+    })
   }
 
   // 停止生成
@@ -1145,7 +1195,46 @@ export default class AutoTrafficGenerator {
     if (!type) type = vehicleTypes[0].type
 
     let speed = 30
-    if (this.trafficController && this.trafficController.getAverageSpeed) {
+
+    // 🎯 【修復 2】從 API 數據讀取車速而不是隨機值
+    if (window.lastApiVDDataArray && Array.isArray(window.lastApiVDDataArray)) {
+      try {
+        // 找到對應方向的 API 數據
+        const directionMap = {
+          north: 0,
+          east: 1,
+          south: 2,
+          west: 3,
+        }
+        const dirIndex = directionMap[selectedDir]
+
+        if (dirIndex !== undefined && window.lastApiVDDataArray[dirIndex]) {
+          const apiData = window.lastApiVDDataArray[dirIndex]
+
+          // 根據車型選擇對應的速度
+          let apiSpeed = 30
+          if (type === 'motor' && apiData.Speed_M !== undefined) {
+            apiSpeed = apiData.Speed_M
+          } else if (type === 'small' && apiData.Speed_S !== undefined) {
+            apiSpeed = apiData.Speed_S
+          } else if (type === 'large' && apiData.Speed_L !== undefined) {
+            apiSpeed = apiData.Speed_L
+          } else if (apiData.Speed !== undefined) {
+            apiSpeed = apiData.Speed
+          }
+
+          speed = Math.round(apiSpeed)
+          if (apiSpeed > 0) {
+            console.log(`✅ [車速同步] ${selectedDir}方向 ${type}類型: ${speed} km/h (來自 API)`)
+          }
+        }
+      } catch (error) {
+        console.warn(`⚠️ [車速同步] 讀取 API 車速失敗:`, error)
+      }
+    }
+
+    // 如果無法從 API 讀取，回退到控制器方法
+    if (speed === 30 && this.trafficController && this.trafficController.getAverageSpeed) {
       speed = this.trafficController.getAverageSpeed(selectedDir, type)
     }
 
