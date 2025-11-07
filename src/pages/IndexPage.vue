@@ -1866,6 +1866,7 @@ onUnmounted(() => {
   background-repeat: no-repeat;
   border-radius: 8px;
   position: relative;
+  overflow: hidden;
 }
 
 /* 十字路口車輛遮罩層 - 用於隱藏超出十字路口範圍的車輛 */

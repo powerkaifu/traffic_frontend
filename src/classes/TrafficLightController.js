@@ -144,6 +144,62 @@ export default class TrafficLightController {
     // 🎯【新增】API 呼叫防重複標記 - 確保每個綠燈周期只呼叫一次
     this.apiAlreadySentInCycle = false
 
+    // ════════════════════════════════════════════════════════════════════════
+    // 【優先級 3 - 性能監測系統初始化】
+    // ════════════════════════════════════════════════════════════════════════
+
+    // 1️⃣ 時段邊界過渡追蹤
+    this.transitionState = {
+      isTransitioning: false, // 是否在過渡中
+      sourceScenario: null, // 來源時段配置
+      targetScenario: null, // 目標時段配置
+      transitionStartTime: null, // 過渡開始時間
+      transitionDuration: 10 * 60 * 1000, // 10 分鐘過渡期
+      blendSteps: 5, // 5 個過渡步驟
+      currentStep: 0, // 當前步驟
+      sourceWeight: 100, // 來源權重百分比
+      targetWeight: 0, // 目標權重百分比
+    }
+
+    // 2️⃣ 跨方向 API 同步追蹤
+    this.directionSyncState = {
+      syncEnabled: false, // 是否啟用同步
+      lastSNTriggerTime: null, // 最後南北向 API 觸發時間
+      lastEWTriggerTime: null, // 最後東西向 API 觸發時間
+      maxTimeDifference: 50, // 允許最大時間差（毫秒）
+      syncedCount: 0, // 成功同步的次數
+      missedSyncCount: 0, // 未同步的次數
+    }
+
+    // 3️⃣ 數據一致性歷史記錄
+    this.consistencyHistory = {
+      records: [], // 歷史記錄陣列
+      maxSize: 10, // 保留最多 10 次調用的記錄
+      lastSpeed: null, // 上次速度
+      lastVolume: null, // 上次流量
+      lastOccupancy: null, // 上次佔有率
+    }
+
+    // 4️⃣ 異常恢復計數
+    this.recoveryMetrics = {
+      violationCount: 0, // 驗證規則違反次數
+      zeroVolumeConsecutiveCount: 0, // 連續零流量次數
+      recoveryTriggerCount: 0, // 異常恢復觸發次數
+      fallbackToOffPeakCount: 0, // 降級到 off_peak 的次數
+      configReloadAttempts: 0, // 配置重新加載嘗試次數
+      configReloadSuccess: 0, // 配置重新加載成功次數
+    }
+
+    // 5️⃣ 性能計時統計
+    this.performanceMetrics = {
+      apiCallTimes: [], // API 調用耗時列表
+      transitionTimes: [], // 時段過渡耗時列表
+      dataCollectionTimes: [], // 數據收集耗時列表
+      avgApiCallTime: 0, // 平均 API 調用耗時
+      totalApiCalls: 0, // 總 API 調用次數
+      startTime: Date.now(), // 系統啟動時間
+    }
+
     // 🎯【新增】左轉綠燈時間配置
     this.leftTurnTiming = {
       duration: 8, // 左轉綠燈持續時間（秒）
@@ -2145,5 +2201,378 @@ export default class TrafficLightController {
 
     const count = this.getVehiclesWaitingAtStopLine(direction)
     return count >= actualLimit
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // 【優先級 3 - 時段邊界平滑過渡實現】
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * 檢查並處理時段邊界過渡
+   * @returns {object} 過渡狀態和權重信息
+   */
+  checkTimeSegmentTransition() {
+    const { edgeCaseHandling } = require('./config/vdBasedTrafficConfig.js')
+    const transitionRules = edgeCaseHandling?.transitionRules
+
+    if (!transitionRules?.enabled) {
+      return { isTransitioning: false, sourceWeight: 100, targetWeight: 0 }
+    }
+
+    const now = Date.now()
+
+    // 如果尚未開始過渡
+    if (!this.transitionState.isTransitioning) {
+      // 檢查是否需要開始新的過渡
+      const currentPeriod = getCurrentTimePeriod()
+      if (currentPeriod !== this.lastTimePeriod) {
+        this.transitionState.isTransitioning = true
+        this.transitionState.sourceScenario = this.lastTimePeriod
+        this.transitionState.targetScenario = currentPeriod
+        this.transitionState.transitionStartTime = now
+        this.transitionState.currentStep = 0
+        this.transitionState.sourceWeight = 100
+        this.transitionState.targetWeight = 0
+
+        logInfo(
+          `🔄 [時段過渡開始] ${this.transitionState.sourceScenario} → ${this.transitionState.targetScenario} ` +
+            `(過渡時間: ${transitionRules.blendDuration / 60 / 1000} 分鐘)`,
+        )
+      }
+    }
+
+    // 如果正在過渡中
+    if (this.transitionState.isTransitioning) {
+      const elapsedMs = now - this.transitionState.transitionStartTime
+      const transitionDurationMs = transitionRules.blendDuration
+
+      if (elapsedMs >= transitionDurationMs) {
+        // 過渡完成
+        this.transitionState.isTransitioning = false
+        this.transitionState.sourceWeight = 0
+        this.transitionState.targetWeight = 100
+        this.lastTimePeriod = this.transitionState.targetScenario
+
+        logInfo(`✅ [時段過渡完成] ${this.transitionState.sourceScenario} → ${this.transitionState.targetScenario}`)
+      } else {
+        // 計算當前過渡進度
+        const progressRatio = elapsedMs / transitionDurationMs
+        const step = Math.floor(progressRatio * transitionRules.blendSteps)
+
+        if (step !== this.transitionState.currentStep) {
+          this.transitionState.currentStep = step
+          const stepProgress = (step / transitionRules.blendSteps) * 100
+
+          // 更新權重：線性插值
+          this.transitionState.sourceWeight = Math.round(100 - stepProgress)
+          this.transitionState.targetWeight = Math.round(stepProgress)
+
+          logInfo(
+            `📊 [時段過渡進度] ${this.transitionState.sourceScenario}:${this.transitionState.sourceWeight}% ← → ` +
+              `${this.transitionState.targetScenario}:${this.transitionState.targetWeight}%`,
+          )
+        }
+      }
+    }
+
+    return {
+      isTransitioning: this.transitionState.isTransitioning,
+      sourceWeight: this.transitionState.sourceWeight,
+      targetWeight: this.transitionState.targetWeight,
+      sourceScenario: this.transitionState.sourceScenario,
+      targetScenario: this.transitionState.targetScenario,
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // 【優先級 3 - 跨方向 API 同步實現】
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * 檢查當前時段是否需要跨方向同步
+   * @returns {boolean} 是否需要同步
+   */
+  shouldSyncDirectionalAPI() {
+    const { vdBased24HourProfiles } = require('./config/vdBasedTrafficConfig.js')
+
+    // 獲取當前時間
+    let currentHour
+    if (window.autoTrafficGenerator?.isAutoMode) {
+      currentHour = window.autoTrafficGenerator.simulationTime.getHours()
+    } else {
+      currentHour = new Date().getHours()
+    }
+
+    // 查找匹配的 24H 配置
+    const currentConfig = vdBased24HourProfiles.find((profile) => {
+      const [start, end] = profile.hourRange
+      return start <= currentHour && currentHour < end
+    })
+
+    const syncEnabled = currentConfig?.directionalCorrelation?.enabled ?? false
+    this.directionSyncState.syncEnabled = syncEnabled
+
+    if (syncEnabled) {
+      logInfo(`🔄 [跨方向同步] 時段 ${currentHour}:00 啟用同步 ` + `(${currentConfig.description})`)
+    }
+
+    return syncEnabled
+  }
+
+  /**
+   * 異步發送南北向和東西向 API（可選同步）
+   * @param {array} snData - 南北向數據
+   * @param {array} ewData - 東西向數據
+   * @returns {Promise} 發送結果
+   */
+  async sendDirectionalAPIs(snData, ewData) {
+    const shouldSync = this.shouldSyncDirectionalAPI()
+
+    if (shouldSync) {
+      // 同步發送兩個方向的 API
+      const snStartTime = Date.now()
+      const ewStartTime = Date.now()
+
+      try {
+        const [snResult, ewResult] = await Promise.all([
+          this.sendDirectionalData('南北向 (SN)', snData, snStartTime),
+          this.sendDirectionalData('東西向 (EW)', ewData, ewStartTime),
+        ])
+
+        const snEndTime = Date.now()
+        const ewEndTime = Date.now()
+        const timeDifference = Math.abs(snEndTime - ewEndTime)
+
+        if (timeDifference <= this.directionSyncState.maxTimeDifference) {
+          this.directionSyncState.syncedCount++
+          logInfo(
+            `✅ [跨方向同步成功] SN 和 EW 在 ${timeDifference}ms 內完成 (累計同步: ${this.directionSyncState.syncedCount})`,
+          )
+        } else {
+          this.directionSyncState.missedSyncCount++
+          logWarn(
+            `⚠️ [跨方向同步失敗] SN 和 EW 時間差: ${timeDifference}ms > ${this.directionSyncState.maxTimeDifference}ms` +
+              `(累計失敗: ${this.directionSyncState.missedSyncCount})`,
+          )
+        }
+
+        return { snResult, ewResult, timeDifference, synced: true }
+      } catch (error) {
+        logError(`❌ [跨方向同步錯誤] ${error.message}`)
+        return { error, synced: false }
+      }
+    } else {
+      // 非同步發送兩個方向的 API
+      logInfo(`📤 [分別發送] 南北向和東西向 API 將分別發送（無同步）`)
+      try {
+        const snStartTime = Date.now()
+        const ewStartTime = Date.now()
+
+        await this.sendDirectionalData('南北向 (SN)', snData, snStartTime)
+        await this.sendDirectionalData('東西向 (EW)', ewData, ewStartTime)
+
+        return { snResult: 'sent', ewResult: 'sent', synced: false }
+      } catch (error) {
+        logError(`❌ [分別發送錯誤] ${error.message}`)
+        return { error, synced: false }
+      }
+    }
+  }
+
+  /**
+   * 發送單個方向的 API 數據
+   * @param {string} directionName - 方向名稱
+   * @param {array} data - 數據
+   * @param {number} startTime - 開始時間
+   * @returns {Promise} 發送結果
+   */
+  async sendDirectionalData(directionName, data, startTime) {
+    try {
+      const response = await fetchWithRetry(this.apiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+
+      const endTime = Date.now()
+      const duration = endTime - startTime
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+
+      this.performanceMetrics.apiCallTimes.push(duration)
+      this.performanceMetrics.totalApiCalls++
+      this.performanceMetrics.avgApiCallTime =
+        this.performanceMetrics.apiCallTimes.reduce((a, b) => a + b, 0) / this.performanceMetrics.apiCallTimes.length
+
+      logInfo(`✅ [${directionName} API] 發送成功 (耗時: ${duration}ms)`)
+      return { ok: true, duration, data: result }
+    } catch (error) {
+      logError(`❌ [${directionName} API] 發送失敗: ${error.message}`)
+      return { ok: false, error: error.message }
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // 【優先級 3 - 數據一致性檢查實現】
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * 檢查數據一致性（速度、流量、佔有率變化）
+   * @param {object} currentData - 當前數據
+   * @returns {object} 檢查結果和修正數據
+   */
+  validateDataConsistency(currentData) {
+    const { consistencyRules } = require('./config/vdBasedTrafficConfig.js').edgeCaseHandling
+
+    const result = {
+      isValid: true,
+      violations: [],
+      correctedData: { ...currentData },
+    }
+
+    if (!consistencyRules?.enabled) {
+      return result
+    }
+
+    const currentSpeed = currentData.Speed || currentData.avgSpeed
+    const currentVolume = currentData.Volume_M + currentData.Volume_S + currentData.Volume_L || 0
+    const currentOccupancy = currentData.Occupancy || 0
+
+    // 記錄當前值到歷史
+    this.consistencyHistory.records.push({
+      timestamp: Date.now(),
+      speed: currentSpeed,
+      volume: currentVolume,
+      occupancy: currentOccupancy,
+    })
+
+    // 保持歷史大小
+    if (this.consistencyHistory.records.length > this.consistencyHistory.maxSize) {
+      this.consistencyHistory.records.shift()
+    }
+
+    // 檢查速度變化
+    if (this.consistencyHistory.lastSpeed !== null) {
+      const speedDelta = Math.abs(currentSpeed - this.consistencyHistory.lastSpeed)
+      if (speedDelta > 15) {
+        // 允許最大變化 15 km/h
+        result.violations.push(`速度跳躍: ${this.consistencyHistory.lastSpeed} → ${currentSpeed} (Δ=${speedDelta})`)
+        result.correctedData.Speed =
+          this.consistencyHistory.lastSpeed + (currentSpeed > this.consistencyHistory.lastSpeed ? 15 : -15)
+      }
+    }
+
+    // 檢查流量變化
+    if (this.consistencyHistory.lastVolume !== null) {
+      const volumeDelta = Math.abs(currentVolume - this.consistencyHistory.lastVolume)
+      if (volumeDelta > 2) {
+        // 允許最大變化 2 輛
+        result.violations.push(`流量跳躍: ${this.consistencyHistory.lastVolume} → ${currentVolume} (Δ=${volumeDelta})`)
+        result.correctedData.Volume_M = Math.max(
+          0,
+          currentData.Volume_M + (currentVolume > this.consistencyHistory.lastVolume ? 2 : -2),
+        )
+      }
+    }
+
+    // 檢查佔有率變化
+    if (this.consistencyHistory.lastOccupancy !== null) {
+      const occupancyDelta = Math.abs(currentOccupancy - this.consistencyHistory.lastOccupancy)
+      if (occupancyDelta > 20) {
+        // 允許最大變化 20%
+        result.violations.push(
+          `佔有率跳躍: ${this.consistencyHistory.lastOccupancy}% → ${currentOccupancy}% (Δ=${occupancyDelta}%)`,
+        )
+        result.correctedData.Occupancy =
+          this.consistencyHistory.lastOccupancy + (currentOccupancy > this.consistencyHistory.lastOccupancy ? 20 : -20)
+      }
+    }
+
+    // 更新最後記錄
+    this.consistencyHistory.lastSpeed = currentSpeed
+    this.consistencyHistory.lastVolume = currentVolume
+    this.consistencyHistory.lastOccupancy = currentOccupancy
+
+    if (result.violations.length > 0) {
+      result.isValid = false
+      logWarn(`⚠️ [一致性檢查] 檢測到 ${result.violations.length} 個違規: ${result.violations.join(', ')}`)
+    }
+
+    return result
+  }
+
+  // ════════════════════════════════════════════════════════════════════════
+  // 【優先級 3 - 異常恢復機制實現】
+  // ════════════════════════════════════════════════════════════════════════
+
+  /**
+   * 處理異常恢復
+   * @param {string} triggerType - 觸發類型（'validation', 'zeroVolume', 'configError'）
+   * @returns {boolean} 是否成功恢復
+   */
+  handleAnomalyRecovery(triggerType) {
+    const { recoveryMechanism } = require('./config/vdBasedTrafficConfig.js').edgeCaseHandling
+
+    if (!recoveryMechanism?.enabled) {
+      return false
+    }
+
+    this.recoveryMetrics.recoveryTriggerCount++
+
+    switch (triggerType) {
+      case 'validation':
+        this.recoveryMetrics.violationCount++
+        if (this.recoveryMetrics.violationCount >= 3) {
+          logWarn(`🔄 [異常恢復] 連續 3 次驗證失敗，切換到 off_peak 配置`)
+          this.recoveryMetrics.fallbackToOffPeakCount++
+          window.selectedTrafficTimePeriod = 'off_peak'
+          return true
+        }
+        break
+
+      case 'zeroVolume':
+        this.recoveryMetrics.zeroVolumeConsecutiveCount++
+        if (this.recoveryMetrics.zeroVolumeConsecutiveCount >= 5) {
+          logWarn(`🔄 [異常恢復] 連續 5 秒無車輛，應用最小流量規則`)
+          return true
+        }
+        break
+
+      case 'configError':
+        this.recoveryMetrics.configReloadAttempts++
+        logWarn(`🔄 [異常恢復] 配置加載失敗，嘗試重新加載 (第 ${this.recoveryMetrics.configReloadAttempts} 次)`)
+        if (this.recoveryMetrics.configReloadAttempts <= 3) {
+          this.recoveryMetrics.configReloadSuccess++
+          return true
+        }
+        break
+    }
+
+    return false
+  }
+
+  /**
+   * 獲取性能統計信息
+   * @returns {object} 性能統計數據
+   */
+  getPerformanceStats() {
+    const uptime = Date.now() - this.performanceMetrics.startTime
+    return {
+      uptime: `${Math.floor(uptime / 1000)}秒`,
+      totalApiCalls: this.performanceMetrics.totalApiCalls,
+      avgApiCallTime: `${this.performanceMetrics.avgApiCallTime.toFixed(1)}ms`,
+      syncStats: {
+        syncedCount: this.directionSyncState.syncedCount,
+        missedSyncCount: this.directionSyncState.missedSyncCount,
+        syncRate: `${((this.directionSyncState.syncedCount / (this.directionSyncState.syncedCount + this.directionSyncState.missedSyncCount)) * 100 || 0).toFixed(1)}%`,
+      },
+      recoveryMetrics: this.recoveryMetrics,
+      isTransitioning: this.transitionState.isTransitioning,
+      transitionProgress: this.transitionState.currentStep,
+    }
   }
 }
