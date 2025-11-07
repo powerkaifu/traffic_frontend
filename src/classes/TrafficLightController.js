@@ -17,6 +17,7 @@ import {
   // generateValidationSummary,
   // generateValidationReport,
 } from './utils/DataQualityValidator.js' // 【版本 2.5 新增】數據品質驗證與修正系統
+import { edgeCaseHandling, vdBased24HourProfiles, vdBasedTimeScenarios } from './config/vdBasedTrafficConfig.js' // 【Priority 3】引入 Priority 1-2 配置
 
 // 🎯 【優化】全局日誌系統 - 區分開發和生產環境
 const isDev = process.env.DEV || process.env.NODE_ENV !== 'production'
@@ -1191,6 +1192,51 @@ export default class TrafficLightController {
     // 🔧 添加日誌：顯示處理後的數據
     logInfo('📤 [數據發送] 處理後的 vdData:', JSON.stringify(vdData, null, 2))
 
+    // 【Priority 3 Integration】檢查並應用時段過渡權重
+    const transitionState = this.checkTimeSegmentTransition()
+    if (transitionState.isTransitioning) {
+      logInfo(
+        `🔄 [時段過渡應用] 檢測到過渡狀態 - 源権重=${transitionState.sourceWeight}%, 目標権重=${transitionState.targetWeight}%`,
+      )
+
+      // 獲取源情景和目標情景的配置
+      const sourceConfig = this.getConfigByScenario(transitionState.sourceScenario)
+      const targetConfig = this.getConfigByScenario(transitionState.targetScenario)
+
+      // 應用混合权重到 vdData
+      vdData.forEach((data, index) => {
+        const sourceRatio = sourceConfig.vehicleTypes
+        const targetRatio = targetConfig.vehicleTypes
+
+        // 計算混合後的車型比例
+        const blendedMotor =
+          (sourceRatio.motor * transitionState.sourceWeight + targetRatio.motor * transitionState.targetWeight) / 100
+        const blendedSmall =
+          (sourceRatio.small * transitionState.sourceWeight + targetRatio.small * transitionState.targetWeight) / 100
+        const blendedLarge =
+          (sourceRatio.large * transitionState.sourceWeight + targetRatio.large * transitionState.targetWeight) / 100
+
+        // 計算比例因子
+        const totalRatio = blendedMotor + blendedSmall + blendedLarge
+        const motorFactor = blendedMotor / totalRatio
+        const smallFactor = blendedSmall / totalRatio
+        const largeFactor = blendedLarge / totalRatio
+
+        // 保持總車數不變，調整各車型比例
+        const totalVolume = data.Volume_M + data.Volume_S + data.Volume_L
+        data.Volume_M = Math.round(totalVolume * motorFactor)
+        data.Volume_S = Math.round(totalVolume * smallFactor)
+        data.Volume_L = Math.round(totalVolume * largeFactor)
+
+        logInfo(
+          `✅ [過渡應用] 方向${index + 1}: 車型比例已調整 ` +
+            `M=${data.Volume_M}, S=${data.Volume_S}, L=${data.Volume_L}`,
+        )
+      })
+
+      logInfo(`✅ [過渡完成] 所有交叉口數據已應用過渡权重`)
+    }
+
     return vdData
   }
 
@@ -1652,6 +1698,61 @@ export default class TrafficLightController {
       //   console.log(`    - 天氣: ${data.weather} (倍數: ${data.weather_multiplier?.toFixed(2)}x)`)
       // })
       // console.log('✅ VD 數據已準備完畢，即將發送到後端...')
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 【Priority 3 Integration】數據一致性驗證和異常恢復
+      // ═══════════════════════════════════════════════════════════════════════
+      logInfo(`\n🔍 【Priority 3】開始數據品質檢查...`)
+
+      // 步驟 1: 數據一致性驗證
+      const consistencyCheck = this.validateDataConsistency(finalDataToSend)
+      if (consistencyCheck.hasIssues) {
+        logWarn(`⚠️ [數據一致性檢查] 發現 ${consistencyCheck.issueCount} 個問題`)
+        logInfo(`   問題詳情: ${consistencyCheck.issues.join(', ')}`)
+
+        // 步驟 2: 嘗試異常恢復
+        const recoveryAttempted = this.handleAnomalyRecovery('dataConsistencyError')
+        if (recoveryAttempted) {
+          logInfo(`✅ [異常恢復] 已執行恢復措施`)
+        } else {
+          logWarn(`⚠️ [異常恢復] 無法自動恢復`)
+        }
+      } else {
+        logInfo(`✅ [數據一致性檢查] 所有數據都符合預期`)
+      }
+
+      // 步驟 3: 跨方向 API 同步檢查
+      const shouldSync = this.shouldSyncDirectionalAPI(finalDataToSend)
+      if (shouldSync) {
+        logInfo(`📡 [跨方向同步] 需要同步 API 發送`)
+        // 將數據按方向拆分為南北向（南向+北向）和東西向（東向+西向）
+        const snData = finalDataToSend.filter(
+          (data) =>
+            data.Direction === '南向' ||
+            data.Direction === '北向' ||
+            data.VD_ID === 'VLRJX00' ||
+            (data.LaneID >= 2 && data.LaneID <= 3),
+        )
+        const ewData = finalDataToSend.filter(
+          (data) =>
+            data.Direction === '東向' ||
+            data.Direction === '西向' ||
+            data.VD_ID === 'VLRJX20' ||
+            data.VD_ID === 'VLRJM60' ||
+            data.LaneID === 0 ||
+            data.LaneID === 1,
+        )
+        // 嘗試同步發送（非阻塞）
+        this.sendDirectionalAPIs(snData, ewData).catch((err) => {
+          logError(`❌ [同步發送錯誤] ${err.message}`)
+        })
+      } else {
+        logInfo(`✅ [跨方向同步] 暫不需要同步`)
+      }
+
+      // 步驟 4: 收集性能統計
+      const perfStats = this.getPerformanceStats()
+      logInfo(`📊 [性能統計] API調用: ${perfStats.totalApiCalls}, 同步率: ${perfStats.syncStats.syncRate}`)
 
       // ═══════════════════════════════════════════════════════════════════════
       // 🔍【版本 2.5 新增】數據品質驗證與修正 - 三層防線
@@ -2212,7 +2313,6 @@ export default class TrafficLightController {
    * @returns {object} 過渡狀態和權重信息
    */
   checkTimeSegmentTransition() {
-    const { edgeCaseHandling } = require('./config/vdBasedTrafficConfig.js')
     const transitionRules = edgeCaseHandling?.transitionRules
 
     if (!transitionRules?.enabled) {
@@ -2293,7 +2393,7 @@ export default class TrafficLightController {
    * @returns {boolean} 是否需要同步
    */
   shouldSyncDirectionalAPI() {
-    const { vdBased24HourProfiles } = require('./config/vdBasedTrafficConfig.js')
+    // 使用頂部導入的 vdBased24HourProfiles
 
     // 獲取當前時間
     let currentHour
@@ -2320,16 +2420,16 @@ export default class TrafficLightController {
   }
 
   /**
-   * 異步發送南北向和東西向 API（可選同步）
+   * 驗證南北向和東西向數據（監測用，不發送 API）
    * @param {array} snData - 南北向數據
    * @param {array} ewData - 東西向數據
-   * @returns {Promise} 發送結果
+   * @returns {Promise} 驗證結果
    */
   async sendDirectionalAPIs(snData, ewData) {
     const shouldSync = this.shouldSyncDirectionalAPI()
 
     if (shouldSync) {
-      // 同步發送兩個方向的 API
+      // 並行驗證兩個方向的數據
       const snStartTime = Date.now()
       const ewStartTime = Date.now()
 
@@ -2346,24 +2446,24 @@ export default class TrafficLightController {
         if (timeDifference <= this.directionSyncState.maxTimeDifference) {
           this.directionSyncState.syncedCount++
           logInfo(
-            `✅ [跨方向同步成功] SN 和 EW 在 ${timeDifference}ms 內完成 (累計同步: ${this.directionSyncState.syncedCount})`,
+            `✅ [跨方向驗證成功] SN 和 EW 在 ${timeDifference}ms 內完成驗證 (累計同步: ${this.directionSyncState.syncedCount})`,
           )
         } else {
           this.directionSyncState.missedSyncCount++
           logWarn(
-            `⚠️ [跨方向同步失敗] SN 和 EW 時間差: ${timeDifference}ms > ${this.directionSyncState.maxTimeDifference}ms` +
+            `⚠️ [跨方向驗證失敗] SN 和 EW 驗證時間差: ${timeDifference}ms > ${this.directionSyncState.maxTimeDifference}ms` +
               `(累計失敗: ${this.directionSyncState.missedSyncCount})`,
           )
         }
 
         return { snResult, ewResult, timeDifference, synced: true }
       } catch (error) {
-        logError(`❌ [跨方向同步錯誤] ${error.message}`)
+        logError(`❌ [跨方向驗證錯誤] ${error.message}`)
         return { error, synced: false }
       }
     } else {
-      // 非同步發送兩個方向的 API
-      logInfo(`📤 [分別發送] 南北向和東西向 API 將分別發送（無同步）`)
+      // 分別驗證兩個方向的數據
+      logInfo(`� [分別驗證] 南北向和東西向數據驗證（無同步）`)
       try {
         const snStartTime = Date.now()
         const ewStartTime = Date.now()
@@ -2371,47 +2471,55 @@ export default class TrafficLightController {
         await this.sendDirectionalData('南北向 (SN)', snData, snStartTime)
         await this.sendDirectionalData('東西向 (EW)', ewData, ewStartTime)
 
-        return { snResult: 'sent', ewResult: 'sent', synced: false }
+        return { snResult: 'validated', ewResult: 'validated', synced: false }
       } catch (error) {
-        logError(`❌ [分別發送錯誤] ${error.message}`)
+        logError(`❌ [分別驗證錯誤] ${error.message}`)
         return { error, synced: false }
       }
     }
   }
 
   /**
-   * 發送單個方向的 API 數據
+   * 驗證單個方向的數據完整性（監測用，不發送 API）
    * @param {string} directionName - 方向名稱
    * @param {array} data - 數據
    * @param {number} startTime - 開始時間
-   * @returns {Promise} 發送結果
+   * @returns {Promise} 驗證結果
    */
   async sendDirectionalData(directionName, data, startTime) {
     try {
-      const response = await fetchWithRetry(this.apiEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      })
-
       const endTime = Date.now()
       const duration = endTime - startTime
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      // ✅ 只進行數據驗證，不發送實際 API 請求
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error(`${directionName} 數據為空或格式無效`)
       }
 
-      const result = await response.json()
+      // 驗證數據結構
+      const isValid = data.every(
+        (record) =>
+          record.VD_ID &&
+          record.Volume_M !== undefined &&
+          record.Volume_S !== undefined &&
+          record.Volume_L !== undefined &&
+          record.Speed !== undefined,
+      )
 
+      if (!isValid) {
+        throw new Error(`${directionName} 數據結構不完整`)
+      }
+
+      // 記錄性能指標（監測用）
       this.performanceMetrics.apiCallTimes.push(duration)
       this.performanceMetrics.totalApiCalls++
       this.performanceMetrics.avgApiCallTime =
         this.performanceMetrics.apiCallTimes.reduce((a, b) => a + b, 0) / this.performanceMetrics.apiCallTimes.length
 
-      logInfo(`✅ [${directionName} API] 發送成功 (耗時: ${duration}ms)`)
-      return { ok: true, duration, data: result }
+      logInfo(`📊 [${directionName} 數據驗證] 完成 - ${data.length} 筆記錄，驗證耗時: ${duration}ms`)
+      return { ok: true, duration, validated: true }
     } catch (error) {
-      logError(`❌ [${directionName} API] 發送失敗: ${error.message}`)
+      logError(`⚠️ [${directionName} 數據驗證] 失敗: ${error.message}`)
       return { ok: false, error: error.message }
     }
   }
@@ -2426,7 +2534,7 @@ export default class TrafficLightController {
    * @returns {object} 檢查結果和修正數據
    */
   validateDataConsistency(currentData) {
-    const { consistencyRules } = require('./config/vdBasedTrafficConfig.js').edgeCaseHandling
+    const consistencyRules = edgeCaseHandling?.consistencyRules
 
     const result = {
       isValid: true,
@@ -2515,7 +2623,7 @@ export default class TrafficLightController {
    * @returns {boolean} 是否成功恢復
    */
   handleAnomalyRecovery(triggerType) {
-    const { recoveryMechanism } = require('./config/vdBasedTrafficConfig.js').edgeCaseHandling
+    const recoveryMechanism = edgeCaseHandling?.recoveryMechanism
 
     if (!recoveryMechanism?.enabled) {
       return false
@@ -2553,6 +2661,142 @@ export default class TrafficLightController {
     }
 
     return false
+  }
+
+  /**
+   * 【輔助方法】獲取當前時段名稱
+   * 根據當前小時返回時段標籤 (peak_hours, off_peak, late_night)
+   * @returns {string} 時段名稱 (peak_hours|off_peak|late_night)
+   */
+  getCurrentTimePeriod() {
+    const now = new Date()
+    let hour = now.getHours()
+
+    // 如果在自動模式中，使用模擬時間
+    if (window.autoTrafficGenerator && window.autoTrafficGenerator.isAutoMode) {
+      const simulatedTime = window.autoTrafficGenerator.simulationTime
+      hour = simulatedTime.getHours()
+    } else if (window.selectedTrafficTimePeriod) {
+      // 手動模式：直接使用已選擇的時段
+      return window.selectedTrafficTimePeriod
+    }
+
+    // 根據小時判斷時段
+    if ((hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19)) {
+      return 'peak_hours' // 上班/下班尖峰 (7-9, 17-19)
+    } else if (hour >= 23 || hour < 5) {
+      return 'late_night' // 凌晨 (23-4)
+    } else {
+      return 'off_peak' // 離峰 (5-6, 10-16, 20-22)
+    }
+  }
+
+  /**
+   * 【輔助方法】根據情景名稱取得配置物件
+   * 從 vdBasedTrafficConfig 中查詢特定情景的完整配置
+   * @param {string} scenarioName - 情景名稱 (e.g. 'peak_hours', 'off_peak', 'late_night')
+   * @returns {object} 包含 vehicleTypes, directionalCorrelation, etc. 的配置物件
+   */
+  getConfigByScenario(scenarioName) {
+    try {
+      // 使用頂部導入的配置
+
+      // 首先搜尋 24H 配置中的自動情景
+      if (vdBased24HourProfiles && Array.isArray(vdBased24HourProfiles)) {
+        const found = vdBased24HourProfiles.find((p) => p.scenario === scenarioName || p.name === scenarioName)
+        if (found) {
+          logInfo(`✅ [配置查詢] 找到情景 "${scenarioName}" 的 24H 配置`)
+          return {
+            vehicleTypes: found.vehicleTypes,
+            directionalCorrelation: found.directionalCorrelation,
+            validationRules: found.validationRules,
+            source: '24HourProfiles',
+          }
+        }
+      }
+
+      // 備用：搜尋時段配置中的手動情景
+      if (vdBasedTimeScenarios && Array.isArray(vdBasedTimeScenarios)) {
+        const found = vdBasedTimeScenarios.find((p) => p.scenario === scenarioName || p.name === scenarioName)
+        if (found) {
+          logInfo(`✅ [配置查詢] 找到情景 "${scenarioName}" 的時段配置`)
+          return {
+            vehicleTypes: found.vehicleTypes,
+            directionalCorrelation: found.directionalCorrelation,
+            validationRules: found.validationRules,
+            source: 'TimeScenarios',
+          }
+        }
+      }
+
+      // 預設返回離峰配置
+      logWarn(`⚠️ [配置查詢] 未找到情景 "${scenarioName}"，使用預設離峰配置`)
+      return {
+        vehicleTypes: { motor: 33, small: 50, large: 17 },
+        directionalCorrelation: { SN: 1.0, EW: 1.0 },
+        validationRules: { minSpeed: 20, maxSpeed: 60, minOccupancy: 5, maxOccupancy: 95 },
+        source: 'default',
+      }
+    } catch (error) {
+      logError(`❌ [配置查詢錯誤] ${error.message}`)
+      return {
+        vehicleTypes: { motor: 33, small: 50, large: 17 },
+        directionalCorrelation: { SN: 1.0, EW: 1.0 },
+        source: 'error_fallback',
+      }
+    }
+  }
+
+  /**
+   * 【輔助方法】為特定方向準備 API 數據
+   * 應用方向特定的配置和相關性係數到 VD 數據
+   * @param {string} direction - 方向 (east|west|south|north)
+   * @returns {object} 為該方向準備的 API 數據對象
+   */
+  prepareDirectionalData(direction) {
+    try {
+      const currentScenario = this.getCurrentTimePeriod()
+      const config = this.getConfigByScenario(currentScenario)
+
+      if (!config) {
+        logError(`❌ [方向數據準備] 無法獲取情景 "${currentScenario}" 的配置`)
+        return null
+      }
+
+      // 獲取該方向的相關性係數
+      const correlationFactor =
+        config.directionalCorrelation?.[direction === 'east' || direction === 'west' ? 'EW' : 'SN'] || 1.0
+
+      // 獲取該方向的當前車輛數據
+      const vehicleData = this.vehicleData?.[direction] || { motor: 0, small: 0, large: 0 }
+
+      // 應用相關性係數調整流量
+      const adjustedMotor = Math.round(vehicleData.motor * correlationFactor)
+      const adjustedSmall = Math.round(vehicleData.small * correlationFactor)
+      const adjustedLarge = Math.round(vehicleData.large * correlationFactor)
+
+      logInfo(
+        `📊 [方向數據準備] ${direction}: ` +
+          `原始(M=${vehicleData.motor}, S=${vehicleData.small}, L=${vehicleData.large}) ` +
+          `→ 調整後(M=${adjustedMotor}, S=${adjustedSmall}, L=${adjustedLarge}) ` +
+          `(係數: ${correlationFactor.toFixed(2)})`,
+      )
+
+      return {
+        direction,
+        scenario: currentScenario,
+        vehicleData: {
+          motor: adjustedMotor,
+          small: adjustedSmall,
+          large: adjustedLarge,
+        },
+        correlationFactor,
+        timestamp: new Date().toISOString(),
+      }
+    } catch (error) {
+      logError(`❌ [方向數據準備錯誤] ${error.message}`)
+      return null
+    }
   }
 
   /**
