@@ -1224,9 +1224,6 @@ export default class AutoTrafficGenerator {
           }
 
           speed = Math.round(apiSpeed)
-          if (apiSpeed > 0) {
-            console.log(`✅ [車速同步] ${selectedDir}方向 ${type}類型: ${speed} km/h (來自 API)`)
-          }
         }
       } catch (error) {
         console.warn(`⚠️ [車速同步] 讀取 API 車速失敗:`, error)

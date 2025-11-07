@@ -429,8 +429,6 @@ const selectOptimalLane = (direction) => {
         } else {
           MAX_VEHICLES_PER_LANE = 6
         }
-
-        console.log(`📊 [車道密度同步] ${direction}方向 佔有率:${occupancy}% → 每車道最多:${MAX_VEHICLES_PER_LANE}輛`)
       }
     }
   } catch (error) {
