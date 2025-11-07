@@ -926,22 +926,89 @@ export default class TrafficLightController {
       let scaledMotor, scaledSmall, scaledLarge
 
       if (totalRaw === 0) {
-        // 沒有車輛時使用更大的基礎值 + 隨機波動，增加 API 預測的變動性
-        // 🔧【改進 v2】進一步擴大基礎車流量範圍到 40-65 秒
-        // 使用更大的隨機基礎值（每筆都不同），增加 API 預測的多樣性
-        const baseMotor = 2 + Math.floor(Math.random() * 10) // 2-11 輛機車（範圍更大）
-        const baseSmall = 3 + Math.floor(Math.random() * 12) // 3-14 輛小客車（範圍更大）
-        const baseLarge = 1 + Math.floor(Math.random() * 5) // 1-5 輛大客車（範圍更大）
+        // 🔧【v7 SHAP 優化】根據時間段和 IsPeakHour 生成不同的流量分層
+        // SHAP 排名：IsPeakHour(29.41) > Occupancy(9.36) > Hour(4.11) > Volume_S(3.10)
+        // 策略：根據情景精準控制占有率，避免總是 99 秒
 
-        // 再加上額外的 ±25% 波動（比之前增加）
-        const variation = 0.75 + Math.random() * 0.5
+        let baseMotor, baseSmall, baseLarge, variation
+
+        // 計算情景類型以決定流量
+        const scenario = this._getTrafficScenario(hour, isPeakHour)
+
+        switch (scenario) {
+          case 'midnight': // 凌晨 00:00-05:59，占有率 2-4%
+            baseMotor = 1 + Math.floor(Math.random() * 2)
+            baseSmall = 2 + Math.floor(Math.random() * 3)
+            baseLarge = 0 + Math.floor(Math.random() * 1)
+            variation = 0.9 + Math.random() * 0.15
+            break
+          case 'early_morning': // 早晨 06:00-06:59，占有率 3-6%
+            baseMotor = 2 + Math.floor(Math.random() * 3)
+            baseSmall = 3 + Math.floor(Math.random() * 4)
+            baseLarge = 0 + Math.floor(Math.random() * 1)
+            variation = 0.9 + Math.random() * 0.15
+            break
+          case 'peak_morning': // 上班尖峰 07:00-09:59，占有率 10-14%
+            baseMotor = 3 + Math.floor(Math.random() * 3)
+            baseSmall = 10 + Math.floor(Math.random() * 8)
+            baseLarge = 1 + Math.floor(Math.random() * 2)
+            variation = 0.95 + Math.random() * 0.1
+            break
+          case 'post_peak': // 尖峰後 10:00-10:59，占有率 8-11%
+            baseMotor = 2 + Math.floor(Math.random() * 3)
+            baseSmall = 7 + Math.floor(Math.random() * 5)
+            baseLarge = 1 + Math.floor(Math.random() * 1)
+            variation = 0.9 + Math.random() * 0.15
+            break
+          case 'midday_low': // 中午低流量 11:00-14:59，占有率 6-10%
+            baseMotor = 2 + Math.floor(Math.random() * 2)
+            baseSmall = 6 + Math.floor(Math.random() * 5)
+            baseLarge = 0 + Math.floor(Math.random() * 1)
+            variation = 0.9 + Math.random() * 0.15
+            break
+          case 'midday_medium': // 中午中等 15:00-15:59，占有率 8-12%
+            baseMotor = 2 + Math.floor(Math.random() * 3)
+            baseSmall = 8 + Math.floor(Math.random() * 6)
+            baseLarge = 1 + Math.floor(Math.random() * 1)
+            variation = 0.9 + Math.random() * 0.15
+            break
+          case 'pre_peak': // 下班前 16:00-16:59，占有率 11-14%
+            baseMotor = 3 + Math.floor(Math.random() * 3)
+            baseSmall = 9 + Math.floor(Math.random() * 7)
+            baseLarge = 1 + Math.floor(Math.random() * 2)
+            variation = 0.95 + Math.random() * 0.1
+            break
+          case 'peak_evening': // 下班尖峰 17:00-19:59，占有率 12-16%
+            baseMotor = 3 + Math.floor(Math.random() * 4)
+            baseSmall = 12 + Math.floor(Math.random() * 8)
+            baseLarge = 2 + Math.floor(Math.random() * 2)
+            variation = 0.95 + Math.random() * 0.1
+            break
+          case 'evening': // 晚間 20:00-22:59，占有率 5-9%
+            baseMotor = 2 + Math.floor(Math.random() * 2)
+            baseSmall = 5 + Math.floor(Math.random() * 4)
+            baseLarge = 0 + Math.floor(Math.random() * 1)
+            variation = 0.9 + Math.random() * 0.15
+            break
+          case 'late_night': // 夜間 23:00-23:59，占有率 2-4%
+            baseMotor = 1 + Math.floor(Math.random() * 2)
+            baseSmall = 2 + Math.floor(Math.random() * 3)
+            baseLarge = 0 + Math.floor(Math.random() * 1)
+            variation = 0.9 + Math.random() * 0.15
+            break
+          default:
+            baseMotor = 2 + Math.floor(Math.random() * 3)
+            baseSmall = 5 + Math.floor(Math.random() * 5)
+            baseLarge = 0 + Math.floor(Math.random() * 1)
+            variation = 0.9 + Math.random() * 0.15
+        }
 
         scaledMotor = Math.max(1, Math.round(baseMotor * variation))
         scaledSmall = Math.max(1, Math.round(baseSmall * variation))
         scaledLarge = Math.max(1, Math.round(baseLarge * variation))
 
         logInfo(
-          `⚠️ [數據收集] ${direction} 方向無車輛，使用大範圍隨機值+波動 (×${variation.toFixed(2)}): motor=${scaledMotor}, small=${scaledSmall}, large=${scaledLarge}`,
+          `⚠️ [數據收集 v7] ${direction} 方向 (${scenario})，使用分層隨機值+波動 (×${variation.toFixed(2)}): motor=${scaledMotor}, small=${scaledSmall}, large=${scaledLarge}`,
         )
       } else {
         // 有車輛時使用真實數據（應用縮放因子）
@@ -975,26 +1042,28 @@ export default class TrafficLightController {
       // 根據實際車輛數線性映射到占有率，不受時段限制
 
       const occupancyConfig = {
-        // ⭐ 新版本：基於車輛數的線性映射
-        // 參考：前端生成的車輛數通常為 0-20 輛/方向
-        baselineVehicles: 5, // 5 輛 → 25%
-        midpointVehicles: 10, // 10 輛 → 50%（中點）
-        maxVehicles: 20, // 20 輛 → 100%（上限）
-        randomRange: 5, // 隨機波動 ±5%
+        // ⭐ v7.1 修復：maxVehicles 過小導致占有率 100% 的問題
+        // 原問題：27輛車 / 20輛上限 = 135% → 被上限到 100%
+        // 修復：提高 maxVehicles 到 200，使尖峰時期對應 12-16% 占有率
+        // SHAP：IsPeakHour(29.41) > Occupancy(9.36) > Hour(4.11) > Volume_S(3.10)
+        baselineVehicles: 50, // 50 輛 → 25%（低流量基準）
+        midpointVehicles: 100, // 100 輛 → 50%（中點）
+        maxVehicles: 200, // 200 輛 → 100%（大幅提高，防止超限）
+        randomRange: 3, // 隨機波動 ±3%（減少波動）
       }
 
-      // ✅ 新公式：線性映射 0-100%
-      // 0 輛 → 0%, 10 輛 → 50%, 20 輛 → 100%
-      const vehicleRatio = totalVehicles / occupancyConfig.maxVehicles
-      let occupancyBase = vehicleRatio * 100 // 線性計算：0-100%
+      // ✅ 修復公式：線性映射 0-100%，但不會超限
+      // 28 輛 → 14% (在 12-16% 目標範圍內) ✅
+      const vehicleRatio = Math.min(totalVehicles / occupancyConfig.maxVehicles, 1.0)
+      let occupancyBase = vehicleRatio * 100 // 線性計算：0-100%，上限 100%
 
       // ✅ 添加方向特定的波動係數，確保各方向占有率不同
-      // 這些係數是乘法系數，可以在 0.6-1.4 之間調整方向差異
+      // v7.1 修復：降低係數避免超限
       const directionBias = {
-        east: 1.15, // 東向：高 15%（高繁忙度）
-        west: 0.75, // 西向：低 25%（低繁忙度）
-        south: 1.1, // 南向：高 10%
-        north: 0.95, // 北向：略低 5%
+        east: 1.0, // 東向：正常（避免 1.2 導致超限）
+        west: 0.95, // 西向：略低 5%
+        south: 0.98, // 南向：略低 2%
+        north: 0.9, // 北向：低 10%
       }
       const directionFactor = directionBias[direction] || 1.0
 
@@ -1068,6 +1137,32 @@ export default class TrafficLightController {
     }
 
     return Math.round(range.avg * speedFactor) + 0.0
+  }
+
+  // 🔧【v7 新增】根據時間判斷交通情景
+  _getTrafficScenario(hour, isPeakHour) {
+    if (hour >= 0 && hour < 6) {
+      return 'midnight' // 凌晨 00:00-05:59
+    } else if (hour === 6) {
+      return 'early_morning' // 早晨 06:00-06:59
+    } else if (hour >= 7 && hour <= 9) {
+      return 'peak_morning' // 上班尖峰 07:00-09:59
+    } else if (hour === 10) {
+      return 'post_peak' // 尖峰後 10:00-10:59
+    } else if (hour >= 11 && hour <= 14) {
+      return 'midday_low' // 中午低流量 11:00-14:59
+    } else if (hour === 15) {
+      return 'midday_medium' // 中午中等 15:00-15:59
+    } else if (hour === 16) {
+      return 'pre_peak' // 下班前 16:00-16:59
+    } else if (hour >= 17 && hour <= 19) {
+      return 'peak_evening' // 下班尖峰 17:00-19:59
+    } else if (hour >= 20 && hour <= 22) {
+      return 'evening' // 晚間 20:00-22:59
+    } else if (hour === 23) {
+      return 'late_night' // 夜間 23:00-23:59
+    }
+    return 'default'
   }
 
   // Strategy Pattern: 計算路段占有率策略
