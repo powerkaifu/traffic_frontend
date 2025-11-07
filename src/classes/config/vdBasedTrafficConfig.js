@@ -272,7 +272,7 @@ export const vdBasedTimeScenarios = [
  * ====================================================================
  *
  * 【改進說明】優先級 2 - 時段過渡與跨方向相關性
- * 
+ *
  * 1️⃣ 【統一車型權重】
  *    - 清晨 (06:00-07:00)：靠近離峰比例 → motor 33%, small 50%, large 17%
  *    - 早尖峰 (07:00-09:00)：完全使用尖峰比例 → motor 42%, small 50%, large 8%
@@ -307,16 +307,16 @@ export const vdBased24HourProfiles = [
       peakMultiplier: 0.8,
       // 【修復】採用凌晨時段的比例：motor 50%, small 50%, large 0%
       vehicleTypes: [
-        { type: 'motor', weight: 50 },   // 機車 50% (對應凌晨)
-        { type: 'small', weight: 50 },   // 小客車 50% (對應凌晨)
-        { type: 'large', weight: 0 },    // 大客車 0% (凌晨無大客車)
+        { type: 'motor', weight: 50 }, // 機車 50% (對應凌晨)
+        { type: 'small', weight: 50 }, // 小客車 50% (對應凌晨)
+        { type: 'large', weight: 0 }, // 大客車 0% (凌晨無大客車)
       ],
     },
     // 【改進】跨方向相關性
     directionalCorrelation: {
       enabled: true,
-      syncWithOpposite: ['VLRJX00', 'VLRJM60'],  // 南北向和東西向同時觸發
-      phaseOffset: 0,  // 無相位偏差
+      syncWithOpposite: ['VLRJX00', 'VLRJM60'], // 南北向和東西向同時觸發
+      phaseOffset: 0, // 無相位偏差
     },
   },
 
@@ -333,9 +333,9 @@ export const vdBased24HourProfiles = [
       // 【修復】採用離峰時段的比例：motor 33%, small 50%, large 17%
       // 清晨是從深夜過渡到早尖峰，車型應該接近離峰
       vehicleTypes: [
-        { type: 'motor', weight: 33 },   // 機車 33% (對應離峰)
-        { type: 'small', weight: 50 },   // 小客車 50% (對應離峰)
-        { type: 'large', weight: 17 },   // 大客車 17% (對應離峰)
+        { type: 'motor', weight: 33 }, // 機車 33% (對應離峰)
+        { type: 'small', weight: 50 }, // 小客車 50% (對應離峰)
+        { type: 'large', weight: 17 }, // 大客車 17% (對應離峰)
       ],
     },
     directionalCorrelation: {
@@ -357,9 +357,9 @@ export const vdBased24HourProfiles = [
       peakMultiplier: 4.2,
       // 【修復】採用尖峰時段的比例：motor 42%, small 50%, large 8%
       vehicleTypes: [
-        { type: 'motor', weight: 42 },   // 機車 42% (對應尖峰)
-        { type: 'small', weight: 50 },   // 小客車 50% (對應尖峰)
-        { type: 'large', weight: 8 },    // 大客車 8% (對應尖峰)
+        { type: 'motor', weight: 42 }, // 機車 42% (對應尖峰)
+        { type: 'small', weight: 50 }, // 小客車 50% (對應尖峰)
+        { type: 'large', weight: 8 }, // 大客車 8% (對應尖峰)
       ],
     },
     directionalCorrelation: {
@@ -382,9 +382,9 @@ export const vdBased24HourProfiles = [
       peakMultiplier: 2.8,
       // 【修復】採用離峰時段的比例：motor 33%, small 50%, large 17%
       vehicleTypes: [
-        { type: 'motor', weight: 33 },   // 機車 33% (對應離峰)
-        { type: 'small', weight: 50 },   // 小客車 50% (對應離峰)
-        { type: 'large', weight: 17 },   // 大客車 17% (對應離峰)
+        { type: 'motor', weight: 33 }, // 機車 33% (對應離峰)
+        { type: 'small', weight: 50 }, // 小客車 50% (對應離峰)
+        { type: 'large', weight: 17 }, // 大客車 17% (對應離峰)
       ],
     },
     directionalCorrelation: {
@@ -406,9 +406,9 @@ export const vdBased24HourProfiles = [
       peakMultiplier: 3.0,
       // 【修復】採用離峰時段的比例：motor 33%, small 50%, large 17%
       vehicleTypes: [
-        { type: 'motor', weight: 33 },   // 機車 33% (對應離峰)
-        { type: 'small', weight: 50 },   // 小客車 50% (對應離峰)
-        { type: 'large', weight: 17 },   // 大客車 17% (對應離峰)
+        { type: 'motor', weight: 33 }, // 機車 33% (對應離峰)
+        { type: 'small', weight: 50 }, // 小客車 50% (對應離峰)
+        { type: 'large', weight: 17 }, // 大客車 17% (對應離峰)
       ],
     },
     directionalCorrelation: {
@@ -431,9 +431,9 @@ export const vdBased24HourProfiles = [
       // 【修復】開始向尖峰過渡：motor 38%, small 50%, large 12%
       // (中間值：33% + 42%) / 2 ≈ 38%, (17% + 8%) / 2 ≈ 12%
       vehicleTypes: [
-        { type: 'motor', weight: 38 },   // 機車 38% (過渡值)
-        { type: 'small', weight: 50 },   // 小客車 50% (維持)
-        { type: 'large', weight: 12 },   // 大客車 12% (過渡值)
+        { type: 'motor', weight: 38 }, // 機車 38% (過渡值)
+        { type: 'small', weight: 50 }, // 小客車 50% (維持)
+        { type: 'large', weight: 12 }, // 大客車 12% (過渡值)
       ],
     },
     directionalCorrelation: {
@@ -455,9 +455,9 @@ export const vdBased24HourProfiles = [
       peakMultiplier: 3.8,
       // 【修復】更接近尖峰：motor 40%, small 50%, large 10%
       vehicleTypes: [
-        { type: 'motor', weight: 40 },   // 機車 40% (接近尖峰)
-        { type: 'small', weight: 50 },   // 小客車 50%
-        { type: 'large', weight: 10 },   // 大客車 10%
+        { type: 'motor', weight: 40 }, // 機車 40% (接近尖峰)
+        { type: 'small', weight: 50 }, // 小客車 50%
+        { type: 'large', weight: 10 }, // 大客車 10%
       ],
     },
     directionalCorrelation: {
@@ -479,9 +479,9 @@ export const vdBased24HourProfiles = [
       peakMultiplier: 4.0,
       // 【修復】採用尖峰時段的比例：motor 42%, small 50%, large 8%
       vehicleTypes: [
-        { type: 'motor', weight: 42 },   // 機車 42% (對應尖峰)
-        { type: 'small', weight: 50 },   // 小客車 50% (對應尖峰)
-        { type: 'large', weight: 8 },    // 大客車 8% (對應尖峰)
+        { type: 'motor', weight: 42 }, // 機車 42% (對應尖峰)
+        { type: 'small', weight: 50 }, // 小客車 50% (對應尖峰)
+        { type: 'large', weight: 8 }, // 大客車 8% (對應尖峰)
       ],
     },
     directionalCorrelation: {
@@ -504,9 +504,9 @@ export const vdBased24HourProfiles = [
       peakMultiplier: 2.4,
       // 【修復】開始向離峰過渡：motor 37%, small 50%, large 13%
       vehicleTypes: [
-        { type: 'motor', weight: 37 },   // 機車 37% (過渡值)
-        { type: 'small', weight: 50 },   // 小客車 50% (維持)
-        { type: 'large', weight: 13 },   // 大客車 13% (過渡值)
+        { type: 'motor', weight: 37 }, // 機車 37% (過渡值)
+        { type: 'small', weight: 50 }, // 小客車 50% (維持)
+        { type: 'large', weight: 13 }, // 大客車 13% (過渡值)
       ],
     },
     directionalCorrelation: {
@@ -528,9 +528,9 @@ export const vdBased24HourProfiles = [
       peakMultiplier: 1.8,
       // 【修復】接近凌晨比例：motor 48%, small 50%, large 2%
       vehicleTypes: [
-        { type: 'motor', weight: 48 },   // 機車 48% (靠近凌晨)
-        { type: 'small', weight: 50 },   // 小客車 50% (靠近凌晨)
-        { type: 'large', weight: 2 },    // 大客車 2% (逐漸減少)
+        { type: 'motor', weight: 48 }, // 機車 48% (靠近凌晨)
+        { type: 'small', weight: 50 }, // 小客車 50% (靠近凌晨)
+        { type: 'large', weight: 2 }, // 大客車 2% (逐漸減少)
       ],
     },
     directionalCorrelation: {
@@ -552,9 +552,9 @@ export const vdBased24HourProfiles = [
       peakMultiplier: 1.2,
       // 【修復】採用凌晨時段的比例：motor 50%, small 50%, large 0%
       vehicleTypes: [
-        { type: 'motor', weight: 50 },   // 機車 50% (對應凌晨)
-        { type: 'small', weight: 50 },   // 小客車 50% (對應凌晨)
-        { type: 'large', weight: 0 },    // 大客車 0% (凌晨無大客車)
+        { type: 'motor', weight: 50 }, // 機車 50% (對應凌晨)
+        { type: 'small', weight: 50 }, // 小客車 50% (對應凌晨)
+        { type: 'large', weight: 0 }, // 大客車 0% (凌晨無大客車)
       ],
     },
     directionalCorrelation: {
@@ -768,7 +768,7 @@ export const dataValidationRules = {
  * ====================================================================
  * 【改進】優先級 2.3 - 異常情況處理規則
  * ====================================================================
- * 
+ *
  * 處理邊界情況、配置衝突和異常數據
  */
 export const edgeCaseHandling = {
@@ -777,7 +777,7 @@ export const edgeCaseHandling = {
   transitionRules: {
     enabled: true,
     description: '在時段邊界時進行平滑過渡（避免尖銳波動）',
-    
+
     // 應用邏輯：
     // currentTime 在邊界時（如 09:00），此時應該取：
     // - 80% from 07:00-09:00 (early peak)
@@ -786,10 +786,10 @@ export const edgeCaseHandling = {
     // - 50% + 50%
     // - 20% + 80%
     // - 最終完全切換到新時段
-    
+
     blendDuration: 10 * 60 * 1000, // 過渡時間：10 分鐘
     blendSteps: 5, // 5 個過渡步驟
-    
+
     example: {
       description: '在 07:00 切換時，使用下列權重混合',
       minute0: { previous: 80, current: 20 },
@@ -805,23 +805,23 @@ export const edgeCaseHandling = {
   zeroVolumeHandling: {
     enabled: true,
     description: '避免持續 0 流量導致的數據缺失',
-    
+
     // 規則：每 N 次 API 調用後必須產生至少 1 輛車
     minimumVolumeFrequency: {
-      peak_hours: 2,     // 尖峰時段：每 2 次調用生成 1 輛車
-      off_peak: 3,       // 離峰時段：每 3 次調用生成 1 輛車
-      late_night: 5,     // 凌晨時段：每 5 次調用生成 1 輛車
+      peak_hours: 2, // 尖峰時段：每 2 次調用生成 1 輛車
+      off_peak: 3, // 離峰時段：每 3 次調用生成 1 輛車
+      late_night: 5, // 凌晨時段：每 5 次調用生成 1 輛車
     },
-    
+
     // 示例：
     // 如果計算得到連續 5 次都是 volume=0，在第 5 次時強制生成 1 輛車
-    fallbackVolume: 1,    // 不得少於的最小流量
-    
+    fallbackVolume: 1, // 不得少於的最小流量
+
     vehicleTypePreference: {
       // 當被迫生成車輛時，優先選擇的車型
-      peak_hours: 'small',    // 尖峰時段優先選小客車（流量配適）
-      off_peak: 'motor',      // 離峰時段優先選機車（流量調適）
-      late_night: 'motor',    // 凌晨優先選機車（最常見）
+      peak_hours: 'small', // 尖峰時段優先選小客車（流量配適）
+      off_peak: 'motor', // 離峰時段優先選機車（流量調適）
+      late_night: 'motor', // 凌晨優先選機車（最常見）
     },
   },
 
@@ -830,7 +830,7 @@ export const edgeCaseHandling = {
   configurationConflict: {
     enabled: true,
     description: '檢測並修正配置中的內部矛盾',
-    
+
     rules: [
       {
         conflictType: 'vehicleTypes 與 volumeByType 不匹配',
@@ -869,13 +869,13 @@ export const edgeCaseHandling = {
   directionalCorrelationRules: {
     enabled: true,
     description: '確保南北向和東西向在尖峰時段同時高流量',
-    
+
     // 配置了 directionalCorrelation.enabled = true 的時段
     syncedHourRanges: [
       { start: 7, end: 9, reason: '早尖峰 - 雙向都壅塞' },
       { start: 17, end: 19, reason: '晚尖峰 - 雙向都壅塞' },
     ],
-    
+
     // 在同步時段內，兩個方向應該在同一時刻觸發 API
     // 實現方式：在 TrafficLightController 中添加檢查
     implementation: {
@@ -883,7 +883,7 @@ export const edgeCaseHandling = {
       method: '使用 Promise.all() 或 async/await 確保兩個 API 同時發送',
       tolerance: 50, // 允許 50ms 的時間差異
     },
-    
+
     fallback: {
       description: '若無法同時觸發，使用配置的 phaseOffset',
       phaseOffset: 0, // 默認無偏差
@@ -896,7 +896,7 @@ export const edgeCaseHandling = {
   recoveryMechanism: {
     enabled: true,
     description: '當檢測到異常時自動恢復到已知的好狀態',
-    
+
     triggers: [
       {
         condition: '連續 3 次 API 呼叫都違反 dataValidationRules',
@@ -922,7 +922,7 @@ export const edgeCaseHandling = {
   consistencyRules: {
     enabled: true,
     description: '檢查當前數據與歷史數據的合理性',
-    
+
     checks: [
       {
         name: '速度變化檢查',
@@ -943,10 +943,8 @@ export const edgeCaseHandling = {
         action: '若超過則調整當前佔有率為前一個佔有率 ±20%',
       },
     ],
-    
+
     // 保存歷史記錄用於比較
     historyWindowSize: 10, // 保留最近 10 次調用的記錄
   },
 }
-
-
