@@ -1787,7 +1787,6 @@ export default class TrafficLightController {
 
       // 🎯 【修正】先保存數據快照,再發送事件和 API
       window.lastNormalizedDataArray = normalizedDataArray // 正規化後的數據（品質檢查後）
-      window.lastApiVDDataArray = finalDataToSend // 原始 API 數據（實際發送）
 
       // 🎯 【修復 2】在發送前應用流量調整（基於配置文件）
       let adjustedDataToSend = finalDataToSend
@@ -1812,6 +1811,9 @@ export default class TrafficLightController {
           )
         }
       }
+
+      // 🎯 【重要】保存實際發送給後端的數據（已調整）
+      window.lastApiVDDataArray = adjustedDataToSend // ✅ 這是實際發送的數據
 
       // 發送 API 開始事件 (數據已保存,前端可以讀取)
       window.dispatchEvent(new CustomEvent('trafficApiSending', { detail: { timestamp: new Date().toISOString() } }))
