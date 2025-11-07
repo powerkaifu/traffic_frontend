@@ -559,20 +559,6 @@ export default class AutoTrafficGenerator {
       dirBaseSpeedS = this._getRandomSpeed(speedByType.small)
       dirBaseSpeedL = this._getRandomSpeed(speedByType.large)
 
-      // 🧪 強制測試：驗證是否真的為每個方向生成不同的值
-      console.log(
-        `🧪 [TEST FORCE] 方向 ${dirIdx}: 強制設置 dirBaseSpeedM=${32 + dirIdx * 2}, dirBaseSpeedS=${25 + dirIdx}, dirBaseSpeedL=${18 + dirIdx}`,
-      )
-      dirBaseSpeedM = 32 + dirIdx * 2
-      dirBaseSpeedS = 25 + dirIdx
-      dirBaseSpeedL = 18 + dirIdx
-
-      // 🔍 調試：檢查每個方向的基礎速度和配置
-      console.log(`🔍 [方向 ${dirIdx}: ${direction.name}] speedByType config:`, JSON.stringify(speedByType))
-      console.log(
-        `🔍 [方向 ${dirIdx}: ${direction.name}] Generated speeds - dirBaseSpeedM=${dirBaseSpeedM}, dirBaseSpeedS=${dirBaseSpeedS}, dirBaseSpeedL=${dirBaseSpeedL}`,
-      )
-
       // 速度會因方向流量而調整
       const speedAdjustment = Math.max(0.7, Math.min(1.3, 1 / flowDensity)) // 流量高→速度低倍數
       const dirSpeedM = Math.max(
@@ -703,21 +689,16 @@ export default class AutoTrafficGenerator {
   // 🎯 輔助：根據速度配置獲取隨機速度
   // 支援速度範圍物件 {min, max} 或固定值 (number)
   _getRandomSpeed(speedConfig) {
-    console.log(`🔍 [_getRandomSpeed] INPUT speedConfig:`, speedConfig)
-
     if (typeof speedConfig === 'object' && speedConfig.min !== undefined && speedConfig.max !== undefined) {
       // 速度範圍：隨機選擇 min-max 之間的值
       const result = Math.round(speedConfig.min + Math.random() * (speedConfig.max - speedConfig.min))
-      console.log(`🔍 [_getRandomSpeed] RANGE mode: min=${speedConfig.min}, max=${speedConfig.max}, result=${result}`)
       return result
     } else if (typeof speedConfig === 'number') {
       // 固定速度：加入 ±3 km/h 的小波動
       const result = Math.round(speedConfig + (Math.random() - 0.5) * 6)
-      console.log(`🔍 [_getRandomSpeed] NUMBER mode: value=${speedConfig}, result=${result}`)
       return result
     } else {
       // 預設速度
-      console.log(`🔍 [_getRandomSpeed] DEFAULT mode: returning 30`)
       return 30
     }
   }

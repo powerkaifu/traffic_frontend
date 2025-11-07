@@ -1013,8 +1013,8 @@ export default class TrafficLightController {
       } else {
         // 有車輛時使用真實數據（應用縮放因子）
         scaledMotor = Math.round(data.motor * this.dataScalingFactor)
-        scaledSmall = Math.round(data.small * this.dataScalingFactor)
-        scaledLarge = Math.round(data.large * this.dataScalingFactor)
+        scaledSmall = Math.max(1, Math.round(data.small * this.dataScalingFactor))
+        scaledLarge = Math.max(1, Math.round(data.large * this.dataScalingFactor))
 
         logInfo(
           `✅ [數據收集] ${direction} 方向 - 原始: motor=${data.motor}, small=${data.small}, large=${data.large} | 縮放後: motor=${scaledMotor}, small=${scaledSmall}, large=${scaledLarge}`,
@@ -1027,14 +1027,7 @@ export default class TrafficLightController {
         motor: this.getAverageSpeed(direction, 'motor'),
         small: this.getAverageSpeed(direction, 'small'),
         large: this.getAverageSpeed(direction, 'large'),
-      }
-
-      // 🎯【v7.2 調試】確認速度變化
-      logInfo(
-        `🚗 [${direction}] 速度生成完成: Speed_M=${speeds.motor}, Speed_S=${speeds.small}, Speed_L=${speeds.large}`,
-      )
-
-      // 計算整體平均速度
+      } // 計算整體平均速度
       const overallSpeed =
         totalVehicles > 0
           ? Math.round(
@@ -1096,11 +1089,11 @@ export default class TrafficLightController {
         LaneType: 1, // 預設車道類型為 1
         Speed: overallSpeed,
         Occupancy: occupancy,
-        Volume_M: scaledMotor, // 機車數量
+        Volume_M: Math.round(scaledMotor), // 確保整數
         Speed_M: speeds.motor, // 機車平均車速
-        Volume_S: scaledSmall, // 小客車數量
+        Volume_S: Math.round(scaledSmall), // 確保整數
         Speed_S: speeds.small, // 小客車平均車速
-        Volume_L: scaledLarge, // 大客車數量
+        Volume_L: Math.round(scaledLarge), // 確保整數
         Speed_L: speeds.large, // 大客車平均車速
         Volume_T: 0, // ✅ 聯結車數量（該縣市禁止聯結車進入）
         Speed_T: 0, // ✅ 聯結車平均車速（該縣市禁止聯結車進入）
@@ -1119,10 +1112,6 @@ export default class TrafficLightController {
     const range = speedConfig[vehicleType]
     if (!range) return 30
 
-    // 🎯【修復 v7.2】改用隨機速度而不是固定平均值
-    // 原問題：所有方向都用 range.avg（固定值），導致 Speed_M/S/L 相同
-    // 新做法：每次呼叫都生成隨機值，確保方向間、方向內都有變化
-
     // Strategy Pattern: 根據路段占有率調整速度的策略
     const occupancy = parseFloat(this.calculateOccupancy(direction))
     let speedFactor = 1.0 // 基礎速度因子，不再強制降低到路口速度
@@ -1137,7 +1126,7 @@ export default class TrafficLightController {
       speedFactor *= 0.9 // 正常情況下稍微降速（模擬路口減速）
     }
 
-    // 🎯【v7.2 新增】生成隨機速度，確保每次呼叫不同
+    // 生成隨機速度，確保每次呼叫不同
     // 使用 min-max 範圍生成隨機速度，類似 AutoTrafficGenerator._getRandomSpeed()
     const randomSpeed = Math.round(range.min + Math.random() * (range.max - range.min))
     const adjustedSpeed = Math.round(randomSpeed * speedFactor)
@@ -1145,14 +1134,8 @@ export default class TrafficLightController {
     // 確保速度在合理範圍內 (15-70 km/h)
     const finalSpeed = Math.max(15, Math.min(70, adjustedSpeed))
 
-    logInfo(
-      `⚡ [getAverageSpeed] ${direction} 方向 ${vehicleType}: range[${range.min}-${range.max}] → random=${randomSpeed} → occupancy×${speedFactor.toFixed(2)}=${adjustedSpeed} → final=${finalSpeed}`,
-    )
-
     return finalSpeed + 0.0
-  }
-
-  // 🔧【v7 新增】根據時間判斷交通情景
+  } // 🔧【v7 新增】根據時間判斷交通情景
   _getTrafficScenario(hour, isPeakHour) {
     if (hour >= 0 && hour < 6) {
       return 'midnight' // 凌晨 00:00-05:59
@@ -1496,12 +1479,12 @@ export default class TrafficLightController {
           LaneID: singleData.LaneID,
           LaneType: singleData.LaneType,
           Speed: weightedSpeed, // 🎯 使用加權平均速度
-          Occupancy: Math.round((singleData.Occupancy || 0) * 10) / 10,
-          Volume_M: mappedVolumeM, // 【版本 2.5】：使用時段對應的機車數
+          Occupancy: singleData.Occupancy || 0,
+          Volume_M: Math.round(mappedVolumeM), // 【確保整數】機車數
           Speed_M: singleData.Speed_M || 0,
-          Volume_S: mappedVolumeS, // 【版本 2.5】：使用時段對應的小型車數
+          Volume_S: Math.round(mappedVolumeS), // 【確保整數】小型車數
           Speed_S: singleData.Speed_S || 0,
-          Volume_L: mappedVolumeL, // 【版本 2.5】：使用時段對應的大型車數
+          Volume_L: Math.round(mappedVolumeL), // 【確保整數】大型車數
           Speed_L: singleData.Speed_L || 0,
           Volume_T: 0, // ✅ 聯結車禁止進入，必定為 0（不使用 mappedVehicleCount）
           Speed_T: 0, // ✅ 聯結車禁止進入，必定為 0
