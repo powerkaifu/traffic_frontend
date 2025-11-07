@@ -27,6 +27,39 @@
  * ================================================================================
  */
 
+/**
+ * ====================================================================
+ * 【改進】時段系統優先級說明
+ * ====================================================================
+ *
+ * 【雙層時段系統架構】
+ *
+ * 層級 1 - vdBasedTimeScenarios（3個時段）
+ *   用途：用戶手動選擇的時段（UI 的「尖峰」「離峰」「凌晨」按鈕）
+ *   適用：手動模式、測試模式
+ *   優先級：⭐⭐⭐⭐⭐ 最高（用戶明確指定）
+ *
+ * 層級 2 - vdBased24HourProfiles（10個時段）
+ *   用途：自動模式下的細粒度時段（根據當前實時時間）
+ *   適用：自動模式、系統自適應
+ *   優先級：⭐⭐⭐ 中（當用戶未手動選擇時）
+ *
+ * 【優先級邏輯】
+ * if (用戶手動選擇了時段) {
+ *   使用 vdBasedTimeScenarios 中對應的配置
+ * } else if (系統在自動模式) {
+ *   使用 vdBased24HourProfiles 根據當前小時選擇配置
+ * } else {
+ *   使用預設配置（off_peak）
+ * }
+ *
+ * 【重要】兩個系統的數據應該保持【相容性】：
+ *   - 尖峰時段配置 ≈ 07:00-09:00 和 17:00-19:00 的 24H 配置
+ *   - 離峰時段配置 ≈ 09:00-16:00 和 19:00-22:00 的 24H 配置
+ *   - 凌晨時段配置 ≈ 23:00-06:00 的 24H 配置
+ * ====================================================================
+ */
+
 export const vdBasedTimeScenarios = [
   // ========================================
   // 🚀 尖峰時段（早上7-9點，傍晚17-19點）
@@ -73,11 +106,12 @@ export const vdBasedTimeScenarios = [
       // 這樣可達到約13-15輛/5分鐘
       peakMultiplier: 4.0,
 
-      // 車型權重（尖峰時段機車較多）
+      // 【修復】車型權重統一為 volumeByType 的比例
+      // volumeByType 計算：motor 5/12=41.7%, small 6/12=50%, large 1/12=8.3%
       vehicleTypes: [
-        { type: 'motor', weight: 50 }, // 機車 50%
-        { type: 'small', weight: 40 }, // 小客車 40%
-        { type: 'large', weight: 10 }, // 大客車 10%
+        { type: 'motor', weight: 42 }, // 機車 42% (對應 5/12=41.7%)
+        { type: 'small', weight: 50 }, // 小客車 50% (對應 6/12=50%)
+        { type: 'large', weight: 8 }, // 大客車 8% (對應 1/12=8.3%)
       ],
 
       maxLiveVehicles: 60, // 尖峰時段允許較多車輛同時在場
@@ -140,11 +174,12 @@ export const vdBasedTimeScenarios = [
       // 這樣可達到約6-8輛/5分鐘
       peakMultiplier: 2.5,
 
-      // 車型權重（離峰時段小客車較多）
+      // 【修復】車型權重統一為 volumeByType 的比例
+      // volumeByType 計算：motor 2/6=33.3%, small 3/6=50%, large 1/6=16.7%
       vehicleTypes: [
-        { type: 'motor', weight: 30 }, // 機車 30%
-        { type: 'small', weight: 55 }, // 小客車 55%
-        { type: 'large', weight: 15 }, // 大客車 15%
+        { type: 'motor', weight: 33 }, // 機車 33% (對應 2/6=33.3%)
+        { type: 'small', weight: 50 }, // 小客車 50% (對應 3/6=50%)
+        { type: 'large', weight: 17 }, // 大客車 17% (對應 1/6=16.7%)
       ],
 
       maxLiveVehicles: 40, // 離峰時段車輛數中等
@@ -207,11 +242,12 @@ export const vdBasedTimeScenarios = [
       // 實際間隔 = 25000/1.0 = 25000ms
       peakMultiplier: 1.0,
 
-      // 車型權重（凌晨時段機車占大多數）
+      // 【修復】車型權重統一為 volumeByType 的比例
+      // volumeByType 計算：motor 1/2=50%, small 1/2=50%, large 0/2=0%
       vehicleTypes: [
-        { type: 'motor', weight: 70 }, // 機車 70%（凌晨主要是機車）
-        { type: 'small', weight: 25 }, // 小客車 25%
-        { type: 'large', weight: 5 }, // 大客車 5%（很少）
+        { type: 'motor', weight: 50 }, // 機車 50% (對應 1/2=50%)
+        { type: 'small', weight: 50 }, // 小客車 50% (對應 1/2=50%)
+        { type: 'large', weight: 0 }, // 大客車 0% (對應 0/2=0% - 凌晨無大客車)
       ],
 
       maxLiveVehicles: 15, // 凌晨時段車輛數很少
@@ -231,10 +267,32 @@ export const vdBasedTimeScenarios = [
 ]
 
 /**
- * 自動模式24小時交通模擬配置
+ * ====================================================================
+ * 【改進】24 小時自動模式配置
+ * ====================================================================
  *
- * 用於30分鐘模擬每日車流的自動模式
- * 每個時段的配置確保傳送給後端的數據在VD訓練範圍內
+ * 【改進說明】優先級 2 - 時段過渡與跨方向相關性
+ * 
+ * 1️⃣ 【統一車型權重】
+ *    - 清晨 (06:00-07:00)：靠近離峰比例 → motor 33%, small 50%, large 17%
+ *    - 早尖峰 (07:00-09:00)：完全使用尖峰比例 → motor 42%, small 50%, large 8%
+ *    - 下午各時段：根據接近尖峰程度調整 → 33%-50%-17% 到 42%-50%-8%
+ *    - 晚尖峰 (17:00-19:00)：完全使用尖峰比例 → motor 42%, small 50%, large 8%
+ *    - 晚間 (19:00-23:00)：逐漸靠近離峰比例 → motor 33%, small 50%, large 17%
+ *    - 深夜 (00:00-06:00)：完全使用凌晨比例 → motor 50%, small 50%, large 0%
+ *
+ * 2️⃣ 【跨方向相關性】
+ *    南北向與東西向應該【同時執行】API 觸發，提升流量真實性
+ *    - 尖峰時段：兩個方向都壅塞 → 同一時間高流量
+ *    - 離峰時段：兩個方向都暢通 → 同一時間正常流量
+ *    - 修改點：directionalCorrelation.enabled = true
+ *
+ * 3️⃣ 【異常情況處理】
+ *    - 多個時段邊界時，使用線性過渡（20% + 80% 混合）
+ *    - volumePerMin 為 0 時，使用 fallback 值
+ *    - 同一時段內的配置不一致，使用驗證值進行糾正
+ *
+ * ====================================================================
  */
 export const vdBased24HourProfiles = [
   // 00:00-06:00 深夜（凌晨低峰）
@@ -247,11 +305,18 @@ export const vdBased24HourProfiles = [
     config: {
       interval: { min: 20000, max: 45000, normal: 30000 },
       peakMultiplier: 0.8,
+      // 【修復】採用凌晨時段的比例：motor 50%, small 50%, large 0%
       vehicleTypes: [
-        { type: 'motor', weight: 75 },
-        { type: 'small', weight: 20 },
-        { type: 'large', weight: 5 },
+        { type: 'motor', weight: 50 },   // 機車 50% (對應凌晨)
+        { type: 'small', weight: 50 },   // 小客車 50% (對應凌晨)
+        { type: 'large', weight: 0 },    // 大客車 0% (凌晨無大客車)
       ],
+    },
+    // 【改進】跨方向相關性
+    directionalCorrelation: {
+      enabled: true,
+      syncWithOpposite: ['VLRJX00', 'VLRJM60'],  // 南北向和東西向同時觸發
+      phaseOffset: 0,  // 無相位偏差
     },
   },
 
@@ -265,11 +330,18 @@ export const vdBased24HourProfiles = [
     config: {
       interval: { min: 8000, max: 15000, normal: 10000 },
       peakMultiplier: 1.5,
+      // 【修復】採用離峰時段的比例：motor 33%, small 50%, large 17%
+      // 清晨是從深夜過渡到早尖峰，車型應該接近離峰
       vehicleTypes: [
-        { type: 'motor', weight: 55 },
-        { type: 'small', weight: 35 },
-        { type: 'large', weight: 10 },
+        { type: 'motor', weight: 33 },   // 機車 33% (對應離峰)
+        { type: 'small', weight: 50 },   // 小客車 50% (對應離峰)
+        { type: 'large', weight: 17 },   // 大客車 17% (對應離峰)
       ],
+    },
+    directionalCorrelation: {
+      enabled: true,
+      syncWithOpposite: ['VLRJX00', 'VLRJM60'],
+      phaseOffset: 0,
     },
   },
 
@@ -283,11 +355,18 @@ export const vdBased24HourProfiles = [
     config: {
       interval: { min: 2000, max: 4500, normal: 2800 },
       peakMultiplier: 4.2,
+      // 【修復】採用尖峰時段的比例：motor 42%, small 50%, large 8%
       vehicleTypes: [
-        { type: 'motor', weight: 55 },
-        { type: 'small', weight: 38 },
-        { type: 'large', weight: 7 },
+        { type: 'motor', weight: 42 },   // 機車 42% (對應尖峰)
+        { type: 'small', weight: 50 },   // 小客車 50% (對應尖峰)
+        { type: 'large', weight: 8 },    // 大客車 8% (對應尖峰)
       ],
+    },
+    directionalCorrelation: {
+      enabled: true,
+      syncWithOpposite: ['VLRJX00', 'VLRJM60'],
+      phaseOffset: 0,
+      reason: '早尖峰時期，兩個方向都高流量，應同時觸發 API',
     },
   },
 
@@ -301,11 +380,17 @@ export const vdBased24HourProfiles = [
     config: {
       interval: { min: 4000, max: 8000, normal: 5500 },
       peakMultiplier: 2.8,
+      // 【修復】採用離峰時段的比例：motor 33%, small 50%, large 17%
       vehicleTypes: [
-        { type: 'motor', weight: 35 },
-        { type: 'small', weight: 50 },
-        { type: 'large', weight: 15 },
+        { type: 'motor', weight: 33 },   // 機車 33% (對應離峰)
+        { type: 'small', weight: 50 },   // 小客車 50% (對應離峰)
+        { type: 'large', weight: 17 },   // 大客車 17% (對應離峰)
       ],
+    },
+    directionalCorrelation: {
+      enabled: true,
+      syncWithOpposite: ['VLRJX00', 'VLRJM60'],
+      phaseOffset: 0,
     },
   },
 
@@ -319,11 +404,17 @@ export const vdBased24HourProfiles = [
     config: {
       interval: { min: 3500, max: 7000, normal: 5000 },
       peakMultiplier: 3.0,
+      // 【修復】採用離峰時段的比例：motor 33%, small 50%, large 17%
       vehicleTypes: [
-        { type: 'motor', weight: 38 },
-        { type: 'small', weight: 47 },
-        { type: 'large', weight: 15 },
+        { type: 'motor', weight: 33 },   // 機車 33% (對應離峰)
+        { type: 'small', weight: 50 },   // 小客車 50% (對應離峰)
+        { type: 'large', weight: 17 },   // 大客車 17% (對應離峰)
       ],
+    },
+    directionalCorrelation: {
+      enabled: true,
+      syncWithOpposite: ['VLRJX00', 'VLRJM60'],
+      phaseOffset: 0,
     },
   },
 
@@ -337,11 +428,18 @@ export const vdBased24HourProfiles = [
     config: {
       interval: { min: 3000, max: 6500, normal: 4500 },
       peakMultiplier: 3.2,
+      // 【修復】開始向尖峰過渡：motor 38%, small 50%, large 12%
+      // (中間值：33% + 42%) / 2 ≈ 38%, (17% + 8%) / 2 ≈ 12%
       vehicleTypes: [
-        { type: 'motor', weight: 42 },
-        { type: 'small', weight: 45 },
-        { type: 'large', weight: 13 },
+        { type: 'motor', weight: 38 },   // 機車 38% (過渡值)
+        { type: 'small', weight: 50 },   // 小客車 50% (維持)
+        { type: 'large', weight: 12 },   // 大客車 12% (過渡值)
       ],
+    },
+    directionalCorrelation: {
+      enabled: true,
+      syncWithOpposite: ['VLRJX00', 'VLRJM60'],
+      phaseOffset: 0,
     },
   },
 
@@ -355,11 +453,17 @@ export const vdBased24HourProfiles = [
     config: {
       interval: { min: 2500, max: 5000, normal: 3500 },
       peakMultiplier: 3.8,
+      // 【修復】更接近尖峰：motor 40%, small 50%, large 10%
       vehicleTypes: [
-        { type: 'motor', weight: 48 },
-        { type: 'small', weight: 42 },
-        { type: 'large', weight: 10 },
+        { type: 'motor', weight: 40 },   // 機車 40% (接近尖峰)
+        { type: 'small', weight: 50 },   // 小客車 50%
+        { type: 'large', weight: 10 },   // 大客車 10%
       ],
+    },
+    directionalCorrelation: {
+      enabled: true,
+      syncWithOpposite: ['VLRJX00', 'VLRJM60'],
+      phaseOffset: 0,
     },
   },
 
@@ -373,11 +477,18 @@ export const vdBased24HourProfiles = [
     config: {
       interval: { min: 2200, max: 4800, normal: 3000 },
       peakMultiplier: 4.0,
+      // 【修復】採用尖峰時段的比例：motor 42%, small 50%, large 8%
       vehicleTypes: [
-        { type: 'motor', weight: 52 },
-        { type: 'small', weight: 40 },
-        { type: 'large', weight: 8 },
+        { type: 'motor', weight: 42 },   // 機車 42% (對應尖峰)
+        { type: 'small', weight: 50 },   // 小客車 50% (對應尖峰)
+        { type: 'large', weight: 8 },    // 大客車 8% (對應尖峰)
       ],
+    },
+    directionalCorrelation: {
+      enabled: true,
+      syncWithOpposite: ['VLRJX00', 'VLRJM60'],
+      phaseOffset: 0,
+      reason: '晚尖峰時期，兩個方向都高流量，應同時觸發 API',
     },
   },
 
@@ -391,11 +502,17 @@ export const vdBased24HourProfiles = [
     config: {
       interval: { min: 4500, max: 9000, normal: 6500 },
       peakMultiplier: 2.4,
+      // 【修復】開始向離峰過渡：motor 37%, small 50%, large 13%
       vehicleTypes: [
-        { type: 'motor', weight: 45 },
-        { type: 'small', weight: 45 },
-        { type: 'large', weight: 10 },
+        { type: 'motor', weight: 37 },   // 機車 37% (過渡值)
+        { type: 'small', weight: 50 },   // 小客車 50% (維持)
+        { type: 'large', weight: 13 },   // 大客車 13% (過渡值)
       ],
+    },
+    directionalCorrelation: {
+      enabled: true,
+      syncWithOpposite: ['VLRJX00', 'VLRJM60'],
+      phaseOffset: 0,
     },
   },
 
@@ -409,11 +526,17 @@ export const vdBased24HourProfiles = [
     config: {
       interval: { min: 8000, max: 16000, normal: 11000 },
       peakMultiplier: 1.8,
+      // 【修復】接近凌晨比例：motor 48%, small 50%, large 2%
       vehicleTypes: [
-        { type: 'motor', weight: 60 },
-        { type: 'small', weight: 32 },
-        { type: 'large', weight: 8 },
+        { type: 'motor', weight: 48 },   // 機車 48% (靠近凌晨)
+        { type: 'small', weight: 50 },   // 小客車 50% (靠近凌晨)
+        { type: 'large', weight: 2 },    // 大客車 2% (逐漸減少)
       ],
+    },
+    directionalCorrelation: {
+      enabled: true,
+      syncWithOpposite: ['VLRJX00', 'VLRJM60'],
+      phaseOffset: 0,
     },
   },
 
@@ -427,11 +550,17 @@ export const vdBased24HourProfiles = [
     config: {
       interval: { min: 15000, max: 35000, normal: 22000 },
       peakMultiplier: 1.2,
+      // 【修復】採用凌晨時段的比例：motor 50%, small 50%, large 0%
       vehicleTypes: [
-        { type: 'motor', weight: 70 },
-        { type: 'small', weight: 25 },
-        { type: 'large', weight: 5 },
+        { type: 'motor', weight: 50 },   // 機車 50% (對應凌晨)
+        { type: 'small', weight: 50 },   // 小客車 50% (對應凌晨)
+        { type: 'large', weight: 0 },    // 大客車 0% (凌晨無大客車)
       ],
+    },
+    directionalCorrelation: {
+      enabled: true,
+      syncWithOpposite: ['VLRJX00', 'VLRJM60'],
+      phaseOffset: 0,
     },
   },
 ]
@@ -505,3 +634,319 @@ export const intervalMapping = {
   9: { normal: 2500, min: 1800, max: 4000, description: '極快' }, // 2.5秒
   10: { normal: 2000, min: 1500, max: 3000, description: '最快' }, // 2秒
 }
+
+/**
+ * ====================================================================
+ * 【新增】數據驗證規則框架 - 優先級 1 修復
+ * ====================================================================
+ *
+ * 用於驗證生成的 API 數據是否符合配置和 VD 訓練範圍
+ * 在發送 API 前執行驗證，確保數據有效性
+ */
+export const dataValidationRules = {
+  // ========================================
+  // 1. 車流量驗證（Volume 檢查）
+  // ========================================
+  volume: {
+    // 每個方向、每次 API 調用的車流量限制
+    volumePerDirection: {
+      min: 0, // 最少 0 輛（允許無車輛）
+      max: 5, // 最多 5 輛/10秒（對應 150 輛/5分鐘，合理上限）
+      warn: 3, // 超過 3 輛警告
+    },
+
+    // Volume_T（聯結車）必須為 0
+    volumeT: {
+      required: 0,
+      reason: '聯結車禁止進入，配置中所有 volumeT 均為 0',
+    },
+
+    // 車型比例檢查（按時段）
+    typeDistribution: {
+      // 尖峰時段：motor 42%, small 50%, large 8%
+      peak_hours: {
+        motor: { min: 35, max: 50 },
+        small: { min: 42, max: 58 },
+        large: { min: 0, max: 15 },
+      },
+      // 離峰時段：motor 33%, small 50%, large 17%
+      off_peak: {
+        motor: { min: 25, max: 42 },
+        small: { min: 42, max: 58 },
+        large: { min: 10, max: 25 },
+      },
+      // 凌晨時段：motor 50%, small 50%, large 0%
+      late_night: {
+        motor: { min: 40, max: 65 },
+        small: { min: 35, max: 60 },
+        large: { min: 0, max: 5 },
+      },
+    },
+  },
+
+  // ========================================
+  // 2. 速度驗證（Speed 檢查）
+  // ========================================
+  speed: {
+    // 全局速度限制（所有時段）
+    global: {
+      min: 10, // 最低速度 10 km/h（嚴重擁堵）
+      max: 70, // 最高速度 70 km/h（高速公路極限）
+    },
+
+    // 時段特定的速度範圍
+    byScenario: {
+      peak_hours: {
+        min: 15, // 尖峰時段最低 15 km/h
+        max: 40, // 尖峰時段最高 40 km/h
+      },
+      off_peak: {
+        min: 25,
+        max: 50,
+      },
+      late_night: {
+        min: 40,
+        max: 65,
+      },
+    },
+
+    // 車型速度關係（應該是：motor >= small >= large）
+    typeRelationship: {
+      rule: 'Speed_M >= Speed_S >= Speed_L',
+      reason: '機車最快，小客車次之，大客車最慢',
+      tolerance: 3, // 允許 ±3 km/h 的誤差
+    },
+  },
+
+  // ========================================
+  // 3. 佔有率驗證（Occupancy 檢查）
+  // ========================================
+  occupancy: {
+    global: {
+      min: 0, // 最低佔有率 0%
+      max: 90, // 最高佔有率 90%（不能達到 100%）
+    },
+
+    byScenario: {
+      peak_hours: {
+        min: 10,
+        max: 70, // 尖峰時段佔有率 10-70%
+      },
+      off_peak: {
+        min: 5,
+        max: 40,
+      },
+      late_night: {
+        min: 0,
+        max: 20,
+      },
+    },
+  },
+
+  // ========================================
+  // 4. 時間戳記驗證（Time 檢查）
+  // ========================================
+  timestamp: {
+    hour: { min: 0, max: 23 },
+    minute: { min: 0, max: 59 },
+    second: { min: 0, max: 59 },
+    dayOfWeek: { min: 0, max: 6 },
+    isPeakHour: { values: [0, 1] },
+  },
+
+  // ========================================
+  // 5. 時段優先級配置
+  // ========================================
+  scenarioPriority: {
+    1: '用戶手動選擇的時段（vdBasedTimeScenarios）- 最高優先級',
+    2: '自動模式的 24 小時精細時段（vdBased24HourProfiles）- 中優先級',
+    3: '預設配置（off_peak）- 回退值',
+  },
+}
+
+/**
+ * ====================================================================
+ * 【改進】優先級 2.3 - 異常情況處理規則
+ * ====================================================================
+ * 
+ * 處理邊界情況、配置衝突和異常數據
+ */
+export const edgeCaseHandling = {
+  // 【時段邊界過渡】
+  // 當 API 觸發時間跨越兩個不同時段配置時，使用線性過渡
+  transitionRules: {
+    enabled: true,
+    description: '在時段邊界時進行平滑過渡（避免尖銳波動）',
+    
+    // 應用邏輯：
+    // currentTime 在邊界時（如 09:00），此時應該取：
+    // - 80% from 07:00-09:00 (early peak)
+    // - 20% from 09:00-11:00 (morning)
+    // 在接下來的 10 分鐘內逐漸變為：
+    // - 50% + 50%
+    // - 20% + 80%
+    // - 最終完全切換到新時段
+    
+    blendDuration: 10 * 60 * 1000, // 過渡時間：10 分鐘
+    blendSteps: 5, // 5 個過渡步驟
+    
+    example: {
+      description: '在 07:00 切換時，使用下列權重混合',
+      minute0: { previous: 80, current: 20 },
+      minute2: { previous: 60, current: 40 },
+      minute4: { previous: 40, current: 60 },
+      minute6: { previous: 20, current: 80 },
+      minute10: { previous: 0, current: 100 },
+    },
+  },
+
+  // 【零流量情況】
+  // 當計算得到的 volumePerMin = 0 時的處理
+  zeroVolumeHandling: {
+    enabled: true,
+    description: '避免持續 0 流量導致的數據缺失',
+    
+    // 規則：每 N 次 API 調用後必須產生至少 1 輛車
+    minimumVolumeFrequency: {
+      peak_hours: 2,     // 尖峰時段：每 2 次調用生成 1 輛車
+      off_peak: 3,       // 離峰時段：每 3 次調用生成 1 輛車
+      late_night: 5,     // 凌晨時段：每 5 次調用生成 1 輛車
+    },
+    
+    // 示例：
+    // 如果計算得到連續 5 次都是 volume=0，在第 5 次時強制生成 1 輛車
+    fallbackVolume: 1,    // 不得少於的最小流量
+    
+    vehicleTypePreference: {
+      // 當被迫生成車輛時，優先選擇的車型
+      peak_hours: 'small',    // 尖峰時段優先選小客車（流量配適）
+      off_peak: 'motor',      // 離峰時段優先選機車（流量調適）
+      late_night: 'motor',    // 凌晨優先選機車（最常見）
+    },
+  },
+
+  // 【配置值衝突】
+  // 同一時段內多個配置項不一致時的解決方案
+  configurationConflict: {
+    enabled: true,
+    description: '檢測並修正配置中的內部矛盾',
+    
+    rules: [
+      {
+        conflictType: 'vehicleTypes 與 volumeByType 不匹配',
+        detection: '檢查 vehicleTypes 的 weight 比例是否與 volumeByType 一致',
+        resolution: 'priority: use volumeByType as ground truth，vehicleTypes 作為生成配置',
+        priority: 1,
+      },
+      {
+        conflictType: 'speedByType 不符合物理定律',
+        detection: '檢查是否滿足：Speed_M >= Speed_S >= Speed_L',
+        resolution: '若不符合，自動調整為滿足此不等式',
+        priority: 2,
+        correction: {
+          ifMotorSlow: '提高 motor 速度至 small 以上',
+          ifSmallFast: '降低 small 速度至 large 以下',
+          ifLargeFast: '降低 large 速度至最低限制',
+        },
+      },
+      {
+        conflictType: 'occupancy 超過最大限制',
+        detection: 'occupancy > 90%',
+        resolution: '自動調整為 90% 以保持合理性',
+        priority: 3,
+      },
+      {
+        conflictType: '時段邊界配置跳躍太大',
+        detection: '相鄰時段間的 targetVolume 差異 > 50%',
+        resolution: '啟用平滑過渡（blendDuration 適用）',
+        priority: 4,
+      },
+    ],
+  },
+
+  // 【跨方向相關性】
+  // 當南北向和東西向應該協作時
+  directionalCorrelationRules: {
+    enabled: true,
+    description: '確保南北向和東西向在尖峰時段同時高流量',
+    
+    // 配置了 directionalCorrelation.enabled = true 的時段
+    syncedHourRanges: [
+      { start: 7, end: 9, reason: '早尖峰 - 雙向都壅塞' },
+      { start: 17, end: 19, reason: '晚尖峰 - 雙向都壅塞' },
+    ],
+    
+    // 在同步時段內，兩個方向應該在同一時刻觸發 API
+    // 實現方式：在 TrafficLightController 中添加檢查
+    implementation: {
+      check: '在觸發南北向 API 時，同時觸發東西向 API（如果在同步時段）',
+      method: '使用 Promise.all() 或 async/await 確保兩個 API 同時發送',
+      tolerance: 50, // 允許 50ms 的時間差異
+    },
+    
+    fallback: {
+      description: '若無法同時觸發，使用配置的 phaseOffset',
+      phaseOffset: 0, // 默認無偏差
+      maxOffset: 2000, // 最大允許偏差 2 秒
+    },
+  },
+
+  // 【異常恢復機制】
+  // 當系統檢測到異常時的恢復策略
+  recoveryMechanism: {
+    enabled: true,
+    description: '當檢測到異常時自動恢復到已知的好狀態',
+    
+    triggers: [
+      {
+        condition: '連續 3 次 API 呼叫都違反 dataValidationRules',
+        action: '切換到 off_peak 配置（最穩定的預設值）',
+        logLevel: 'warn',
+      },
+      {
+        condition: '某一方向連續 5 秒無法生成任何車輛',
+        action: '強制應用 minimumVolumeFrequency 規則',
+        logLevel: 'warn',
+      },
+      {
+        condition: '時段配置加載失敗',
+        action: '使用上一次成功的配置',
+        logLevel: 'error',
+        timeout: 5000, // 5 秒內嘗試重新加載
+      },
+    ],
+  },
+
+  // 【數據一致性檢查】
+  // 確保相鄰 API 調用的數據不會有不合理的跳躍
+  consistencyRules: {
+    enabled: true,
+    description: '檢查當前數據與歷史數據的合理性',
+    
+    checks: [
+      {
+        name: '速度變化檢查',
+        rule: 'Math.abs(currentSpeed - previousSpeed) <= 15 km/h',
+        description: '相鄰兩次 API 調用的速度變化不超過 15 km/h',
+        action: '若超過則調整當前速度為前一個速度 ±15 km/h',
+      },
+      {
+        name: '流量變化檢查',
+        rule: 'Math.abs(currentVolume - previousVolume) <= 2 輛',
+        description: '相鄰兩次 API 調用的流量變化不超過 2 輛',
+        action: '若超過則調整當前流量為前一個流量 ±2',
+      },
+      {
+        name: '佔有率變化檢查',
+        rule: 'Math.abs(currentOccupancy - previousOccupancy) <= 20%',
+        description: '相鄰兩次 API 調用的佔有率變化不超過 20%',
+        action: '若超過則調整當前佔有率為前一個佔有率 ±20%',
+      },
+    ],
+    
+    // 保存歷史記錄用於比較
+    historyWindowSize: 10, // 保留最近 10 次調用的記錄
+  },
+}
+
+
