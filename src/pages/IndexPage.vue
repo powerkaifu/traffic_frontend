@@ -667,7 +667,7 @@ const crossroadContainer = ref(null)
 const vehicleContainer = ref(null) // 車輛專用容器
 const lumoRef = ref(null) // Lumo 助手組件
 const trafficController = new TrafficLightController()
-const autoTrafficGenerator = new AutoTrafficGenerator(trafficController)
+const autoTrafficGenerator = new AutoTrafficGenerator(trafficController, store) // ✅ 傳入 Store
 const adaptiveFlowController = new AdaptiveFlowController(trafficController)
 
 // 🚨 設置車道級別生成控制，防止碰撞

@@ -3,10 +3,12 @@
 ## 問題描述
 
 **症狀：** 模擬中沒有車輛出現（所有方向車輛計數為 0）
+
 - 東西向: M=0, S=0, L=0 (總計=0)
 - 南北向: M=0, S=0, L=0 (總計=0)
 
 **已驗證正常的系統：**
+
 - ✅ 系統初始化完成
 - ✅ API 數據正確收集和發送
 - ✅ AI 預測結果返回正常
@@ -44,7 +46,8 @@
 
 ### 2. 關鍵代碼位置
 
-**AutoTrafficGenerator._generateVehicle() 檢查 (第 1000 行):**
+**AutoTrafficGenerator.\_generateVehicle() 檢查 (第 1000 行):**
+
 ```javascript
 const currentLiveVehicles = window.liveVehicles ? window.liveVehicles.length : 0
 
@@ -55,6 +58,7 @@ if (currentLiveVehicles >= maxLiveVehicles) {
 ```
 
 **IndexPage.createVehicleWithPosition() (第 562-568 行):**
+
 ```javascript
 // 將車輛添加到車輛容器中
 vehicle.addTo(vehicleContainer.value || crossroadContainer.value)
@@ -85,6 +89,7 @@ store.addVehicle(vehicle)
 **File: src/pages/IndexPage.vue**
 
 **修改位置 1：添加車輛時同步**
+
 ```javascript
 // ✅ 將車輛添加到 Store（用於自動生成系統計算 progress）
 store.addVehicle(vehicle)
@@ -95,6 +100,7 @@ window.liveVehicles.push(vehicle)
 ```
 
 **修改位置 2：移除車輛時同步（動畫完成後）**
+
 ```javascript
 // ✅ 同時立即從 Store 中移除
 store.removeVehicle(vehicle.id)
@@ -107,6 +113,7 @@ if (window.liveVehicles) {
 ```
 
 **修改位置 3：移除車輛時同步（錯誤處理）**
+
 ```javascript
 store.removeVehicle(vehicle.id)
 
@@ -139,6 +146,7 @@ if (window.liveVehicles) {
 ## 驗證步驟
 
 ### 1. 編譯驗證 ✅
+
 ```
 Build mode............. spa
 App • DONE • SPA UI compiled with success by Vite • 2673ms
@@ -151,18 +159,18 @@ Build succeeded
 
 ```javascript
 // 驗證車輛同步
-store.getLiveVehicles()                    // 查看 Store 中的車輛
-window.liveVehicles                        // 查看全域車輛
-store.getLiveVehicles().length === window.liveVehicles.length  // 應為 true
+store.getLiveVehicles() // 查看 Store 中的車輛
+window.liveVehicles // 查看全域車輛
+store.getLiveVehicles().length === window.liveVehicles.length // 應為 true
 
 // 驗證生成器
-store.getAutoTrafficGenerator()            // 驗證 generator 實例
-autoTrafficGenerator.isRunning             // 應為 true
+store.getAutoTrafficGenerator() // 驗證 generator 實例
+autoTrafficGenerator.isRunning // 應為 true
 autoTrafficGenerator.timeSinceLastGenerate // 檢查生成計時
 
 // 驗證控制器
-store.getTrafficController()               // 驗證控制器實例
-window.trafficController                   // 向後相容訪問
+store.getTrafficController() // 驗證控制器實例
+window.trafficController // 向後相容訪問
 ```
 
 ### 3. 功能驗證（待測試）
@@ -177,14 +185,15 @@ window.trafficController                   // 向後相容訪問
 
 ## 代碼修改總結
 
-| 文件 | 修改位置 | 修改數 | 用途 |
-|------|---------|--------|------|
-| `src/pages/IndexPage.vue` | 第 562-568 行 | +3 行 | 添加車輛時同步到 window |
-| `src/pages/IndexPage.vue` | 第 630-640 行 | +5 行 | 移除車輛時同步（動畫完成） |
-| `src/pages/IndexPage.vue` | 第 654-660 行 | +5 行 | 移除車輛時同步（錯誤處理） |
-| **總計** | - | **+13 行** | 完整修復 |
+| 文件                      | 修改位置      | 修改數     | 用途                       |
+| ------------------------- | ------------- | ---------- | -------------------------- |
+| `src/pages/IndexPage.vue` | 第 562-568 行 | +3 行      | 添加車輛時同步到 window    |
+| `src/pages/IndexPage.vue` | 第 630-640 行 | +5 行      | 移除車輛時同步（動畫完成） |
+| `src/pages/IndexPage.vue` | 第 654-660 行 | +5 行      | 移除車輛時同步（錯誤處理） |
+| **總計**                  | -             | **+13 行** | 完整修復                   |
 
 **新增功能特性：**
+
 - 自動車輛列表雙向同步
 - 防止 undefined 錯誤
 - 完整的錯誤恢復
@@ -193,21 +202,22 @@ window.trafficController                   // 向後相容訪問
 
 ## Phase 2.5 (緊急修復) 提交
 
-**Commit Hash:** `913a578`  
+**Commit Hash:** `913a578`
 **Commit Message:** `Fix: Sync window.liveVehicles with Store vehicles - ensure vehicle generation works correctly`
 
 ### 相關聯提交：
 
-| Commit | Message | 用途 |
-|--------|---------|------|
-| `b899564` | Add backward compatibility: expose window.trafficController | 暴露控制器 |
-| `913a578` | Fix: Sync window.liveVehicles with Store vehicles | 修復車輛同步 |
+| Commit    | Message                                                     | 用途         |
+| --------- | ----------------------------------------------------------- | ------------ |
+| `b899564` | Add backward compatibility: expose window.trafficController | 暴露控制器   |
+| `913a578` | Fix: Sync window.liveVehicles with Store vehicles           | 修復車輛同步 |
 
 ---
 
 ## 下一步計劃
 
 ### 即時 (待驗證)
+
 1. ✅ 編譯驗證 - **完成**
 2. ⏳ 運行時測試 - **待進行**
    - 檢查車輛是否開始出現
@@ -215,11 +225,13 @@ window.trafficController                   // 向後相容訪問
    - 檢查控制台日誌
 
 ### Phase 3 (AutoTrafficGenerator 遷移)
+
 - 修改 AutoTrafficGenerator.js 導入 Store
 - 使用 `store.getLiveVehicles()` 替代 `window.liveVehicles`
 - 移除對 window 全域變數的依賴
 
 ### Phase 4-6 (完整遷移)
+
 - Vehicle.js Store 集成
 - TrafficLightController Store 集成
 - CollisionController Store 集成
@@ -236,14 +248,14 @@ window.trafficController                   // 向後相容訪問
 
 ## 問題追蹤
 
-| 問題 | 狀態 | 修復 |
-|------|------|------|
-| MainLayout 無法找到 autoTrafficGenerator | ✅ 已解決 | 添加向後相容層 `window.autoTrafficGenerator` |
-| 車輛未出現（計數全 0） | ✅ 已診斷 + ⏳ 待驗證 | 同步 `window.liveVehicles` 與 Store |
-| Store 和全域變數不同步 | ✅ 已解決 | 添加雙向同步邏輯 |
+| 問題                                     | 狀態                  | 修復                                         |
+| ---------------------------------------- | --------------------- | -------------------------------------------- |
+| MainLayout 無法找到 autoTrafficGenerator | ✅ 已解決             | 添加向後相容層 `window.autoTrafficGenerator` |
+| 車輛未出現（計數全 0）                   | ✅ 已診斷 + ⏳ 待驗證 | 同步 `window.liveVehicles` 與 Store          |
+| Store 和全域變數不同步                   | ✅ 已解決             | 添加雙向同步邏輯                             |
 
 ---
 
-**最後更新：** 修復完成，等待運行時驗證  
-**文檔版本：** 1.0  
+**最後更新：** 修復完成，等待運行時驗證
+**文檔版本：** 1.0
 **修復優先度：** 🔴 緊急（導致車輛未出現）

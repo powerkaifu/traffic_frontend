@@ -20,8 +20,9 @@ import { getTimeConfigForScenario, generateVDDataByPattern } from './config/vdPa
 import { VD_DISPLAY_CONFIG } from './config/vdDisplayConfig.js'
 
 export default class AutoTrafficGenerator {
-  constructor(trafficController) {
+  constructor(trafficController, simulationStore) {
     this.trafficController = trafficController
+    this.simulationStore = simulationStore // ✅ Store 注入
     this.isRunning = false
     // ❌ 移除：this.timer = null （改用 RAF 驅動，不再使用 setTimeout）
 
@@ -104,45 +105,85 @@ export default class AutoTrafficGenerator {
    * 確保前端動畫中的車輛數量與 API 返回的目標流量一致
    */
   _syncWithApiData() {
-    // 監聽 API 數據更新事件
-    window.addEventListener('trafficApiComplete', () => {
-      const apiData = window.lastApiVDDataArray
+    // ✅ 改為監聽 Store 事件而不是 window 事件
+    if (this.simulationStore) {
+      this.simulationStore.subscribe('trafficApiComplete', () => {
+        const apiData = this.simulationStore.getLastApiVDDataArray()
 
-      if (!apiData || apiData.length === 0) {
-        console.warn('⚠️ [API 同步] 無 API 數據可用')
-        return
-      }
+        if (!apiData || apiData.length === 0) {
+          console.warn('⚠️ [API 同步] 無 API 數據可用')
+          return
+        }
 
-      // 計算目標總車量（平均所有方向）
-      let totalVolume = 0
-      let totalSpeed = 0
-      let occupancySum = 0
+        // 計算目標總車量（平均所有方向）
+        let totalVolume = 0
+        let totalSpeed = 0
+        let occupancySum = 0
 
-      apiData.forEach((data) => {
-        const volume = (data.Volume_M || 0) + (data.Volume_S || 0) + (data.Volume_L || 0)
-        totalVolume += volume
-        totalSpeed += data.Speed || 0
-        occupancySum += data.Occupancy || 0
+        apiData.forEach((data) => {
+          const volume = (data.Volume_M || 0) + (data.Volume_S || 0) + (data.Volume_L || 0)
+          totalVolume += volume
+          totalSpeed += data.Speed || 0
+          occupancySum += data.Occupancy || 0
+        })
+
+        const avgSpeed = totalSpeed / apiData.length
+        const avgOccupancy = occupancySum / apiData.length
+
+        // 🎯 根據目標流量動態調整生成間隔
+        // API 期望在 10 秒內生成 totalVolume 輛車
+        // 則每輛車之間的平均間隔應該是 (10 * 1000) / totalVolume 毫秒
+        if (totalVolume > 0) {
+          const targetInterval = (10 * 1000) / totalVolume
+          const adjustedMinInterval = Math.max(200, Math.round(targetInterval)) // 最少 200ms
+
+          this.minLaneInterval = adjustedMinInterval
+
+          console.log(
+            `🎯 [API 同步] 目標流量=${totalVolume}/10秒 → 調整生成間隔=${adjustedMinInterval}ms` +
+              `, 平均速度=${avgSpeed.toFixed(1)}km/h, 佔有率=${avgOccupancy.toFixed(1)}%`,
+          )
+        }
       })
+    } else {
+      // 🔙 向後相容：如果沒有 Store，仍然使用 window 事件
+      window.addEventListener('trafficApiComplete', () => {
+        const apiData = window.lastApiVDDataArray
 
-      const avgSpeed = totalSpeed / apiData.length
-      const avgOccupancy = occupancySum / apiData.length
+        if (!apiData || apiData.length === 0) {
+          console.warn('⚠️ [API 同步] 無 API 數據可用')
+          return
+        }
 
-      // 🎯 根據目標流量動態調整生成間隔
-      // API 期望在 10 秒內生成 totalVolume 輛車
-      // 則每輛車之間的平均間隔應該是 (10 * 1000) / totalVolume 毫秒
-      if (totalVolume > 0) {
-        const targetInterval = (10 * 1000) / totalVolume
-        const adjustedMinInterval = Math.max(200, Math.round(targetInterval)) // 最少 200ms
+        // 計算目標總車量（平均所有方向）
+        let totalVolume = 0
+        let totalSpeed = 0
+        let occupancySum = 0
 
-        this.minLaneInterval = adjustedMinInterval
+        apiData.forEach((data) => {
+          const volume = (data.Volume_M || 0) + (data.Volume_S || 0) + (data.Volume_L || 0)
+          totalVolume += volume
+          totalSpeed += data.Speed || 0
+          occupancySum += data.Occupancy || 0
+        })
 
-        console.log(
-          `🎯 [API 同步] 目標流量=${totalVolume}/10秒 → 調整生成間隔=${adjustedMinInterval}ms` +
-            `, 平均速度=${avgSpeed.toFixed(1)}km/h, 佔有率=${avgOccupancy.toFixed(1)}%`,
-        )
-      }
-    })
+        const avgSpeed = totalSpeed / apiData.length
+        const avgOccupancy = occupancySum / apiData.length
+
+        // 🎯 根據目標流量動態調整生成間隔
+        if (totalVolume > 0) {
+          const targetInterval = (10 * 1000) / totalVolume
+          const adjustedMinInterval = Math.max(200, Math.round(targetInterval)) // 最少 200ms
+
+          this.minLaneInterval = adjustedMinInterval
+
+          console.log(
+            `🎯 [API 同步] 目標流量=${totalVolume}/10秒 → 調整生成間隔=${adjustedMinInterval}ms` +
+              `, 平均速度=${avgSpeed.toFixed(1)}km/h, 佔有率=${avgOccupancy.toFixed(1)}%`,
+          )
+        }
+      })
+    }
   }
 
   // 停止生成
@@ -732,18 +773,26 @@ export default class AutoTrafficGenerator {
       })
     })
 
-    // 🎯【重要】保存 API 數據陣列到全局，供 MainLayout.vue 顯示特徵模擬數據面板
-    window.currentGeneratedVDData = {
+    // 🎯【重要】保存 API 數據陣列到 Store（供其他組件使用）
+    const currentVDData = {
       apiDataArray: apiDataArray, // 4筆API數據（東西南北）
       timestamp: new Date().toISOString(),
       scenario: scenarioKey,
     }
 
+    // ✅ 使用 Store 保存數據
+    if (this.simulationStore) {
+      this.simulationStore.setCurrentGeneratedVDData(currentVDData)
+    }
+
+    // 🔙 向後相容：同時保存到 window
+    window.currentGeneratedVDData = currentVDData
+
     console.log(
-      `🔍 [window.currentGeneratedVDData] SET - apiDataArray.length=${window.currentGeneratedVDData.apiDataArray.length}`,
+      `🔍 [currentGeneratedVDData] SET - apiDataArray.length=${currentVDData.apiDataArray.length}`,
     )
-    console.log(`🔍 [window.currentGeneratedVDData] Speeds:`)
-    window.currentGeneratedVDData.apiDataArray.forEach((data, idx) => {
+    console.log(`🔍 [currentGeneratedVDData] Speeds:`)
+    currentVDData.apiDataArray.forEach((data, idx) => {
       console.log(`   方向 ${idx}: Speed_M=${data.Speed_M}, Speed_S=${data.Speed_S}, Speed_L=${data.Speed_L}`)
     })
 
@@ -1306,18 +1355,32 @@ export default class AutoTrafficGenerator {
 
     if (isLeftTurn) {
       // 生成左轉車輛（車道1）
+      const eventDetail = { direction: selectedDir, type: type, speed: speed, timestamp: Date.now() }
+
+      // ✅ 使用 Store emit
+      if (this.simulationStore) {
+        this.simulationStore.emit('generateLeftTurnVehicle', eventDetail)
+      }
+
+      // 🔙 向後相容：同時發送 window 事件
       window.dispatchEvent(
         new CustomEvent('generateLeftTurnVehicle', {
-          detail: { direction: selectedDir, type: type, speed: speed, timestamp: Date.now() },
+          detail: eventDetail,
         }),
       )
     } else {
       // 🚨 計算動態 initialProgress - 考慮車輛長度和安全距離
       let initialProgress = 0
 
-      if (LANE_SPAWN_CONFIG.ENABLE_DYNAMIC_PROGRESS && window.liveVehicles && window.liveVehicles.length > 0) {
+      // ✅ 使用 Store 獲取車輛列表
+      let liveVehicles = window.liveVehicles
+      if (this.simulationStore) {
+        liveVehicles = this.simulationStore.getLiveVehicles()
+      }
+
+      if (LANE_SPAWN_CONFIG.ENABLE_DYNAMIC_PROGRESS && liveVehicles && liveVehicles.length > 0) {
         // 尋找同方向且有效的最後一輛車
-        const lastVehicleInDir = window.liveVehicles
+        const lastVehicleInDir = liveVehicles
           .filter((v) => v.direction === selectedDir && typeof v.progress === 'number')
           .slice(-1)[0]
 
@@ -1356,22 +1419,37 @@ export default class AutoTrafficGenerator {
       }
 
       // 生成直行車輛（車道2-4），附帶 initialProgress
+      const generateEventDetail = {
+        direction: selectedDir,
+        vehicleType: type,
+        speed: speed,
+        initialProgress: initialProgress,
+        timestamp: Date.now(),
+      }
+
+      // ✅ 使用 Store emit
+      if (this.simulationStore) {
+        this.simulationStore.emit('generateVehicle', generateEventDetail)
+      }
+
+      // 🔙 向後相容：同時發送 window 事件
       window.dispatchEvent(
         new CustomEvent('generateVehicle', {
-          detail: {
-            direction: selectedDir,
-            vehicleType: type,
-            speed: speed,
-            initialProgress: initialProgress,
-            timestamp: Date.now(),
-          },
+          detail: generateEventDetail,
         }),
       )
     }
 
+    // ✅ 使用 Store emit 發送 vehicleAdded 事件
+    const vehicleAddedDetail = { direction: selectedDir, type: type, speed: speed, timestamp: Date.now() }
+    if (this.simulationStore) {
+      this.simulationStore.emit('vehicleAdded', vehicleAddedDetail)
+    }
+
+    // 🔙 向後相容：同時發送 window 事件
     window.dispatchEvent(
       new CustomEvent('vehicleAdded', {
-        detail: { direction: selectedDir, type: type, speed: speed, timestamp: Date.now() },
+        detail: vehicleAddedDetail,
       }),
     )
     this.statistics.total++
