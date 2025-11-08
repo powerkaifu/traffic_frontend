@@ -1220,10 +1220,10 @@ export default class Vehicle {
             },
             onUpdate: () => {
               // � 第1階段優化：每幀重建 SpatialHashGrid（用於優化碰撞檢測）
-              // 只在有活躍車輛時執行
-              if (allVehicles.length > 0) {
-                CollisionController.rebuildSpatialGrid(allVehicles)
-              }
+              // 原因：100輛車 × 每輛車onUpdate = 每幀100次rebuildSpatialGrid → 卡頓
+              // if (allVehicles.length > 0) {
+              //   CollisionController.rebuildSpatialGrid(allVehicles)
+              // }
 
               // �🚨 防守：車輛已銷毀時，不執行更新邏輯（車輛可能已被移除，但GSAP動畫仍繼續執行）
               if (!this.element) {
