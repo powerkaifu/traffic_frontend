@@ -97,7 +97,7 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 5 },
+      vehiclesPerInterval: { min: 1, max: 3 },
       interval: { min: 1000, max: 5000, normal: 2000 },
       peakMultiplier: 1, // 👈 尖峰倍數
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
@@ -147,8 +147,8 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 1 }, // 👈 🎯 FIXED: 改為單一生成模式，避免爆發
-      interval: { min: 6000, max: 12000, normal: 8000 }, // ⏱️ FIXED: 延長到 8 秒基準，避免短時間內堆積
+      vehiclesPerInterval: { min: 1, max: 3 }, // 👈 🎯 FIXED: 改為單一生成模式，避免爆發
+      interval: { min: 6000, max: 12000, normal: 6000 }, // ⏱️ FIXED: 延長到 8 秒基準，避免短時間內堆積
       peakMultiplier: 1.0, // 👈 離峰不加倍
       displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // ✅ 從配置讀取（預設為 1.0）
 
