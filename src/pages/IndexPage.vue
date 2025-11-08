@@ -366,6 +366,7 @@ import AutoTrafficGenerator from '../classes/AutoTrafficGenerator.js'
 import AdaptiveFlowController from '../classes/AdaptiveFlowController.js'
 import TrafficDataCollector from '../classes/TrafficDataCollector.js'
 import Vehicle from '../classes/Vehicle.js'
+import VehiclePool from '../classes/VehiclePool.js'
 import LumoAssistant from '../components/LumoAssistant.vue'
 import { createLanePathCalculator } from '../classes/draw_utils/lanePathCalculator.js'
 import { stopLineConfig, lightColorConfig } from '../classes/config/trafficConfig.js'
@@ -509,7 +510,18 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
   }
 
   // 使用指定位置創建車輛
-  const vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, store) // ✅ Phase 6：傳入 store
+  // 🚀 改進：優先從物件池中獲取，只在池空時才創建新車輛
+  let vehicle
+  if (vehiclePool && vehiclePool.poolMap && vehiclePool.poolMap.has(direction)) {
+    // ✅ 從池中取車
+    vehicle = vehiclePool.acquire(direction, laneNumber, vehicleType, x, y)
+  } else if (vehiclePool) {
+    // ✅ 池空，創建新車輛並添加到池的管理中
+    vehicle = vehiclePool.acquire(direction, laneNumber, vehicleType, x, y)
+  } else {
+    // 備用：池未初始化時，直接創建新車輛
+    vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, store) // ✅ Phase 6：傳入 store
+  }
 
   // 🚨 設置初始 progress（如果提供的話）
   if (typeof initialProgress === 'number' && initialProgress !== 0) {
@@ -559,20 +571,22 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
       // 等待 SVG 路徑準備好
       await waitForSvgPaths()
 
-      // 改進 7: 支援循環回收機制 - 當車輛離開邊界時嘗試回收而非移除
-      const handleVehicleOutOfBounds = (vehicleId) => {
-        const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicleId)
-        if (vehicleIndex > -1) {
-          const vehicleAtIndex = activeCars.value[vehicleIndex]
+      // 🚀 改進：改用物件池回收機制 - 接收 vehicle 實例而不是 vehicleId
+      const handleVehicleOutOfBounds = (vehicle) => {
+        if (!vehicle) return
 
-          // 嘗試回收車輛
-          if (vehicleAtIndex && vehicleAtIndex.recycleVehicle()) {
-            // 標記車輛為新回收，需要重新開始動畫（但保留在 activeCars 中）
-            vehicleAtIndex.isAnimationStarted = false
+        const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
+        if (vehicleIndex > -1) {
+          // ✅ 從活躍車輛列表中移除
+          activeCars.value.splice(vehicleIndex, 1)
+          console.log(`♻️ [${vehicle.id}] 車輛動畫完成，放回物件池`)
+
+          // ✅ 放回物件池（隱藏元素但保留在 DOM 中）
+          if (vehiclePool) {
+            vehiclePool.release(vehicle)
           } else {
-            // 回收失敗 - 移除車輛
-            activeCars.value.splice(vehicleIndex, 1)
-            console.log(`🗑️ [${vehicleId}] 回收失敗或已達上限，準備移除`)
+            // 備用：如果池未初始化，直接調用 reset
+            vehicle.reset(vehicle.direction, vehicle.laneNumber, vehicle.vehicleType, store)
           }
         }
       }
@@ -580,34 +594,18 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
       // 使用新的 MotionPath 動畫方法，傳入邊界檢測回調
       await vehicle.moveAlongPath(trafficController, activeCars.value, handleVehicleOutOfBounds)
 
-      // 🚨 動畫完成後立即清理，不等待淡出
-      const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
-      if (vehicleIndex > -1) {
-        activeCars.value.splice(vehicleIndex, 1)
-      }
-
-      // ✅ Phase 5：使用統一方法移除
-      removeVehicleFromSimulation(vehicle.id)
-
-      // 🚨 直接移除車輛，不執行淡出動畫
-      // ⚠️ 注意：vehicle.remove() 會自動派發 vehicleRemoved 事件
-      setTimeout(() => {
-        try {
-          // 直接移除 DOM 元素並派發事件
-          vehicle.remove()
-        } catch (error) {
-          console.warn(`⚠️ 車輛直接移除失敗:`, error)
-        }
-      }, 0)
+      // ✅ 動畫完成後的清理（此時車輛已由 handleVehicleOutOfBounds 放回池中）
+      // 無需額外清理
     } catch (error) {
       console.error('❌ 自動生成車輛動畫錯誤:', error)
       const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
       if (vehicleIndex > -1) {
         activeCars.value.splice(vehicleIndex, 1)
       }
-      // ✅ Phase 5：使用統一方法移除
-      removeVehicleFromSimulation(vehicle.id)
-      vehicle.remove()
+      // 發生錯誤時也放回池中
+      if (vehiclePool) {
+        vehiclePool.release(vehicle)
+      }
     }
   }
   startVehicleAnimation()
@@ -628,7 +626,8 @@ const currentPhase = ref('南北向 綠燈')
 const countdown = ref(15)
 const activeCars = ref([]) // 維護活躍車輛列表
 
-// 🎨 根據當前燈號狀態計算倒數計時器顏色
+// 🚀 物件池：用於回收車輛，避免 DOM 堆積
+let vehiclePool = null // 會在 onMounted 時初始化
 const getCountdownStyle = () => {
   const phaseText = currentPhase.value
 
@@ -1255,6 +1254,10 @@ onMounted(async () => {
     getNorthLane2Path = lanePathCalculator.getNorthLane2Path
     getNorthLane3Path = lanePathCalculator.getNorthLane3Path
     getNorthLane4Path = lanePathCalculator.getNorthLane4Path
+
+    // 🚀 初始化物件池
+    vehiclePool = new VehiclePool(vehicleContainer.value, store)
+    console.log('🚀 VehiclePool 已初始化')
   }
 
   if (crossroadContainer.value) {
@@ -2348,6 +2351,13 @@ onUnmounted(() => {
     }
   })
   activeCars.value = []
+
+  // 🚀 清理物件池
+  if (vehiclePool) {
+    console.log('🚀 清理 VehiclePool...')
+    vehiclePool.dispose()
+    vehiclePool = null
+  }
 
   // 🌤️ 完全清理天氣控制器
   if (weatherController) {

@@ -1338,12 +1338,14 @@ export default class Vehicle {
               this.currentState = 'completed'
 
               // 🚨 立即移除機制：動畫完成時立刻從碰撞檢測中移除
+              // ✅ 改為傳遞整個 vehicle 實例，而不是 vehicleId
               if (!hasBeenRemovedFromCollision && onVehicleOutOfBounds) {
                 hasBeenRemovedFromCollision = true
-                onVehicleOutOfBounds(this.id)
+                onVehicleOutOfBounds(this) // 👈 傳遞 this 而不是 this.id
               }
 
-              this.remove() // 🚨 動畫完成強制移除 DOM
+              // ✅ 不再調用 this.remove()，改由 IndexPage 透過 pool.release() 來回收
+              // this.remove() // � 註解掉
               resolve()
             },
           })
@@ -1738,6 +1740,109 @@ export default class Vehicle {
           detail: vehicleRemovedDetail,
         }),
       )
+    }
+  }
+
+  // 🚀【物件池】重置方法：將車輛恢復到初始狀態以供重複使用
+  // 這比 performCleanup() 更輕量 - 隱藏元素但保留在 DOM 中
+  reset(direction, laneNumber, vehicleType, store) {
+    // 防護：提供合理的預設值
+    direction = direction || this.direction || 'east'
+    laneNumber = laneNumber || this.laneNumber || 1
+    vehicleType = vehicleType || this.vehicleType || 'small'
+    store = store || this.simulationStore || null
+
+    console.log(
+      `🔄 [Vehicle.reset] ${this.id}: direction=${direction}, lane=${laneNumber}, type=${vehicleType}`,
+    )
+
+    // ✅ 【關鍵】隱藏元素但不移除 DOM
+    if (this.element) {
+      gsap.set(this.element, {
+        autoAlpha: 0, // opacity: 0, visibility: hidden
+        x: -9999,
+        y: -9999,
+        rotation: 0,
+      })
+
+      // 🚨【修復】車型改變時更新 DOM 元素
+      const vehicleTypeChanged = this.vehicleType !== vehicleType
+      if (vehicleTypeChanged) {
+        this.vehicleType = vehicleType
+        const vehicleConfig = this.getVehicleConfig()
+        // 更新圖片和樣式
+        this.element.style.backgroundImage = `url('${vehicleConfig.image}')`
+        this.element.style.width = vehicleConfig.width + 'px'
+        this.element.style.height = vehicleConfig.height + 'px'
+        if (vehicleConfig.scaleX) {
+          this.element.style.transform = `scaleX(${vehicleConfig.scaleX})`
+        }
+      }
+    }
+
+    // 🔄 重置方向和車道
+    this.direction = direction
+    this.laneNumber = laneNumber
+    this.simulationStore = store
+
+    // 🔄 重置移動狀態
+    this.progress = 0
+    this.speed = 0
+    this.currentSpeed = 0
+    this.maxSpeed = 0
+    this.initialSpeed = this.generateRandomSpeed()
+
+    // 🔄 重置停止線狀態
+    this.isAtStopLine = false
+    this.hasPassedStopLine = false
+    this.waitingForGreen = false
+    this.currentState = 'waiting'
+
+    // 🔄 重置完成狀態
+    this.isRemoved = false
+    this.isCompleted = false
+    this.isAnimationStarted = false
+
+    // 🔄 重置碰撞和隊列狀態
+    this.isInCollision = false
+    this.isInQueue = false
+    this.queueFrontVehicle = null
+    this.collisionFrontVehicle = null
+
+    // 🔄 重置數據收集相關
+    this.travelTime = 0
+    this.totalDistance = 0
+    this.laneChangeCount = 0
+
+    // 🚨 殺死所有進行中的 GSAP 動畫
+    try {
+      gsap.killTweensOf(this)
+      gsap.killTweensOf(this.element)
+      if (this.displayObject) {
+        gsap.killTweensOf(this.displayObject)
+      }
+      if (this.path) {
+        gsap.killTweensOf(this.path)
+      }
+    } catch (e) {
+      console.warn(`⚠️ [Vehicle.reset] GSAP 清理異常: ${e.message}`)
+    }
+
+    // 🧹 清理定時器
+    if (this.periodicCheckTimer) {
+      clearInterval(this.periodicCheckTimer)
+      this.periodicCheckTimer = null
+    }
+
+    if (this.stuckCheckTimer) {
+      clearInterval(this.stuckCheckTimer)
+      this.stuckCheckTimer = null
+    }
+
+    // 清理時間線但不殺死（會在新動畫開始時重建）
+    if (this.movementTimeline) {
+      this.movementTimeline.kill()
+      this.movementTimeline = null
     }
   }
 
