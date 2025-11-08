@@ -6,7 +6,7 @@
 export const STOP_LINE_CONFIG = {
   // 檢測敏感度配置
   DETECTION: {
-    SENSITIVITY: 50, // ✅ P3 修復: 從 10 提高到 50 - 給予系統更多反應時間以捕捉高速車輛
+    SENSITIVITY: 5, // ✅ P3 修復: 從 10 提高到 15 - 給予系統更多反應時間以捕捉高速車輛
     ADJUSTMENT_THRESHOLD: 0.5, // 位置微調的最小閾值
     PROXIMITY_RANGE: 50, // 停止線附近區域範圍（px）- isNearStopLine 使用
   },
