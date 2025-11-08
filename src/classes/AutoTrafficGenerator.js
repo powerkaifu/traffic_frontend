@@ -788,9 +788,7 @@ export default class AutoTrafficGenerator {
     // 🔙 向後相容：同時保存到 window
     window.currentGeneratedVDData = currentVDData
 
-    console.log(
-      `🔍 [currentGeneratedVDData] SET - apiDataArray.length=${currentVDData.apiDataArray.length}`,
-    )
+    console.log(`🔍 [currentGeneratedVDData] SET - apiDataArray.length=${currentVDData.apiDataArray.length}`)
     console.log(`🔍 [currentGeneratedVDData] Speeds:`)
     currentVDData.apiDataArray.forEach((data, idx) => {
       console.log(`   方向 ${idx}: Speed_M=${data.Speed_M}, Speed_S=${data.Speed_S}, Speed_L=${data.Speed_L}`)

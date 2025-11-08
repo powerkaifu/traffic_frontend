@@ -1,9 +1,10 @@
 # 🚀 Priority 3 Phase 3 完成報告
+
 ## AutoTrafficGenerator Pinia Store 遷移
 
-**完成時間:** 2025年11月8日  
-**提交哈希:** `df2a4cc`  
-**編譯狀態:** ✅ 成功  
+**完成時間:** 2025年11月8日
+**提交哈希:** `df2a4cc`
+**編譯狀態:** ✅ 成功
 
 ---
 
@@ -45,16 +46,18 @@ export default class AutoTrafficGenerator {
 }
 ```
 
-### 2. **_syncWithApiData() 方法修改**
+### 2. **\_syncWithApiData() 方法修改**
 
 **用途:** 監聽 API 數據完成事件並調整生成間隔
 
 **修改內容:**
+
 - 優先使用 Store 的 `subscribe('trafficApiComplete', callback)`
 - 回退到 `window.addEventListener()` 以保持向後相容
 - 使用 `store.getLastApiVDDataArray()` 而不是 `window.lastApiVDDataArray`
 
 **代碼對比:**
+
 ```javascript
 // 修改前：僅使用 window 事件
 window.addEventListener('trafficApiComplete', () => {
@@ -82,10 +85,12 @@ if (this.simulationStore) {
 **用途:** 生成 VD 數據並保存
 
 **修改內容:**
+
 - 使用 `store.setCurrentGeneratedVDData(data)` 保存 VD 數據
 - 同時保存到 `window.currentGeneratedVDData` 以保持向後相容
 
 **代碼對比:**
+
 ```javascript
 // 修改前
 window.currentGeneratedVDData = {
@@ -105,14 +110,15 @@ if (this.simulationStore) {
   this.simulationStore.setCurrentGeneratedVDData(currentVDData)
 }
 
-window.currentGeneratedVDData = currentVDData  // 向後相容
+window.currentGeneratedVDData = currentVDData // 向後相容
 ```
 
-### 4. **_generateVehicle() 方法修改**
+### 4. **\_generateVehicle() 方法修改**
 
 **用途:** 生成車輛事件
 
 **修改內容:**
+
 - 使用 `store.emit()` 發送事件
 - 同時發送 `window.dispatchEvent()` 以保持向後相容
 - 使用 `store.getLiveVehicles()` 查詢活躍車輛
@@ -120,6 +126,7 @@ window.currentGeneratedVDData = currentVDData  // 向後相容
 **代碼修改位置:**
 
 **位置 1：生成左轉車輛事件**
+
 ```javascript
 if (isLeftTurn) {
   const eventDetail = { direction: selectedDir, type: type, speed: speed, timestamp: Date.now() }
@@ -133,6 +140,7 @@ if (isLeftTurn) {
 ```
 
 **位置 2：生成直行車輛事件**
+
 ```javascript
 const generateEventDetail = { direction: selectedDir, vehicleType: type, ... }
 
@@ -144,6 +152,7 @@ window.dispatchEvent(new CustomEvent('generateVehicle', { detail: generateEventD
 ```
 
 **位置 3：發送 vehicleAdded 事件**
+
 ```javascript
 const vehicleAddedDetail = { direction: selectedDir, type: type, speed: speed, timestamp: Date.now() }
 
@@ -155,6 +164,7 @@ window.dispatchEvent(new CustomEvent('vehicleAdded', { detail: vehicleAddedDetai
 ```
 
 **位置 4：使用 Store 獲取活躍車輛**
+
 ```javascript
 let liveVehicles = window.liveVehicles
 if (this.simulationStore) {
@@ -169,7 +179,7 @@ if (LANE_SPAWN_CONFIG.ENABLE_DYNAMIC_PROGRESS && liveVehicles && liveVehicles.le
 
 ### 5. **IndexPage.vue 修改**
 
-**檔案位置:** `src/pages/IndexPage.vue`  
+**檔案位置:** `src/pages/IndexPage.vue`
 **修改位置:** 第 670 行
 
 ```javascript
@@ -177,18 +187,18 @@ if (LANE_SPAWN_CONFIG.ENABLE_DYNAMIC_PROGRESS && liveVehicles && liveVehicles.le
 const autoTrafficGenerator = new AutoTrafficGenerator(trafficController)
 
 // 修改後
-const autoTrafficGenerator = new AutoTrafficGenerator(trafficController, store)  // ✅ 傳入 Store
+const autoTrafficGenerator = new AutoTrafficGenerator(trafficController, store) // ✅ 傳入 Store
 ```
 
 ---
 
 ## 📊 修改統計
 
-| 文件 | 修改行數 | 主要變更 |
-|------|---------|---------|
-| `AutoTrafficGenerator.js` | +74 行, -50 行 | Store 集成、雙層實現 |
-| `IndexPage.vue` | +1 行 | Store 參數傳遞 |
-| **總計** | **+75 行, -50 行** | **完整遷移** |
+| 文件                      | 修改行數           | 主要變更             |
+| ------------------------- | ------------------ | -------------------- |
+| `AutoTrafficGenerator.js` | +74 行, -50 行     | Store 集成、雙層實現 |
+| `IndexPage.vue`           | +1 行              | Store 參數傳遞       |
+| **總計**                  | **+75 行, -50 行** | **完整遷移**         |
 
 ---
 
@@ -233,12 +243,12 @@ IndexPage RAF 主循環
 
 ### 事件系統
 
-| 事件 | 來源 | 目標 | 數據 |
-|------|------|------|------|
-| `trafficApiComplete` | TrafficDataCollector | AutoTrafficGenerator | API 數據完成 |
-| `generateVehicle` | AutoTrafficGenerator | IndexPage | 生成直行車輛 |
-| `generateLeftTurnVehicle` | AutoTrafficGenerator | IndexPage | 生成左轉車輛 |
-| `vehicleAdded` | AutoTrafficGenerator | MainLayout/IndexPage | 車輛已添加 |
+| 事件                      | 來源                 | 目標                 | 數據         |
+| ------------------------- | -------------------- | -------------------- | ------------ |
+| `trafficApiComplete`      | TrafficDataCollector | AutoTrafficGenerator | API 數據完成 |
+| `generateVehicle`         | AutoTrafficGenerator | IndexPage            | 生成直行車輛 |
+| `generateLeftTurnVehicle` | AutoTrafficGenerator | IndexPage            | 生成左轉車輛 |
+| `vehicleAdded`            | AutoTrafficGenerator | MainLayout/IndexPage | 車輛已添加   |
 
 ---
 
@@ -247,6 +257,7 @@ IndexPage RAF 主循環
 ### 雙層實現策略
 
 1. **優先層 (Store)**
+
    ```javascript
    if (this.simulationStore) {
      this.simulationStore.emit/subscribe/get...()  // 新方式
@@ -261,28 +272,29 @@ IndexPage RAF 主循環
    ```
 
 這個設計允許：
+
 - ✅ Phase 3+ 使用完整 Store API
 - ✅ 舊代碼（如 MainLayout）仍能通過 window 事件工作
 - ✅ 逐步遷移其他模塊而不中斷功能
 
 ### 相容性矩陣
 
-| 場景 | Store 存在 | Store 不存在 |
-|------|-----------|------------|
-| 新代碼 (Phase 3+) | ✅ 使用 Store | ✅ 使用 Window |
-| 舊代碼 (未遷移) | ✅ 使用 Window | ✅ 使用 Window |
-| 混合代碼 | ✅ 雙向工作 | ✅ 仍可工作 |
+| 場景              | Store 存在     | Store 不存在   |
+| ----------------- | -------------- | -------------- |
+| 新代碼 (Phase 3+) | ✅ 使用 Store  | ✅ 使用 Window |
+| 舊代碼 (未遷移)   | ✅ 使用 Window | ✅ 使用 Window |
+| 混合代碼          | ✅ 雙向工作    | ✅ 仍可工作    |
 
 ---
 
 ## 🎯 已解決的問題
 
-| 問題 | 根本原因 | 修復方案 | 狀態 |
-|------|---------|---------|------|
-| AutoTrafficGenerator 依賴全域變數 | 架構設計未分離 | 注入 Store 參數 | ✅ 解決 |
-| 事件系統緊耦合到 window | 使用 dispatchEvent | 使用 Store emit/subscribe | ✅ 解決 |
-| 車輛數據無法集中管理 | 分散在 window 各處 | 統一通過 Store | ✅ 解決 |
-| 跨模塊數據不同步 | 多個數據源 | Store 作為單一真值源 | ✅ 解決 |
+| 問題                              | 根本原因           | 修復方案                  | 狀態    |
+| --------------------------------- | ------------------ | ------------------------- | ------- |
+| AutoTrafficGenerator 依賴全域變數 | 架構設計未分離     | 注入 Store 參數           | ✅ 解決 |
+| 事件系統緊耦合到 window           | 使用 dispatchEvent | 使用 Store emit/subscribe | ✅ 解決 |
+| 車輛數據無法集中管理              | 分散在 window 各處 | 統一通過 Store            | ✅ 解決 |
+| 跨模塊數據不同步                  | 多個數據源         | Store 作為單一真值源      | ✅ 解決 |
 
 ---
 
@@ -291,10 +303,10 @@ IndexPage RAF 主循環
 ### AutoTrafficGenerator 遷移
 
 - [x] 接受 Store 參數
-- [x] 修改 _syncWithApiData() 使用 Store
+- [x] 修改 \_syncWithApiData() 使用 Store
 - [x] 修改 updateVDByFullAPI() 使用 Store
-- [x] 修改 _generateVehicle() 使用 Store emit
-- [x] 修改 _generateVehicle() 使用 Store getLiveVehicles()
+- [x] 修改 \_generateVehicle() 使用 Store emit
+- [x] 修改 \_generateVehicle() 使用 Store getLiveVehicles()
 - [x] 保持向後相容（雙層實現）
 - [x] 編譯驗證
 - [x] Git 提交
@@ -311,16 +323,19 @@ IndexPage RAF 主循環
 ## 🚀 下一步計劃
 
 ### Phase 4：Vehicle.js 遷移
+
 - [ ] 修改 Vehicle.js 的 remove() 方法
 - [ ] 從 Store 而不是直接操作 window.liveVehicles
 - [ ] 由 IndexPage RAF 迴圈集中處理車輛移除
 
 ### Phase 5：TrafficLightController 遷移
+
 - [ ] 修改 TrafficLightController 注入 Store
 - [ ] 使用 Store 讀取 currentGeneratedVDData
 - [ ] 使用 Store 讀取 lastApiVDDataArray
 
 ### Phase 6：CollisionController 遷移
+
 - [ ] 修改 CollisionController 注入 Store
 - [ ] 使用 Store emit 發送碰撞事件
 - [ ] 完全移除 window 依賴
@@ -392,6 +407,6 @@ Phase 6: CollisionController 遷移 ⏳
 
 ---
 
-**狀態:** ✅ 完成  
-**提交:** `df2a4cc - Phase 3: Migrate AutoTrafficGenerator to use Pinia Store`  
+**狀態:** ✅ 完成
+**提交:** `df2a4cc - Phase 3: Migrate AutoTrafficGenerator to use Pinia Store`
 **下一步:** 進行 Phase 4 Vehicle.js 遷移

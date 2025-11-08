@@ -171,6 +171,9 @@ export default class Vehicle {
     // 🔴【防重複】標記是否已被移除
     this.isRemoved = false
 
+    // ✅ Phase 4：新增完成標誌（用於 IndexPage RAF 迴圈識別已完成的車輛）
+    this.isCompleted = false
+
     // Composite Pattern: 等待一個幀以確保 DOM 已準備好，再設置車輛的初始視覺屬性
     Promise.resolve().then(() => {
       gsap.set(this.element, {
@@ -1922,6 +1925,7 @@ export default class Vehicle {
       return
     }
     this.isRemoved = true
+    this.isCompleted = true  // ✅ Phase 4：標記為已完成，由 IndexPage RAF 迴圈集中處理
 
     // 記錄移除時間
     this.movementEndTime = new Date().toISOString()
@@ -1943,15 +1947,36 @@ export default class Vehicle {
       laneChangeCount: this.laneChangeCount,
     })
 
-    // Template Method Pattern: 定義車輛移除的標準清理流程
+    // ✅ Phase 4 修改：只標記完成，不執行清理
+    // 所有清理邏輯由 IndexPage RAF 迴圈統一執行
+    // 這樣可以避免異步清理導致的時序問題
 
-    // 🚨【關鍵】完全殺死所有 GSAP 動畫 - 防止僵屍動畫繼續計算
+    // 派發 vehicleRemoved 事件（供監聽者處理）
+    window.dispatchEvent(
+      new CustomEvent('vehicleRemoved', {
+        detail: {
+          vehicleId: this.id,
+          direction: this.direction,
+          timestamp: Date.now(),
+          travelTime: this.travelTime,
+        },
+      }),
+    )
+
+    console.log(`✅ [${this.id}] 標記為已完成，等待 RAF 清理`)
+  }
+
+  // ✅ Phase 4 新增：集中清理方法（由 IndexPage RAF 迴圈調用）
+  async performCleanup() {
+    if (!this.isRemoved) {
+      return
+    }
+
     try {
-      // 殺死針對此對象的所有動畫
+      // 🚨【關鍵】完全殺死所有 GSAP 動畫 - 防止僵屍動畫繼續計算
       gsap.killTweensOf(this)
       gsap.killTweensOf(this.element)
 
-      // 如果有其他關鍵屬性存儲了動畫，也要殺死
       if (this.displayObject) {
         gsap.killTweensOf(this.displayObject)
       }
@@ -2017,6 +2042,8 @@ export default class Vehicle {
     // 🚨 強制釋放 DOM 參考，防止殘留
     this.element = null
     this.laneLabel = null
+
+    console.log(`🗑️ [${this.id}] 已完成清理`)
   }
 
   // 🚨 新增：綠燈跟車檢查
