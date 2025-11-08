@@ -1340,8 +1340,8 @@ onMounted(async () => {
 
     // 📡 訂閱 Store 事件（替代 window.addEventListener）
     const unsubscribeScenarioChanged = store.subscribe('scenarioChanged', handleScenarioChange)
-    const unsubscribeGenerateVehicle = store.subscribe('generateVehicle', handleAutoGenerate)
-    const unsubscribeGenerateLeftTurnVehicle = store.subscribe('generateLeftTurnVehicle', handleAutoGenerateLeftTurn)
+    const unsubscribeGenerateVehicle = store.subscribe('generateVehicle', handleAutoGenerateFromStore)
+    const unsubscribeGenerateLeftTurnVehicle = store.subscribe('generateLeftTurnVehicle', handleAutoGenerateLeftTurnFromStore)
 
     // 保存取消訂閱函數，用於 onUnmounted 時清理
     window.storeUnsubscribers = {
@@ -1361,11 +1361,6 @@ onMounted(async () => {
     window.addEventListener('generateLeftTurnVehicle', (event) => {
       handleAutoGenerateLeftTurn(event)
     })
-
-    // ✅ 【新增】Store 事件訂閱 - 直接使用接收 detail 物件的處理器
-    store.subscribe('generateVehicle', handleAutoGenerateFromStore)
-    store.subscribe('generateLeftTurnVehicle', handleAutoGenerateLeftTurnFromStore)
-    store.subscribe('scenarioChanged', handleScenarioChange)
 
     // 監聽視窗大小變化和佈局變化
     const handleLayoutChange = async () => {
