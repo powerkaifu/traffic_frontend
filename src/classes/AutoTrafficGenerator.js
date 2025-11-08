@@ -23,7 +23,11 @@ export default class AutoTrafficGenerator {
   constructor(trafficController) {
     this.trafficController = trafficController
     this.isRunning = false
-    this.timer = null
+    // ❌ 移除：this.timer = null （改用 RAF 驅動，不再使用 setTimeout）
+
+    // ✅ RAF 時間步長相關屬性
+    this.timeSinceLastGenerate = 0 // 追蹤自上次生成以來的毫秒數
+    this.currentInterval = 4000 // 當前生成間隔（毫秒），默認 4 秒
 
     // 🚨 新增：車道級別生成冷卻機制（使用配置參數）
     this.laneGenerationCooldown = {} // 記錄每個車道的最後生成時間
@@ -90,7 +94,9 @@ export default class AutoTrafficGenerator {
     // 🎯【修復 1】監聽 API 數據更新，動態調整車流生成速率
     this._syncWithApiData()
 
-    this._scheduleNext()
+    // ❌ 移除：this._scheduleNext()
+    // ✅ 改由：requestAnimationFrame 主循環驅動 update() 方法
+    console.log('🚗 [AutoTrafficGenerator] 已啟動 (RAF 驅動模式)')
   }
 
   /**
@@ -142,7 +148,8 @@ export default class AutoTrafficGenerator {
   // 停止生成
   stop() {
     this.isRunning = false
-    clearTimeout(this.timer)
+    // ❌ 移除：clearTimeout(this.timer)
+    // ✅ 改由：RAF 主循環檢查 isRunning 狀態，自動停止
     this._stopAutoModeLoop() // 停止時也要確保自動模式循環停止
   }
 
@@ -326,7 +333,73 @@ export default class AutoTrafficGenerator {
   }
 
   // ==========================================
-  // 🎭 手動情景模式方法
+  // � 流量控制方法（號誌變換時使用）
+  // ==========================================
+
+  /**
+   * 主更新方法（由 requestAnimationFrame 驅動）
+   * @param {number} deltaTimeMs - 自上一幀以來經過的毫秒數
+   *
+   * 🎯 核心優勢：
+   * - 完全由 RAF 驅動，不使用 setTimeout
+   * - 累積 deltaTime，當達到 currentInterval 時才生成
+   * - 若瀏覽器卡頓，deltaTime 自動增大，但不會爆量
+   * - 100% 消除 setTimeout 堆積問題
+   */
+  update(deltaTimeMs) {
+    if (!this.isRunning) return
+
+    // 1. 累加時間
+    this.timeSinceLastGenerate += deltaTimeMs
+
+    // 2. 檢查是否達到生成間隔
+    if (this.timeSinceLastGenerate >= this.currentInterval) {
+      // 3. 執行生成邏輯
+      let vehiclesToGenerate = this.config.vehiclesPerInterval || 1
+
+      // 如果是對象格式 { min, max }，則取隨機值
+      if (typeof vehiclesToGenerate === 'object' && vehiclesToGenerate.min !== undefined) {
+        const min = vehiclesToGenerate.min || 1
+        const max = vehiclesToGenerate.max || 1
+        vehiclesToGenerate = Math.floor(Math.random() * (max - min + 1)) + min
+      }
+
+      // 生成車輛
+      for (let i = 0; i < vehiclesToGenerate; i++) {
+        this._generateVehicle()
+      }
+
+      // 4. 重置計時器
+      this.timeSinceLastGenerate = 0
+
+      // 5. 重新計算下一次生成間隔
+      this.currentInterval = this._calcInterval()
+    }
+  }
+
+  /**
+   * 暫停生成，用於號誌變換時流量控制
+   *
+   * ✅ 改進：不再使用 setTimeout，避免計時器副本問題
+   */
+  pauseGeneration(durationMs = 800) {
+    if (!this.isRunning) return
+    this.isRunning = false
+    console.log(`⏸️ [流量控制] 已暫停生成`)
+  }
+
+  /**
+   * 恢復生成
+   */
+  resumeGeneration() {
+    if (this.isRunning) return
+    this.isRunning = true
+    this.timeSinceLastGenerate = 0 // 重置計時器
+    console.log(`▶️ [流量控制] 已恢復生成`)
+  }
+
+  // ==========================================
+  // �🎭 手動情景模式方法
   // ==========================================
 
   // 🎯 1. 切換到手動情景模式
@@ -916,46 +989,7 @@ export default class AutoTrafficGenerator {
     return 1
   }
 
-  // 排程下一次
-  _scheduleNext() {
-    if (!this.isRunning) return
-
-    let delay = this._calcInterval()
-
-    // 動態最小生成間隔，根據滑桿強度調整
-    const currentVehicleCount = this._getCurrentVehicleCount()
-    let minGenerationGap = 100 // 降低基礎最小間隔至 100ms
-
-    // 根據配置的間隔範圍動態調整最小間隔
-    const configMinInterval = this.config.minInterval || 100
-    minGenerationGap = Math.max(100, configMinInterval * 0.5)
-
-    if (currentVehicleCount > 40) {
-      minGenerationGap = Math.max(200, configMinInterval * 0.8) // 車輛很多時稍微增加間隔
-    } else if (currentVehicleCount > 25) {
-      minGenerationGap = Math.max(150, configMinInterval * 0.6) // 車輛較多時輕微增加間隔
-    }
-
-    // 確保延遲不低於計算出的最小間隔，但要考慮用戶設定
-    delay = Math.max(delay, minGenerationGap)
-
-    this.timer = setTimeout(() => {
-      // 🚗 新增：根據配置生成多輛車（支持固定值或隨機範圍）
-      let vehiclesToGenerate = this.config.vehiclesPerInterval || 1
-
-      // 如果是對象格式 { min, max }，則取隨機值
-      if (typeof vehiclesToGenerate === 'object' && vehiclesToGenerate.min !== undefined) {
-        const min = vehiclesToGenerate.min || 1
-        const max = vehiclesToGenerate.max || 1
-        vehiclesToGenerate = Math.floor(Math.random() * (max - min + 1)) + min
-      }
-
-      for (let i = 0; i < vehiclesToGenerate; i++) {
-        this._generateVehicle()
-      }
-      this._scheduleNext()
-    }, delay)
-  }
+  // ❌ 移除：_scheduleNext() 方法（改用 RAF 驅動的 update() 方法）
 
   // 隨機生成一輛車
   _generateVehicle() {
@@ -994,24 +1028,24 @@ export default class AutoTrafficGenerator {
       : []
 
     // 檢查極短時間內的車輛（500ms內）
-    // 🚗 動態調整：根據 vehiclesPerInterval 的最大值調整限制
+    // 🚗 FIXED: 改為嚴格限制，避免 setTimeout 堆積爆發
     const maxVehiclesPerInterval = this.config.vehiclesPerInterval?.max || 1
     const veryRecentVehicles = recentVehicles.filter((v) => now - v.timestamp < 500)
-    const veryRecentLimit = Math.max(5, maxVehiclesPerInterval * 1.5) // 允許最大值的1.5倍
+    const veryRecentLimit = Math.max(2, maxVehiclesPerInterval) // FIXED: 500ms 內最多 2 台（原本允許 1.5 倍，即 3 台）
 
     if (veryRecentVehicles.length >= veryRecentLimit) {
-      console.log(`🚨 極短時間內車輛生成過多 (${veryRecentVehicles.length}/${veryRecentLimit})，短暫延後`)
-      setTimeout(() => this._scheduleNext(), Math.max(200, this.config.minInterval || 200)) // 使用配置的最小間隔
+      console.log(`🚨 [流量控制] 500ms內車輛過多 (${veryRecentVehicles.length}/${veryRecentLimit})，暫停生成`)
+      // FIXED: 直接返回，不再延後重試（避免累積更多計時器）
       return
     }
 
     // 如果2秒內生成的車輛過多，延後生成
-    // 🚗 動態調整：允許更多車輛
-    const recentLimit = Math.max(15, maxVehiclesPerInterval * 2)
+    // 🚗 FIXED: 改為更嚴格的限制
+    const recentLimit = Math.max(3, maxVehiclesPerInterval * 2) // FIXED: 2秒內最多 3 台（原本允許 15 台！）
 
     if (recentVehicles.length >= recentLimit) {
-      console.log(`🚦 短時間內車輛生成過多 (${recentVehicles.length}/${recentLimit})，延後生成`)
-      setTimeout(() => this._scheduleNext(), Math.max(300, this.config.minInterval || 300)) // 使用配置的最小間隔
+      console.log(`🚦 [流量控制] 2秒內車輛過多 (${recentVehicles.length}/${recentLimit})，暫停生成`)
+      // FIXED: 直接返回，不再延後重試
       return
     }
 

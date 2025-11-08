@@ -1780,6 +1780,49 @@ onMounted(async () => {
   })
 
   console.log('✅ [性能監測工具已啟用] 按 Ctrl+Shift+P 開始/停止監測')
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 【Step 3】✨ RAF 主循環 - 驅動所有模擬邏輯 ✨
+  // ═══════════════════════════════════════════════════════════════════════
+
+  let lastFrameTime = 0
+  let rafId = null
+
+  function mainSimulationLoop(currentTime) {
+    try {
+      // 計算 Delta Time（毫秒）
+      const deltaTimeMs = currentTime - lastFrameTime
+      lastFrameTime = currentTime
+
+      // ✅ 限制 deltaTime（防止瀏覽器標籤頁切換導致的巨大時間跳躍）
+      const clampedDeltaTime = Math.min(deltaTimeMs, 100)
+
+      // 🎯 【關鍵】驅動車輛生成引擎 - RAF 主時鐘
+      if (window.autoTrafficGenerator && typeof window.autoTrafficGenerator.update === 'function') {
+        window.autoTrafficGenerator.update(clampedDeltaTime)
+      }
+
+      // ℹ️ 性能監測：可選的 FPS 顯示
+      if (window.performanceMonitor?.isMonitoring) {
+        window.performanceMonitor.deltaTime = clampedDeltaTime
+        window.performanceMonitor.fps = Math.round(1000 / clampedDeltaTime)
+      }
+
+      // 請求下一幀
+      rafId = requestAnimationFrame(mainSimulationLoop)
+    } catch (error) {
+      console.error('❌ [RAF 主循環] 出現異常:', error)
+      // 即使出現異常也繼續運行
+      rafId = requestAnimationFrame(mainSimulationLoop)
+    }
+  }
+
+  // 🚀 啟動 RAF 主循環
+  console.log('🚀 [RAF 主循環] 已啟動 - 驅動所有模擬邏輯')
+  rafId = requestAnimationFrame(mainSimulationLoop)
+
+  // 記錄 RAF ID 以便後續清理
+  window.mainSimulationRAFId = rafId
 })
 
 // 💡 獲取 tooltip 訊息的輔助函數 - 支援配置鍵或直接訊息
@@ -1907,6 +1950,15 @@ onUnmounted(() => {
   // 移除鍵盤事件監聽
   if (typeof document !== 'undefined') {
     document.removeEventListener('keydown', handleKeyDown, { capture: false })
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 【Step 3 清理】✨ 停止 RAF 主循環 ✨
+  // ═══════════════════════════════════════════════════════════════════════
+  if (typeof window !== 'undefined' && window.mainSimulationRAFId !== undefined) {
+    cancelAnimationFrame(window.mainSimulationRAFId)
+    window.mainSimulationRAFId = null
+    console.log('🛑 [RAF 主循環] 已停止')
   }
 
   console.log('🧹 IndexPage 資源完全清理完成')

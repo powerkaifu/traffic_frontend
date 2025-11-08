@@ -619,6 +619,11 @@ export default class TrafficLightController {
           this.updateLightState('east', 'red') // 東西向保持紅燈
           this.updateLightState('west', 'red')
           window.dispatchEvent(new CustomEvent('greenLightStarted'))
+
+          // ✅ 改進：移除硬性 800ms 暫停，完全依賴 STOP_LINE_VEHICLE_LIMITS
+          // 原理：AutoTrafficGenerator._generateVehicle() 中已有完美的流量控制
+          // 停止線滿了，車輛自動就不會生成
+
           this.updateLightState('south', 'green') // 南向直行綠燈(greenLight.png)
           this.updateLightState('north', 'green') // 北向直行綠燈(greenLight.png)
 
@@ -693,6 +698,9 @@ export default class TrafficLightController {
           this.updateLightState('south', 'red') // 南北向保持紅燈
           this.updateLightState('north', 'red')
           window.dispatchEvent(new CustomEvent('greenLightStarted'))
+
+          // ✅ 改進：移除硬性 800ms 暫停，完全依賴 STOP_LINE_VEHICLE_LIMITS
+
           this.updateLightState('east', 'green') // 東向直行綠燈(greenLight.png)
           this.updateLightState('west', 'green') // 西向直行綠燈(greenLight.png)
 
