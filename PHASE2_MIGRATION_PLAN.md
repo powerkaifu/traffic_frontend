@@ -51,36 +51,31 @@
 
 ```javascript
 // 初始化和配置
-- setTrafficController(controller)
-- setAutoTrafficGenerator(generator)
-- setAdaptiveFlowController(controller)
-- setTrafficDataCollector(collector)
-- setWeatherController(controller)
-
-// 車輛管理
-- addVehicle(vehicle)
-- removeVehicle(vehicleId)
-- getVehicleCount()
-- getLiveVehicles()
-- clearAllVehicles()
-
-// 交通數據
-- setLastApiVDDataArray(data)
-- getLastApiVDDataArray()
-
-// 狀態查詢
-- getTrafficController()
-- getAutoTrafficGenerator()
-
-// 事件系統
-- on(eventName, callback)
-- off(eventName, callback)
-- emit(eventName, data)
-
-// 工具函數
-- setVehicleDistance(multiplier)
-- setNorthSouthDistance(multiplier)
-- getVehicleDistanceConfig()
+;-setTrafficController(controller) -
+  setAutoTrafficGenerator(generator) -
+  setAdaptiveFlowController(controller) -
+  setTrafficDataCollector(collector) -
+  setWeatherController(controller) -
+  // 車輛管理
+  addVehicle(vehicle) -
+  removeVehicle(vehicleId) -
+  getVehicleCount() -
+  getLiveVehicles() -
+  clearAllVehicles() -
+  // 交通數據
+  setLastApiVDDataArray(data) -
+  getLastApiVDDataArray() -
+  // 狀態查詢
+  getTrafficController() -
+  getAutoTrafficGenerator() -
+  // 事件系統
+  on(eventName, callback) -
+  off(eventName, callback) -
+  emit(eventName, data) -
+  // 工具函數
+  setVehicleDistance(multiplier) -
+  setNorthSouthDistance(multiplier) -
+  getVehicleDistanceConfig()
 ```
 
 ---
@@ -100,6 +95,7 @@ const store = useSimulationStore()
 ```
 
 **預期結果:**
+
 - Store 可在組件中訪問
 - 無編譯錯誤
 
@@ -128,6 +124,7 @@ store.setWeatherController(weatherController)
 ```
 
 **預期結果:**
+
 - 所有系統控制器通過 Store 管理
 - 其他組件可通過 `store.getTrafficController()` 等訪問
 
@@ -156,12 +153,14 @@ store.clearAllVehicles()
 ```
 
 **關鍵位置:**
+
 1. 第 380-440 行：`selectOptimalLane()` 函數中的車輛計數
 2. 第 500-550 行：`handleAutoGenerate()` 中的新增車輛
 3. 第 600-650 行：`animateVehicle()` 中的車輛移除
 4. 第 850-900 行：`clearAllVehicles()` 方法
 
 **預期結果:**
+
 - 所有車輛操作通過 Store 中介
 - 無直接 `window.liveVehicles` 訪問
 
@@ -185,9 +184,11 @@ if (lastApiData && Array.isArray(lastApiData))
 ```
 
 **關鍵位置:**
+
 1. 第 410-430 行：`selectOptimalLane()` 中讀取 API 佔有率
 
 **預期結果:**
+
 - API 數據通過 Store 讀取
 - 無直接 `window.lastApiVDDataArray` 訪問
 
@@ -210,12 +211,14 @@ store.emit('allVehiclesCleared', { ... })
 ```
 
 **關鍵位置:**
+
 1. 第 1270 行：監聽 scenarioChanged
 2. 第 1280 行：監聽 generateVehicle
 3. 第 1290 行：監聽 generateLeftTurnVehicle
 4. 第 870 行：派發 allVehiclesCleared 事件
 
 **預期結果:**
+
 - 事件通過 Store 系統管理
 - 支持多組件事件通信
 
@@ -240,6 +243,7 @@ store.diagnostics = { ... }
 ```
 
 **預期結果:**
+
 - 測試工具可通過 `store` 訪問
 - 不再污染全局 `window` 對象
 
@@ -260,10 +264,11 @@ window.liveVehicles = []
 
 // 修改後
 store.off('scenarioChanged', handleScenarioChange)
-store.reset()  // 統一清理所有狀態
+store.reset() // 統一清理所有狀態
 ```
 
 **預期結果:**
+
 - Store 狀態完全重置
 - 無內存洩漏風險
 
@@ -288,6 +293,7 @@ quasar dev
 ```
 
 **預期結果:**
+
 - ✅ Build 成功
 - ✅ 無 TypeScript 錯誤
 - ✅ 功能正常運作
@@ -303,13 +309,11 @@ quasar dev
 
 ```javascript
 // 修改前
-if (window.autoTrafficGenerator && event.detail && event.detail.config)
-  window.autoTrafficGenerator.updateConfig(config)
+if (window.autoTrafficGenerator && event.detail && event.detail.config) window.autoTrafficGenerator.updateConfig(config)
 
 // 修改後
 const generator = store.getAutoTrafficGenerator()
-if (generator && event.detail && event.detail.config)
-  generator.updateConfig(config)
+if (generator && event.detail && event.detail.config) generator.updateConfig(config)
 ```
 
 ### 與 selectOptimalLane 的衝突
@@ -332,14 +336,17 @@ const lastApiData = store.getLastApiVDDataArray()
 ## ⚠️ 風險點和緩解措施
 
 ### 風險 1：車輛無法正確同步
+
 **原因:** 車輛 remove() 仍可能訪問 window.liveVehicles
 **緩解:** Phase 4 同時處理 Vehicle.js 遷移
 
 ### 風險 2：事件系統延遲
+
 **原因:** Store.emit() 使用異步回調
 **緩解:** 在 emit 前同步更新 Store 狀態
 
 ### 風險 3：HMR 恢復失敗
+
 **原因:** Store 狀態丟失，全局引用無效
 **緩解:** 在 setup 中完全重新初始化
 
@@ -347,14 +354,14 @@ const lastApiData = store.getLastApiVDDataArray()
 
 ## 📊 驗收標準
 
-| 項目 | 標準 | 狀態 |
-|------|------|------|
-| 編譯 | npm run build 成功 | ⏳ |
-| 無錯誤 | 控制台無 TypeScript 錯誤 | ⏳ |
-| 功能完整 | 所有交通模擬功能正常 | ⏳ |
-| 無洩漏 | 無 `window` 全域污染 | ⏳ |
-| 車輛管理 | 車輛生成/銷毀正常 | ⏳ |
-| 場景切換 | 場景切換無誤 | ⏳ |
+| 項目     | 標準                     | 狀態 |
+| -------- | ------------------------ | ---- |
+| 編譯     | npm run build 成功       | ⏳   |
+| 無錯誤   | 控制台無 TypeScript 錯誤 | ⏳   |
+| 功能完整 | 所有交通模擬功能正常     | ⏳   |
+| 無洩漏   | 無 `window` 全域污染     | ⏳   |
+| 車輛管理 | 車輛生成/銷毀正常        | ⏳   |
+| 場景切換 | 場景切換無誤             | ⏳   |
 
 ---
 

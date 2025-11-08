@@ -1,11 +1,13 @@
 # 🎉 Priority 3 Phase 2 完成總結
 
 ## 🎯 目標
+
 將 `IndexPage.vue` 完全遷移到 Pinia 狀態管理，移除所有 `window` 全域變數依賴。
 
 ## ✅ 完成情況
 
 ### 成果
+
 ```
 ✅ Store 功能完善
   • 新增 7 個 getter 方法
@@ -16,7 +18,7 @@
   • 1253 行代碼插入，208 行刪除
   • 15+ 個關鍵區域修改
   • 所有 window 全域變數替換為 Store API
-  
+
 ✅ 事件系統完全整合
   • Store 事件訂閱/發送機制
   • 保留 DOM 事件層以保持相容性
@@ -29,13 +31,14 @@
 ```
 
 ### 遷移統計
-| 項目 | 數據 |
-|------|------|
-| 修改檔案 | 9 個 |
-| 代碼淨增 | +1045 行 |
-| Store 方法總數 | 30+ |
+
+| 項目             | 數據       |
+| ---------------- | ---------- |
+| 修改檔案         | 9 個       |
+| 代碼淨增         | +1045 行   |
+| Store 方法總數   | 30+        |
 | 窗口全域變數移除 | 15+ 個位置 |
-| Build 時間 | 2828ms ✅ |
+| Build 時間       | 2828ms ✅  |
 
 ## 📊 進度更新
 
@@ -56,6 +59,7 @@ Phase 6: CollisionController   ⏳ 待進行 (15-20 min)
 ## 🔄 技術亮點
 
 ### 1. 單向數據流
+
 ```
 Store (中央狀態)
   ↓
@@ -65,6 +69,7 @@ Store (狀態更新)
 ```
 
 ### 2. 混合事件系統
+
 ```javascript
 // Store 事件（推薦）
 store.subscribe('scenarioChanged', callback)
@@ -76,6 +81,7 @@ window.addEventListener('scenarioChanged', callback)
 ```
 
 ### 3. 完整的初始化和清理
+
 ```javascript
 // onMounted
 store.setTrafficController()
@@ -98,12 +104,14 @@ Commit 3f172ae: Add Phase 2 Completion Report
 ### Phase 3: AutoTrafficGenerator 遷移 (30-45 分鐘)
 
 **需要做的:**
+
 1. [ ] 導入 Store 到 AutoTrafficGenerator.js
 2. [ ] 使用 `store.setCurrentGeneratedVDData()` 替代 `window` 賦值
 3. [ ] 使用 `store.emit()` 替代 `window.dispatchEvent()`
 4. [ ] 測試車輛自動生成是否正常
 
 **預期成果:**
+
 - AutoTrafficGenerator 100% 遷移到 Store
 - 移除所有 `window.currentGeneratedVDData` 引用
 - 保持所有生成器功能不變

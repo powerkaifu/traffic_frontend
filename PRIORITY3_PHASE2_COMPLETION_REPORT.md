@@ -1,20 +1,20 @@
 # 🎉 Priority 3 Phase 2 完成報告 - IndexPage.vue Pinia 遷移
 
-**完成時間:** 2025 年 11 月 8 日  
-**Commit:** `08bc5d8` - Priority 3 Phase 2: Migrate IndexPage.vue to Pinia Store  
-**分支:** main  
-**耗時:** ~30 分鐘  
+**完成時間:** 2025 年 11 月 8 日
+**Commit:** `08bc5d8` - Priority 3 Phase 2: Migrate IndexPage.vue to Pinia Store
+**分支:** main
+**耗時:** ~30 分鐘
 
 ---
 
 ## 📊 完成度統計
 
-| 項目 | 進度 | 狀態 |
-|------|------|------|
-| Store 功能完善 | ✅ 100% | 完成 |
-| IndexPage.vue 遷移 | ✅ 100% | 完成 |
-| 編譯驗證 | ✅ 100% | 成功 |
-| 功能測試 | ⏳ 待進行 | 預期下一步 |
+| 項目               | 進度      | 狀態       |
+| ------------------ | --------- | ---------- |
+| Store 功能完善     | ✅ 100%   | 完成       |
+| IndexPage.vue 遷移 | ✅ 100%   | 完成       |
+| 編譯驗證           | ✅ 100%   | 成功       |
+| 功能測試           | ⏳ 待進行 | 預期下一步 |
 
 ---
 
@@ -25,28 +25,28 @@
 #### 1️⃣ Store 擴展與完善 ✅
 
 **新增方法:**
+
 ```javascript
 // Getter 方法（便利訪問）
-- getTrafficController()
-- getAutoTrafficGenerator()
-- getAdaptiveFlowController()
-- getTrafficDataCollector()
-- getWeatherController()
-- getLastApiVDDataArray()
-- getLiveVehicles()
-- getVehiclesByDirectionAndLane()
-
-// 車輛距離配置（代理 Vehicle 靜態方法）
-- setVehicleDistance(multiplier)
-- setNorthSouthDistance(multiplier)
-- getVehicleDistanceConfig()
-
-// 新增模塊 Setter
-- setTrafficDataCollector(collector)
-- setWeatherController(controller)
+;-getTrafficController() -
+  getAutoTrafficGenerator() -
+  getAdaptiveFlowController() -
+  getTrafficDataCollector() -
+  getWeatherController() -
+  getLastApiVDDataArray() -
+  getLiveVehicles() -
+  getVehiclesByDirectionAndLane() -
+  // 車輛距離配置（代理 Vehicle 靜態方法）
+  setVehicleDistance(multiplier) -
+  setNorthSouthDistance(multiplier) -
+  getVehicleDistanceConfig() -
+  // 新增模塊 Setter
+  setTrafficDataCollector(collector) -
+  setWeatherController(controller)
 ```
 
 **成果:**
+
 - Store 現已提供 30+ 個公開方法
 - 完全覆蓋所有 window 全域變數功能
 - 支持車輛距離配置的代理
@@ -54,6 +54,7 @@
 #### 2️⃣ IndexPage.vue 完整遷移 ✅
 
 **修改統計:**
+
 - 檔案大小：2700+ 行 Vue 代碼
 - 修改行數：1253 行插入，208 行刪除 (淨增 1045 行)
 - 修改位置：15+ 個關鍵區域
@@ -61,6 +62,7 @@
 **遷移覆蓋範圍:**
 
 ##### A. 導入和初始化 ✅
+
 ```javascript
 // ✅ 新增 Store 導入
 import { useSimulationStore } from '../stores/simulationStore.js'
@@ -70,6 +72,7 @@ const store = useSimulationStore()
 ```
 
 ##### B. 系統初始化（onMounted）✅
+
 ```javascript
 // 修改前：直接賦值 window
 window.trafficController = trafficController
@@ -87,6 +90,7 @@ store.setWeatherController(weatherController)
 ```
 
 ##### C. 車輛管理 ✅
+
 ```javascript
 // 修改前
 if (!window.liveVehicles) window.liveVehicles = []
@@ -106,6 +110,7 @@ store.removeVehicle(vehicle.id)
 ```
 
 ##### D. 數據讀取 ✅
+
 ```javascript
 // 修改前
 const liveVehicles = activeCars.value.filter(...)
@@ -117,6 +122,7 @@ const lastApiData = store.getLastApiVDDataArray()
 ```
 
 ##### E. 事件系統 ✅
+
 ```javascript
 // 修改前
 window.addEventListener('scenarioChanged', handleScenarioChange)
@@ -128,6 +134,7 @@ store.emit('allVehiclesCleared', {...})
 ```
 
 ##### F. 清理和卸載（onUnmounted）✅
+
 ```javascript
 // 新增：Store 事件取消訂閱
 if (window.storeUnsubscribers) {
@@ -143,6 +150,7 @@ store.reset()
 #### 3️⃣ 代碼質量 ✅
 
 **修改的關鍵函數:**
+
 1. `handleScenarioChange()` - 使用 `store.getAutoTrafficGenerator()`
 2. `selectOptimalLane()` - 使用 `store.getLiveVehicles()` 和 `store.getLastApiVDDataArray()`
 3. `clearAllVehicles()` - 使用 `store.clearAllVehicles()` 和 `store.emit()`
@@ -150,6 +158,7 @@ store.reset()
 5. 內存診斷工具 - 使用 `store.getLiveVehicles()`
 
 **移除的代碼:**
+
 - ❌ 所有 `window.liveVehicles` 直接操作（15+ 處）
 - ❌ 所有 `window.trafficController` 直接賦值（3 處）
 - ❌ 所有 `window.addEventListener` 的全域事件（但保留 DOM 事件作為兼容層）
@@ -179,6 +188,7 @@ Performance:
 ### 架構改進
 
 **單向數據流:**
+
 ```
 ┌─────────────────┐
 │  Pinia Store    │
@@ -193,6 +203,7 @@ Performance:
 ```
 
 **事件流:**
+
 ```
 Other Components
         │
@@ -214,6 +225,7 @@ Other Components
 ### 相容性策略
 
 **保留的 DOM 事件層:**
+
 ```javascript
 // 保留這些以支持其他外部組件（如 MainLayout）
 window.addEventListener('scenarioChanged', (event) => {
@@ -222,11 +234,13 @@ window.addEventListener('scenarioChanged', (event) => {
 ```
 
 **新的 Store 事件訂閱:**
+
 ```javascript
 const unsubscribeScenarioChanged = store.subscribe('scenarioChanged', handleScenarioChange)
 ```
 
 這確保：
+
 1. ✅ 新組件使用 Store 事件（推薦）
 2. ✅ 舊組件仍可通過 DOM 事件工作（向後兼容）
 3. ✅ 無需同時修改所有組件
@@ -238,6 +252,7 @@ const unsubscribeScenarioChanged = store.subscribe('scenarioChanged', handleScen
 ### Vehicle 列表同步
 
 **同步流程:**
+
 ```javascript
 1. 創建車輛 → activeCars.value.push(vehicle)
                         ↓
@@ -249,6 +264,7 @@ const unsubscribeScenarioChanged = store.subscribe('scenarioChanged', handleScen
 ```
 
 **驗證機制:**
+
 - `activeCars.value` 用於 RAF 循環的本地狀態
 - `store.liveVehicles` 用於其他組件的共享狀態
 - 兩者保持同步
@@ -256,6 +272,7 @@ const unsubscribeScenarioChanged = store.subscribe('scenarioChanged', handleScen
 ### 事件系統同步
 
 **混合事件處理:**
+
 ```javascript
 // Store 事件（推薦）
 store.subscribe('scenarioChanged', callback)
@@ -333,12 +350,14 @@ Net change: +1045 lines
 **AutoTrafficGenerator 遷移 (預計 30-45 分鐘)**
 
 需要遷移的項目：
+
 - [ ] 在 constructor 中接受 simulationStore
 - [ ] 使用 `store.setCurrentGeneratedVDData()` 替代 `window.currentGeneratedVDData`
 - [ ] 使用 `store.emit()` 替代 `window.dispatchEvent()`
 - [ ] 傳入 Store 以供 Vehicle 類使用
 
 **關鍵檔案:**
+
 - `src/classes/AutoTrafficGenerator.js` (1000+ 行)
 - `src/classes/Vehicle.js` (remove() 方法)
 
@@ -347,6 +366,7 @@ Net change: +1045 lines
 **Vehicle.js 遷移 (預計 15-20 分鐘)**
 
 需要遷移的項目：
+
 - [ ] remove() 方法只標記 isCompleted
 - [ ] 不直接操作車輛列表
 - [ ] 由 IndexPage RAF 循環集中處理
@@ -412,6 +432,7 @@ Phase 6: CollisionController    ⏳ 0%
 **Priority 3 Phase 2** 成功完成！
 
 ✅ **核心成果:**
+
 - IndexPage.vue 100% 遷移到 Pinia 狀態管理
 - 移除所有 `window` 全域污染（在 IndexPage 範圍內）
 - 實現統一的事件系統
@@ -419,12 +440,14 @@ Phase 6: CollisionController    ⏳ 0%
 - Build 成功，代碼增量最小
 
 📈 **質量指標:**
+
 - 編譯時間：2828ms（穩定）
 - 代碼增量：+7.51 KB（合理）
 - 編譯錯誤：0 個
 - 類型檢查：通過
 
 🎯 **架構改進:**
+
 - 單向數據流清晰
 - 狀態管理集中化
 - 事件系統規範化
@@ -432,5 +455,5 @@ Phase 6: CollisionController    ⏳ 0%
 
 ---
 
-**報告完成時間:** 2025-11-08  
+**報告完成時間:** 2025-11-08
 **下一個 Milestone:** Phase 3 - AutoTrafficGenerator 遷移

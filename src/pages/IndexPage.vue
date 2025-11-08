@@ -1363,8 +1363,11 @@ onMounted(async () => {
 
     trafficController.init(eastLight, westLight, southLight, northLight)
 
-    // ✅ 設置全域交通控制器供其他組件使用（通過 Store）
+    // ✅ 設置交通控制器到 Store
     store.setTrafficController(trafficController)
+
+    // ✅ 向後相容：暴露到 window
+    window.trafficController = trafficController
 
     // 🚀 第1階段優化：初始化空間分割網格用於碰撞檢測
     // 網格單元大小設置為 150px（建議值，基於車輛大小和碰撞檢測半徑）
@@ -1508,6 +1511,9 @@ onMounted(async () => {
 
     // ✅ 設置自動交通生成器到 Store
     store.setAutoTrafficGenerator(autoTrafficGenerator)
+
+    // ✅ 向後相容：暴露到 window（供舊代碼使用）
+    window.autoTrafficGenerator = autoTrafficGenerator
 
     // ✅ 強制啟動車流生成器（如果已停止會重新啟動）
     if (!autoTrafficGenerator.isRunning) {
