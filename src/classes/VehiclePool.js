@@ -8,6 +8,7 @@
  * 2. release() - 使用完後放回池中（隱藏元素，不移除 DOM）
  * 3. dispose() - 銷毀整個池（應用關閉時）
  */
+import { gsap } from 'gsap'
 import Vehicle from './Vehicle.js'
 
 export class VehiclePool {
@@ -40,14 +41,21 @@ export class VehiclePool {
       vehicle = directionPool.pop()
       // ✅ 重置車輛到新狀態
       vehicle.reset(direction, laneNumber, vehicleType, this.simulationStore)
-      // ✅ 移動到新起始位置並顯示
-      vehicle.element.style.transform = `translate(${x}px, ${y}px)`
+      // ✅ 立即恢復可見性和位置
+      gsap.set(vehicle.element, {
+        autoAlpha: 1, // 👈 【關鍵】恢復可見性
+        x: x,
+        y: y,
+        rotation: 0,
+      })
       vehicle.currentX = x
       vehicle.currentY = y
+      console.log(`♻️ [VehiclePool] 從池中取車 ${vehicle.id}，設置位置 (${x}, ${y})`)
     } else {
       // ❌ 池空，建立新車輛
       vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, this.simulationStore)
       vehicle.addTo(this.container)
+      console.log(`🆕 [VehiclePool] 創建新車 ${vehicle.id}`)
     }
 
     this.activeVehicles.add(vehicle)

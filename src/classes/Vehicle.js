@@ -1763,18 +1763,23 @@ export default class Vehicle {
         rotation: 0,
       })
 
-      // 🚨【修復】車型改變時更新 DOM 元素
+      // 🚨【修復】無論車型是否改變，都要更新圖片和樣式
       const vehicleTypeChanged = this.vehicleType !== vehicleType
-      if (vehicleTypeChanged) {
-        this.vehicleType = vehicleType
-        const vehicleConfig = this.getVehicleConfig()
-        // 更新圖片和樣式
-        this.element.style.backgroundImage = `url('${vehicleConfig.image}')`
-        this.element.style.width = vehicleConfig.width + 'px'
-        this.element.style.height = vehicleConfig.height + 'px'
-        if (vehicleConfig.scaleX) {
-          this.element.style.transform = `scaleX(${vehicleConfig.scaleX})`
-        }
+      
+      // 更新車型
+      this.vehicleType = vehicleType
+      const vehicleConfig = this.getVehicleConfig()
+      
+      // ✅ 總是設置圖片和樣式（即使車型未變）
+      this.element.style.backgroundImage = `url('${vehicleConfig.image}')`
+      this.element.style.width = vehicleConfig.width + 'px'
+      this.element.style.height = vehicleConfig.height + 'px'
+      this.element.style.backgroundSize = 'contain'
+      this.element.style.backgroundPosition = 'center'
+      this.element.style.backgroundRepeat = 'no-repeat'
+      
+      if (vehicleConfig.scaleX) {
+        this.element.style.transform = `scaleX(${vehicleConfig.scaleX})`
       }
     }
 

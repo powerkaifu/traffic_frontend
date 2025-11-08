@@ -512,15 +512,19 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
   // 使用指定位置創建車輛
   // 🚀 改進：優先從物件池中獲取，只在池空時才創建新車輛
   let vehicle
+  let isFromPool = false
   if (vehiclePool && vehiclePool.poolMap && vehiclePool.poolMap.has(direction)) {
     // ✅ 從池中取車
     vehicle = vehiclePool.acquire(direction, laneNumber, vehicleType, x, y)
+    isFromPool = true
   } else if (vehiclePool) {
     // ✅ 池空，創建新車輛並添加到池的管理中
     vehicle = vehiclePool.acquire(direction, laneNumber, vehicleType, x, y)
+    isFromPool = true
   } else {
     // 備用：池未初始化時，直接創建新車輛
     vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, store) // ✅ Phase 6：傳入 store
+    isFromPool = false
   }
 
   // 🚨 設置初始 progress（如果提供的話）
@@ -529,8 +533,10 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
     console.log(`🚗 [${vehicle.id}] 設置初始 progress: ${initialProgress.toFixed(3)}`)
   }
 
-  // 將車輛添加到車輛容器中，而不是直接添加到 crossroadContainer
-  vehicle.addTo(vehicleContainer.value || crossroadContainer.value)
+  // ✅ 【關鍵】只有新建的車輛才需要 addTo（池中的車輛已在 DOM 中）
+  if (!isFromPool) {
+    vehicle.addTo(vehicleContainer.value || crossroadContainer.value)
+  }
   activeCars.value.push(vehicle)
 
   // ✅ 將車輛添加到 Store（用於自動生成系統計算 progress）
