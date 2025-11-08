@@ -474,7 +474,33 @@ const selectOptimalLane = (direction) => {
 }
 
 // 檢查車輛是否在起始區域的輔助函數
-// 自動產生車輛的事件處理函數
+// 自動產生車輛的事件處理函數（新版本 - 直接接收 detail 物件）
+const handleAutoGenerateFromStore = (detail) => {
+  const { direction, vehicleType, initialProgress } = detail
+
+  const laneNumber = selectOptimalLane(direction)
+
+  if (laneNumber === null) {
+    return
+  }
+
+  const pathStartPosition = Vehicle.getPathStartPosition(direction, laneNumber)
+
+  if (!pathStartPosition) {
+    return
+  }
+
+  createVehicleWithPosition(
+    pathStartPosition.x,
+    pathStartPosition.y,
+    direction,
+    vehicleType,
+    laneNumber,
+    initialProgress,
+  )
+}
+
+// 原始的事件處理函數（用於 window 事件監聽）
 const handleAutoGenerate = (event) => {
   const { direction, vehicleType, initialProgress } = event.detail
 
@@ -506,7 +532,29 @@ const handleAutoGenerate = (event) => {
   )
 }
 
-// 🎯 處理自動左轉車輛生成事件
+// 🎯 處理自動左轉車輛生成事件（新版本 - 直接接收 detail 物件）
+const handleAutoGenerateLeftTurnFromStore = (detail) => {
+  const { direction, type } = detail
+
+  const MAX_VEHICLES_PER_LANE = GENERATION_CONFIG.MAX_VEHICLES_PER_LANE || 6
+  const laneNumber = 1
+
+  const lane1VehicleCount = activeCars.value.filter((car) => {
+    return car.direction === direction && car.laneNumber === laneNumber
+  }).length
+
+  if (lane1VehicleCount >= MAX_VEHICLES_PER_LANE) {
+    return
+  }
+
+  const pathStartPosition = Vehicle.getPathStartPosition(direction, laneNumber)
+
+  if (pathStartPosition) {
+    createVehicleWithPosition(pathStartPosition.x, pathStartPosition.y, direction, type, laneNumber)
+  }
+}
+
+// 原始的左轉事件處理函數（用於 window 事件監聽）
 const handleAutoGenerateLeftTurn = (event) => {
   const { direction, type } = event.detail
 
@@ -1314,16 +1362,10 @@ onMounted(async () => {
       handleAutoGenerateLeftTurn(event)
     })
 
-    // ✅ 【新增】Store 事件訂閱 - 包裝成 event.detail 格式以兼容現有的事件處理器
-    store.subscribe('generateVehicle', (detail) => {
-      handleAutoGenerate({ detail })
-    })
-    store.subscribe('generateLeftTurnVehicle', (detail) => {
-      handleAutoGenerateLeftTurn({ detail })
-    })
-    store.subscribe('scenarioChanged', (detail) => {
-      handleScenarioChange(detail)
-    })
+    // ✅ 【新增】Store 事件訂閱 - 直接使用接收 detail 物件的處理器
+    store.subscribe('generateVehicle', handleAutoGenerateFromStore)
+    store.subscribe('generateLeftTurnVehicle', handleAutoGenerateLeftTurnFromStore)
+    store.subscribe('scenarioChanged', handleScenarioChange)
 
     // 監聽視窗大小變化和佈局變化
     const handleLayoutChange = async () => {
