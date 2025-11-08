@@ -5,6 +5,7 @@
 **核心目標**: 修改 Vehicle.js 的 `remove()` 方法，使其只標記 `isCompleted`，不直接操作 `window.liveVehicles`。由 IndexPage RAF 迴圈集中處理車輛移除。
 
 **預期效益**:
+
 - ✅ 集中化車輛生命週期管理
 - ✅ 避免多處地方直接操作 window.liveVehicles
 - ✅ 提高代碼可維護性
@@ -40,12 +41,14 @@ async performCleanup() {
 }
 ```
 
-**優點**: 
+**優點**:
+
 - ✅ remove() 已只做標記和數據收集
 - ✅ performCleanup() 已分離為集中清理方法
 - ✅ 派發事件通知
 
 **問題**:
+
 - ❌ remove() 仍在多個地方被調用
 - ❌ window.liveVehicles 操作散布在 IndexPage 多處
 - ❌ 沒有統一的車輛移除控制點
@@ -61,12 +64,12 @@ for (const vehicle of vehiclesToCleanup) {
   if (!vehicle.isRemoved && vehicle.remove) {
     vehicle.remove()
   }
-  
+
   // 調用 performCleanup()
   if (vehicle.performCleanup) {
     vehicle.performCleanup()
   }
-  
+
   // 移除 window.liveVehicles 和 Store
   window.liveVehicles.splice(...)
   store.removeVehicle(...)
@@ -77,10 +80,12 @@ activeCars.value = activeCars.value.filter((vehicle) => !vehicle.isCompleted)
 ```
 
 **優點**:
+
 - ✅ 已有集中的清理邏輯
 - ✅ 同時更新 window.liveVehicles 和 Store
 
 **問題**:
+
 - ❌ 仍在其他多處調用 remove() 和 window.liveVehicles.splice()
 - ❌ 清理邏輯分散
 
@@ -91,6 +96,7 @@ activeCars.value = activeCars.value.filter((vehicle) => !vehicle.isCompleted)
 ### Step 1: 驗證 Vehicle.js remove() 正確性
 
 **檢查項**:
+
 - ✅ remove() 只做標記和數據收集
 - ✅ performCleanup() 做完整清理
 - ✅ 派發 vehicleRemoved 事件
@@ -102,6 +108,7 @@ activeCars.value = activeCars.value.filter((vehicle) => !vehicle.isCompleted)
 **目標**: 將所有 `window.liveVehicles.splice()` 邏輯統一到一個中心點
 
 **當前散布位置**:
+
 - Line 628: 超出邊界移除
 - Line 651: 邊界檢查清理
 - Line 1581-1601: 循環加載時清理
@@ -109,7 +116,8 @@ activeCars.value = activeCars.value.filter((vehicle) => !vehicle.isCompleted)
 - Line 2106: Phase 4 集中清理
 - Line 2129, 2149, 2181: 孤立車輛清理
 
-**實現方案**: 
+**實現方案**:
+
 - 創建統一的 `removeVehicleFromSimulation(vehicleId)` 方法
 - 所有移除操作都調用這個方法
 - 該方法統一處理：window.liveVehicles、Store、日誌
@@ -121,13 +129,13 @@ removeVehicleFromSimulation(vehicleId) {
   // 1. 從 activeCars.value 移除
   const idx = activeCars.value.findIndex(v => v.id === vehicleId)
   if (idx !== -1) activeCars.value.splice(idx, 1)
-  
+
   // 2. 從 window.liveVehicles 移除
   if (window.liveVehicles) {
     const liveIdx = window.liveVehicles.findIndex(v => v.id === vehicleId)
     if (liveIdx !== -1) window.liveVehicles.splice(liveIdx, 1)
   }
-  
+
   // 3. 從 Store 移除
   if (store && store.removeVehicle) {
     store.removeVehicle(vehicleId)
@@ -141,20 +149,20 @@ removeVehicleFromSimulation(vehicleId) {
 
 ```javascript
 // 集中清理已完成的車輛
-const vehiclesToCleanup = activeCars.value.filter(v => v.isCompleted)
+const vehiclesToCleanup = activeCars.value.filter((v) => v.isCompleted)
 for (const vehicle of vehiclesToCleanup) {
   // 1. 確保標記
   if (!vehicle.isRemoved && vehicle.remove) {
     vehicle.remove()
   }
-  
+
   // 2. 執行清理
   if (vehicle.performCleanup) {
-    vehicle.performCleanup().catch(e => {
+    vehicle.performCleanup().catch((e) => {
       console.warn(`⚠️ [${vehicle.id}] 清理異常: ${e.message}`)
     })
   }
-  
+
   // 3. 使用統一方法移除
   this.removeVehicleFromSimulation(vehicle.id)
 }
@@ -165,6 +173,7 @@ for (const vehicle of vehiclesToCleanup) {
 將所有 `window.liveVehicles.splice()` 替換為 `removeVehicleFromSimulation()`
 
 例如:
+
 ```javascript
 // 舊: 超出邊界移除
 if (liveIdx !== -1) window.liveVehicles.splice(liveIdx, 1)
@@ -192,6 +201,7 @@ if (vehicle.remove && typeof vehicle.remove === 'function') {
 ### Vehicle.js (維持不變)
 
 **現狀**: ✅ 已正確實現
+
 - ✅ `remove()` 只做標記 + 數據收集
 - ✅ `performCleanup()` 做集中清理
 - ✅ 派發事件
@@ -209,6 +219,7 @@ if (vehicle.remove && typeof vehicle.remove === 'function') {
 5. **Line 2129, 2149, 2181** (孤立車輛) - 改用 `removeVehicleFromSimulation()`
 
 **新增方法**:
+
 - `removeVehicleFromSimulation(vehicleId)` - 統一移除入口
 
 ---
@@ -286,7 +297,7 @@ performCleanup() + removeVehicleFromSimulation()
 ## 🚀 下一步
 
 **Phase 5 完成後**:
+
 1. Phase 6: TrafficLightController Pinia 遷移
 2. Phase 7: CollisionController Pinia 遷移
 3. 完整測試和性能驗證
-

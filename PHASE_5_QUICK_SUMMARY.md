@@ -6,13 +6,13 @@
 
 ### 核心改動
 
-| 項目 | 內容 |
-|------|------|
-| **新增方法** | `removeVehicleFromSimulation(vehicleId)` |
+| 項目         | 內容                                                                           |
+| ------------ | ------------------------------------------------------------------------------ |
+| **新增方法** | `removeVehicleFromSimulation(vehicleId)`                                       |
 | **調用位置** | 5 處 (startVehicleAnimation, Phase 4 清理, 孤立車輛, completed 狀態, 超限清理) |
-| **代碼簡化** | 消除 50+ 行重複的 `window.liveVehicles.splice()` 邏輯 |
-| **編譯驗證** | ✅ npm run build 2636ms，0 錯誤 |
-| **Git 提交** | ✅ Hash 84fc608 |
+| **代碼簡化** | 消除 50+ 行重複的 `window.liveVehicles.splice()` 邏輯                          |
+| **編譯驗證** | ✅ npm run build 2636ms，0 錯誤                                                |
+| **Git 提交** | ✅ Hash 84fc608                                                                |
 
 ---
 
@@ -30,12 +30,14 @@
 ## 🌟 改進效益
 
 ### 1. 代碼質量
+
 - ✅ **DRY 原則**: 統一所有移除邏輯為 1 個方法
 - ✅ **可維護性**: 修改只需改 1 個地方
 - ✅ **一致性**: 所有移除都同步 3 個源 (activeCars + liveVehicles + Store)
 - ✅ **錯誤處理**: 統一的 try-catch 和日誌
 
 ### 2. 生命週期管理
+
 ```
 新統一流程:
   Vehicle 完成 → remove() 標記 → RAF 檢測 → removeVehicleFromSimulation()
@@ -44,6 +46,7 @@
 ```
 
 ### 3. 維護成本
+
 - 舊方式: 5 處都要改, 容易遺漏
 - 新方式: 改 1 個地方, 全部統一
 
@@ -65,6 +68,7 @@ function removeVehicleFromSimulation(vehicleId) {
 ### 調用統一化
 
 **改前** (5 處分散):
+
 ```javascript
 if (window.liveVehicles) {
   const idx = window.liveVehicles.findIndex((v) => v.id === vehicleId)
@@ -74,6 +78,7 @@ store.removeVehicle(vehicleId)
 ```
 
 **改後** (統一):
+
 ```javascript
 removeVehicleFromSimulation(vehicleId)
 ```
@@ -95,12 +100,12 @@ removeVehicleFromSimulation(vehicleId)
 
 ## 📈 進度狀況
 
-| Phase | 說明 | 狀態 |
-|-------|------|------|
-| 1-4 | RAF 優化 (碰撞檢測 60Hz→20Hz) | ✅ 完成 |
-| **5** | **Vehicle 遷移 (統一移除)** | **✅ 完成** |
-| 6 | TrafficLightController 遷移 | ⏳ 待開始 |
-| 7 | CollisionController 遷移 | ⏳ 待開始 |
+| Phase | 說明                          | 狀態        |
+| ----- | ----------------------------- | ----------- |
+| 1-4   | RAF 優化 (碰撞檢測 60Hz→20Hz) | ✅ 完成     |
+| **5** | **Vehicle 遷移 (統一移除)**   | **✅ 完成** |
+| 6     | TrafficLightController 遷移   | ⏳ 待開始   |
+| 7     | CollisionController 遷移      | ⏳ 待開始   |
 
 **進度**: 5/7 Phase 完成 (71%) ✓
 
@@ -132,11 +137,11 @@ removeVehicleFromSimulation(vehicleId)
 ```
 Before Phase 5:
   moveAlongPath 完成 ← remove logic 1
-  孤立車輛清理 ← remove logic 2  
+  孤立車輛清理 ← remove logic 2
   completed 狀態 ← remove logic 3
   超限清理 ← remove logic 4
   Phase 4 集中清理 ← remove logic 5
-  
+
   問題: 5 處邏輯分散，容易不一致
 
 After Phase 5:
@@ -145,7 +150,7 @@ After Phase 5:
     統一入口 (唯一源)
        ↓
     同時更新: activeCars + liveVehicles + Store
-  
+
   效益: 一致性高, 易維護, 易擴展
 ```
 

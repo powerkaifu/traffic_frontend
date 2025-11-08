@@ -6,13 +6,13 @@
 
 ### 核心成就
 
-| 項目 | 完成度 | 詳情 |
-|------|--------|------|
+| 項目         | 完成度  | 詳情                            |
+| ------------ | ------- | ------------------------------- |
 | 統一移除方法 | ✅ 100% | `removeVehicleFromSimulation()` |
-| 代碼更新 | ✅ 100% | 5 處調用點全部更新 |
-| 編譯驗證 | ✅ 100% | npm run build 2636ms，0 錯誤 |
-| Git 提交 | ✅ 100% | 2 個 commit (84fc608, 9bdeefe) |
-| 文檔完成 | ✅ 100% | 完成報告 + 快速摘要 |
+| 代碼更新     | ✅ 100% | 5 處調用點全部更新              |
+| 編譯驗證     | ✅ 100% | npm run build 2636ms，0 錯誤    |
+| Git 提交     | ✅ 100% | 2 個 commit (84fc608, 9bdeefe)  |
+| 文檔完成     | ✅ 100% | 完成報告 + 快速摘要             |
 
 ---
 
@@ -53,15 +53,15 @@ function removeVehicleFromSimulation(vehicleId) {
 
 ## 📊 改動數據
 
-| 指標 | 數值 |
-|------|-----|
-| 新增代碼行數 | ~25 行 |
-| 刪除重複代碼 | ~50 行 |
-| 淨改動 | -25 行 (簡化 50%) |
-| 修改文件數 | 1 個 (IndexPage.vue) |
-| 編譯時間 | 2636ms |
-| 編譯結果 | ✅ 成功 |
-| Lint 警告 | ⚠️ 1 個 (方法被標記未使用，實際在使用) |
+| 指標         | 數值                                   |
+| ------------ | -------------------------------------- |
+| 新增代碼行數 | ~25 行                                 |
+| 刪除重複代碼 | ~50 行                                 |
+| 淨改動       | -25 行 (簡化 50%)                      |
+| 修改文件數   | 1 個 (IndexPage.vue)                   |
+| 編譯時間     | 2636ms                                 |
+| 編譯結果     | ✅ 成功                                |
+| Lint 警告    | ⚠️ 1 個 (方法被標記未使用，實際在使用) |
 
 ---
 
@@ -70,22 +70,27 @@ function removeVehicleFromSimulation(vehicleId) {
 ### 代碼質量提升
 
 #### 1. 單一責任原則 ✅
+
 - 所有移除邏輯集中到一個方法
 - 易於理解和維護
 
 #### 2. DRY 原則 ✅
+
 - 消除 5 處重複的 window.liveVehicles 操作
 - 代碼重複度降低 50%
 
 #### 3. 一致性改進 ✅
+
 - 所有移除操作保證同時更新 3 個源
 - 不會出現不同步情況
 
 #### 4. 可維護性提升 ✅
+
 - 修改移除邏輯只需改 1 個地方
 - 新增移除點自動遵循相同流程
 
 #### 5. 錯誤處理一致 ✅
+
 - 統一的 try-catch 機制
 - 一致的日誌記錄
 
@@ -97,7 +102,7 @@ Before:
   window.liveVehicles.splice()
   store.removeVehicle()
   → 分散在 5 處，容易遺漏
-  
+
 After:
   removeVehicleFromSimulation()
   → 唯一入口，確保完整性
@@ -123,12 +128,12 @@ Phase 7: CollisionController 遷移   ⏳ (0%)
 
 ### 代碼改進累計
 
-| Phase | 改進類型 | 行數改動 | 編譯 |
-|-------|---------|--------|-----|
-| 1-2 | SpatialHashGrid 優化 | -200 | ✅ |
-| 3-4 | 碰撞檢測 60Hz→20Hz | +130 | ✅ |
-| 5 | 統一車輛移除 | -25 | ✅ |
-| **合計** | **代碼優化** | **-95 行** | **✅** |
+| Phase    | 改進類型             | 行數改動   | 編譯   |
+| -------- | -------------------- | ---------- | ------ |
+| 1-2      | SpatialHashGrid 優化 | -200       | ✅     |
+| 3-4      | 碰撞檢測 60Hz→20Hz   | +130       | ✅     |
+| 5        | 統一車輛移除         | -25        | ✅     |
+| **合計** | **代碼優化**         | **-95 行** | **✅** |
 
 ---
 
@@ -157,6 +162,7 @@ Phase 7: CollisionController 遷移   ⏳ (0%)
 ### 1. 集中化設計
 
 所有車輛移除操作都通過唯一的 `removeVehicleFromSimulation()` 方法，確保：
+
 - ✅ 邏輯一致性
 - ✅ 狀態同步
 - ✅ 可維護性
@@ -193,6 +199,7 @@ removeVehicleFromSimulation(id)
 ### 立即後續 (Phase 6)
 
 **Phase 6: TrafficLightController 遷移**
+
 - 在 TrafficLightController.js 中注入 simulationStore
 - 使用 Store 讀取 currentGeneratedVDData
 - 使用 Store 讀取 lastApiVDDataArray
@@ -201,6 +208,7 @@ removeVehicleFromSimulation(id)
 ### 緊接著進行 (Phase 7)
 
 **Phase 7: CollisionController 遷移**
+
 - 在 CollisionController.js 中注入 simulationStore
 - 使用 simulationStore.emit() 發送碰撞事件
 - 完全移除 window 全域變數依賴
@@ -226,17 +234,18 @@ removeVehicleFromSimulation(id)
 
 ## 📝 相關文檔
 
-| 文件 | 內容 |
-|------|------|
+| 文件                             | 內容             |
+| -------------------------------- | ---------------- |
 | `PHASE_5_IMPLEMENTATION_PLAN.md` | Phase 5 實現計劃 |
-| `PHASE_5_COMPLETION_REPORT.md` | Phase 5 完成報告 |
-| `PHASE_5_QUICK_SUMMARY.md` | Phase 5 快速摘要 |
+| `PHASE_5_COMPLETION_REPORT.md`   | Phase 5 完成報告 |
+| `PHASE_5_QUICK_SUMMARY.md`       | Phase 5 快速摘要 |
 
 ---
 
 ## 💡 關鍵改進總結
 
 ### Before Phase 5
+
 ```javascript
 // 問題：分散在 5 個地方
 if (window.liveVehicles) {
@@ -248,6 +257,7 @@ store.removeVehicle(vehicleId)
 ```
 
 ### After Phase 5
+
 ```javascript
 // 解決：集中到 1 個方法
 removeVehicleFromSimulation(vehicleId)
@@ -272,13 +282,13 @@ removeVehicleFromSimulation(vehicleId)
 
 ## 🎯 最終統計
 
-| 指標 | 數值 |
-|------|-----|
-| **完成度** | ✅ 100% |
-| **編譯狀態** | ✅ 成功 |
-| **進度** | ✅ 5/7 Phase (71%) |
-| **代碼質量** | ✅ 大幅提升 |
-| **文檔完整度** | ✅ 100% |
+| 指標           | 數值               |
+| -------------- | ------------------ |
+| **完成度**     | ✅ 100%            |
+| **編譯狀態**   | ✅ 成功            |
+| **進度**       | ✅ 5/7 Phase (71%) |
+| **代碼質量**   | ✅ 大幅提升        |
+| **文檔完整度** | ✅ 100%            |
 
 ---
 

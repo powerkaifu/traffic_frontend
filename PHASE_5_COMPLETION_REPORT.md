@@ -1,6 +1,7 @@
 # 🎯 Phase 5: Vehicle.isCompleted 遷移 - 完成報告
 
 ## ✅ 實現狀態
+
 - **完成時間**: 2025-11-08
 - **編譯狀態**: ✅ npm run build 成功 (2636ms)
 - **改動文件**: 1 個 (IndexPage.vue)
@@ -13,7 +14,7 @@
 
 ### 1. 新增統一的車輛移除方法
 
-**位置**: IndexPage.vue Line 1233-1256  
+**位置**: IndexPage.vue Line 1233-1256
 **方法名**: `removeVehicleFromSimulation(vehicleId)`
 
 ```javascript
@@ -28,6 +29,7 @@ function removeVehicleFromSimulation(vehicleId) {
 ```
 
 **職責**:
+
 - ✅ 從 `activeCars.value` 移除車輛
 - ✅ 從 `window.liveVehicles` 移除車輛
 - ✅ 從 `simulationStore` 移除車輛
@@ -37,13 +39,13 @@ function removeVehicleFromSimulation(vehicleId) {
 
 ### 2. 更新所有移除調用點
 
-| 位置 | 原始調用 | 改為 | 狀態 |
-|------|--------|------|------|
+| 位置         | 原始調用                     | 改為                          | 狀態    |
+| ------------ | ---------------------------- | ----------------------------- | ------- |
 | Line 620-630 | startVehicleAnimation 完成後 | removeVehicleFromSimulation() | ✅ 完成 |
-| Line 2113 | Phase 4 集中清理 | removeVehicleFromSimulation() | ✅ 完成 |
-| Line 2155 | 孤立車輛清理 | removeVehicleFromSimulation() | ✅ 完成 |
-| Line 2170 | completed 狀態清理 | removeVehicleFromSimulation() | ✅ 完成 |
-| Line 2210 | 超限清理 | removeVehicleFromSimulation() | ✅ 完成 |
+| Line 2113    | Phase 4 集中清理             | removeVehicleFromSimulation() | ✅ 完成 |
+| Line 2155    | 孤立車輛清理                 | removeVehicleFromSimulation() | ✅ 完成 |
+| Line 2170    | completed 狀態清理           | removeVehicleFromSimulation() | ✅ 完成 |
+| Line 2210    | 超限清理                     | removeVehicleFromSimulation() | ✅ 完成 |
 
 ---
 
@@ -52,6 +54,7 @@ function removeVehicleFromSimulation(vehicleId) {
 ### startVehicleAnimation (Line 620-630)
 
 **改前**:
+
 ```javascript
 // ✅ 同時立即從 Store 中移除
 store.removeVehicle(vehicle.id)
@@ -64,6 +67,7 @@ if (window.liveVehicles) {
 ```
 
 **改後**:
+
 ```javascript
 // ✅ Phase 5：使用統一方法移除
 removeVehicleFromSimulation(vehicle.id)
@@ -72,6 +76,7 @@ removeVehicleFromSimulation(vehicle.id)
 ### Phase 4 集中清理 (Line 2113)
 
 **改前**:
+
 ```javascript
 // ✅ 同步到 window.liveVehicles 和 Store
 if (window.liveVehicles) {
@@ -83,6 +88,7 @@ store.removeVehicle(vehicle.id)
 ```
 
 **改後**:
+
 ```javascript
 // ✅ Phase 5：使用統一的移除方法
 removeVehicleFromSimulation(vehicle.id)
@@ -91,6 +97,7 @@ removeVehicleFromSimulation(vehicle.id)
 ### 孤立車輛清理 (Line 2155-2170)
 
 **改前**:
+
 ```javascript
 if (!vehicle.element || !vehicle.element.parentNode) {
   if (window.liveVehicles) {
@@ -102,6 +109,7 @@ if (!vehicle.element || !vehicle.element.parentNode) {
 ```
 
 **改後**:
+
 ```javascript
 if (!vehicle.element || !vehicle.element.parentNode) {
   // ✅ Phase 5：使用統一方法移除
@@ -113,6 +121,7 @@ if (!vehicle.element || !vehicle.element.parentNode) {
 ### 超限清理 (Line 2210)
 
 **改前**:
+
 ```javascript
 if (window.liveVehicles) {
   const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicleToRemove.id)
@@ -121,6 +130,7 @@ if (window.liveVehicles) {
 ```
 
 **改後**:
+
 ```javascript
 // ✅ Phase 5：使用統一方法移除
 removeVehicleFromSimulation(vehicleToRemove.id)
@@ -130,14 +140,14 @@ removeVehicleFromSimulation(vehicleToRemove.id)
 
 ## 📊 改動統計
 
-| 指標 | 數值 |
-|------|-----|
-| 新增方法 | 1 個 (removeVehicleFromSimulation) |
-| 修改位置 | 5 處 |
-| 新增代碼行數 | ~25 行 |
-| 刪除重複代碼行數 | ~50 行 |
-| 淨改動 | -25 行代碼 |
-| 代碼簡化度 | 50% (重複 window.liveVehicles 邏輯消除) |
+| 指標             | 數值                                    |
+| ---------------- | --------------------------------------- |
+| 新增方法         | 1 個 (removeVehicleFromSimulation)      |
+| 修改位置         | 5 處                                    |
+| 新增代碼行數     | ~25 行                                  |
+| 刪除重複代碼行數 | ~50 行                                  |
+| 淨改動           | -25 行代碼                              |
+| 代碼簡化度       | 50% (重複 window.liveVehicles 邏輯消除) |
 
 ---
 
@@ -195,6 +205,7 @@ After Phase 5:
 ## 📁 受影響的文件
 
 ### IndexPage.vue
+
 - 新增方法: Line 1233-1256
 - 修改調用: Line 620, 2113, 2155, 2170, 2210
 
@@ -216,15 +227,15 @@ Phase 5: Vehicle.isCompleted 遷移 - 統一車輛移除方法
 
 ## 📈 Phase 進度
 
-| Phase | 狀態 | 完成度 |
-|-------|------|--------|
-| Phase 1: SpatialHashGrid 移除 | ✅ 完成 | 100% |
-| Phase 2: SpatialHashGrid 添加 | ✅ 完成 | 100% |
-| Phase 3: 碰撞檢測移除 | ✅ 完成 | 100% |
-| Phase 4: 碰撞邏輯添加 | ✅ 完成 | 100% |
-| **Phase 5: Vehicle 遷移** | ✅ 完成 | **100%** |
-| Phase 6: TrafficLightController 遷移 | ⏳ 待開始 | 0% |
-| Phase 7: CollisionController 遷移 | ⏳ 待開始 | 0% |
+| Phase                                | 狀態      | 完成度   |
+| ------------------------------------ | --------- | -------- |
+| Phase 1: SpatialHashGrid 移除        | ✅ 完成   | 100%     |
+| Phase 2: SpatialHashGrid 添加        | ✅ 完成   | 100%     |
+| Phase 3: 碰撞檢測移除                | ✅ 完成   | 100%     |
+| Phase 4: 碰撞邏輯添加                | ✅ 完成   | 100%     |
+| **Phase 5: Vehicle 遷移**            | ✅ 完成   | **100%** |
+| Phase 6: TrafficLightController 遷移 | ⏳ 待開始 | 0%       |
+| Phase 7: CollisionController 遷移    | ⏳ 待開始 | 0%       |
 
 ---
 
@@ -282,6 +293,5 @@ Vehicle 創建 → 移動 → 完成
 
 ---
 
-**Phase 5 實現完成！✅**  
+**Phase 5 實現完成！✅**
 編譯成功，代碼質量大幅提升，車輛移除邏輯完全統一。
-
