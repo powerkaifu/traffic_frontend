@@ -97,8 +97,8 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 2 },
-      interval: { min: 1000, max: 5000, normal: 3000 },
+      vehiclesPerInterval: { min: 1, max: 1 },
+      interval: { min: 1000, max: 5000, normal: 2500 },
       peakMultiplier: 1, // 👈 尖峰倍數
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
 
@@ -148,7 +148,7 @@ export const timeScenarios = [
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
       vehiclesPerInterval: { min: 1, max: 2 }, // 👈 🎯 每個 interval 生成 1 台車
-      interval: { min: 3000, max: 10000, normal: 3000 }, // ⏱️ 生成間隔，恢復原本設定
+      interval: { min: 3000, max: 10000, normal: 4000 }, // ⏱️ 生成間隔，恢復原本設定
       peakMultiplier: 1.0, // 👈 離峰不加倍
       displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // ✅ 從配置讀取（預設為 1.0）
 
@@ -201,7 +201,7 @@ export const timeScenarios = [
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
       vehiclesPerInterval: { min: 1, max: 1 }, // 👈 🎯 每個 interval 只生成 1 台車
-      interval: { min: 15000, max: 30000, normal: 20000 }, // ⏱️ 生成間隔 15-30 秒（超級稀疏）
+      interval: { min: 15000, max: 30000, normal: 15000 }, // ⏱️ 生成間隔 15-30 秒（超級稀疏）
       peakMultiplier: 1.0, // 👈 凌晨不加倍
       displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier, // ✅ 從配置讀取（預設為 1.0）
 

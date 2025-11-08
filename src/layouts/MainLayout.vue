@@ -114,6 +114,7 @@
               </div>
 
               <!-- 🎯【新增】VD 情景選擇 - 3 個時段按鈕 -->
+              <!-- peak_hours、off_peak、late_night -->
               <div class="vd-scenario-selector">
                 <button
                   @click="selectVDScenario('peak_hours')"
