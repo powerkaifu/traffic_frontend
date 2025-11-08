@@ -14,6 +14,7 @@
 ## 修復內容
 
 ### 1. Vehicle.js - reset() 方法
+
 **改動**：確保**無論車型是否改變**，都要完整設置圖片和樣式
 
 ```javascript
@@ -31,16 +32,17 @@ this.element.style.backgroundRepeat = 'no-repeat'
 ```
 
 ### 2. VehiclePool.js - acquire() 方法
+
 **改動**：從池中取出車輛時，立即恢復可見性和精確位置
 
 ```javascript
 if (directionPool.length > 0) {
   vehicle = directionPool.pop()
   vehicle.reset(direction, laneNumber, vehicleType, this.simulationStore)
-  
+
   // ✅ 立即恢復可見性和位置
   gsap.set(vehicle.element, {
-    autoAlpha: 1,  // 👈 【關鍵】恢復可見性
+    autoAlpha: 1, // 👈 【關鍵】恢復可見性
     x: x,
     y: y,
     rotation: 0,
@@ -57,6 +59,7 @@ import { gsap } from 'gsap'
 ```
 
 ### 3. IndexPage.vue - createVehicleWithPosition()
+
 **改動**：區分「從池中取出」和「新建」的車輛，只對新建車輛調用 `addTo()`
 
 ```javascript
@@ -78,6 +81,7 @@ if (!isFromPool) {
 ## 修復原理
 
 ### 原來的問題流程
+
 ```
 1. 車輛完成 → pool.release(vehicle)
    ↓
@@ -96,6 +100,7 @@ if (!isFromPool) {
 ```
 
 ### 修復後的流程
+
 ```
 1. 車輛完成 → pool.release(vehicle)
    ↓
@@ -138,16 +143,17 @@ if (!isFromPool) {
 
 ## 相關代碼改動統計
 
-| 文件 | 改動 | 行數 |
-|------|------|------|
-| Vehicle.js | reset() 改進圖片設置邏輯 | ~15 行 |
-| VehiclePool.js | 導入 gsap + acquire() 恢復可見性 | ~15 行 |
-| IndexPage.vue | 區分池取出和新建邏輯 | ~10 行 |
-| **總計** | **3 個文件改動** | **~40 行** |
+| 文件           | 改動                             | 行數       |
+| -------------- | -------------------------------- | ---------- |
+| Vehicle.js     | reset() 改進圖片設置邏輯         | ~15 行     |
+| VehiclePool.js | 導入 gsap + acquire() 恢復可見性 | ~15 行     |
+| IndexPage.vue  | 區分池取出和新建邏輯             | ~10 行     |
+| **總計**       | **3 個文件改動**                 | **~40 行** |
 
 ## 關鍵教訓
 
 ✅ **從物件池重用元素時的注意事項**：
+
 1. **始終恢復視覺屬性** - 不只是邏輯狀態，CSS 也要重置
 2. **背景資源要完整** - 背景圖片需要配合 `backgroundSize` 等樣式
 3. **區分新建和重用路徑** - 它們的初始化邏輯不同
@@ -156,6 +162,7 @@ if (!isFromPool) {
 ## 回滾指南
 
 如需回滾此修復：
+
 ```bash
 git revert 85dd1c1
 ```

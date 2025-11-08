@@ -83,6 +83,7 @@ export default class Vehicle {
     this.periodicCheckTimer = null // 定期檢查定時器
     this.containerPosition = null // 記錄容器位置，用於檢測佈局變化
     this.justCreated = true // 新增：標記車輛剛創建，避免立即檢測碰撞
+    this.isJustReset = false // 🚨 標記是否剛從池中重置，防止位置被覆蓋
 
     // 🚨 新增：防抖動機制
     this.lastPositionAdjustTime = 0 // 上次位置調整時間
@@ -1354,7 +1355,8 @@ export default class Vehicle {
           // 移除多餘的位置設置，避免視覺跳躍
 
           // 🚨 如果有初始 progress，先使用 gsap.set() 將元素設置到該路徑位置
-          if (this.progress && this.progress !== 0) {
+          // 【修復】如果是剛從池中取出（isJustReset=true），跳過路徑起始點設置，保留 pool.acquire() 設置的位置
+          if (!this.isJustReset && (this.progress && this.progress !== 0)) {
             const pathId = this.getSvgPathId()
             const pathElement = document.getElementById(pathId)
             if (pathElement && pathElement.getTotalLength) {
@@ -1372,8 +1374,8 @@ export default class Vehicle {
                 )
               }
             }
-          } else {
-            // ✅ 若無初始 progress，強制設置到 Path 起始點 (progress = 0)
+          } else if (!this.isJustReset) {
+            // ✅ 若無初始 progress 且不是剛重置的車輛，強制設置到 Path 起始點 (progress = 0)
             const pathId = this.getSvgPathId()
             const pathElement = document.getElementById(pathId)
             if (pathElement && pathElement.getTotalLength) {
@@ -1386,6 +1388,9 @@ export default class Vehicle {
               }
             }
           }
+
+          // 🚨 清除剛重置標記（在位置設置後）
+          this.isJustReset = false
 
           this.movementTimeline.to(this.element, {
             duration: animationDuration,
@@ -1765,11 +1770,11 @@ export default class Vehicle {
 
       // 🚨【修復】無論車型是否改變，都要更新圖片和樣式
       const vehicleTypeChanged = this.vehicleType !== vehicleType
-      
+
       // 更新車型
       this.vehicleType = vehicleType
       const vehicleConfig = this.getVehicleConfig()
-      
+
       // ✅ 總是設置圖片和樣式（即使車型未變）
       this.element.style.backgroundImage = `url('${vehicleConfig.image}')`
       this.element.style.width = vehicleConfig.width + 'px'
@@ -1777,7 +1782,7 @@ export default class Vehicle {
       this.element.style.backgroundSize = 'contain'
       this.element.style.backgroundPosition = 'center'
       this.element.style.backgroundRepeat = 'no-repeat'
-      
+
       if (vehicleConfig.scaleX) {
         this.element.style.transform = `scaleX(${vehicleConfig.scaleX})`
       }
@@ -1794,6 +1799,9 @@ export default class Vehicle {
     this.currentSpeed = 0
     this.maxSpeed = 0
     this.initialSpeed = this.generateRandomSpeed()
+
+    // 🚨【關鍵】標記為剛重置，防止 moveAlongPath 覆蓋位置
+    this.isJustReset = true
 
     // 🔄 重置停止線狀態
     this.isAtStopLine = false

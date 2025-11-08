@@ -50,6 +50,8 @@ export class VehiclePool {
       })
       vehicle.currentX = x
       vehicle.currentY = y
+      // 🚨 標記位置已設置，防止 moveAlongPath 中的路徑起始點邏輯覆蓋
+      vehicle.isJustReset = true
       console.log(`♻️ [VehiclePool] 從池中取車 ${vehicle.id}，設置位置 (${x}, ${y})`)
     } else {
       // ❌ 池空，建立新車輛
