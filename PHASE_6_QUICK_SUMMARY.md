@@ -6,14 +6,14 @@
 
 ### 核心成就
 
-| 項目 | 完成度 | 詳情 |
-|------|--------|------|
+| 項目         | 完成度  | 詳情                         |
+| ------------ | ------- | ---------------------------- |
 | **讀取邏輯** | ✅ 100% | 優先 Store，移除 window 備用 |
-| **寫入邏輯** | ✅ 100% | 統一使用 Store 保存 |
-| **備援邏輯** | ✅ 100% | 全部改用本地收集 |
-| **驗證邏輯** | ✅ 100% | 只使用 Store 讀取 |
+| **寫入邏輯** | ✅ 100% | 統一使用 Store 保存          |
+| **備援邏輯** | ✅ 100% | 全部改用本地收集             |
+| **驗證邏輯** | ✅ 100% | 只使用 Store 讀取            |
 | **編譯驗證** | ✅ 100% | npm run build 6834ms，0 錯誤 |
-| **Git 提交** | ✅ 100% | Hash a55c983 |
+| **Git 提交** | ✅ 100% | Hash a55c983                 |
 
 ---
 
@@ -32,22 +32,26 @@
 ## 🌟 改進效益
 
 ### 1. 數據源統一 ✅
+
 ```
 Before: 優先級 1-2 Store, 3-4 window, 5 本地
 After:  優先級 1-2 Store, 3 本地 (無 window)
 ```
 
 ### 2. 代碼清晰度 ✅
+
 - ❌ window 備用方案完全移除
 - ✅ 優先級清晰 (3 層 vs 5 層)
 - ✅ 邏輯簡潔
 
 ### 3. 維護成本降低 ✅
+
 - 全域變數使用減少
 - 狀態來源集中化
 - 除錯更容易
 
 ### 4. 向後相容性 ✅
+
 - 舊代碼仍能讀取 window
 - 停止寫入新數據到 window
 - 遷移提醒註釋
@@ -57,6 +61,7 @@ After:  優先級 1-2 Store, 3 本地 (無 window)
 ## 🔄 改動詳情
 
 ### Line 1450-1468: 讀取邏輯優化
+
 ```javascript
 // Before: window?.apiDataArray (第 2 優先級) + window?.apiVDData (第 4 優先級)
 // After:  Store?.apiVDData (第 2 優先級) + 本地收集 (第 3 優先級)
@@ -64,6 +69,7 @@ After:  優先級 1-2 Store, 3 本地 (無 window)
 ```
 
 ### Line 1826-1835: 寫入邏輯統一
+
 ```javascript
 // Before: window.lastApiVDDataArray + Store.setLastApiVDDataArray
 // After:  只使用 Store.setLastApiVDDataArray
@@ -71,6 +77,7 @@ After:  優先級 1-2 Store, 3 本地 (無 window)
 ```
 
 ### Line 1893-1905: 備援邏輯改進
+
 ```javascript
 // Before: Store?.apiVDData + window?.apiVDData + 本地收集
 // After:  Store?.apiDataArray + Store?.apiVDData + 本地收集
@@ -78,6 +85,7 @@ After:  優先級 1-2 Store, 3 本地 (無 window)
 ```
 
 ### Line 2257-2263: 驗證邏輯簡化
+
 ```javascript
 // Before: Store?.apiDataArray || window?.apiDataArray
 // After:  Store?.apiDataArray (only)
@@ -136,12 +144,12 @@ After Phase 6:
 
 ### 代碼質量改進
 
-| 指標 | Before | After | 改進 |
-|------|--------|-------|------|
-| 優先級層數 | 5 | 3 | -40% |
-| window 依賴 | 2 個 | 0 個 | 100% |
-| 邏輯複雜度 | 高 | 低 | 簡化 |
-| 可維護性 | 中 | 高 | 提升 |
+| 指標        | Before | After | 改進 |
+| ----------- | ------ | ----- | ---- |
+| 優先級層數  | 5      | 3     | -40% |
+| window 依賴 | 2 個   | 0 個  | 100% |
+| 邏輯複雜度  | 高     | 低    | 簡化 |
+| 可維護性    | 中     | 高    | 提升 |
 
 ---
 
@@ -150,6 +158,7 @@ After Phase 6:
 ### 立即後續 (Phase 7)
 
 **Phase 7: CollisionController 遷移** (最後一個 Phase)
+
 - 注入 simulationStore
 - 使用 simulationStore.emit() 發送碰撞事件
 - 移除 window 事件派發
@@ -174,14 +183,13 @@ After Phase 6:
 
 ## 📝 相關文檔
 
-| 文件 | 說明 |
-|------|------|
+| 文件                             | 說明     |
+| -------------------------------- | -------- |
 | `PHASE_6_IMPLEMENTATION_PLAN.md` | 實現計劃 |
-| `PHASE_6_COMPLETION_REPORT.md` | 完成報告 |
+| `PHASE_6_COMPLETION_REPORT.md`   | 完成報告 |
 
 ---
 
 **✅ Phase 6 完成！進度 86% (6/7 phases)**
 
 編譯成功 ✅ | TrafficLightController 完全遷移 ✅ | 無 window 依賴 ✅
-

@@ -1,6 +1,7 @@
 # 🎯 Phase 6: TrafficLightController 遷移 - 完成報告
 
 ## ✅ 實現狀態
+
 - **完成時間**: 2025-11-08
 - **編譯狀態**: ✅ npm run build 成功 (6834ms)
 - **改動文件**: 1 個 (TrafficLightController.js)
@@ -17,12 +18,14 @@
 **目標**: 移除 window.currentGeneratedVDData 的備用方案
 
 **改動**:
+
 - ✅ 優先使用 Store 中的 apiDataArray
 - ✅ 備用使用 Store 中的 apiVDData
 - ✅ 最後備用使用本地收集 (不查詢 window)
 - ❌ 完全移除 window.currentGeneratedVDData 查詢
 
 **改前**:
+
 ```javascript
 } else if (window.currentGeneratedVDData?.apiDataArray) {
   dataToSend = window.currentGeneratedVDData.apiDataArray
@@ -32,6 +35,7 @@
 ```
 
 **改後**:
+
 ```javascript
 } else if (this.simulationStore?.getCurrentGeneratedVDData()?.apiVDData) {
   // ✅ Phase 6：使用 Store 中的舊版本數據
@@ -49,11 +53,13 @@
 **目標**: 完全移除 window.lastApiVDDataArray 寫入
 
 **改動**:
+
 - ✅ 只寫入 Store (setLastApiVDDataArray)
 - ❌ 移除 window.lastApiVDDataArray 直接寫入
 - ✅ 添加廢棄提醒註釋
 
 **改前**:
+
 ```javascript
 window.lastApiVDDataArray = adjustedDataToSend
 if (this.simulationStore) {
@@ -62,6 +68,7 @@ if (this.simulationStore) {
 ```
 
 **改後**:
+
 ```javascript
 // ✅ Phase 6：統一使用 Store 保存（完全遷移）
 if (this.simulationStore) {
@@ -78,12 +85,14 @@ if (this.simulationStore) {
 **目標**: 移除備援時的 window 查詢
 
 **改動**:
+
 - ✅ 備援優先查詢 Store 的 apiDataArray
 - ✅ 其次查詢 Store 的 apiVDData
 - ✅ 最後使用本地收集
 - ❌ 完全移除 window 查詢
 
 **改前**:
+
 ```javascript
 } else if (window.currentGeneratedVDData?.apiVDData) {
   dataToSend = window.currentGeneratedVDData.apiVDData
@@ -93,6 +102,7 @@ if (this.simulationStore) {
 ```
 
 **改後**:
+
 ```javascript
 } else if (this.simulationStore?.getCurrentGeneratedVDData()?.apiVDData) {
   // ✅ Phase 6：使用 Store 中的舊版本數據
@@ -110,17 +120,20 @@ if (this.simulationStore) {
 **目標**: 只使用 Store 驗證，不查詢 window
 
 **改動**:
+
 - ✅ 直接從 Store 讀取 apiDataArray
 - ❌ 移除 window 備用查詢
 - ✅ 簡化邏輯
 
 **改前**:
+
 ```javascript
 const generated =
   this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArray || window.currentGeneratedVDData?.apiDataArray
 ```
 
 **改後**:
+
 ```javascript
 // ✅ Phase 6：只使用 Store 讀取，不再查詢 window
 const generated = this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArray
@@ -130,14 +143,14 @@ const generated = this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArra
 
 ## 📊 改動統計
 
-| 指標 | 數值 |
-|------|-----|
-| 修改位置 | 4 處 |
-| 新增代碼行數 | ~20 行 (註釋+邏輯) |
-| 刪除代碼行數 | ~15 行 (window 查詢) |
-| 淨改動 | +5 行 |
-| 代碼簡化度 | 30% (減少 window 備用) |
-| 編譯時間 | 6834ms ✅ |
+| 指標         | 數值                   |
+| ------------ | ---------------------- |
+| 修改位置     | 4 處                   |
+| 新增代碼行數 | ~20 行 (註釋+邏輯)     |
+| 刪除代碼行數 | ~15 行 (window 查詢)   |
+| 淨改動       | +5 行                  |
+| 代碼簡化度   | 30% (減少 window 備用) |
+| 編譯時間     | 6834ms ✅              |
 
 ---
 
@@ -146,6 +159,7 @@ const generated = this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArra
 ### 1. 數據源統一 ✅
 
 **Before Phase 6**:
+
 ```
 優先級 1: Store?.apiDataArray
 優先級 2: window?.apiDataArray  ← 多源混雜
@@ -155,6 +169,7 @@ const generated = this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArra
 ```
 
 **After Phase 6**:
+
 ```
 優先級 1: Store?.apiDataArray
 優先級 2: Store?.apiVDData
@@ -165,6 +180,7 @@ const generated = this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArra
 ### 2. 代碼清晰度提升 ✅
 
 **邏輯更簡潔**:
+
 - 移除條件判斷 (少 2 個 if)
 - 優先級清晰 (優先 Store)
 - 備用方案簡單 (只有本地收集)
@@ -172,6 +188,7 @@ const generated = this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArra
 ### 3. 維護成本降低 ✅
 
 **更易維護**:
+
 - window 全域變數更少
 - 狀態來源更集中 (Store)
 - 除錯時更易追蹤
@@ -179,6 +196,7 @@ const generated = this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArra
 ### 4. 向後相容性 ✅
 
 **保留相容**:
+
 - 不破壞舊代碼的 window 讀取
 - 只是停止寫入 window 變數
 - 提供遷移提醒註釋
@@ -200,6 +218,7 @@ const generated = this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArra
 ## 📁 受影響的文件
 
 ### TrafficLightController.js
+
 - 修改位置: Line 1450, 1826, 1893, 2257
 - 改動方法: sendTrafficDataToBackend (3 處), verifyUnifiedDataFlow (1 處)
 
@@ -220,11 +239,11 @@ Line 1827: // ⚠️ window.lastApiVDDataArray 已廢棄，請使用 simulationS
 
 ## 📈 階段進度
 
-| Phase | 說明 | 狀態 | 進度 |
-|-------|------|------|------|
-| 1-5 | RAF 優化 + Vehicle 遷移 | ✅ 完成 | 100% |
+| Phase | 說明                            | 狀態        | 進度     |
+| ----- | ------------------------------- | ----------- | -------- |
+| 1-5   | RAF 優化 + Vehicle 遷移         | ✅ 完成     | 100%     |
 | **6** | **TrafficLightController 遷移** | **✅ 完成** | **100%** |
-| 7 | CollisionController 遷移 | ⏳ 待開始 | 0% |
+| 7     | CollisionController 遷移        | ⏳ 待開始   | 0%       |
 
 **總進度**: 6/7 Phase 完成 (86%) ✓
 
@@ -274,6 +293,7 @@ After Phase 6:
 ### 立即後續 (Phase 7)
 
 **Phase 7: CollisionController 遷移**
+
 - 在 CollisionController.js 中注入 simulationStore
 - 使用 simulationStore.emit() 發送碰撞事件
 - 移除所有 window 事件派發
@@ -298,16 +318,17 @@ After Phase 6:
 
 ## 📝 相關文檔
 
-| 文件 | 內容 |
-|------|------|
+| 文件                             | 內容             |
+| -------------------------------- | ---------------- |
 | `PHASE_6_IMPLEMENTATION_PLAN.md` | Phase 6 實現計劃 |
-| `PHASE_6_COMPLETION_REPORT.md` | Phase 6 完成報告 |
+| `PHASE_6_COMPLETION_REPORT.md`   | Phase 6 完成報告 |
 
 ---
 
 ## 💡 代碼示例
 
 ### Before (混合 window 和 Store)
+
 ```javascript
 let dataToSend = null
 if (vdData) {
@@ -315,17 +336,18 @@ if (vdData) {
 } else if (this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArray) {
   dataToSend = this.simulationStore.getCurrentGeneratedVDData().apiDataArray
 } else if (window.currentGeneratedVDData?.apiDataArray) {
-  dataToSend = window.currentGeneratedVDData.apiDataArray  // ← window 備用
+  dataToSend = window.currentGeneratedVDData.apiDataArray // ← window 備用
 } else if (this.simulationStore?.getCurrentGeneratedVDData()?.apiVDData) {
   dataToSend = this.simulationStore.getCurrentGeneratedVDData().apiVDData
 } else if (window.currentGeneratedVDData?.apiVDData) {
-  dataToSend = window.currentGeneratedVDData.apiVDData     // ← window 備用
+  dataToSend = window.currentGeneratedVDData.apiVDData // ← window 備用
 } else {
   dataToSend = this.collectIntersectionData()
 }
 ```
 
 ### After (只使用 Store)
+
 ```javascript
 let dataToSend = null
 if (vdData) {
@@ -344,8 +366,7 @@ if (vdData) {
 
 ---
 
-**Phase 6 實現完成！✅**  
+**Phase 6 實現完成！✅**
 編譯成功，TrafficLightController 完全遷移到 Store。
 
 進度: 6/7 Phase 完成 (86%) ✓
-
