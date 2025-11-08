@@ -8,7 +8,7 @@
  * - 預期 CPU 減少 60-70%
  */
 
-import { COLLISION_CONFIG, FOLLOWING_CONFIG, DISTANCE_CONFIG, ANIMATION_CONFIG } from '../config/vehicleConfig.js'
+import { COLLISION_CONFIG, FOLLOWING_CONFIG, DISTANCE_CONFIG, ANIMATION_CONFIG, LANE_SPAWN_CONFIG } from '../config/vehicleConfig.js'
 import { SpatialHashGrid } from '../optimization/SpatialHashGrid.js'
 
 export class CollisionController {
@@ -1845,7 +1845,7 @@ export class CollisionController {
     const stopLine = this.vehicle.getStopLinePosition()
     if (!stopLine || (!stopLine.x && !stopLine.y)) return []
 
-    const BUFFER = 50 // 停止線前 50px 內算作「在停止線前」
+    const BUFFER = LANE_SPAWN_CONFIG.ENTRY_BUFFER // 停止線檢測緩衝區（像素）
 
     return window.liveVehicles.filter((v) => {
       // 方向必須一致

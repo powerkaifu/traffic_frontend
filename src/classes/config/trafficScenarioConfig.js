@@ -13,9 +13,9 @@ import { VOLUME_LIMITS_CONFIG } from './vehicleConfig.js'
 // 調用：AutoTrafficGenerator.checkVehicleLimit()、IndexPage.cleanupVehicles()
 // 作用：防止車輛生成過多導致記憶體溢出和卡頓
 // ✅ 統一分配方案：全域 100 → 每方向 25（100÷4） → 每車道 6（取整後 25÷4 ≈ 6.25）
-// 說明：使用 6 輛/車道可確保每方向不會超過 24 輛 (6 * 4 = 24)，低於 GLOBAL_MAX_LIVE_VEHICLES/方向 25 的上限
+// 說明：使用 6 輛/車道可確保每方向不會超過 24 輛 (6 * 4 = 24)，低於 VOLUME_LIMITS_CONFIG 的上限
 // ============================================
-export const GLOBAL_MAX_LIVE_VEHICLES = 100 // ✅ 改為 100，統一分配方案基礎
+export const GLOBAL_MAX_LIVE_VEHICLES = VOLUME_LIMITS_CONFIG.peak_hours.maxLiveVehicles // ✅ 從配置獲取
 
 // ============================================
 // �🌍 系統預設配置 - 初始化時使用
@@ -97,7 +97,7 @@ export const timeScenarios = [
       // =========================================
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
-      vehiclesPerInterval: { min: 1, max: 1 },
+      vehiclesPerInterval: { min: 1, max: 2 },
       interval: { min: 1000, max: 5000, normal: 2000 },
       peakMultiplier: 1, // 👈 尖峰倍數
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,

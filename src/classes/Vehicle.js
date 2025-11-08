@@ -319,7 +319,7 @@ export default class Vehicle {
 
     // 間距恢復檢查
     const currentDistance = collision.distance || 0
-    const SAFE_GAP = 15 // 安全間距
+    const SAFE_GAP = FOLLOWING_CONFIG.AUTO_FOLLOW_AFTER_COLLISION.MIN_FOLLOW_DISTANCE // 安全間距
     const PROGRESS_THRESHOLD = 2 // 進度檢查閾值（像素）
 
     if (currentDistance > SAFE_GAP) {
@@ -1650,7 +1650,7 @@ export default class Vehicle {
     this.lastLaneChangeTime = changeStartTime
 
     // 計算車道寬度（用於位置調整）
-    const laneWidth = 60 // 假設每個車道寬度約 60px
+    const laneWidth = TURN_SPEED_CONFIG.LANE_WIDTH // 從配置取得車道寬度
     const laneDifference = targetLane - originalLane
     const yOffset = laneDifference * laneWidth
 
