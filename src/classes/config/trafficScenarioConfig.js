@@ -87,9 +87,9 @@ export const timeScenarios = [
       occupancy: 10, // 佔有率：10%（從 14 降低 29%）
       speed: 42, // 平均速度：42 km/h
       volumeByType: {
-        motor: 2, // 機車：約 25-30%（從 4 降低 50%）
-        small: 4, // 小客車：約 60-65%
-        large: 1, // 大客車：約 5-10%（從 2 降低 50%）
+        motor: 5, // 機車：約 50%
+        small: 3, // 小客車：約 30%
+        large: 2, // 大客車：約 20%
       },
     },
 
@@ -106,8 +106,8 @@ export const timeScenarios = [
       // 🚌 【次常調整】- 車型與系統參數
       // =========================================
       vehicleTypes: [
-        { type: 'motor', weight: 40 }, // 機車 40%
-        { type: 'small', weight: 40 }, // 小客車 40%
+        { type: 'motor', weight: 50 }, // 機車 40%
+        { type: 'small', weight: 30 }, // 小客車 40%
         { type: 'large', weight: 20 }, // 大客車 20%
       ],
       maxLiveVehicles: GLOBAL_MAX_LIVE_VEHICLES, // ✅ 使用全局配置
@@ -137,9 +137,9 @@ export const timeScenarios = [
       occupancy: 7, // 佔有率：6-8%（原始數據）
       speed: 52, // 平均速度：52 km/h
       volumeByType: {
-        motor: 1, // 機車：約 25-35%
-        small: 2, // 小客車：約 60-70%
-        large: 1, // 大客車：約 5-10% ✅ 改為 1 以顯示大車數據
+        motor: 4, // 機車：約 40%
+        small: 4, // 小客車：約 40%
+        large: 2, // 大客車：約 20%
       },
     },
 
@@ -148,7 +148,7 @@ export const timeScenarios = [
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
       vehiclesPerInterval: { min: 1, max: 3 }, // 👈 🎯 FIXED: 改為單一生成模式，避免爆發
-      interval: { min: 6000, max: 12000, normal: 6000 }, // ⏱️ FIXED: 延長到 8 秒基準，避免短時間內堆積
+      interval: { min: 6000, max: 12000, normal: 5000 }, // ⏱️ FIXED: 延長到 8 秒基準，避免短時間內堆積
       peakMultiplier: 1.0, // 👈 離峰不加倍
       displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // ✅ 從配置讀取（預設為 1.0）
 
@@ -156,9 +156,9 @@ export const timeScenarios = [
       // 🚌 【次常調整】- 車型與系統參數
       // =========================================
       vehicleTypes: [
-        { type: 'motor', weight: 30 }, // 機車 30%
-        { type: 'small', weight: 60 }, // 小客車 60%
-        { type: 'large', weight: 10 }, // 大客車 10%
+        { type: 'motor', weight: 40 }, // 機車 40%
+        { type: 'small', weight: 40 }, // 小客車 40%
+        { type: 'large', weight: 20 }, // 大客車 20%
       ],
       maxLiveVehicles: GLOBAL_MAX_LIVE_VEHICLES, // ✅ 使用全局配置
       densityThresholds: { light: 10, moderate: 18, heavy: 28, congested: 40 },
@@ -190,9 +190,9 @@ export const timeScenarios = [
       occupancy: 2, // 佔有率：2%（原始數據，極低）
       speed: 59, // 平均速度：59 km/h（流量少，速度快）
       volumeByType: {
-        motor: 0.4, // 機車：主要是機車
+        motor: 0.6, // 機車：主要是機車
         small: 0.4, // 小客車：很少
-        large: 0.2, // 大客車：少量 ✅ 改為 0.2 以顯示大車數據
+        large: 0.0, // 大客車：少量 ✅ 改為 0.2 以顯示大車數據
       },
     },
 
@@ -201,7 +201,7 @@ export const timeScenarios = [
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
       vehiclesPerInterval: { min: 1, max: 1 }, // 👈 🎯 每個 interval 只生成 1 台車
-      interval: { min: 15000, max: 30000, normal: 15000 }, // ⏱️ 生成間隔 15-30 秒（超級稀疏）
+      interval: { min: 15000, max: 30000, normal: 10000 }, // ⏱️ 生成間隔 15-30 秒（超級稀疏）
       peakMultiplier: 1.0, // 👈 凌晨不加倍
       displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier, // ✅ 從配置讀取（預設為 1.0）
 
