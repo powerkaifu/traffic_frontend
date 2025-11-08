@@ -716,29 +716,20 @@ export default class Vehicle {
 
   // Helper Method: 執行停止邏輯
   _performStopAtLine(lightState) {
-    if (this.currentState === 'slowing_for_light' || this.currentState === 'slowing_for_red') {
-      // 如果正在減速，平滑停止
-      gsap.to(this.movementTimeline, {
-        timeScale: 0,
-        duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.INSTANT,
-        ease: ANIMATION_CONFIG.EASING.NONE,
-        onComplete: () => {
-          this.stopMovement()
-          this.waitingForGreen = true
-          // 設置1號車道的等待狀態
-          if (this.laneNumber === 1 && lightState === 'green') {
-            this.currentState = 'waitingForLeftTurnGreen'
-          }
-        },
-      })
-    } else {
-      // 直接停止
-      this.stopMovement()
-      this.waitingForGreen = true
-      // 設置1號車道的等待狀態
-      if (this.laneNumber === 1 && lightState === 'green') {
-        this.currentState = 'waitingForLeftTurnGreen'
-      }
+    // 🚨 立即停止（不使用動畫過渡），防止超過停止線
+    if (this.movementTimeline) {
+      // 直接暫停時間軸，確保立即停止
+      this.movementTimeline.pause()
+      this.movementTimeline.timeScale(0)
+    }
+
+    // 執行停止邏輯
+    this.stopMovement()
+    this.waitingForGreen = true
+
+    // 設置1號車道的等待狀態
+    if (this.laneNumber === 1 && lightState === 'green') {
+      this.currentState = 'waitingForLeftTurnGreen'
     }
   }
 
@@ -1273,11 +1264,8 @@ export default class Vehicle {
 
                   // 只在需要減速時調整（避免不必要的動畫）
                   if (currentTimeScale > maxTurnSpeedRatio + 0.05) {
-                    gsap.to(this.movementTimeline, {
-                      timeScale: maxTurnSpeedRatio,
-                      duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH,
-                      ease: 'power2.out',
-                    })
+                    // 🚨 直接設置，避免重複創建動畫
+                    this.movementTimeline.timeScale(maxTurnSpeedRatio)
                     if (TURN_SPEED_CONFIG.DEBUG.ENABLED) {
                       console.log(
                         `🔄 [${this.id}] 轉向減速: radius=${turnRadius}, speedRatio=${maxTurnSpeedRatio.toFixed(2)}`,
@@ -1288,11 +1276,8 @@ export default class Vehicle {
                   // 不在轉向區域：可以恢復正常速度
                   const currentTimeScale = this.movementTimeline.timeScale()
                   if (currentTimeScale < 0.95) {
-                    gsap.to(this.movementTimeline, {
-                      timeScale: 1,
-                      duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH,
-                      ease: 'power2.out',
-                    })
+                    // 🚨 直接設置，避免重複創建動畫
+                    this.movementTimeline.timeScale(1)
                   }
                 }
               }
@@ -1318,11 +1303,8 @@ export default class Vehicle {
                 if (this.movementTimeline && !isOnTurnSection) {
                   const currentTimeScale = this.movementTimeline.timeScale()
                   if (currentTimeScale < 0.95) {
-                    gsap.to(this.movementTimeline, {
-                      timeScale: 1,
-                      duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH,
-                      ease: 'power2.out',
-                    })
+                    // 🚨 直接設置，避免重複創建動畫
+                    this.movementTimeline.timeScale(1)
                     this.currentState = 'throughIntersection'
                   }
                 }
@@ -1342,11 +1324,8 @@ export default class Vehicle {
                 // ✅ 綠燈 + 接近停止線距離 < 50px = 無條件加速
                 // 預期效果：消除綠燈時因碰撞檢測導致的加速延遲 (50% 碰撞時機點消除)
                 if (this.movementTimeline && this.movementTimeline.timeScale() < 1) {
-                  gsap.to(this.movementTimeline, {
-                    timeScale: 1,
-                    duration: 0.1,
-                    ease: 'power2.out',
-                  })
+                  // 🚨 直接設置，避免重複創建動畫
+                  this.movementTimeline.timeScale(1)
                 }
                 this.currentState = 'acceleratingAtGreen'
                 // 直接返回，不執行後續碰撞檢測
@@ -1366,11 +1345,10 @@ export default class Vehicle {
 
               // 🚗 優先處理重新加入隊列動作（碰撞後的車輛需要融入隊伍）
               if (shouldStop && shouldStop.action === 'rejoin_queue') {
-                gsap.to(this.movementTimeline, {
-                  timeScale: shouldStop.targetSpeed,
-                  duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL,
-                  ease: 'power2.out',
-                })
+                // 🚨 直接設置，避免重複創建動畫
+                if (this.movementTimeline) {
+                  this.movementTimeline.timeScale(shouldStop.targetSpeed)
+                }
                 this.currentState = 'rejoiningQueue' // 設為重新加入隊列狀態
                 return
               }
@@ -1404,11 +1382,10 @@ export default class Vehicle {
 
               // �🚗 優先處理自動跟隨模式
               if (shouldStop && shouldStop.autoFollowing && shouldStop.targetSpeed > 0) {
-                gsap.to(this.movementTimeline, {
-                  timeScale: shouldStop.targetSpeed,
-                  duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL,
-                  ease: 'power2.out',
-                })
+                // 🚨 直接設置 timeScale，避免重複創建動畫導致 Stutter
+                if (this.movementTimeline) {
+                  this.movementTimeline.timeScale(shouldStop.targetSpeed)
+                }
                 this.currentState = 'autoFollowing' // 設為自動跟隨狀態
                 return
               }
@@ -1458,11 +1435,9 @@ export default class Vehicle {
                   }
 
                   // 平滑調整速度
-                  gsap.to(this.movementTimeline, {
-                    timeScale: targetSpeed,
-                    duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.NORMAL,
-                    ease: 'power2.out',
-                  })
+                  if (this.movementTimeline) {
+                    this.movementTimeline.timeScale(targetSpeed)
+                  }
                   this.currentState = 'following'
                   return
                 }
@@ -1481,12 +1456,8 @@ export default class Vehicle {
                     // 第一台車：前方車輛在停止線等待且不移動，繼續前進到停止線
                     const currentTimeScale = this.movementTimeline.timeScale()
                     if (currentTimeScale < 1) {
-                      // 平滑恢復而不是直接設置，防止「往前一格」的突發動作
-                      gsap.to(this.movementTimeline, {
-                        timeScale: 1,
-                        duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH,
-                        ease: 'power2.out',
-                      })
+                      // 🚨 直接設置，避免重複創建動畫
+                      this.movementTimeline.timeScale(1)
                       this.currentState = 'moving'
                     }
                   }
@@ -1512,12 +1483,8 @@ export default class Vehicle {
                       : currentLightState === 'green' // 直行車道需要直行綠燈
 
                   if (canProceed) {
-                    // 平滑恢復到正常速度，避免突然加速
-                    gsap.to(this.movementTimeline, {
-                      timeScale: 1,
-                      duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH, // 使用配置的平滑過渡時間
-                      ease: 'power2.out',
-                    })
+                    // 🚨 直接設置，避免重複創建動畫
+                    this.movementTimeline.timeScale(1)
                     this.currentState = 'moving'
                     const laneType = this.laneNumber === 1 ? '左轉' : '直行'
                     const lightType = this.laneNumber === 1 ? '左轉綠燈' : '直行綠燈'
@@ -1532,12 +1499,9 @@ export default class Vehicle {
                 const slowDownInfo = this.checkTrafficLightSlowDown(trafficController)
                 if (slowDownInfo && slowDownInfo.action === 'resume_from_slow') {
                   this.currentState = 'moving'
-                  if (this.originalTimeScale) {
-                    gsap.to(this.movementTimeline, {
-                      timeScale: this.originalTimeScale,
-                      duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.INSTANT, // 使用配置的瞬間變化時間
-                      ease: ANIMATION_CONFIG.EASING.NONE, // 使用配置的緩動效果
-                    })
+                  if (this.originalTimeScale && this.movementTimeline) {
+                    // 🚨 直接設置，避免重複創建動畫
+                    this.movementTimeline.timeScale(this.originalTimeScale)
                     this.originalTimeScale = null
                   }
                 } else if (slowDownInfo && slowDownInfo.action === 'stop_for_left_turn_wait') {
