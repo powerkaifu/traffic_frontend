@@ -405,41 +405,8 @@ const selectOptimalLane = (direction) => {
   // 只從車道2,3,4中選擇，車道1保留給專門的左轉車輛生成
 
   // ✅ 【新增】硬性限制：每車道最多 MAX_VEHICLES_PER_LANE 輛車
-  // 🎯 【修復 3】根據 API 佔有率動態調整最大車道車輛數
-  let MAX_VEHICLES_PER_LANE = GENERATION_CONFIG.MAX_VEHICLES_PER_LANE || 6
-
-  try {
-    // 試圖從 API 數據讀取佔有率
-    const lastApiData = store.getLastApiVDDataArray()
-    if (lastApiData && Array.isArray(lastApiData)) {
-      const directionMap = {
-        north: 0,
-        east: 1,
-        south: 2,
-        west: 3,
-      }
-      const dirIndex = directionMap[direction]
-
-      if (dirIndex !== undefined && lastApiData[dirIndex]) {
-        const apiData = lastApiData[dirIndex]
-        const occupancy = apiData.Occupancy || 0
-
-        // 根據佔有率動態計算最大車道車輛數
-        // 0-20%: 3輛, 20-50%: 4輛, 50-80%: 5輛, 80-100%: 6輛
-        if (occupancy < 20) {
-          MAX_VEHICLES_PER_LANE = 3
-        } else if (occupancy < 50) {
-          MAX_VEHICLES_PER_LANE = 4
-        } else if (occupancy < 80) {
-          MAX_VEHICLES_PER_LANE = 5
-        } else {
-          MAX_VEHICLES_PER_LANE = 6
-        }
-      }
-    }
-  } catch (error) {
-    console.warn(`⚠️ [車道密度同步] 讀取 API 佔有率失敗:`, error)
-  }
+  // 🎯 固定設置為 6 輛/車道
+  const MAX_VEHICLES_PER_LANE = GENERATION_CONFIG.MAX_VEHICLES_PER_LANE || 6
 
   const liveVehicles = store.getLiveVehicles()
   const laneCounts = [2, 3, 4].map((laneNum) => {
