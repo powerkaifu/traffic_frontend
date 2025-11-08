@@ -10,9 +10,9 @@ import os
 
 filepath = 'src/classes/Vehicle.js'
 
-with open(filepath, 'r', encoding='utf-8') as f:
-    content = f.read()
-    original_len = len(content)
+with open(filepath, 'r', encoding = 'utf-8') as f:
+  content = f.read()
+  original_len = len(content)
 
 # 替換策略：找到 'const currentLightStateForGreen' 到 'this.checkStopLineAndRespond' 之間的所有代碼
 # 保留框架註釋，刪除內部的碰撞檢測邏輯
@@ -28,35 +28,35 @@ replacement = '''// ════════════════════
               '''
 
 try:
-    content_new = re.sub(pattern, replacement, content, flags=re.DOTALL)
-    
-    if len(content_new) < len(content):
-        deleted_bytes = len(content) - len(content_new)
-        print(f'✅ Phase 3 碰撞邏輯已移除！')
-        print(f'   刪除字節數: {deleted_bytes} ({deleted_bytes/1024:.1f} KB)')
-        
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(content_new)
-        print(f'✅ 檔案已保存')
-    else:
-        print('❌ 未找到要替換的模式，檔案未改變')
-        print('嘗試備用模式...')
-        
-        # 備用模式：逐行分析
-        lines = content.split('\n')
-        start_idx = None
-        end_idx = None
-        
-        for i, line in enumerate(lines):
-            if 'const currentLightStateForGreen' in line:
-                start_idx = i
-            if 'this.checkStopLineAndRespond(trafficController, allVehicles)' in line and start_idx is not None:
-                end_idx = i
-                break
-        
-        if start_idx and end_idx:
-            print(f'找到碰撞邏輯: 行 {start_idx+1} 到 {end_idx}')
-            print(f'將刪除 {end_idx - start_idx} 行')
-        
+  content_new = re.sub(pattern, replacement, content, flags = re.DOTALL)
+
+  if len(content_new) < len(content):
+    deleted_bytes = len(content) - len(content_new)
+    print(f'✅ Phase 3 碰撞邏輯已移除！')
+    print(f'   刪除字節數: {deleted_bytes} ({deleted_bytes/1024:.1f} KB)')
+
+    with open(filepath, 'w', encoding = 'utf-8') as f:
+      f.write(content_new)
+    print(f'✅ 檔案已保存')
+  else:
+    print('❌ 未找到要替換的模式，檔案未改變')
+    print('嘗試備用模式...')
+
+    # 備用模式：逐行分析
+    lines = content.split('\n')
+    start_idx = None
+    end_idx = None
+
+    for i, line in enumerate(lines):
+      if 'const currentLightStateForGreen' in line:
+        start_idx = i
+      if 'this.checkStopLineAndRespond(trafficController, allVehicles)' in line and start_idx is not None:
+        end_idx = i
+        break
+
+    if start_idx and end_idx:
+      print(f'找到碰撞邏輯: 行 {start_idx+1} 到 {end_idx}')
+      print(f'將刪除 {end_idx - start_idx} 行')
+
 except Exception as e:
-    print(f'❌ 錯誤: {e}')
+  print(f'❌ 錯誤: {e}')

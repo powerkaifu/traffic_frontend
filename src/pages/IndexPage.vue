@@ -1889,7 +1889,10 @@ onMounted(async () => {
                       vehicle.movementTimeline.timeScale(shouldStop.targetSpeed)
                     }
                     vehicle.currentState = 'rejoiningQueue'
-                  } else if (shouldStop && (shouldStop.action === 'gap_recovery' || shouldStop.action === 'emergency_gap_recovery')) {
+                  } else if (
+                    shouldStop &&
+                    (shouldStop.action === 'gap_recovery' || shouldStop.action === 'emergency_gap_recovery')
+                  ) {
                     // 緊急間距恢復
                     if (vehicle.movementTimeline) {
                       vehicle.movementTimeline.pause()
@@ -1939,8 +1942,8 @@ onMounted(async () => {
                           GREEN_LIGHT_FOLLOWING: {
                             DISTANCE_THRESHOLDS: { VERY_CLOSE: 0.5, CLOSE: 1.0, NORMAL: 1.5 },
                             LANE1: { VERY_CLOSE: 0.3, CLOSE: 0.6, NORMAL: 0.8, FAR: 1.0 },
-                            OTHER_LANES: { VERY_CLOSE: 0.2, CLOSE: 0.5, NORMAL: 0.7, FAR: 1.0 }
-                          }
+                            OTHER_LANES: { VERY_CLOSE: 0.2, CLOSE: 0.5, NORMAL: 0.7, FAR: 1.0 },
+                          },
                         }
 
                         const isLane1 = vehicle.laneNumber === 1
@@ -1990,9 +1993,7 @@ onMounted(async () => {
                       const currentLightState = trafficController.getCurrentLightState(vehicle.direction)
 
                       const canProceed =
-                        vehicle.laneNumber === 1
-                          ? currentLightState === 'leftGreen'
-                          : currentLightState === 'green'
+                        vehicle.laneNumber === 1 ? currentLightState === 'leftGreen' : currentLightState === 'green'
 
                       if (canProceed) {
                         vehicle.movementTimeline.timeScale(1)
