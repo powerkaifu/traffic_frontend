@@ -587,12 +587,29 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
           activeCars.value.splice(vehicleIndex, 1)
           console.log(`♻️ [${vehicle.id}] 車輛動畫完成，放回物件池`)
 
+          // 🚨【確保隱藏】無論如何都要隱藏車輛元素
+          if (vehicle.element) {
+            gsap.set(vehicle.element, {
+              autoAlpha: 0,
+              pointerEvents: 'none',
+            })
+          }
+
           // ✅ 放回物件池（隱藏元素但保留在 DOM 中）
           if (vehiclePool) {
             vehiclePool.release(vehicle)
           } else {
             // 備用：如果池未初始化，直接調用 reset
             vehicle.reset(vehicle.direction, vehicle.laneNumber, vehicle.vehicleType, store)
+          }
+        } else {
+          // ⚠️ 車輛已被移除，但仍收到回調，確保隱藏
+          console.warn(`⚠️ [${vehicle?.id}] 收到 handleVehicleOutOfBounds 但車輛已不在 activeCars 中`)
+          if (vehicle?.element) {
+            gsap.set(vehicle.element, {
+              autoAlpha: 0,
+              pointerEvents: 'none',
+            })
           }
         }
       }
@@ -1589,7 +1606,12 @@ onMounted(async () => {
 
           // 如果車輛狀態是 completed 或 nearComplete，也要清理
           if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
-            vehicle.remove()
+            // ✅【改進】使用物件池回收，而不是直接移除
+            if (vehiclePool) {
+              vehiclePool.release(vehicle)
+            } else {
+              vehicle.remove()
+            }
             // 同時清理 window.liveVehicles
             if (window.liveVehicles) {
               const idx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
@@ -1625,7 +1647,12 @@ onMounted(async () => {
           vehiclesToRemove.forEach((idx) => {
             const vehicleToRemove = activeCars.value[idx]
             if (vehicleToRemove) {
-              vehicleToRemove.remove()
+              // ✅【改進】使用物件池回收，而不是直接移除
+              if (vehiclePool) {
+                vehiclePool.release(vehicleToRemove)
+              } else {
+                vehicleToRemove.remove()
+              }
               if (window.liveVehicles) {
                 const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicleToRemove.id)
                 if (liveIdx !== -1) window.liveVehicles.splice(liveIdx, 1)
@@ -2207,10 +2234,13 @@ onMounted(async () => {
             vehiclesToRemove.forEach((idx) => {
               const vehicleToRemove = activeCars.value[idx]
               if (vehicleToRemove) {
-                if (vehicleToRemove.remove && typeof vehicleToRemove.remove === 'function') {
+                // ✅【改進】使用物件池回收，而不是直接移除
+                if (vehiclePool) {
+                  vehiclePool.release(vehicleToRemove)
+                } else if (vehicleToRemove.remove && typeof vehicleToRemove.remove === 'function') {
                   vehicleToRemove.remove()
                 }
-                // ✅ Phase 5：使用統一方法移除
+                // ✅ 同步清理其他列表
                 removeVehicleFromSimulation(vehicleToRemove.id)
                 console.log(`🗑️ 清理已完成車輛: ${vehicleToRemove.id}`)
               }

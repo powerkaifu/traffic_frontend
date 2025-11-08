@@ -71,6 +71,14 @@ export class VehiclePool {
   release(vehicle) {
     if (!vehicle) return
 
+    // ✅【關鍵】確保元素被隱藏
+    if (vehicle.element) {
+      gsap.set(vehicle.element, {
+        autoAlpha: 0, // 徹底隱藏
+        pointerEvents: 'none', // 禁止交互
+      })
+    }
+
     // ✅ 隱藏元素但不移除 DOM
     vehicle.reset(vehicle.direction, vehicle.laneNumber, vehicle.vehicleType, this.simulationStore)
 

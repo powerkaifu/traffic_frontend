@@ -1295,7 +1295,8 @@ export default class Vehicle {
               const isOutOfBounds = this.checkOutOfBounds(currentPos)
               if (isOutOfBounds && !hasBeenRemovedFromCollision && onVehicleOutOfBounds) {
                 hasBeenRemovedFromCollision = true
-                onVehicleOutOfBounds(this.id)
+                // ✅ 傳遞完整的 vehicle 實例（與 onComplete 一致）
+                onVehicleOutOfBounds(this)
                 // 修復：避免車輛突然消失，讓動畫自然完成
                 return
               }
@@ -1340,9 +1341,10 @@ export default class Vehicle {
 
               // 🚨 立即移除機制：動畫完成時立刻從碰撞檢測中移除
               // ✅ 改為傳遞整個 vehicle 實例，而不是 vehicleId
-              if (!hasBeenRemovedFromCollision && onVehicleOutOfBounds) {
+              // 【重要】確保無論 hasBeenRemovedFromCollision 如何都執行
+              if (onVehicleOutOfBounds) {
                 hasBeenRemovedFromCollision = true
-                onVehicleOutOfBounds(this) // 👈 傳遞 this 而不是 this.id
+                onVehicleOutOfBounds(this) // 傳遞完整 vehicle 實例到 handleVehicleOutOfBounds
               }
 
               // ✅ 不再調用 this.remove()，改由 IndexPage 透過 pool.release() 來回收
