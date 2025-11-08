@@ -30,12 +30,22 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, onUnmounted, watch, nextTick } from 'vue'
 import gsap from 'gsap'
 import { SplitText } from 'gsap/SplitText'
 
 // 註冊 GSAP 插件
 gsap.registerPlugin(SplitText)
+
+// ========================================
+// 💬 Props 定義
+// ========================================
+const props = defineProps({
+  visible: {
+    type: Boolean,
+    default: true,
+  },
+})
 
 // ========================================
 // 🎬 全局動畫管理 - 處理標籤頁可見性
@@ -199,9 +209,103 @@ const state = reactive({
 // 💬 對話框 Timeline（不放在 reactive 中，直接使用變量）
 let dialogTimeline = null
 
+// ========================================
+// 💥 P1 修復：監聽 visible prop，控制 PIXI Ticker
+// ========================================
+watch(
+  () => props.visible,
+  (newValue) => {
+    if (state.app && state.app.ticker) {
+      if (newValue) {
+        console.log('🚀 [Lumo P1] Ticker Start - 助手變為可見')
+        state.app.ticker.start()
+      } else {
+        console.log('⏸️ [Lumo P1] Ticker Stop - 助手隱藏，停止渲染')
+        state.app.ticker.stop()
+      }
+    }
+  },
+)
+
 // Initialize
 async function initialize() {
   try {
+    // ========================================
+    // ✅ [字體預加載] 在初始化時就加載字體
+    // ========================================
+    if (document.fonts && document.fonts.ready) {
+      try {
+        await document.fonts.ready
+        console.log('✅ [Lumo 字體] 字體已預加載完成')
+      } catch (e) {
+        console.warn('⚠️ [Lumo 字體] 字體預加載無法完成（非致命):', e)
+      }
+    }
+
+    // ========================================
+    // 💥 P3 修復：動態加載 Live2D 資源
+    // ========================================
+    console.log('📦 [Lumo P3] 開始動態加載 Live2D 資源...')
+
+    // 輔助函式：動態載入 JS
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        // 檢查腳本是否已經加載
+        if (src.includes('pixi') && typeof window.PIXI !== 'undefined') {
+          resolve()
+          return
+        }
+        if (src.includes('cubismcore') && typeof window.Live2DCubismCore !== 'undefined') {
+          resolve()
+          return
+        }
+        if (src.includes('cubism4') && typeof window.LIVE2DCUBISM4 !== 'undefined') {
+          resolve()
+          return
+        }
+
+        const script = document.createElement('script')
+        script.src = src
+        script.async = true
+        script.onload = () => {
+          console.log(`✅ [Lumo P3] 已加載: ${src}`)
+          resolve()
+        }
+        script.onerror = () => {
+          const error = `❌ [Lumo P3] 加載失敗: ${src}`
+          console.error(error)
+          reject(new Error(error))
+        }
+        document.head.appendChild(script)
+      })
+    }
+
+    // 加載三個必要的庫
+    try {
+      if (typeof window.PIXI === 'undefined') {
+        console.log('📥 [Lumo P3] 加載 PIXI...')
+        await loadScript('/libs/pixi.min.js')
+      }
+
+      if (typeof window.Live2DCubismCore === 'undefined') {
+        console.log('📥 [Lumo P3] 加載 Live2D Cubism Core...')
+        await loadScript('/libs/live2dcubismcore.min.js')
+      }
+
+      if (typeof window.LIVE2DCUBISM4 === 'undefined') {
+        console.log('📥 [Lumo P3] 加載 Cubism4...')
+        await loadScript('/libs/cubism4.js')
+      }
+
+      console.log('✅ [Lumo P3] 所有 Live2D 資源已動態加載完成')
+    } catch (error) {
+      console.error('❌ [Lumo P3] 動態加載 Live2D 資源失敗:', error)
+      return
+    }
+
+    // ========================================
+    // 原始初始化邏輯
+    // ========================================
     // 檢查必要的庫 - 使用重試機制
     let retryCount = 0
     const maxRetries = 50
@@ -253,6 +357,12 @@ async function initialize() {
 
     // 啟用浮動動畫
     startFloatingAnimation()
+
+    // 🎯 P1 修復：初始化時檢查 visible，如果不可見就停止 ticker
+    if (!props.visible && state.app && state.app.ticker) {
+      console.log('⏸️ [Lumo P1] 初始化時助手已隱藏，停止 ticker')
+      state.app.ticker.stop()
+    }
 
     // 🖱️ Canvas 點擊事件監聽
     canvas.value.addEventListener('click', () => {
@@ -350,7 +460,7 @@ async function startFloatingAnimation() {
 }
 
 // 💬 顯示對話框文字（使用 GSAP SplitText 帶打字效果）
-function showDialogMessage(messageIndex) {
+async function showDialogMessage(messageIndex) {
   if (!dialogText.value) return
 
   const message = state.dialogMessages[messageIndex] || ''
@@ -365,6 +475,15 @@ function showDialogMessage(messageIndex) {
   // 重置 DOM 內容
   dialogText.value.innerHTML = ''
   dialogText.value.textContent = message
+
+  // ✅ [字體加載] 確保字體已加載再進行 SplitText
+  if (document.fonts && document.fonts.ready) {
+    try {
+      await document.fonts.ready
+    } catch (e) {
+      console.warn('⚠️ [Lumo] 字體加載警告:', e)
+    }
+  }
 
   // 使用 SplitText 分割文字為字符
   const split = new SplitText(dialogText.value, {
@@ -530,10 +649,14 @@ function openDialog() {
     const messageInterval = config.dialog.messageInterval
     config.dialog.messages.forEach((msg, index) => {
       const time = index * messageInterval
-      dialogTimeline.add(() => {
-        showDialogMessage(index)
-        state.currentMessageIndex = index
-      }, time)
+      dialogTimeline.call(
+        async () => {
+          await showDialogMessage(index)
+          state.currentMessageIndex = index
+        },
+        [],
+        time,
+      )
     })
 
     // 設置 Timeline 總時長
@@ -818,17 +941,36 @@ onBeforeUnmount(() => {
   // 🎨 安全地銷毀 PIXI 應用
   if (state.app) {
     try {
+      // 先停止 ticker
+      if (state.app.ticker) {
+        state.app.ticker.stop()
+      }
+
       // 先移除所有子元素
       if (state.app.stage && state.app.stage.children) {
         state.app.stage.removeChildren()
       }
 
-      // 使用正確的銷毀參數 (removeView: false 避免 canvas 相關錯誤)
+      // 💥【P2 修復】使用正確的銷毀參數，徹底釋放 WebGL 資源
+      // removeView: false 避免 canvas 相關錯誤，其他參數確保紋理被完全釋放
       state.app.destroy(false, { children: true, texture: true, baseTexture: true })
       state.app = null
       console.log('✅ [LumoAssistant] PIXI 應用已安全銷毀')
     } catch (error) {
       console.warn('⚠️ [LumoAssistant] PIXI 銷毀時出現錯誤（已忽略）:', error)
+    }
+  }
+
+  // 💥【P2 修復】銷毀 Live2D 模型
+  if (state.model) {
+    try {
+      if (typeof state.model.destroy === 'function') {
+        state.model.destroy()
+      }
+      state.model = null
+      console.log('✅ [LumoAssistant] Live2D 模型已銷毀')
+    } catch (error) {
+      console.warn('⚠️ [LumoAssistant] Live2D 模型銷毀時出現錯誤（已忽略）:', error)
     }
   }
 
