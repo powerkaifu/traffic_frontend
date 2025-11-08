@@ -1341,7 +1341,10 @@ onMounted(async () => {
     // 📡 訂閱 Store 事件（替代 window.addEventListener）
     const unsubscribeScenarioChanged = store.subscribe('scenarioChanged', handleScenarioChange)
     const unsubscribeGenerateVehicle = store.subscribe('generateVehicle', handleAutoGenerateFromStore)
-    const unsubscribeGenerateLeftTurnVehicle = store.subscribe('generateLeftTurnVehicle', handleAutoGenerateLeftTurnFromStore)
+    const unsubscribeGenerateLeftTurnVehicle = store.subscribe(
+      'generateLeftTurnVehicle',
+      handleAutoGenerateLeftTurnFromStore,
+    )
 
     // 保存取消訂閱函數，用於 onUnmounted 時清理
     window.storeUnsubscribers = {
