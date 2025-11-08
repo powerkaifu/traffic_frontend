@@ -666,7 +666,7 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
 const crossroadContainer = ref(null)
 const vehicleContainer = ref(null) // 車輛專用容器
 const lumoRef = ref(null) // Lumo 助手組件
-const trafficController = new TrafficLightController()
+const trafficController = new TrafficLightController(store) // ✅ Phase 5：傳入 Store
 const autoTrafficGenerator = new AutoTrafficGenerator(trafficController, store) // ✅ 傳入 Store
 const adaptiveFlowController = new AdaptiveFlowController(trafficController)
 

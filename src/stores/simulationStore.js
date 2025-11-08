@@ -210,6 +210,13 @@ export const useSimulationStore = defineStore('simulation', () => {
   }
 
   /**
+   * ✅ Phase 5：獲取當前生成的 VD 數據
+   */
+  const getCurrentGeneratedVDData = () => {
+    return currentGeneratedVDData.value
+  }
+
+  /**
    * 最後發送的 API 數據陣列（用於車輛生成時讀取速度）
    * 替代：window.lastApiVDDataArray
    */
@@ -478,6 +485,7 @@ export const useSimulationStore = defineStore('simulation', () => {
     // VD 數據流
     currentGeneratedVDData,
     setCurrentGeneratedVDData,
+    getCurrentGeneratedVDData,
     lastApiVDDataArray,
     setLastApiVDDataArray,
     getLastApiVDDataArray,
