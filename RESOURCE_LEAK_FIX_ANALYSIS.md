@@ -4,11 +4,11 @@
 
 系統已經完全實現了資源洩漏的**全三階段修復**：
 
-| 階段 | 目標 | 狀態 | 實現機制 |
-|------|------|------|--------|
-| Phase 1 | 孤立車輛完整清理 | ✅ 完成 | `performCleanup()` 調用 |
-| Phase 2 | 移除 Vehicle.js setInterval | ✅ 完成 | 無任何 setInterval |
-| Phase 3 | RAF 統一迴圈 | ✅ 完成 | 累加器模式 |
+| 階段    | 目標                        | 狀態    | 實現機制                |
+| ------- | --------------------------- | ------- | ----------------------- |
+| Phase 1 | 孤立車輛完整清理            | ✅ 完成 | `performCleanup()` 調用 |
+| Phase 2 | 移除 Vehicle.js setInterval | ✅ 完成 | 無任何 setInterval      |
+| Phase 3 | RAF 統一迴圈                | ✅ 完成 | 累加器模式              |
 
 ---
 
@@ -19,14 +19,15 @@
 **修改位置**：`src/pages/IndexPage.vue` 第 2143-2153 行
 
 **修復前後對比**：
+
 ```javascript
 // ❌ 修改前
 if (!vehicle.element || !vehicle.element.parentNode) {
   removeVehicleFromSimulation(vehicle.id)
-  return false  // 只移除引用
+  return false // 只移除引用
 }
 
-// ✅ 修改後  
+// ✅ 修改後
 if (!vehicle.element || !vehicle.element.parentNode) {
   // 調用 performCleanup() 完全清理資源
   if (vehicle.performCleanup && typeof vehicle.performCleanup === 'function') {
@@ -40,6 +41,7 @@ if (!vehicle.element || !vehicle.element.parentNode) {
 ```
 
 **實現的清理內容**（`Vehicle.js` 第 1715-1790 行）：
+
 ```javascript
 // 1. GSAP 清理
 gsap.killTweensOf(this)
@@ -66,6 +68,7 @@ this.element = null
 ```
 
 **效果**：
+
 - ✅ 停止事件監聽器洩漏（900+ → 0）
 - ✅ 停止 GSAP 動畫洩漏
 - ✅ 防止未來進一步的資源積累
@@ -75,6 +78,7 @@ this.element = null
 ### Phase 2：移除 Vehicle.js setInterval ✅ VERIFIED
 
 **驗證結果**：
+
 ```bash
 grep -r "setInterval" src/classes/Vehicle.js
 # 返回結果：無匹配
@@ -98,9 +102,10 @@ grep -r "setInterval" src/classes/Vehicle.js
    - 原因：停滯檢查由 RAF 迴圈驅動
 
 **代碼證據**：
+
 ```javascript
 // Vehicle.js 第 202 行
-this.stuckCheckTimer = null  // 從不被分配
+this.stuckCheckTimer = null // 從不被分配
 
 // Vehicle.js 第 1204-1206 行（確保清理）
 if (this.periodicCheckTimer) {
@@ -125,9 +130,9 @@ if (this.stuckCheckTimer) {
 
 ```javascript
 // IndexPage.vue 第 1837-1839 行
-let periodicCheckAccumulator = 0      // 50ms 檢查
-let stuckCheckAccumulator = 0         // 5000ms 檢查
-let cleanupAccumulator = 0            // 1000-3000ms 清理
+let periodicCheckAccumulator = 0 // 50ms 檢查
+let stuckCheckAccumulator = 0 // 5000ms 檢查
+let cleanupAccumulator = 0 // 1000-3000ms 清理
 ```
 
 #### 3.2 主 RAF 迴圈中的累加邏輯
@@ -138,12 +143,12 @@ function mainSimulationLoop(currentTime) {
   const deltaTimeMs = currentTime - lastFrameTime
   lastFrameTime = currentTime
   const clampedDeltaTime = Math.min(deltaTimeMs, 100)
-  
+
   // 累加所有檢查計時器
   periodicCheckAccumulator += clampedDeltaTime
   stuckCheckAccumulator += clampedDeltaTime
   cleanupAccumulator += clampedDeltaTime
-  
+
   // 計算是否執行檢查
   const runPeriodicCheck = periodicCheckAccumulator >= 50
   const runStuckCheck = stuckCheckAccumulator >= 5000
@@ -158,12 +163,14 @@ if (runPeriodicCheck && vehicle.directTrafficLightResponse) {
   try {
     // 直接燈號響應
     vehicle.directTrafficLightResponse(window.trafficController)
-    
+
     // 根據狀態恢復移動
-    if (vehicle.currentState === 'waitingForVehicle' ||
-        vehicle.currentState === 'autoFollowing' ||
-        vehicle.currentState === 'rejoiningQueue' ||
-        vehicle.currentState === 'gapRecovery') {
+    if (
+      vehicle.currentState === 'waitingForVehicle' ||
+      vehicle.currentState === 'autoFollowing' ||
+      vehicle.currentState === 'rejoiningQueue' ||
+      vehicle.currentState === 'gapRecovery'
+    ) {
       if (vehicle.resumeMovement && typeof vehicle.resumeMovement === 'function') {
         vehicle.resumeMovement(window.liveVehicles)
       }
@@ -206,11 +213,11 @@ let cleanupFrequency = 3000
 if (activeCars.value) {
   const maxLiveVehicles = autoTrafficGenerator.config.maxLiveVehicles || 100
   const currentVehicleCount = activeCars.value.length
-  
+
   if (currentVehicleCount > maxLiveVehicles * 0.8) {
-    cleanupFrequency = 1000  // 高負載：1 秒
+    cleanupFrequency = 1000 // 高負載：1 秒
   } else if (currentVehicleCount > maxLiveVehicles * 0.5) {
-    cleanupFrequency = 2000  // 中等負載：2 秒
+    cleanupFrequency = 2000 // 中等負載：2 秒
   }
 }
 
@@ -231,12 +238,13 @@ if (cleanupAccumulator >= cleanupFrequency) {
       return true
     })
   }
-  
+
   cleanupAccumulator = 0
 }
 ```
 
 **優勢**：
+
 - 🎯 **單一驅動源**：所有定期任務由 RAF 迴圈驅動
 - 🎯 **精確時序**：±1ms 精度（vs. setInterval 的 ±15ms）
 - 🎯 **動態頻率**：根據負載自動調整清理頻率
@@ -250,6 +258,7 @@ if (cleanupAccumulator >= cleanupFrequency) {
 ### 1. IndexPage.vue 第 1560-1660 行：註釋掉的 cleanupInterval
 
 **狀態**：已被註釋，不活動
+
 ```javascript
 /*
 // ✨ 【改進】以下的 startDynamicCleanupCycle 和 cleanupInterval 已被 RAF 主循環取代
@@ -261,28 +270,31 @@ const startDynamicCleanupCycle = () => {
 ```
 
 **原因**：
+
 - 功能已完全遷移到 `mainSimulationLoop` 的 `cleanupAccumulator` 邏輯
 - 保留註釋作為代碼歷史記錄
 
 ### 2. IndexPage.vue 第 1755-1815 行：性能監測工具
 
 **狀態**：診斷工具（獨立功能）
+
 ```javascript
 window.performanceMonitor = {
   isMonitoring: false,
   monitorInterval: null,
-  
+
   start() {
     this.monitorInterval = setInterval(() => {
       // 每 10 秒輸出一次性能監測數據
       console.group('📊 【實時性能監測】')
       // ...
     }, 10000)
-  }
+  },
 }
 ```
 
 **原因**：
+
 - 這是**診斷/監測工具**，非主模擬邏輯
 - 用於開發時性能調試（快捷鍵：Ctrl+Shift+P）
 - 可選功能，不影響車輛模擬
@@ -320,17 +332,20 @@ window.performanceMonitor = {
 ## 驗證檢查清單
 
 ### 編譯驗證
+
 - ✅ npm run build：4623ms
 - ✅ 無編譯錯誤
 - ✅ 無警告
 
 ### 代碼審查
+
 - ✅ Vehicle.js 無 setInterval：grep 驗證通過
 - ✅ IndexPage mainSimulationLoop 正確實現累加器模式
 - ✅ performCleanup() 在所有孤立車輛清理點被調用
 - ✅ 事件監聽器在 performCleanup() 中被移除
 
 ### 邏輯驗證
+
 - ✅ Phase 1：孤立車輛完整清理 → 防止第一波洩漏
 - ✅ Phase 2：無 setInterval 創建 → 防止第二波洩漏
 - ✅ Phase 3：RAF 統一迴圈 → 完全資源控制
@@ -340,23 +355,26 @@ window.performanceMonitor = {
 ## 預期改善指標
 
 ### 記憶體使用
-| 測量點 | 修改前 | 修改後 | 改善 |
-|--------|--------|---------|------|
-| 初始堆大小 | 50-100 MB | 50-100 MB | - |
-| 30 分鐘後 | 500-800 MB | 100-150 MB | ⬇️ 80% |
-| 峰值堆大小 | 1000+ MB | 200-300 MB | ⬇️ 75% |
+
+| 測量點     | 修改前     | 修改後     | 改善   |
+| ---------- | ---------- | ---------- | ------ |
+| 初始堆大小 | 50-100 MB  | 50-100 MB  | -      |
+| 30 分鐘後  | 500-800 MB | 100-150 MB | ⬇️ 80% |
+| 峰值堆大小 | 1000+ MB   | 200-300 MB | ⬇️ 75% |
 
 ### DOM 節點
-| 狀態 | 修改前 | 修改後 |
-|------|--------|---------|
-| 初始 | 500-1000 | 500-1000 |
-| 長期運行 | 5000+ | 1000-2000 |
+
+| 狀態     | 修改前   | 修改後    |
+| -------- | -------- | --------- |
+| 初始     | 500-1000 | 500-1000  |
+| 長期運行 | 5000+    | 1000-2000 |
 
 ### 事件監聽器
-| 狀態 | 修改前 | 修改後 |
-|------|--------|---------|
-| 初始 | 30-50 | 30-50 |
-| 長期運行 | 1800+ | 50-100 |
+
+| 狀態     | 修改前 | 修改後 |
+| -------- | ------ | ------ |
+| 初始     | 30-50  | 30-50  |
+| 長期運行 | 1800+  | 50-100 |
 
 ---
 
@@ -397,6 +415,6 @@ DOM 洩漏：      ❌ 有 → ✅ 無
 
 ---
 
-**編譯狀態**：✅ 成功  
-**最後提交**：2c7f8ed (Fix Phase 1: Resource leak fix for orphaned vehicles)  
+**編譯狀態**：✅ 成功
+**最後提交**：2c7f8ed (Fix Phase 1: Resource leak fix for orphaned vehicles)
 **修復完成**：是

@@ -10,7 +10,7 @@
 
 #### 1️⃣ Phase 1：孤立車輛完整清理（治標）
 
-**修改**：`src/pages/IndexPage.vue` 第 2143-2153 行  
+**修改**：`src/pages/IndexPage.vue` 第 2143-2153 行
 **修復**：添加 `performCleanup()` 調用以完全清理孤立車輛
 
 ```javascript
@@ -43,6 +43,7 @@ if (!vehicle.element || !vehicle.element.parentNode) {
 **驗證結果**：✅ Vehicle.js 中無任何 setInterval
 
 **代碼審查**：
+
 - `setupAntiStuckMechanism()` 已被清空（第 240-243 行）
 - `stuckCheckTimer` 始終為 null（第 202 行）
 - `periodicCheckTimer` 始終為 null（第 83 行）
@@ -60,9 +61,9 @@ if (!vehicle.element || !vehicle.element.parentNode) {
 
 ```javascript
 // 累加器變數
-let periodicCheckAccumulator = 0      // 50ms 檢查
-let stuckCheckAccumulator = 0         // 5000ms 檢查
-let cleanupAccumulator = 0            // 1000-3000ms 清理
+let periodicCheckAccumulator = 0 // 50ms 檢查
+let stuckCheckAccumulator = 0 // 5000ms 檢查
+let cleanupAccumulator = 0 // 1000-3000ms 清理
 
 // 在 mainSimulationLoop 中
 periodicCheckAccumulator += clampedDeltaTime
@@ -87,6 +88,7 @@ if (cleanupAccumulator >= cleanupFrequency) {
 ```
 
 **優勢**：
+
 - ✅ 精確時序（±1ms vs setInterval ±15ms）
 - ✅ 單一驅動源（易於監測和調試）
 - ✅ 動態頻率（根據負載調整）
@@ -96,12 +98,12 @@ if (cleanupAccumulator >= cleanupFrequency) {
 
 ### 📊 修復效果
 
-| 指標 | 修改前 | 修改後 | 改善 |
-|------|--------|---------|------|
-| DOM 節點 | 5000+ | 1000-2000 | ⬇️ 60-80% |
-| 事件監聽器 | 1800+ | 50-100 | ⬇️ 95%+ |
-| 記憶體洩漏 | 持續增長 | 穩定 | ⬇️ 100% |
-| 系統穩定性 | 🔴 低 | 🟢 高 | 質的飛躍 |
+| 指標       | 修改前   | 修改後    | 改善      |
+| ---------- | -------- | --------- | --------- |
+| DOM 節點   | 5000+    | 1000-2000 | ⬇️ 60-80% |
+| 事件監聽器 | 1800+    | 50-100    | ⬇️ 95%+   |
+| 記憶體洩漏 | 持續增長 | 穩定      | ⬇️ 100%   |
+| 系統穩定性 | 🔴 低    | 🟢 高     | 質的飛躍  |
 
 ---
 
@@ -204,14 +206,14 @@ Phase 3(Fix) → RAF 統一迴圈
 
 ### 代碼質量指標
 
-| 維度 | 狀態 |
-|------|------|
-| 編譯 | ✅ 無錯誤 (4623ms) |
-| 資源洩漏 | ✅ 無 |
-| 事件管理 | ✅ 集中化 |
-| 定時邏輯 | ✅ 統一 RAF 驅動 |
-| 碰撞檢測 | ✅ 完整 |
-| 文檔化 | ✅ 全面 |
+| 維度     | 狀態               |
+| -------- | ------------------ |
+| 編譯     | ✅ 無錯誤 (4623ms) |
+| 資源洩漏 | ✅ 無              |
+| 事件管理 | ✅ 集中化          |
+| 定時邏輯 | ✅ 統一 RAF 驅動   |
+| 碰撞檢測 | ✅ 完整            |
+| 文檔化   | ✅ 全面            |
 
 ---
 
@@ -220,11 +222,13 @@ Phase 3(Fix) → RAF 統一迴圈
 ### 1. 長期運行測試（推薦）
 
 在開發環境中運行 30-60 分鐘，監控：
+
 - DevTools Memory 中的堆大小變化
 - Performance 中的幀率和幀時間
 - Console 中的警告和錯誤
 
 **預期結果**：
+
 - 堆大小穩定不增長
 - FPS 保持 50-60（無頻繁降落）
 - 無新的警告信息
@@ -232,6 +236,7 @@ Phase 3(Fix) → RAF 統一迴圈
 ### 2. 生產環境驗證
 
 部署到測試環境，進行：
+
 - 8+ 小時的運行測試
 - 峰值負載測試（最大車輛數量）
 - 異常情況測試（快速切換標籤、暫停/恢復等）
@@ -239,6 +244,7 @@ Phase 3(Fix) → RAF 統一迴圈
 ### 3. 性能優化（可選）
 
 基於驗證結果，考慮：
+
 - 調整清理頻率（1000-3000ms 可根據負載進一步優化）
 - 增加檢查點間隔監測
 - 實現更細粒度的性能指標
@@ -248,6 +254,7 @@ Phase 3(Fix) → RAF 統一迴圈
 ## 關鍵指標
 
 ### 編譯狀況
+
 ```
 ✅ npm run build: 4623ms
 ✅ 無 TypeScript 錯誤
@@ -255,6 +262,7 @@ Phase 3(Fix) → RAF 統一迴圈
 ```
 
 ### 代碼審查
+
 ```
 ✅ Vehicle.js: 無 setInterval
 ✅ IndexPage.vue: 累加器模式正確
@@ -263,6 +271,7 @@ Phase 3(Fix) → RAF 統一迴圈
 ```
 
 ### 邏輯驗證
+
 ```
 ✅ Phase 1: 孤立車輛完整清理
 ✅ Phase 2: 無散亂的定時器
@@ -276,15 +285,18 @@ Phase 3(Fix) → RAF 統一迴圈
 本會話成功修復了導致系統崩潰的資源洩漏問題：
 
 ✅ **Phase 1（治標）**：孤立車輛完整清理
+
 - 修改位置：IndexPage.vue 第 2143 行
 - 方式：添加 performCleanup() 調用
 - 效果：防止第一波資源積累
 
 ✅ **Phase 2（治本 Partial）**：無 setInterval
+
 - 驗證：Vehicle.js 中無任何 setInterval
 - 已遷移：所有定期檢查已移至 mainSimulationLoop
 
 ✅ **Phase 3（治本 Complete）**：RAF 統一迴圈
+
 - 實現：累加器模式（50ms、5000ms、動態清理）
 - 優勢：精確時序、單一驅動源、易於監測
 
@@ -292,7 +304,7 @@ Phase 3(Fix) → RAF 統一迴圈
 
 ---
 
-**會話完成時間**：2024 年  
-**修復優先級**：🔴 CRITICAL - 系統穩定性  
-**編譯狀態**：✅ 成功  
+**會話完成時間**：2024 年
+**修復優先級**：🔴 CRITICAL - 系統穩定性
+**編譯狀態**：✅ 成功
 **推薦操作**：進行 30+ 分鐘長期運行測試

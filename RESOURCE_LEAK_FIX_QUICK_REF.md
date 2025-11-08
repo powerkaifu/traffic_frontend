@@ -19,6 +19,7 @@ Phase 1          Phase 2           Phase 3
 **修改點**：IndexPage.vue 第 2143-2153 行
 
 **核心修復**：
+
 ```javascript
 // 添加 performCleanup() 調用
 if (vehicle.performCleanup && typeof vehicle.performCleanup === 'function') {
@@ -29,6 +30,7 @@ if (vehicle.performCleanup && typeof vehicle.performCleanup === 'function') {
 ```
 
 **效果**：
+
 - ✅ 停止事件監聽器洩漏（-900 個）
 - ✅ 停止定時器洩漏（-900 個）
 - ✅ 停止 GSAP 動畫洩漏
@@ -75,6 +77,7 @@ if (this.stuckCheckTimer) {
 ```
 
 **預期困難**：
+
 1. 需要提取出被 setInterval 包裝的邏輯函數
 2. 需要在 IndexPage.vue 的 mainSimulationLoop 中集成這些邏輯
 3. 需要確保定期檢查仍然能按期執行
@@ -121,6 +124,7 @@ function mainSimulationLoop() {
 ```
 
 **優勢**：
+
 - 所有定期檢查都由 RAF 驅動（而不是獨立的 setInterval）
 - 能夠靈活調整檢查間隔
 - 更好的性能監控（single RAF loop）
@@ -164,17 +168,20 @@ function mainSimulationLoop() {
 ## 驗證計劃
 
 ### Phase 1 驗證 ✅ 已完成
+
 - ✅ 編譯通過：4623ms
 - ✅ 孤立車輛清理邏輯驗證
 - ✅ Git 提交成功
 
 ### Phase 2 驗證（待進行）
+
 - [ ] 提取邏輯函數確認功能不變
 - [ ] 編譯通過
 - [ ] 防停滯機制仍然工作
 - [ ] 周期性檢查仍然工作
 
 ### Phase 3 驗證（待進行）
+
 - [ ] 累加器模式邏輯驗證
 - [ ] 時間精度測試（±50ms）
 - [ ] 系統性能指標
@@ -216,5 +223,5 @@ quasar dev
 
 ---
 
-**最後更新**：Phase 1 完成後  
+**最後更新**：Phase 1 完成後
 **下一步**：開始 Phase 2 - 移除 setInterval
