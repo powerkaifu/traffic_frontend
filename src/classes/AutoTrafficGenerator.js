@@ -1076,7 +1076,7 @@ export default class AutoTrafficGenerator {
 
     // 如果沒有可用方向，延後重試
     if (availableDirs.length === 0) {
-      setTimeout(() => this._scheduleNext(), this.minLaneInterval / 2)
+      // ❌ 移除：RAF 會在下一幀自動重試
       return
     }
 
@@ -1102,7 +1102,7 @@ export default class AutoTrafficGenerator {
     const veryRecentDirVehicles = recentVehicles.filter((v) => v.direction === selectedDir && now - v.timestamp < 1000) // 延長到1秒
     if (veryRecentDirVehicles.length > 0) {
       console.log(`🚨 ${selectedDir}方向1秒內已有車輛(${veryRecentDirVehicles.length}台)，延後生成`)
-      setTimeout(() => this._scheduleNext(), Math.max(500, this.minLaneInterval / 3)) // 更長的延遲
+      // ❌ 移除：RAF 會在下一幀自動重試
       return
     }
 
@@ -1166,7 +1166,7 @@ export default class AutoTrafficGenerator {
       }
 
       if (isTooClose) {
-        setTimeout(() => this._scheduleNext(), Math.max(300, this.minLaneInterval / 3)) // 🚨 增加延遲時間
+        // ❌ 移除：RAF 會在下一幀自動重試
         return
       }
 
@@ -1200,7 +1200,7 @@ export default class AutoTrafficGenerator {
 
         if (isInFrontRange) {
           console.log(`🚨 ${selectedDir}方向前方${frontCheckDistance}px內有同車道車輛，延後生成`)
-          setTimeout(() => this._scheduleNext(), Math.max(400, this.minLaneInterval / 2))
+          // ❌ 移除：RAF 會在下一幀自動重試
           return
         }
       }
@@ -1211,7 +1211,7 @@ export default class AutoTrafficGenerator {
     if (recentDirVehicles.length >= 3) {
       // 降低限制到3台
       console.log(`🚦 ${selectedDir}方向車輛密度過高(${recentDirVehicles.length})，延後生成`)
-      setTimeout(() => this._scheduleNext(), Math.max(500, this.minLaneInterval / 2))
+      // ❌ 移除：RAF 會在下一幀自動重試
       return
     }
 
@@ -1300,7 +1300,7 @@ export default class AutoTrafficGenerator {
     const proposedSpawnPoint = spawnPoints[selectedDir]
     if (!this._isSpawnPositionSafe(selectedDir, proposedSpawnPoint)) {
       console.log(`🚨 ${selectedDir}方向生成位置不安全，延後生成`)
-      setTimeout(() => this._scheduleNext(), Math.max(500, this.minLaneInterval / 2))
+      // ❌ 移除：RAF 會在下一幀自動重試
       return
     }
 

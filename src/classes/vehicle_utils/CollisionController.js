@@ -1867,8 +1867,11 @@ export class CollisionController {
       return null
     }
 
+    // ✅ 新增：獲取停止線資訊，傳遞給 performMinimumGapCheck
+    const stopLineInfo = this.isNearStopLineForCollisionDetection()
+
     // 使用現有的 performMinimumGapCheck 方法
-    return this.performMinimumGapCheck(sameDirectionVehicles)
+    return this.performMinimumGapCheck(sameDirectionVehicles, stopLineInfo)
   }
 
   /**

@@ -195,7 +195,7 @@ export default class Vehicle {
     // 🚨 新增：防停滯機制
     this.lastMovementTime = Date.now()
     this.stuckCheckTimer = null
-    this.setupAntiStuckMechanism()
+    // ❌ 移除：this.setupAntiStuckMechanism() （改由 IndexPage mainSimulationLoop 每 5 秒驅動）
 
     // 🚀 新增：停止線控制器
     this.stopLineController = new StopLineController(this)
@@ -233,10 +233,8 @@ export default class Vehicle {
 
   // 🚨 新增：防停滯機制
   setupAntiStuckMechanism() {
-    // 每5秒檢查車輛是否停滯
-    this.stuckCheckTimer = setInterval(() => {
-      this.checkAndResolveStuckState()
-    }, 5000)
+    // ❌ 移除：setInterval（改由 IndexPage mainSimulationLoop 每 5 秒驅動 checkAndResolveStuckState()）
+    // 此方法現在由 RAF 直接調用，無需設置自己的定時器
   }
 
   // 🚨 新增：檢查並解決停滯狀態
@@ -1207,20 +1205,8 @@ export default class Vehicle {
             this.periodicCheckTimer = null
           }
 
-          this.periodicCheckTimer = setInterval(() => {
-            // � 統一交通燈響應：使用 directTrafficLightResponse 處理所有燈號變化
-            this.directTrafficLightResponse(trafficController)
-
-            // 🚨 簡化：檢查是否可以恢復移動（僅限碰撞相關）
-            if (
-              this.currentState === 'waitingForVehicle' ||
-              this.currentState === 'autoFollowing' ||
-              this.currentState === 'rejoiningQueue' ||
-              this.currentState === 'gapRecovery'
-            ) {
-              this.resumeMovement(allVehicles)
-            }
-          }, 50) // 統一使用50ms間隔，與後面的邏輯一致
+          // ❌ 移除：setInterval（改由 IndexPage mainSimulationLoop 每 50ms 驅動 directTrafficLightResponse 和 resumeMovement）
+          // 此方法現在由 RAF 直接調用，無需設置自己的定時器
 
           // 邊界檢測標記 - 避免重複觸發 (移到正確位置)
           let hasBeenRemovedFromCollision = false
