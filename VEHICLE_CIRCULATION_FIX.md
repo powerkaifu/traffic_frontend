@@ -1,9 +1,11 @@
 # 🚗 車輛循環修復文檔
 
 ## 問題描述
+
 系統中車輛無法持續循環，最終都停留在 `(-9999px, -9999px)` 位置。雖然物件池機制已實現並正常回收車輛，但新車無法持續生成，因為系統達到了硬性限制 `❌ [生成限制] 當前活躍車輛 100 已達硬性限制 100`。
 
 ## 根本原因
+
 **`window.liveVehicles` 計數不同步**
 
 - 當車輛完成動畫並被回收到物件池時，系統調用 `vehiclePool.release(vehicle)`
@@ -13,13 +15,16 @@
 - 車輛無法循環，最終都被隱藏在 `(-9999px, -9999px)` 位置
 
 ## 解決方案
+
 在 `handleVehicleOutOfBounds()` 中同步從 `window.liveVehicles` 移除車輛
 
 ### 變更位置
+
 **File:** `src/pages/IndexPage.vue`
 **Function:** `handleVehicleOutOfBounds` (Line ~585)
 
 ### 具體修改
+
 ```javascript
 // 新增：當車輛完成動畫時，從 window.liveVehicles 移除
 if (window.liveVehicles) {
@@ -31,21 +36,25 @@ if (window.liveVehicles) {
 ```
 
 ## 完整流程
+
 現在車輛循環流程正確運作：
 
 1. **生成階段** ✅
+
    ```
    activeCars.push(vehicle)
    window.liveVehicles.push(vehicle)  // 計數 +1
    ```
 
 2. **動畫階段** ✅
+
    ```
    vehicle.moveAlongPath()
    vehicle.animate()
    ```
 
 3. **完成階段** ✅ (新增修復)
+
    ```
    handleVehicleOutOfBounds()
    {
@@ -56,6 +65,7 @@ if (window.liveVehicles) {
    ```
 
 4. **回收階段** ✅
+
    ```
    vehiclePool.acquire()
    {
@@ -74,16 +84,19 @@ if (window.liveVehicles) {
 系統中其他清理位置已經通過 `removeVehicleFromSimulation()` 正確同步：
 
 1. **RAF 清理迴圈 - 完成車輛清理** (Line ~2160)
+
    ```javascript
    removeVehicleFromSimulation(vehicle.id)
    ```
 
 2. **RAF 清理迴圈 - 孤立車輛清理** (Line ~2193)
+
    ```javascript
    removeVehicleFromSimulation(vehicle.id)
    ```
 
 3. **RAF 清理迴圈 - 狀態檢查清理** (Line ~2213)
+
    ```javascript
    removeVehicleFromSimulation(vehicle.id)
    ```
@@ -94,6 +107,7 @@ if (window.liveVehicles) {
    ```
 
 `removeVehicleFromSimulation()` 函數已正確實現，包含：
+
 - 從 `activeCars.value` 移除 ✅
 - 從 `window.liveVehicles` 移除 ✅
 - 從 Store 移除 ✅
@@ -128,6 +142,7 @@ console.log(`pool stats:`, window.vehiclePool?.getStats())
 ## 技術細節
 
 ### 物件池架構
+
 ```
 VehiclePool {
   poolMap: {
@@ -141,15 +156,18 @@ VehiclePool {
 ```
 
 ### 關鍵方法
+
 - `acquire()`: 從池中取車或新建，設置 `autoAlpha: 1`
 - `release()`: 隱藏車輛 `autoAlpha: 0`，放回池
 
 ### 計數追蹤
+
 - `activeCars`: 當前屏幕上的車輛
 - `window.liveVehicles`: 全局活躍車輛計數（用於生成限制判斷）
 - `vehiclePool.activeVehicles`: 池內追蹤集合
 
 ## 提交資訊
+
 ```
 Commit: Fix: Synchronize window.liveVehicles removal when vehicles are recycled to pool
 - When vehicle completes animation and returns to pool via handleVehicleOutOfBounds, now properly removes from window.liveVehicles

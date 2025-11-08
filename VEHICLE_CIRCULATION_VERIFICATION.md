@@ -15,6 +15,7 @@
 ### 1️⃣ 瀏覽器控制台監控
 
 **步驟 A**: 打開應用
+
 ```
 URL: http://localhost:8080
 ```
@@ -22,14 +23,16 @@ URL: http://localhost:8080
 **步驟 B**: 打開瀏覽器開發者工具 (F12)
 
 **步驟 C**: 複製以下代碼到控制台並執行
+
 ```javascript
 // 快速查看當前狀態
-console.log('activeCars:', window.activeCars?.value?.length || 0);
-console.log('liveVehicles:', window.liveVehicles?.length || 0);
-console.log('Pool available:', window.vehiclePool?.getStats());
+console.log('activeCars:', window.activeCars?.value?.length || 0)
+console.log('liveVehicles:', window.liveVehicles?.length || 0)
+console.log('Pool available:', window.vehiclePool?.getStats())
 ```
 
-**預期結果**: 
+**預期結果**:
+
 - ✅ `liveVehicles` 數字應該變化（增加時生成新車，減少時回收車輛）
 - ✅ 不應該一直停留在 100
 
@@ -38,22 +41,27 @@ console.log('Pool available:', window.vehiclePool?.getStats());
 ### 2️⃣ 運行監控工具
 
 **步驟 A**: 在控制台執行以下代碼加載監控工具
+
 ```javascript
 // 複製 public/vehicle-circulation-monitor.js 的代碼
 // 或直接執行:
-fetch('/vehicle-circulation-monitor.js').then(r => r.text()).then(eval)
+fetch('/vehicle-circulation-monitor.js')
+  .then((r) => r.text())
+  .then(eval)
 
 // 啟動監控
 window.vehicleCirculationMonitor.start()
 ```
 
 **預期結果**:
+
 - ✅ 每 2 秒更新一次監控面板
 - ✅ `activeCars` 和 `liveVehicles` 保持同步
 - ✅ 不顯示 "已達硬性限制" 警告
 - ✅ 池中有回收的車輛可用
 
 **停止監控**:
+
 ```javascript
 window.vehicleCirculationMonitor.stop()
 ```
@@ -63,6 +71,7 @@ window.vehicleCirculationMonitor.stop()
 ### 3️⃣ 觀察屏幕上的車輛行為
 
 **期望行為**:
+
 - ✅ 車輛不斷從各個方向進入
 - ✅ 車輛平穩動畫完成
 - ✅ 車輛完成後消失（被隱藏）
@@ -70,6 +79,7 @@ window.vehicleCirculationMonitor.stop()
 - ✅ 不會出現所有車輛都消失的情況
 
 **不正常行為** (需要檢查):
+
 - ❌ 車輛突然全部消失
 - ❌ 新車無法生成
 - ❌ 車輛卡住不動
@@ -82,12 +92,14 @@ window.vehicleCirculationMonitor.stop()
 **正常日誌應包含**:
 
 ✅ 生成日誌:
+
 ```
 🚗 [AutoTrafficGenerator] 已啟動 (RAF 驅動模式)
 🎭 [AutoTrafficGenerator] VD 情景已設置: peak_hours
 ```
 
 ✅ 車輛動畫完成日誌:
+
 ```
 ♻️ [vehicle_1762636589545_0sa63] 車輛動畫完成，放回物件池
 🔄 [Vehicle.reset] vehicle_1762636589545_0sa63: direction=south, lane=2, type=small
@@ -96,6 +108,7 @@ window.vehicleCirculationMonitor.stop()
 ```
 
 ❌ **不應該出現的日誌**:
+
 ```
 ❌ [生成限制] 當前活躍車輛 100 已達硬性限制 100，停止生成新車輛
 ```
@@ -107,13 +120,14 @@ window.vehicleCirculationMonitor.stop()
 **監控項目**:
 
 1. **計數穩定性**
+
    ```javascript
    // 每 30 秒記錄一次
    setInterval(() => {
-     console.log(`[${new Date().toLocaleTimeString()}] liveVehicles: ${window.liveVehicles?.length || 0}`);
+     console.log(`[${new Date().toLocaleTimeString()}] liveVehicles: ${window.liveVehicles?.length || 0}`)
    }, 30000)
    ```
-   
+
    ✅ 預期: 計數在 30-100 之間波動，反映持續生成和回收
    ❌ 問題: 計數固定在 100，表示回收失敗
 
@@ -142,7 +156,7 @@ window.vehicleCirculationMonitor.stop()
   - [ ] 已從 `window.liveVehicles` 移除 ✅ 已驗證
   - [ ] 已從 Store 移除 ✅ 已驗證
 
-- [ ] `VehiclePool.js` 
+- [ ] `VehiclePool.js`
   - [ ] `acquire()` - 設置 `autoAlpha: 1` ✅ 已驗證
   - [ ] `release()` - 設置 `autoAlpha: 0` ✅ 已驗證
   - [ ] 從 `activeVehicles` Set 移除 ✅ 已驗證
@@ -197,9 +211,10 @@ window.vehicleCirculationMonitor.stop()
 ### 症狀: 計數卡在 100
 
 **檢查清單**:
+
 1. [ ] `handleVehicleOutOfBounds` 中的 `window.liveVehicles.splice()` 是否被執行？
    - 在該行添加 `console.log('Removing from liveVehicles')`
-   
+
 2. [ ] 是否所有車輛完成路徑都調用 `handleVehicleOutOfBounds`？
    - 檢查 `Vehicle.js` 中的 `onComplete` 回調
 
@@ -209,6 +224,7 @@ window.vehicleCirculationMonitor.stop()
 ### 症狀: 屏幕上沒有車輛
 
 **檢查清單**:
+
 1. [ ] 生成器是否啟動？
    - 檢查日誌中的 "🚗 [AutoTrafficGenerator] 已啟動"
 
@@ -221,6 +237,7 @@ window.vehicleCirculationMonitor.stop()
 ### 症狀: 計數增長但超過 100
 
 **檢查清單**:
+
 1. [ ] 是否有車輛未被正確回收？
    - 監控 `vehiclePool.activeVehicles` 的大小
 
@@ -236,15 +253,15 @@ window.vehicleCirculationMonitor.stop()
 
 在修復後，預期應該看到：
 
-| 指標 | 預期值 | 檢查方法 |
-|------|--------|--------|
-| activeCars 穩定值 | 50-100 | 控制台監控 |
-| liveVehicles 穩定值 | 50-100 | 控制台監控 |
-| 計數差異 | < 5 | 監控工具 |
-| 記憶體增長 | < 5MB/min | DevTools Memory |
-| 幀率 | 55-60 FPS | DevTools Performance |
-| 生成頻率 | 連續 | 日誌頻率 |
-| 回收頻率 | 連續 | 日誌頻率 |
+| 指標                | 預期值    | 檢查方法             |
+| ------------------- | --------- | -------------------- |
+| activeCars 穩定值   | 50-100    | 控制台監控           |
+| liveVehicles 穩定值 | 50-100    | 控制台監控           |
+| 計數差異            | < 5       | 監控工具             |
+| 記憶體增長          | < 5MB/min | DevTools Memory      |
+| 幀率                | 55-60 FPS | DevTools Performance |
+| 生成頻率            | 連續      | 日誌頻率             |
+| 回收頻率            | 連續      | 日誌頻率             |
 
 ---
 
@@ -253,25 +270,25 @@ window.vehicleCirculationMonitor.stop()
 複製以下到控制台，一鍵驗證修復狀態：
 
 ```javascript
-(function verify() {
-  const activeCars = window.activeCars?.value?.length || 0;
-  const liveVehicles = window.liveVehicles?.length || 0;
-  const poolStats = window.vehiclePool?.getStats() || {};
-  
+;(function verify() {
+  const activeCars = window.activeCars?.value?.length || 0
+  const liveVehicles = window.liveVehicles?.length || 0
+  const poolStats = window.vehiclePool?.getStats() || {}
+
   const isFixed = {
     active_live_sync: Math.abs(activeCars - liveVehicles) < 10,
     not_at_limit: liveVehicles < 100,
     pool_available: (poolStats.totalPooled || 0) > 0,
-  };
-  
-  console.log('🔍 修復驗證結果:');
-  console.log(`${isFixed.active_live_sync ? '✅' : '❌'} activeCars 和 liveVehicles 同步`);
-  console.log(`${isFixed.not_at_limit ? '✅' : '❌'} 未達生成限制 (${liveVehicles}/100)`);
-  console.log(`${isFixed.pool_available ? '✅' : '❌'} 物件池有可用車輛 (${poolStats.totalPooled || 0})`);
-  
-  const allFixed = Object.values(isFixed).every(v => v);
-  console.log(`\n${allFixed ? '🎉 修復成功!' : '⚠️ 仍有問題需要排查'}`);
-})();
+  }
+
+  console.log('🔍 修復驗證結果:')
+  console.log(`${isFixed.active_live_sync ? '✅' : '❌'} activeCars 和 liveVehicles 同步`)
+  console.log(`${isFixed.not_at_limit ? '✅' : '❌'} 未達生成限制 (${liveVehicles}/100)`)
+  console.log(`${isFixed.pool_available ? '✅' : '❌'} 物件池有可用車輛 (${poolStats.totalPooled || 0})`)
+
+  const allFixed = Object.values(isFixed).every((v) => v)
+  console.log(`\n${allFixed ? '🎉 修復成功!' : '⚠️ 仍有問題需要排查'}`)
+})()
 ```
 
 ---

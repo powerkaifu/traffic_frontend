@@ -589,7 +589,7 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
         if (vehicleIndex > -1) {
           // ✅ 從活躍車輛列表中移除
           activeCars.value.splice(vehicleIndex, 1)
-          
+
           // ✅ 從 window.liveVehicles 移除（使循環計數正確）
           if (window.liveVehicles) {
             const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
@@ -597,7 +597,7 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
               window.liveVehicles.splice(liveIdx, 1)
             }
           }
-          
+
           console.log(`♻️ [${vehicle.id}] 車輛動畫完成，放回物件池`)
 
           // 🚨【確保隱藏】無論如何都要隱藏車輛元素
