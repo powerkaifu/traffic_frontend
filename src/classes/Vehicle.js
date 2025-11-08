@@ -1183,7 +1183,6 @@ export default class Vehicle {
         .then(() => {
           // 確保元素已添加到DOM中
           if (!this.element || !this.element.parentNode) {
-            console.warn(`⚠️ [${this.id}] 車輛元素尚未添加到DOM中，等待下一幀`)
             return new Promise((resolve) => requestAnimationFrame(resolve))
           }
         })
@@ -1942,8 +1941,6 @@ export default class Vehicle {
         },
       }),
     )
-
-    console.log(`✅ [${this.id}] 標記為已完成，等待 RAF 清理`)
   }
 
   // ✅ Phase 4 新增：集中清理方法（由 IndexPage RAF 迴圈調用）
