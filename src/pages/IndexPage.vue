@@ -556,6 +556,10 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
   })
   const startVehicleAnimation = async () => {
     try {
+      // 🚨【關鍵】確保從池中 acquire 的車輛可見性已生效
+      // 延遲 50ms 讓 GSAP 設置完成
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
       // 確保 SVG 路徑元素已準備好
       const waitForSvgPaths = async () => {
         const maxWait = 3000 // 最多等待3秒

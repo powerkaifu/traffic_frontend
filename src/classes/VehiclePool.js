@@ -42,6 +42,15 @@ export class VehiclePool {
       // ✅ 重置車輛到新狀態
       vehicle.reset(direction, laneNumber, vehicleType, this.simulationStore)
       // ✅ 立即恢復可見性和位置
+      console.log(`♻️ [VehiclePool.acquire] 從池中取出 ${vehicle.id}，重置完成，現在恢復可見性和位置 (${x}, ${y})`)
+
+      // 🚨【重要】確保 GSAP killTweensOf 完全生效後再設置 autoAlpha: 1
+      // 使用同步 set，但立即清除任何殘留的動畫狀態
+      gsap.killTweensOf(vehicle.element) // 再次確保沒有動畫
+      gsap.set(vehicle.element, {
+        clearProps: 'autoAlpha', // 清除任何殘留屬性
+      })
+
       gsap.set(vehicle.element, {
         autoAlpha: 1, // 👈 【關鍵】恢復可見性
         x: x,
@@ -52,12 +61,12 @@ export class VehiclePool {
       vehicle.currentY = y
       // 🚨 標記位置已設置，防止 moveAlongPath 中的路徑起始點邏輯覆蓋
       vehicle.isJustReset = true
-      console.log(`♻️ [VehiclePool] 從池中取車 ${vehicle.id}，設置位置 (${x}, ${y})`)
+      console.log(`✅ [VehiclePool.acquire] ${vehicle.id} 可見性已恢復，位置設置為 (${x}, ${y})，autoAlpha=1`)
     } else {
       // ❌ 池空，建立新車輛
       vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, this.simulationStore)
       vehicle.addTo(this.container)
-      console.log(`🆕 [VehiclePool] 創建新車 ${vehicle.id}`)
+      console.log(`🆕 [VehiclePool.acquire] 創建新車 ${vehicle.id}`)
     }
 
     this.activeVehicles.add(vehicle)
