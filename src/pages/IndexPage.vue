@@ -564,6 +564,10 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
   // ✅ 將車輛添加到 Store（用於自動生成系統計算 progress）
   store.addVehicle(vehicle)
 
+  // ✅ 同步到 window.liveVehicles（供 AutoTrafficGenerator 使用）
+  if (!window.liveVehicles) window.liveVehicles = []
+  window.liveVehicles.push(vehicle)
+
   // ✅ 派發事件（通過 Store）
   store.emit('vehicleAdded', {
     direction,
@@ -625,6 +629,12 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
       // ✅ 同時立即從 Store 中移除
       store.removeVehicle(vehicle.id)
 
+      // ✅ 同步移除 window.liveVehicles
+      if (window.liveVehicles) {
+        const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
+        if (liveIdx !== -1) window.liveVehicles.splice(liveIdx, 1)
+      }
+
       // 🚨 直接移除車輛，不執行淡出動畫
       // ⚠️ 注意：vehicle.remove() 會自動派發 vehicleRemoved 事件
       setTimeout(() => {
@@ -642,6 +652,11 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
         activeCars.value.splice(vehicleIndex, 1)
       }
       store.removeVehicle(vehicle.id)
+      // ✅ 同步移除 window.liveVehicles
+      if (window.liveVehicles) {
+        const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
+        if (liveIdx !== -1) window.liveVehicles.splice(liveIdx, 1)
+      }
       vehicle.remove()
     }
   }
