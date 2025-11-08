@@ -8,7 +8,13 @@
  * - 預期 CPU 減少 60-70%
  */
 
-import { COLLISION_CONFIG, FOLLOWING_CONFIG, DISTANCE_CONFIG, ANIMATION_CONFIG, LANE_SPAWN_CONFIG } from '../config/vehicleConfig.js'
+import {
+  COLLISION_CONFIG,
+  FOLLOWING_CONFIG,
+  DISTANCE_CONFIG,
+  ANIMATION_CONFIG,
+  LANE_SPAWN_CONFIG,
+} from '../config/vehicleConfig.js'
 import { SpatialHashGrid } from '../optimization/SpatialHashGrid.js'
 
 export class CollisionController {
