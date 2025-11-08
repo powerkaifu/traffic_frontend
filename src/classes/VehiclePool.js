@@ -17,6 +17,7 @@ export class VehiclePool {
     this.simulationStore = simulationStore
     this.poolMap = new Map() // 按方向分組：{ direction: [vehicle1, vehicle2, ...] }
     this.activeVehicles = new Set() // 追蹤所有活躍的車輛
+    this.maxSize = 120 // 🚗 最大容量：4 方向 × 24 輛停車位 + 24 緩衝 = 120
   }
 
   /**
@@ -31,6 +32,15 @@ export class VehiclePool {
   acquire(direction, laneNumber, vehicleType, x, y) {
     if (!this.poolMap.has(direction)) {
       this.poolMap.set(direction, [])
+    }
+
+    // 🚨 檢查是否超過最大容量
+    const totalVehicles = this.activeVehicles.size + this.getTotalPooled()
+    if (totalVehicles >= this.maxSize) {
+      console.warn(
+        `⚠️ [VehiclePool] 已達最大容量 ${this.maxSize}，無法創建新車輛。活躍: ${this.activeVehicles.size}, 空閒: ${this.getTotalPooled()}`,
+      )
+      return null
     }
 
     const directionPool = this.poolMap.get(direction)
@@ -122,18 +132,29 @@ export class VehiclePool {
   }
 
   /**
+   * 取得池中空閒車輛總數
+   */
+  getTotalPooled() {
+    let total = 0
+    for (const pool of this.poolMap.values()) {
+      total += pool.length
+    }
+    return total
+  }
+
+  /**
    * 取得池的統計信息
    */
   getStats() {
     const stats = {
-      totalPooled: 0,
+      maxSize: this.maxSize,
+      totalPooled: this.getTotalPooled(),
       totalActive: this.activeVehicles.size,
       byDirection: {},
     }
 
     for (const [direction, pool] of this.poolMap.entries()) {
       stats.byDirection[direction] = pool.length
-      stats.totalPooled += pool.length
     }
 
     return stats
