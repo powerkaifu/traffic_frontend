@@ -1414,9 +1414,18 @@ export default class Vehicle {
                 // 🚨 綠燈跟車邏輯：如果是綠燈且前車正在移動，根據距離調整速度
                 const currentLightState = trafficController.getCurrentLightState(this.direction)
 
+                // 🚨 修正：1號車道在直行綠燈時應該排隊等待左轉綠燈，不應該跟車
+                if (this.laneNumber === 1 && currentLightState === 'green') {
+                  // 1號車道在直行綠燈時：停止並排隊等待左轉綠燈
+                  this.movementTimeline.timeScale(0)
+                  this.currentState = 'waitingForLeftTurnGreen'
+                  this.waitingForGreen = true
+                  return
+                }
+
                 // 🚨 修正：1號車道在左轉綠燈時也應執行跟車邏輯
                 const isValidLightForFollowing =
-                  (this.laneNumber === 1 && (currentLightState === 'leftGreen' || currentLightState === 'green')) ||
+                  (this.laneNumber === 1 && currentLightState === 'leftGreen') ||
                   (this.laneNumber !== 1 && currentLightState === 'green')
 
                 if (
@@ -1467,14 +1476,57 @@ export default class Vehicle {
                     // 第一台車：前方車輛在停止線等待且不移動，繼續前進到停止線
                     const currentTimeScale = this.movementTimeline.timeScale()
                     if (currentTimeScale < 1) {
-                      this.movementTimeline.timeScale(1)
+                      // 平滑恢復而不是直接設置，防止「往前一格」的突發動作
+                      gsap.to(this.movementTimeline, {
+                        timeScale: 1,
+                        duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH,
+                        ease: 'power2.out',
+                      })
                       this.currentState = 'moving'
                     }
                   }
                 } else if (!shouldStop.frontVehicleIsMoving) {
                   // 前方車輛停止且不移動：停止跟車
                   this.movementTimeline.timeScale(0)
-                  this.currentState = 'gapRecovery'
+
+                  // 🚨 關鍵修復：如果距離太近（< requiredGap），調整位置避免重疊
+                  const distance = shouldStop.distance
+                  const requiredGap = shouldStop.requiredGap || 8
+                  if (distance > 0 && distance < requiredGap) {
+                    // 距離不足，需要後退保持安全距離
+                    const adjustmentNeeded = requiredGap - distance
+                    const currentPos = this.getCurrentPosition()
+
+                    // 根據方向調整位置
+                    switch (this.direction) {
+                      case 'east':
+                        gsap.set(this.element, { x: currentPos.x - adjustmentNeeded })
+                        break
+                      case 'west':
+                        gsap.set(this.element, { x: currentPos.x + adjustmentNeeded })
+                        break
+                      case 'north':
+                        gsap.set(this.element, { y: currentPos.y - adjustmentNeeded })
+                        break
+                      case 'south':
+                        gsap.set(this.element, { y: currentPos.y + adjustmentNeeded })
+                        break
+                    }
+                  }
+
+                  // 🚨 區分排隊停止 vs 碰撞恢復
+                  // 如果在停止線區域且紅/黃燈，應該是排隊停止，不應該用 gapRecovery
+                  const currentLightState = trafficController.getCurrentLightState(this.direction)
+                  const isInStopLineZone = this.isNearStopLine()
+                  const isRedOrYellow = currentLightState === 'red' || currentLightState === 'yellow'
+
+                  if (isInStopLineZone && isRedOrYellow) {
+                    // 排隊停止：等待前車或燈號變化，不主動恢復
+                    this.currentState = 'waitingForVehicle'
+                  } else {
+                    // 碰撞恢復：在開放道路碰撞，需要主動恢復
+                    this.currentState = 'gapRecovery'
+                  }
                   return
                 }
               } else if (this.movementTimeline) {
@@ -1485,10 +1537,10 @@ export default class Vehicle {
                   const currentLightState = trafficController.getCurrentLightState(this.direction)
 
                   // 🚦 判斷車輛是否可以通行
-                  // 🚨 修正：1號車道在直行綠燈時也應執行碰撞檢測，只是不能通過停止線
+                  // 🚨 修正：1號車道只在左轉綠燈時才能恢復移動
                   const canProceed =
                     this.laneNumber === 1
-                      ? currentLightState === 'leftGreen' || currentLightState === 'green' // 左轉車道在任何綠燈時都執行碰撞檢測
+                      ? currentLightState === 'leftGreen' // 1號車道只在左轉綠燈時恢復
                       : currentLightState === 'green' // 直行車道需要直行綠燈
 
                   if (canProceed) {
