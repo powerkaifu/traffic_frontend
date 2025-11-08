@@ -598,7 +598,7 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
             }
           }
 
-          console.log(`♻️ [${vehicle.id}] 車輛動畫完成，放回物件池`)
+          // console.log(`♻️ [${vehicle.id}] 車輛動畫完成，放回物件池`)
 
           // 🚨【確保隱藏】無論如何都要隱藏車輛元素
           if (vehicle.element) {
