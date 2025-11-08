@@ -5,6 +5,7 @@
 進一步優化交通燈計時系統，將 **API 觸發時機檢查** 從主線程移到 Web Worker，達到完全卸載主線程的目標。
 
 ### 🎯 優化目標
+
 - ✅ 消除主線程上的 apiCheckInterval setInterval
 - ✅ 100% 計時邏輯由 Worker 負責
 - ✅ 進一步釋放主線程 CPU 時間
@@ -30,6 +31,7 @@
 ```
 
 **問題**: 主線程上的 `apiCheckInterval` 以 100ms 間隔輪詢，造成：
+
 - 額外的 setInterval 實例 (+1 per countdown)
 - 主線程頻繁被喚醒
 - 與 RAF 和其他計時器競爭 CPU 時間
@@ -62,22 +64,22 @@
 
 ```javascript
 // ✅ 新增：API 觸發相關變數
-let apiTriggerSecond = null  // API 觸發秒數
-let apiTriggered = false     // 標記 API 是否已觸發
+let apiTriggerSecond = null // API 觸發秒數
+let apiTriggered = false // 標記 API 是否已觸發
 
 self.onmessage = (event) => {
-  const { 
-    command, 
-    duration: messageDuration, 
+  const {
+    command,
+    duration: messageDuration,
     precision = 100,
-    apiTriggerSecond: triggerSecond  // ✅ 接收 API 觸發秒數
+    apiTriggerSecond: triggerSecond, // ✅ 接收 API 觸發秒數
   } = event.data
 
   if (command === 'startCountdown') {
     // ... 初始化代碼 ...
-    
-    apiTriggerSecond = triggerSecond  // ✅ 保存 API 觸發秒數
-    apiTriggered = false              // ✅ 重置觸發標記
+
+    apiTriggerSecond = triggerSecond // ✅ 保存 API 觸發秒數
+    apiTriggered = false // ✅ 重置觸發標記
 
     countdownInterval = setInterval(() => {
       const elapsed = Date.now() - startTime
@@ -114,7 +116,7 @@ if (this.countdownWorker) {
       command: 'startCountdown',
       duration: totalMs,
       precision: 100,
-      apiTriggerSecond: actualTriggerSeconds,  // ✅ 傳遞 API 觸發秒數
+      apiTriggerSecond: actualTriggerSeconds, // ✅ 傳遞 API 觸發秒數
     })
 
     // 監聽 Worker 消息
@@ -152,18 +154,21 @@ if (this.countdownWorker) {
 ## 📊 優化效果
 
 ### 計時器消除
-| 組件 | 之前 | 之後 | 消除 |
-|------|------|------|------|
-| Worker 計時 | 1 個 setInterval | 1 個 setInterval | - |
-| 主線程 API 檢查 | 1 個 setInterval | 0 | ✅ 100% |
-| **總計** | **2 個** | **1 個** | **✅ 50%** |
+
+| 組件            | 之前             | 之後             | 消除       |
+| --------------- | ---------------- | ---------------- | ---------- |
+| Worker 計時     | 1 個 setInterval | 1 個 setInterval | -          |
+| 主線程 API 檢查 | 1 個 setInterval | 0                | ✅ 100%    |
+| **總計**        | **2 個**         | **1 個**         | **✅ 50%** |
 
 ### 主線程卸載
+
 - **消除**: apiCheckInterval (100ms 輪詢)
 - **消除**: setTimeout 清理邏輯
 - **結果**: 主線程每個倒數週期減少 2 個計時器相關操作
 
 ### CPU 節省
+
 ```
 之前: 每倒數 1 次 → 主線程 +2 個計時器操作
 之後: 每倒數 1 次 → 主線程 +0 個計時器操作 ✅
@@ -225,6 +230,7 @@ if (this.countdownWorker) {
 ## ✅ 驗證點
 
 ### 功能驗證
+
 - ✅ Worker 接收 apiTriggerSecond 參數
 - ✅ Worker 在正確的秒數發送 'api_trigger' 消息
 - ✅ 主線程接收並處理 'api_trigger' 消息
@@ -232,6 +238,7 @@ if (this.countdownWorker) {
 - ✅ 倒數完成後正確 resolve
 
 ### 代碼驗證
+
 - ✅ CountdownWorker.js 有 API 觸發檢查
 - ✅ TrafficLightController.js 無 apiCheckInterval
 - ✅ TrafficLightController.js 有 'api_trigger' 消息處理
@@ -239,6 +246,7 @@ if (this.countdownWorker) {
 - ✅ Build 成功
 
 ### 性能驗證
+
 - ⏳ 主線程計時器減少
 - ⏳ CPU 使用率進一步下降
 - ⏳ 倒數精準度保持
@@ -248,12 +256,14 @@ if (this.countdownWorker) {
 ## 🎯 進一步優化機會
 
 ### Priority 4.1: TrafficLightController 其他計時器
+
 - 第 355 行: countdownInterval (燈號倒計時)
 - 第 890 行: apiCheckInterval (API 檢查)
 
 這些也可以考慮移到 Worker，但需要更大的重構。
 
 ### Priority 4.2: 其他模塊的 setInterval
+
 參考 `TIMER_CONSOLIDATION_FIXES.md` 中的 Priority 4 清單。
 
 ---
@@ -262,13 +272,13 @@ if (this.countdownWorker) {
 
 ### 從 Priority 1-4
 
-| 階段 | 修復內容 | 計時器消除 | 預期效果 |
-|------|---------|----------|---------|
-| **P1** | AutoTrafficGenerator setTimeout | 6 個 | 消除爆量 Bug |
-| **P2** | Vehicle.js setInterval | 200+ 個 | 消除死當 Bug |
-| **P3** | CollisionController 區域感知 | - | 消除死鎖 Bug |
-| **P4** | Web Worker API 觸發 | 1 個 | 進一步卸載主線程 |
-| **累積** | **全系統優化** | **207+ 個** | **60% CPU 降低** |
+| 階段     | 修復內容                        | 計時器消除  | 預期效果         |
+| -------- | ------------------------------- | ----------- | ---------------- |
+| **P1**   | AutoTrafficGenerator setTimeout | 6 個        | 消除爆量 Bug     |
+| **P2**   | Vehicle.js setInterval          | 200+ 個     | 消除死當 Bug     |
+| **P3**   | CollisionController 區域感知    | -           | 消除死鎖 Bug     |
+| **P4**   | Web Worker API 觸發             | 1 個        | 進一步卸載主線程 |
+| **累積** | **全系統優化**                  | **207+ 個** | **60% CPU 降低** |
 
 ---
 
@@ -283,7 +293,8 @@ if (this.countdownWorker) {
 
 ---
 
-**修改文件**: 
+**修改文件**:
+
 - `src/classes/CountdownWorker.js` - 添加 API 觸發邏輯
 - `src/classes/TrafficLightController.js` - 移除主線程計時，使用消息驅動
 

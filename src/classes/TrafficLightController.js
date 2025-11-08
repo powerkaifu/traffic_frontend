@@ -335,9 +335,11 @@ export default class TrafficLightController {
             let startTime = null
             let duration = null
             let lastReportedSecond = null
+            let apiTriggerSecond = null
+            let apiTriggered = false
 
             self.onmessage = (event) => {
-              const { command, duration: messageDuration, precision = 50 } = event.data
+              const { command, duration: messageDuration, precision = 50, apiTriggerSecond: triggerSecond } = event.data
 
               if (command === 'startCountdown') {
                 if (countdownInterval) {
@@ -347,6 +349,8 @@ export default class TrafficLightController {
                 duration = messageDuration
                 startTime = Date.now()
                 lastReportedSecond = Math.floor(duration / 1000)
+                apiTriggerSecond = triggerSecond
+                apiTriggered = false
 
                 // ❌ 不立即發送初始 tick
                 // 原因：初始值由 updateTimer() 設置，Worker 只負責發送秒數變化
@@ -361,6 +365,16 @@ export default class TrafficLightController {
                     lastReportedSecond = remaining
                     self.postMessage({
                       type: 'tick',
+                      remaining,
+                      elapsed,
+                    })
+                  }
+
+                  // ✅ 新增：檢查是否需要觸發 API
+                  if (apiTriggerSecond !== null && remaining === apiTriggerSecond && !apiTriggered) {
+                    apiTriggered = true
+                    self.postMessage({
+                      type: 'api_trigger',
                       remaining,
                       elapsed,
                     })
@@ -862,7 +876,7 @@ export default class TrafficLightController {
           command: 'startCountdown',
           duration: totalMs,
           precision: 100,
-          apiTriggerSecond: actualTriggerSeconds,  // ✅ 新增：傳遞 API 觸發秒數
+          apiTriggerSecond: actualTriggerSeconds, // ✅ 新增：傳遞 API 觸發秒數
         })
 
         // 監聽 Worker 消息
