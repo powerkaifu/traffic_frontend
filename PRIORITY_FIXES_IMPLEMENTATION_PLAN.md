@@ -47,18 +47,18 @@
 
 ```javascript
 // 🎯 新增累加器變數（在 mainSimulationLoop 之前）
-let autoModeAccumulator = 0          // 自動模式: 37.5 秒
-let trafficLightAccumulator = 0      // 交通燈倒數: 1000ms
-let dataCollectionAccumulator = 0    // 數據收集: 1000ms
-let performanceCheckAccumulator = 0  // 性能檢查: 1000ms
-let weatherAccumulator = 0            // 天氣效果: 2000ms
+let autoModeAccumulator = 0 // 自動模式: 37.5 秒
+let trafficLightAccumulator = 0 // 交通燈倒數: 1000ms
+let dataCollectionAccumulator = 0 // 數據收集: 1000ms
+let performanceCheckAccumulator = 0 // 性能檢查: 1000ms
+let weatherAccumulator = 0 // 天氣效果: 2000ms
 
 const ACCUMULATOR_TARGETS = {
-  autoMode: 37500,           // 37.5 秒
-  trafficLight: 1000,        // 1 秒
-  dataCollection: 1000,      // 1 秒
-  performanceCheck: 1000,    // 1 秒
-  weather: 2000,             // 2 秒
+  autoMode: 37500, // 37.5 秒
+  trafficLight: 1000, // 1 秒
+  dataCollection: 1000, // 1 秒
+  performanceCheck: 1000, // 1 秒
+  weather: 2000, // 2 秒
 }
 
 function mainSimulationLoop(currentTime) {
@@ -84,7 +84,7 @@ function mainSimulationLoop(currentTime) {
     if (autoModeAccumulator >= ACCUMULATOR_TARGETS.autoMode) {
       if (window.autoTrafficGenerator) {
         window.autoTrafficGenerator.simulationTime.setMinutes(
-          window.autoTrafficGenerator.simulationTime.getMinutes() + 30
+          window.autoTrafficGenerator.simulationTime.getMinutes() + 30,
         )
         const hours = String(window.autoTrafficGenerator.simulationTime.getHours()).padStart(2, '0')
         const minutes = String(window.autoTrafficGenerator.simulationTime.getMinutes()).padStart(2, '0')
@@ -212,7 +212,7 @@ window.trafficLightCountdownAccumulator = (window.trafficLightCountdownAccumulat
 ```javascript
 onUpdate: () => {
   if (allVehicles.length > 0) {
-    CollisionController.rebuildSpatialGrid(allVehicles)  // ❌ 在每車的 onUpdate 中執行
+    CollisionController.rebuildSpatialGrid(allVehicles) // ❌ 在每車的 onUpdate 中執行
   }
   // ...
 }
@@ -231,7 +231,7 @@ onUpdate: () => {
 // 修改前:
 onUpdate: () => {
   if (allVehicles.length > 0) {
-    CollisionController.rebuildSpatialGrid(allVehicles)  // ❌ 移除這行
+    CollisionController.rebuildSpatialGrid(allVehicles) // ❌ 移除這行
   }
   // ... 其他邏輯
 }
@@ -240,7 +240,6 @@ onUpdate: () => {
 onUpdate: () => {
   // ❌ 移除 rebuildSpatialGrid 調用
   // 該邏輯已遷移到 IndexPage mainSimulationLoop 頂部
-
   // ... 其他邏輯保持不變
 }
 ```
@@ -275,6 +274,7 @@ function mainSimulationLoop(currentTime) {
 ```
 
 **效果**:
+
 - 修復前: 100 次 rebuildSpatialGrid/幀 (100 輛車)
 - 修復後: 1 次 rebuildSpatialGrid/幀
 - 性能提升: **100倍**
@@ -288,7 +288,7 @@ function mainSimulationLoop(currentTime) {
 **文件**: `src/config/stopLineConfig.js`
 
 ```javascript
-SENSITIVITY: 10  // ❌ 只有 10 像素
+SENSITIVITY: 10 // ❌ 只有 10 像素
 ```
 
 **問題**: 高速車輛會跳過停止線檢測 (位移 > 檢測範圍)
@@ -304,10 +304,11 @@ SENSITIVITY: 10  // ❌ 只有 10 像素
 const SENSITIVITY = 10
 
 // 修改後:
-const SENSITIVITY = 50  // ✅ 提高到 50 像素
+const SENSITIVITY = 50 // ✅ 提高到 50 像素
 ```
 
 **計算驗證**:
+
 ```
 高速車輛 (60 km/h):
 ├─ 速度: 166 px/s
@@ -362,7 +363,7 @@ const SENSITIVITY = 50  // ✅ 提高到 50 像素
 
 ```javascript
 // 1. 檢查計時器數量
-console.log(Object.keys(window).filter(k => k.includes('Timer')).length)
+console.log(Object.keys(window).filter((k) => k.includes('Timer')).length)
 // 預期: 0 (沒有 setInterval 創建的計時器)
 
 // 2. 檢查 FPS
@@ -453,4 +454,3 @@ console.log(performance.memory.usedJSHeapSize / 1024 / 1024)
 ```
 
 請告訴我您的決定！
-

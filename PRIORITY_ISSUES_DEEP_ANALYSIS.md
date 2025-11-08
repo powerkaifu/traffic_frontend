@@ -10,13 +10,13 @@
 
 您的分析**完全正確**。經過代碼審查，我確認了以下關鍵問題：
 
-| 優先級 | 問題 | 確認狀態 | 位置 | 影響 |
-|------|-----|--------|------|------|
-| 🥇 P1 | 計時器地獄 (Timer Hell) | ✅ **確認** | 6個位置 | 🔥 動畫卡頓 + 記憶體洩漏 |
-| 🥈 P2 | 動畫不順暢 (Jank) | ✅ **確認** | Vehicle.js L1225 | 🔥 每幀重建網格N次 |
-| 🥉 P3 | 停止線穿透 | ✅ **確認** | stopLineConfig.js | ⚠️ 行為問題 |
-| 🏅 P4 | 開放道路死鎖 | ✅ **確認** | CollisionController.js | ⚠️ 車輛卡住 |
-| 🎯 P5 | 架構耦合 | ✅ **確認** | 全項目 | 📊 可維護性問題 |
+| 優先級 | 問題                    | 確認狀態    | 位置                   | 影響                     |
+| ------ | ----------------------- | ----------- | ---------------------- | ------------------------ |
+| 🥇 P1  | 計時器地獄 (Timer Hell) | ✅ **確認** | 6個位置                | 🔥 動畫卡頓 + 記憶體洩漏 |
+| 🥈 P2  | 動畫不順暢 (Jank)       | ✅ **確認** | Vehicle.js L1225       | 🔥 每幀重建網格N次       |
+| 🥉 P3  | 停止線穿透              | ✅ **確認** | stopLineConfig.js      | ⚠️ 行為問題              |
+| 🏅 P4  | 開放道路死鎖            | ✅ **確認** | CollisionController.js | ⚠️ 車輛卡住              |
+| 🎯 P5  | 架構耦合                | ✅ **確認** | 全項目                 | 📊 可維護性問題          |
 
 ---
 
@@ -44,7 +44,8 @@ this.scenarioModeTimer = setInterval(() => {
 }, SCENARIO_MODE_CONFIG.INTERVAL)
 ```
 
-**問題**: 
+**問題**:
+
 - ❌ 這些 `setInterval` **完全不受 RAF 控制**
 - ❌ 與 `mainSimulationLoop` 異步執行，主線程搶資源
 - ❌ 當系統卡頓時，會形成「計時器隊列堆積」
@@ -58,7 +59,8 @@ countdownInterval = setInterval(() => {
 }, ...)
 ```
 
-**問題**: 
+**問題**:
+
 - ❌ 為每個交通燈創建獨立的 `setInterval`
 - ❌ 應該由 `mainSimulationLoop` 統一驅動
 
@@ -71,7 +73,8 @@ this.monitoring.interval = setInterval(() => {
 }, ...)
 ```
 
-**問題**: 
+**問題**:
+
 - ❌ 獨立運行，造成主線程競爭
 
 #### 4️⃣ **TrafficDataCollector.js 的 setInterval (L231)**
@@ -83,7 +86,8 @@ this.collectionTimer = setInterval(() => {
 }, ...)
 ```
 
-**問題**: 
+**問題**:
+
 - ❌ 獨立運行，與 RAF 搶資源
 
 ---
@@ -124,10 +128,10 @@ this.movementTimeline = gsap.timeline({
     // 🚀 第1階段優化：每幀重建 SpatialHashGrid（用於優化碰撞檢測）
     // 只在有活躍車輛時執行
     if (allVehicles.length > 0) {
-      CollisionController.rebuildSpatialGrid(allVehicles)  // ❌ 這行是問題！
+      CollisionController.rebuildSpatialGrid(allVehicles) // ❌ 這行是問題！
     }
     // ... 更多邏輯
-  }
+  },
 })
 ```
 
@@ -162,7 +166,7 @@ const frontVehicleInfo = this.collisionController?.checkSimpleCollision(allVehic
 ```
 每幀發生次數: 100 × 50ms/1幀 = 100 次碰撞檢測
 
-CheckSimpleCollision 複雜度: O(N²) 
+CheckSimpleCollision 複雜度: O(N²)
 ├─ 對於 100 輛車: 10,000 次比較
 ├─ 在 50ms 間隔內執行: 10,000 × 100 = 1,000,000 次比較
 └─ 性能消耗: 巨大 🔴
@@ -194,9 +198,10 @@ const SENSITIVITY = 10 // ❌ 只有 10 像素！
 ```
 
 **建議修復**:
+
 ```javascript
 // 新配置
-const SENSITIVITY = 50  // 提高到 50 像素
+const SENSITIVITY = 50 // 提高到 50 像素
 ```
 
 ---
@@ -210,7 +215,7 @@ const SENSITIVITY = 50  // 提高到 50 像素
 ```javascript
 // src/classes/vehicle_utils/CollisionController.js
 // ... 在碰撞檢測中
-targetSpeed: 0  // ❌ 在所有情況下都是 0！
+targetSpeed: 0 // ❌ 在所有情況下都是 0！
 ```
 
 **問題分析**:
@@ -233,7 +238,8 @@ targetSpeed: 0  // ❌ 在所有情況下都是 0！
 └─ Vehicle 無法區分這是應該停止還是應該減速
 ```
 
-**結果**: 
+**結果**:
+
 ```
 綠燈時，車輛仍然卡在「stopped」狀態，無法移動 🔴
 ```
@@ -261,6 +267,7 @@ targetSpeed: 0  // ❌ 在所有情況下都是 0！
 ```
 
 **為什麼重要**:
+
 - ❌ 難以測試
 - ❌ 難以追蹤數據流
 - ❌ 容易產生循環依賴
@@ -368,11 +375,10 @@ CPU 負載: 66% 減少
 您準備好進行修復嗎？建議順序：
 
 1. **P1 修復**: 統一計時器 → ~2-3 小時
-2. **P2 修復**: 優化網格重建 → ~1-2 小時  
+2. **P2 修復**: 優化網格重建 → ~1-2 小時
 3. **P3 修復**: 調整 SENSITIVITY → ~10 分鐘
 4. **測試驗證**: 運行性能測試 → ~30 分鐘
 
 **預計總時間**: 4-6 小時 + 測試
 
 我已準備好開始修復。您想從哪個優先級開始？
-

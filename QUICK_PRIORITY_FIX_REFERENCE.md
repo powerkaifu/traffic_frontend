@@ -2,13 +2,13 @@
 
 ## 📋 問題總結表
 
-| 優先級 | 問題 | 位置 | 修復時間 | 性能提升 |
-|------|-----|------|--------|--------|
-| 🥇 P1 | 計時器地獄 (6+ setInterval) | AutoTrafficGenerator, TrafficLightController, PerformanceOptimizer 等 | 2-3小時 | FPS: 20→60 |
-| 🥈 P2 | 動畫卡頓 (每幀重建網格N次) | Vehicle.js L1225 | 15分鐘 | CPU: -50% |
-| 🥉 P3 | 停止線穿透 (SENSITIVITY太小) | stopLineConfig.js | 5分鐘 | 準確率: 75%→99% |
-| 🏅 P4 | 開放道路死鎖 (targetSpeed=0) | CollisionController.js | 30分鐘 | 車輛流動性改善 |
-| 🎯 P5 | 架構耦合 (window全局) | 整個項目 | 4-6小時 | 可維護性提升 |
+| 優先級 | 問題                         | 位置                                                                  | 修復時間 | 性能提升        |
+| ------ | ---------------------------- | --------------------------------------------------------------------- | -------- | --------------- |
+| 🥇 P1  | 計時器地獄 (6+ setInterval)  | AutoTrafficGenerator, TrafficLightController, PerformanceOptimizer 等 | 2-3小時  | FPS: 20→60      |
+| 🥈 P2  | 動畫卡頓 (每幀重建網格N次)   | Vehicle.js L1225                                                      | 15分鐘   | CPU: -50%       |
+| 🥉 P3  | 停止線穿透 (SENSITIVITY太小) | stopLineConfig.js                                                     | 5分鐘    | 準確率: 75%→99% |
+| 🏅 P4  | 開放道路死鎖 (targetSpeed=0) | CollisionController.js                                                | 30分鐘   | 車輛流動性改善  |
+| 🎯 P5  | 架構耦合 (window全局)        | 整個項目                                                              | 4-6小時  | 可維護性提升    |
 
 ---
 
@@ -25,6 +25,7 @@
 ```
 
 **驗證**:
+
 ```javascript
 // 在瀏覽器控制台執行:
 // 運行 100 輛車，高速通過停止線
@@ -45,10 +46,10 @@
 this.movementTimeline = gsap.timeline({
   onUpdate: () => {
     if (allVehicles.length > 0) {
-      CollisionController.rebuildSpatialGrid(allVehicles)  // ❌ 刪除這行
+      CollisionController.rebuildSpatialGrid(allVehicles) // ❌ 刪除這行
     }
     // ...
-  }
+  },
 })
 
 // ✅ 修改後:
@@ -56,7 +57,7 @@ this.movementTimeline = gsap.timeline({
   onUpdate: () => {
     // CollisionController.rebuildSpatialGrid(allVehicles) 已遷移到 IndexPage mainSimulationLoop
     // ...
-  }
+  },
 })
 ```
 
@@ -78,7 +79,7 @@ function mainSimulationLoop(currentTime) {
     }
 
     // ... 其他邏輯 ...
-    
+
     rafId = requestAnimationFrame(mainSimulationLoop)
   } catch (error) {
     // ...
@@ -87,9 +88,10 @@ function mainSimulationLoop(currentTime) {
 ```
 
 **效果驗證**:
+
 ```javascript
 // 檢查 FPS 是否提升
-console.log('FPS:', calculateFPS())  // 預期: 40-50+ fps
+console.log('FPS:', calculateFPS()) // 預期: 40-50+ fps
 ```
 
 ---
@@ -119,11 +121,11 @@ let performanceCheckAccumulator = 0
 let weatherAccumulator = 0
 
 const ACCUMULATOR_TARGETS = {
-  autoMode: 37500,           // 37.5 秒
-  trafficLight: 1000,        // 1 秒
-  dataCollection: 1000,      // 1 秒
-  performanceCheck: 1000,    // 1 秒
-  weather: 2000,             // 2 秒
+  autoMode: 37500, // 37.5 秒
+  trafficLight: 1000, // 1 秒
+  dataCollection: 1000, // 1 秒
+  performanceCheck: 1000, // 1 秒
+  weather: 2000, // 2 秒
 }
 
 function mainSimulationLoop(currentTime) {
@@ -154,7 +156,7 @@ function mainSimulationLoop(currentTime) {
     if (autoModeAccumulator >= ACCUMULATOR_TARGETS.autoMode) {
       if (window.autoTrafficGenerator && window.autoTrafficGenerator.simulationTime) {
         window.autoTrafficGenerator.simulationTime.setMinutes(
-          window.autoTrafficGenerator.simulationTime.getMinutes() + 30
+          window.autoTrafficGenerator.simulationTime.getMinutes() + 30,
         )
         const hours = String(window.autoTrafficGenerator.simulationTime.getHours()).padStart(2, '0')
         const minutes = String(window.autoTrafficGenerator.simulationTime.getMinutes()).padStart(2, '0')
@@ -309,9 +311,7 @@ measureFPS()
 console.log(`💾 記憶體使用: ${(performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1)} MB`)
 
 // 3. 檢查計時器數量 (應該為 0)
-const timerCount = Object.keys(window)
-  .filter(k => k.includes('Timer') || k.includes('Interval'))
-  .length
+const timerCount = Object.keys(window).filter((k) => k.includes('Timer') || k.includes('Interval')).length
 console.log(`⏱️ 計時器數量: ${timerCount}`)
 
 // 4. 檢查停止線準確率
@@ -325,13 +325,15 @@ console.log(`⏱️ 計時器數量: ${timerCount}`)
 ### Q1: 修復後系統無反應？
 
 **A**: 檢查以下內容:
+
 1. 確保 `window.autoTrafficGenerator` 存在
 2. 確保 `window.trafficController` 存在
 3. 檢查瀏覽器控制台是否有錯誤
 
 ### Q2: 交通燈不倒數？
 
-**A**: 
+**A**:
+
 1. 檢查 `TrafficLightController` 是否有 `updateCountdowns()` 方法
 2. 檢查 `trafficLightAccumulator` 是否正確累加
 3. 添加 debug log: `console.log('⏱️ 交通燈更新:', trafficLightAccumulator)`
@@ -339,6 +341,7 @@ console.log(`⏱️ 計時器數量: ${timerCount}`)
 ### Q3: 性能沒有改善？
 
 **A**:
+
 1. 確認 `Vehicle.js L1225` 的 `rebuildSpatialGrid` 已移除
 2. 確認 `AutoTrafficGenerator` 的 `setInterval` 已禁用
 3. 檢查其他位置是否仍有 `setInterval`
@@ -350,12 +353,13 @@ console.log(`⏱️ 計時器數量: ${timerCount}`)
 您準備好開始嗎？
 
 **推薦順序**:
+
 1. ✅ **立即開始 P3** (5分鐘，無風險)
 2. ✅ **然後修復 P2** (15分鐘，低風險)
 3. ✅ **最後修復 P1** (2-3小時，中等風險)
 
 請告訴我您的決定！我可以：
+
 - 📝 為您完整編輯每個文件
 - 🧪 提供完整測試腳本
 - 🐛 逐步調試任何問題
-
