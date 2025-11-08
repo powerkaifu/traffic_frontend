@@ -500,37 +500,9 @@ const handleAutoGenerateFromStore = (detail) => {
   )
 }
 
-// 原始的事件處理函數（用於 window 事件監聽）
-const handleAutoGenerate = (event) => {
-  const { direction, vehicleType, initialProgress } = event.detail
-
-  const laneNumber = selectOptimalLane(direction)
-
-  // ✅ 【改進】如果 selectOptimalLane 返回 null，表示該方向所有車道都已滿
-  // 🎯 RAF 主循環會在下一幀自動重試，無需手動 setTimeout
-  if (laneNumber === null) {
-    // ✨ 移除：setTimeout 會創建計時器副本
-    // ✨ 改由 RAF 主循環的下一幀自動重試（timeSinceLastGenerate 會繼續累積）
-    return
-  }
-
-  // 使用路徑起始位置生成車輛
-  const pathStartPosition = Vehicle.getPathStartPosition(direction, laneNumber)
-
-  if (!pathStartPosition) {
-    return
-  }
-
-  // 創建車輛，傳入 initialProgress
-  createVehicleWithPosition(
-    pathStartPosition.x,
-    pathStartPosition.y,
-    direction,
-    vehicleType,
-    laneNumber,
-    initialProgress,
-  )
-}
+// ⚠️ 【已棄用】原始的事件處理函數（用於 window 事件監聽）- 已移除 DOM 事件監聽
+// handleAutoGenerate 已不使用，保留此註解用於參考歷史
+// 所有派車邏輯現在通過 handleAutoGenerateFromStore 和 Store 訂閱完成
 
 // 🎯 處理自動左轉車輛生成事件（新版本 - 直接接收 detail 物件）
 const handleAutoGenerateLeftTurnFromStore = (detail) => {
@@ -554,36 +526,9 @@ const handleAutoGenerateLeftTurnFromStore = (detail) => {
   }
 }
 
-// 原始的左轉事件處理函數（用於 window 事件監聽）
-const handleAutoGenerateLeftTurn = (event) => {
-  const { direction, type } = event.detail
-
-  // ✅ 【修復】檢查車道1（左轉專用車道）是否已達容量限制
-  const MAX_VEHICLES_PER_LANE = GENERATION_CONFIG.MAX_VEHICLES_PER_LANE || 6
-  const laneNumber = 1
-
-  // 計算車道1中同方向的車輛數量
-  const lane1VehicleCount = activeCars.value.filter((car) => {
-    return car.direction === direction && car.laneNumber === laneNumber
-  }).length
-
-  // 如果車道1已滿，則放棄此次生成
-  if (lane1VehicleCount >= MAX_VEHICLES_PER_LANE) {
-    console.warn(
-      `⚠️ [車道限制] ${direction}方向1號車道已滿 (${lane1VehicleCount}/${MAX_VEHICLES_PER_LANE})，暫停生成左轉車輛`,
-    )
-    return
-  }
-
-  const pathStartPosition = Vehicle.getPathStartPosition(direction, laneNumber)
-
-  if (!pathStartPosition) {
-    return
-  }
-
-  // 創建左轉車輛
-  createVehicleWithPosition(pathStartPosition.x, pathStartPosition.y, direction, type, laneNumber)
-}
+// ⚠️ 【已棄用】原始的左轉事件處理函數（用於 window 事件監聽）- 已移除 DOM 事件監聽
+// handleAutoGenerateLeftTurn 已不使用，保留此註解用於參考歷史
+// 所有左轉派車邏輯現在通過 handleAutoGenerateLeftTurnFromStore 和 Store 訂閱完成
 
 // 通用車輛創建函數
 const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, initialProgress = 0) => {
@@ -1353,17 +1298,11 @@ onMounted(async () => {
       generateLeftTurnVehicle: unsubscribeGenerateLeftTurnVehicle,
     }
 
-    // 同時保留 DOM 事件監聽器，以支持其他外部組件（如 MainLayout）
-    // 這些事件處理器會調用相應的 Store 事件
-    window.addEventListener('scenarioChanged', (event) => {
-      handleScenarioChange(event.detail)
-    })
-    window.addEventListener('generateVehicle', (event) => {
-      handleAutoGenerate(event)
-    })
-    window.addEventListener('generateLeftTurnVehicle', (event) => {
-      handleAutoGenerateLeftTurn(event)
-    })
+    // ⚠️ 【修復】移除 DOM 事件監聽器（已遷移到 Store 訂閱）
+    // AutoTrafficGenerator 現在通過 store.emit() 發送事件
+    // Store 訂閱已完全接手，無需 window.dispatchEvent() 備份
+    // 保留舊的 DOM 事件監聽只會導致同一派車邏輯被執行兩次 ❌
+    // 改為完全依賴 Store 訂閱（第 1343 行的 store.subscribe()）✅
 
     // 監聽視窗大小變化和佈局變化
     const handleLayoutChange = async () => {
@@ -2206,12 +2145,8 @@ onUnmounted(() => {
     trafficController.stop()
   }
 
-  // 移除所有事件監聽
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('scenarioChanged', handleScenarioChange)
-    window.removeEventListener('generateVehicle', handleAutoGenerate)
-    window.removeEventListener('generateLeftTurnVehicle', handleAutoGenerateLeftTurn)
-  }
+  // ⚠️ 【修復】已移除 DOM 事件監聽器（已遷移到 Store 訂閱）
+  // 不再需要 window.removeEventListener() - Store 訂閱在上面已清理
 
   // 清理車輛清理定時器
   // 清理動態清理間隔

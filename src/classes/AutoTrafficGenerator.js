@@ -67,6 +67,9 @@ export default class AutoTrafficGenerator {
 
     // 🚗 交通配置現在由 trafficScenarioConfig.js 的 timeScenarios 統一管理
     // 移除了冗餘的硬編碼 trafficProfiles 和 vehicleMixes
+
+    // ⚠️ 【修復】同一RAF幀內生成車輛跟踪 - 防止重複生成
+    this.currentFrameGeneratedVehicles = [] // 記錄當前幀已生成的車輛
   }
 
   // 🚗 新增：從配置文件更新生成間隔參數
@@ -389,6 +392,9 @@ export default class AutoTrafficGenerator {
    */
   update(deltaTimeMs) {
     if (!this.isRunning) return
+
+    // ⚠️ 【修復】在幀開始時清空當前幀的生成記錄
+    this.currentFrameGeneratedVehicles = []
 
     // 1. 累加時間
     this.timeSinceLastGenerate += deltaTimeMs
@@ -1129,6 +1135,13 @@ export default class AutoTrafficGenerator {
 
     let selectedDir = availableDirs[Math.floor(Math.random() * availableDirs.length)]
 
+    // ⚠️ 【修復】檢查當前RAF幀內是否已經為該方向生成過車輛
+    const frameGeneratedForDir = this.currentFrameGeneratedVehicles.filter((v) => v.direction === selectedDir)
+    if (frameGeneratedForDir.length > 0) {
+      console.log(`🚨 [幀內重複] ${selectedDir}方向在當前幀內已生成${frameGeneratedForDir.length}台，延後到下一幀`)
+      return
+    }
+
     // 檢查每個方向的車輛數量
     const dirCounts = availableDirs.reduce((acc, dir) => {
       acc[dir] = recentVehicles.filter((v) => v.direction === dir).length
@@ -1143,6 +1156,15 @@ export default class AutoTrafficGenerator {
     if (dirCounts[selectedDir] > minCount) {
       console.log(`🚦 ${selectedDir}方向車輛過多(${dirCounts[selectedDir]})，選擇較少車輛的方向`)
       selectedDir = bestDirs[Math.floor(Math.random() * bestDirs.length)]
+    }
+
+    // ⚠️ 【修復】重新檢查新選方向是否已在當前幀生成過
+    const frameGeneratedForNewDir = this.currentFrameGeneratedVehicles.filter((v) => v.direction === selectedDir)
+    if (frameGeneratedForNewDir.length > 0) {
+      console.log(
+        `🚨 [幀內重複] 新選方向 ${selectedDir} 在當前幀內已生成${frameGeneratedForNewDir.length}台，延後到下一幀`,
+      )
+      return
     }
 
     // 🚨 更嚴格的同方向車輛檢查
@@ -1450,6 +1472,14 @@ export default class AutoTrafficGenerator {
         detail: vehicleAddedDetail,
       }),
     )
+
+    // ⚠️ 【修復】記錄該車輛已在當前幀生成（防止同幀重複生成）
+    this.currentFrameGeneratedVehicles.push({
+      direction: selectedDir,
+      type: type,
+      timestamp: Date.now(),
+    })
+
     this.statistics.total++
   }
 
