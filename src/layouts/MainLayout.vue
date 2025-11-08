@@ -396,6 +396,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRouter, useRoute } from 'vue-router'
+import { useSimulationStore } from 'src/stores/simulationStore'
 import { timeScenarios } from 'src/classes/config/trafficScenarioConfig.js'
 import { VD_DISPLAY_CONFIG } from 'src/classes/config/vdDisplayConfig.js'
 
@@ -594,7 +595,7 @@ const apiDataUpdateTrigger = ref(0)
 
 /**
  * 🎯 獲取發送到後端的 API 數據(原始 VD 數據)
- * 此函數讀取 TrafficLightController 保存的 window.lastApiVDDataArray
+ * 此函數讀取 SimulationStore 保存的 lastApiVDDataArray
  * 返回格式: 簡化的數據結構,直接用於模板顯示
  */
 function getApiVDData(dir) {
@@ -615,8 +616,13 @@ function getApiVDData(dir) {
     largeCarSpeed: 0,
   }
 
+  // 【修復】使用 SimulationStore 獲取最新的 API VD 數據
+  const simulationStore = useSimulationStore()
+  const lastApiVDDataArray = simulationStore.getLastApiVDDataArray()
+
   // 檢查是否有保存的 API 數據
-  if (!window.lastApiVDDataArray || window.lastApiVDDataArray.length === 0) {
+  if (!lastApiVDDataArray || lastApiVDDataArray.length === 0) {
+    if (process.env.DEV) console.log(`🔍 [MainLayout] getApiVDData(${dir}): 無數據，返回預設值`)
     return defaultData
   }
 
@@ -630,13 +636,13 @@ function getApiVDData(dir) {
     index = 2 // VLRJX00_south
   else if (dir === 'north') index = 3 // VLRJX00_north
 
-  const data = window.lastApiVDDataArray[index]
+  const data = lastApiVDDataArray[index]
   if (!data) return defaultData
 
   // 🔍 調試：檢查讀取到的 Volume_L
-  if (index === 0) {
-    if (process.env.DEV) console.log('🔍 [MainLayout] window.lastApiVDDataArray:', window.lastApiVDDataArray)
-    if (process.env.DEV) console.log(`🔍 [MainLayout] 方向 ${dir} (index ${index}): Volume_L = ${data.Volume_L}`)
+  if (index === 0 && process.env.DEV) {
+    console.log('🔍 [MainLayout] lastApiVDDataArray (from Store):', lastApiVDDataArray)
+    console.log(`🔍 [MainLayout] 方向 ${dir} (index ${index}): Volume_L = ${data.Volume_L}`)
   }
 
   // 返回與前端顯示相同的結構(方便模板使用)
