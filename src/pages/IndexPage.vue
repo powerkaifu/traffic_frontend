@@ -1315,13 +1315,13 @@ onMounted(async () => {
     })
 
     // ✅ 【新增】Store 事件訂閱 - 包裝成 event.detail 格式以兼容現有的事件處理器
-    store.on('generateVehicle', (detail) => {
+    store.subscribe('generateVehicle', (detail) => {
       handleAutoGenerate({ detail })
     })
-    store.on('generateLeftTurnVehicle', (detail) => {
+    store.subscribe('generateLeftTurnVehicle', (detail) => {
       handleAutoGenerateLeftTurn({ detail })
     })
-    store.on('scenarioChanged', (detail) => {
+    store.subscribe('scenarioChanged', (detail) => {
       handleScenarioChange(detail)
     })
 
