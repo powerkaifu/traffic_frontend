@@ -1932,6 +1932,14 @@ onMounted(async () => {
                     })
                   }
 
+                  // ✅ 同步到 window.liveVehicles 和 Store
+                  if (window.liveVehicles) {
+                    const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
+                    if (liveIdx !== -1) window.liveVehicles.splice(liveIdx, 1)
+                  }
+                  
+                  store.removeVehicle(vehicle.id)
+
                   console.log(`✅ [${vehicle.id}] 已提交清理任務`)
                 } catch (e) {
                   console.warn(`⚠️ [${vehicle.id}] 清理提交異常: ${e.message}`)
