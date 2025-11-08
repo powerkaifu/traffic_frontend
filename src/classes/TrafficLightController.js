@@ -2243,7 +2243,7 @@ export default class TrafficLightController {
 
       // ✅ 【統一數據線】使用回調更新 UI
       if (this.onPredictionUpdate) {
-        console.log(`📞 呼叫 onPredictionUpdate 回調`)
+        // console.log(`📞 呼叫 onPredictionUpdate 回調`)
         this.onPredictionUpdate({
           eastWest: adjustedEastWest,
           northSouth: adjustedNorthSouth,
