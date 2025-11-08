@@ -1611,10 +1611,9 @@ onMounted(async () => {
           // 如果車輛狀態是 completed 或 nearComplete，也要清理
           if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
             // ✅【改進】使用物件池回收，而不是直接移除
+            // 🚨【關鍵】不呼叫 vehicle.remove()，因為我們要保留 DOM 元素並重複使用
             if (vehiclePool) {
               vehiclePool.release(vehicle)
-            } else {
-              vehicle.remove()
             }
             // 同時清理 window.liveVehicles
             if (window.liveVehicles) {
@@ -1652,10 +1651,9 @@ onMounted(async () => {
             const vehicleToRemove = activeCars.value[idx]
             if (vehicleToRemove) {
               // ✅【改進】使用物件池回收，而不是直接移除
+              // 🚨【關鍵】不呼叫 vehicle.remove()，因為我們要保留 DOM 元素並重複使用
               if (vehiclePool) {
                 vehiclePool.release(vehicleToRemove)
-              } else {
-                vehicleToRemove.remove()
               }
               if (window.liveVehicles) {
                 const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicleToRemove.id)
@@ -2147,13 +2145,6 @@ onMounted(async () => {
                 if (vehiclePool) {
                   vehiclePool.release(vehicle)
                   console.log(`♻️ [${vehicle.id}] 異常移除的車輛已放回物件池`)
-                } else {
-                  // 備用：如果池未初始化，執行清理
-                  if (vehicle.performCleanup && typeof vehicle.performCleanup === 'function') {
-                    vehicle.performCleanup().catch((e) => {
-                      console.warn(`⚠️ [${vehicle.id}] 清理異常: ${e.message}`)
-                    })
-                  }
                 }
 
                 // ✅ 同步從其他追蹤列表中移除
@@ -2208,10 +2199,6 @@ onMounted(async () => {
                 if (vehiclePool) {
                   vehiclePool.release(vehicle)
                   console.log(`♻️ [${vehicle.id}] 狀態 completed 的車輛已放回物件池`)
-                } else {
-                  if (vehicle.remove && typeof vehicle.remove === 'function') {
-                    vehicle.remove()
-                  }
                 }
                 // ✅ 同步移除追蹤
                 removeVehicleFromSimulation(vehicle.id)
@@ -2241,6 +2228,7 @@ onMounted(async () => {
               const vehicleToRemove = activeCars.value[idx]
               if (vehicleToRemove) {
                 // ✅【改進】使用物件池回收，而不是直接移除
+                // 🚨【關鍵】不呼叫 vehicle.remove()，因為我們要保留 DOM 元素並重複使用
                 if (vehiclePool) {
                   vehiclePool.release(vehicleToRemove)
                 } else if (vehicleToRemove.remove && typeof vehicleToRemove.remove === 'function') {

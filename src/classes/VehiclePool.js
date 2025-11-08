@@ -66,7 +66,7 @@ export class VehiclePool {
       // ❌ 池空，建立新車輛
       vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, this.simulationStore)
       vehicle.addTo(this.container)
-      console.log(`🆕 [VehiclePool.acquire] 創建新車 ${vehicle.id}`)
+      // console.log(`🆕 [VehiclePool.acquire] 創建新車 ${vehicle.id}`)
     }
 
     this.activeVehicles.add(vehicle)
