@@ -5,6 +5,7 @@
 ### ✅ 已完成的優化
 
 #### 1. MotionPathPlugin 路徑快取
+
 - **檔案**: `src/classes/Vehicle.js`
 - **位置**: `moveAlongPath()` 方法，第 1139-1145 行
 - **實施狀態**: ✅ 完成
@@ -20,6 +21,7 @@
 - **測試狀態**: ✅ 編譯通過
 
 #### 2. will-change CSS 啟用 GPU 加速
+
 - **檔案**: `src/classes/utils/VehicleUtilities.js`
 - **位置**: `createVehicleElement()` 方法，第 510 行
 - **實施狀態**: ✅ 完成
@@ -28,6 +30,7 @@
 - **測試狀態**: ✅ 編譯通過
 
 #### 3. GSAP Ticker 集成
+
 - **檔案**: `src/pages/IndexPage.vue`
 - **位置**: 多處（啟動、清理、迴圈）
 - **實施狀態**: ✅ 完成
@@ -72,12 +75,14 @@
 ## 🧪 驗證步驟
 
 ### 第 1 步：檢查編譯
+
 ```bash
 ✅ npm run dev  # 應該無錯誤
 ✅ 熱重載正常工作
 ```
 
 ### 第 2 步：功能測試
+
 - [ ] 生成 100+ 輛車
 - [ ] 驗證碰撞檢測正常
 - [ ] 驗證停止線邏輯正常
@@ -85,6 +90,7 @@
 - [ ] 驗證變道動畫正常
 
 ### 第 3 步：效能測試
+
 ```javascript
 // Chrome DevTools > Performance > Record
 // 1. 啟動模擬
@@ -94,6 +100,7 @@
 ```
 
 ### 第 4 步：記憶體測試
+
 ```javascript
 // Chrome DevTools > Memory > Heap Snapshot
 // 前: ~200MB
@@ -107,19 +114,19 @@
 
 ### 修改的檔案
 
-| 檔案 | 行數 | 修改 | 驗證 |
-|------|------|------|------|
-| `Vehicle.js` | 1139-1145 | +7 | ✅ |
-| `VehicleUtilities.js` | 510 | +1 | ✅ |
-| `IndexPage.vue` | 多處 | +23, -12 | ✅ |
+| 檔案                  | 行數      | 修改     | 驗證 |
+| --------------------- | --------- | -------- | ---- |
+| `Vehicle.js`          | 1139-1145 | +7       | ✅   |
+| `VehicleUtilities.js` | 510       | +1       | ✅   |
+| `IndexPage.vue`       | 多處      | +23, -12 | ✅   |
 
 ### 未修改但相關的檔案
 
-| 檔案 | 原因 |
-|------|------|
-| `CollisionController.js` | 碰撞檢測已優化（SpatialHashGrid） |
-| `TrafficLightController.js` | 交通燈邏輯獨立，不涉及動畫 |
-| `AutoTrafficGenerator.js` | 已在 mainSimulationLoop 中整合 |
+| 檔案                        | 原因                              |
+| --------------------------- | --------------------------------- |
+| `CollisionController.js`    | 碰撞檢測已優化（SpatialHashGrid） |
+| `TrafficLightController.js` | 交通燈邏輯獨立，不涉及動畫        |
+| `AutoTrafficGenerator.js`   | 已在 mainSimulationLoop 中整合    |
 
 ---
 
@@ -172,15 +179,8 @@
 ### GPU 合成層激活
 
 ```css
-will-change: transform
-  ↓
-瀏覽器檢測
-  ↓
-提升到合成層 (compositor layer)
-  ↓
-GPU 加速執行 transform
-  ↓
-結果：主線程負擔大幅降低
+will-change: transform ↓ 瀏覽器檢測 ↓ 提升到合成層 (compositor layer) ↓ GPU 加速執行 transform ↓
+  結果：主線程負擔大幅降低;
 ```
 
 ### GSAP Ticker 同步
@@ -234,16 +234,19 @@ Status: ✅ Compiled successfully
 ## 🚀 下一步行動項目
 
 ### 優先級 1 (本周)
+
 - [ ] 在生產環境測試 FPS
 - [ ] 驗證碰撞檢測準確度
 - [ ] 監測記憶體使用
 
 ### 優先級 2 (本月)
+
 - [ ] 建立性能基準測試
 - [ ] 添加效能監測儀表板
 - [ ] 文檔化性能指標
 
 ### 優先級 3 (長期)
+
 - [ ] 評估 Canvas/PixiPlugin 遷移
 - [ ] WebWorker 碰撞檢測
 - [ ] 支援 1000+ 車輛
@@ -252,14 +255,14 @@ Status: ✅ Compiled successfully
 
 ## 📞 支援文件
 
-| 文件 | 內容 |
-|------|------|
-| `GSAP_OPTIMIZATION_REPORT.md` | 完整技術分析 |
+| 文件                                  | 內容         |
+| ------------------------------------- | ------------ |
+| `GSAP_OPTIMIZATION_REPORT.md`         | 完整技術分析 |
 | `PARAMETER_CONSOLIDATION_COMPLETE.md` | 參數合併詳情 |
-| `OPTIMIZATION_COMPLETION_SUMMARY.md` | 執行摘要 |
+| `OPTIMIZATION_COMPLETION_SUMMARY.md`  | 執行摘要     |
 
 ---
 
-**最後更新**: 2025-11-09  
-**狀態**: ✅ 已完成  
+**最後更新**: 2025-11-09
+**狀態**: ✅ 已完成
 **驗證**: ✅ 已通過編譯

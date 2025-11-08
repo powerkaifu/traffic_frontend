@@ -485,32 +485,33 @@ export class VehicleDOMUtils {
   static createVehicleElement(vehicleConfig, options = {}) {
     const { rotation, scaleX } = options
 
-    // 構建 transform 樣式
-    let transform = ''
-    if (rotation !== undefined) {
-      transform += `rotate(${rotation}deg) `
-    }
-    if (scaleX !== undefined) {
-      transform += `scaleX(${scaleX}) `
-    }
-
     const div = document.createElement('div')
     div.className = 'vehicle'
 
-    div.style.cssText = `
-      position: absolute;
-      width: ${vehicleConfig.width}px;
-      height: ${vehicleConfig.height}px;
-      background-image: url('${vehicleConfig.image}');
-      background-size: contain;
-      background-repeat: no-repeat;
-      z-index: 10;
-      top: 0;
-      left: 0;
-      will-change: transform;
-      ${transform ? `transform: ${transform.trim()};` : ''}
-      transform-origin: center center;
-    `
+    // 設置基礎樣式
+    div.style.position = 'absolute'
+    div.style.width = `${vehicleConfig.width}px`
+    div.style.height = `${vehicleConfig.height}px`
+    div.style.backgroundImage = `url('${vehicleConfig.image}')`
+    div.style.backgroundSize = 'contain'
+    div.style.backgroundRepeat = 'no-repeat'
+    div.style.zIndex = '10'
+    div.style.top = '0'
+    div.style.left = '0'
+    div.style.willChange = 'transform'
+    div.style.transformOrigin = 'center center'
+
+    // 構建 transform 樣式
+    let transformValues = []
+    if (rotation !== undefined) {
+      transformValues.push(`rotate(${rotation}deg)`)
+    }
+    if (scaleX !== undefined) {
+      transformValues.push(`scaleX(${scaleX})`)
+    }
+    if (transformValues.length > 0) {
+      div.style.transform = transformValues.join(' ')
+    }
 
     return div
   }

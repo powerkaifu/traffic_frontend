@@ -1831,6 +1831,7 @@ onMounted(async () => {
   // ═══════════════════════════════════════════════════════════════════════
 
   let lastFrameTime = 0
+  let rafId = null
 
   // 🎯 新增：用於合併 setInterval 的累積計時器 (單位: ms)
   let periodicCheckAccumulator = 0 // 用於 Vehicle.js 的 50ms 檢查 (directTrafficLightResponse 等)
@@ -2247,25 +2248,27 @@ onMounted(async () => {
         window.performanceMonitor.fps = Math.round(1000 / clampedDeltaTime)
       }
 
-      // 無需請求下一幀 - gsap.ticker 會自動管理
+      // ℹ️ 性能監測：可選的 FPS 顯示
+      if (window.performanceMonitor?.isMonitoring) {
+        window.performanceMonitor.deltaTime = clampedDeltaTime
+        window.performanceMonitor.fps = Math.round(1000 / clampedDeltaTime)
+      }
+
+      // 請求下一幀
+      rafId = requestAnimationFrame(mainSimulationLoop)
     } catch (error) {
-      console.error('❌ [GSAP Ticker 主循環] 出現異常:', error)
-      // 即使出現異常 gsap.ticker 也會繼續運行
+      console.error('❌ [RAF 主循環] 出現異常:', error)
+      // 即使出現異常也繼續運行
+      rafId = requestAnimationFrame(mainSimulationLoop)
     }
   }
 
-  // 🚀 啟動統一的 RAF 主循環 - 已遷移到 gsap.ticker
-  console.log('🚀 [GSAP Ticker] 已啟動 - 驅動所有模擬邏輯 (生成 + Vehicle 檢查 + 清理)')
-  
-  // 🚀 GSAP 優化 3：使用 gsap.ticker 代替 requestAnimationFrame
-  // 這確保了主循環與所有 GSAP 動畫完全同步
-  gsap.ticker.add(mainSimulationLoop)
-  
-  // 記錄 ticker ID（雖然不需要，但為了向後兼容性保留）
-  window.mainSimulationRAFId = 'gsap-ticker'
-  
-  // 保存 ticker callback 以便後續清理
-  window.mainSimulationTickerCallback = mainSimulationLoop
+  // 🚀 啟動統一的 RAF 主循環
+  console.log('🚀 [RAF 主循環] 已啟動 - 驅動所有模擬邏輯 (生成 + Vehicle 檢查 + 清理)')
+  rafId = requestAnimationFrame(mainSimulationLoop)
+
+  // 記錄 RAF ID 以便後續清理
+  window.mainSimulationRAFId = rafId
 })
 
 // 💡 獲取 tooltip 訊息的輔助函數 - 支援配置鍵或直接訊息
@@ -2320,13 +2323,6 @@ onUnmounted(() => {
     window.lastCountdown = countdown.value
     window.lastPhase = currentPhase.value
     window.lastActiveCarCount = activeCars.value.length
-  }
-
-  // 🚀 GSAP 優化 3：清理 gsap.ticker callback
-  if (window.mainSimulationTickerCallback) {
-    console.log('🛑 移除 GSAP ticker callback')
-    gsap.ticker.remove(window.mainSimulationTickerCallback)
-    window.mainSimulationTickerCallback = null
   }
 
   // 清理 MotionPathHelper
