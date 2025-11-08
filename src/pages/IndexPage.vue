@@ -2139,6 +2139,14 @@ onMounted(async () => {
               // 檢查車輛是否還在DOM中
               if (!vehicle.element || !vehicle.element.parentNode) {
                 console.log(`🗑️ 清理孤立車輛: ${vehicle.id}`)
+                
+                // 🚨【CRITICAL FIX】調用 performCleanup() 清除所有監聽器和定時器
+                if (vehicle.performCleanup && typeof vehicle.performCleanup === 'function') {
+                  vehicle.performCleanup().catch((e) => {
+                    console.warn(`⚠️ [${vehicle.id}] 孤立車輛清理異常: ${e.message}`)
+                  })
+                }
+                
                 // ✅ Phase 5：使用統一方法移除
                 removeVehicleFromSimulation(vehicle.id)
                 return false
