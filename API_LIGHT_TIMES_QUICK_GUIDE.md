@@ -4,15 +4,17 @@
 
 ### 1️⃣ Console 中的四個路口 Object (複製用)
 
-**位置**: 打開 DevTools → Console  
+**位置**: 打開 DevTools → Console
 **觸發**: 發送 API 請求時
 
 **輸出**:
+
 ```
 📋 [發送 API - 四個路口數據] 複製以下陣列進行測試:
 ```
 
 **看到的陣列內容**:
+
 ```javascript
 [
   { VD_ID: "VLRJX20", Volume_M: 45, Volume_S: 120, Volume_L: 15, ... },
@@ -28,7 +30,7 @@
 
 ### 2️⃣ MainLayout 中的綠色燈號顯示
 
-**位置**: MainLayout 右側邊欄 (特徵模擬數據區域下方)  
+**位置**: MainLayout 右側邊欄 (特徵模擬數據區域下方)
 **顯示內容**:
 
 ```
@@ -39,7 +41,8 @@
 時間戳         16:40   ← 灰色小字
 ```
 
-💡 **特點**: 
+💡 **特點**:
+
 - 🟢 綠色高亮主題
 - 📊 實時更新
 - 🔢 大字型易讀
@@ -48,24 +51,26 @@
 
 ## 📋 何時出現
 
-| 情況 | 結果 |
-|------|------|
-| 啟動應用程式 | ❌ 隱藏 (無資料) |
-| 發送 API 請求 | ⏳ 等待... |
-| 收到 API 響應 | ✅ 顯示燈號時間 |
-| 再次發送 API | ✅ 更新燈號和時間戳 |
+| 情況          | 結果                |
+| ------------- | ------------------- |
+| 啟動應用程式  | ❌ 隱藏 (無資料)    |
+| 發送 API 請求 | ⏳ 等待...          |
+| 收到 API 響應 | ✅ 顯示燈號時間     |
+| 再次發送 API  | ✅ 更新燈號和時間戳 |
 
 ---
 
 ## 🔧 技術詳情
 
-**監聽的事件**: `trafficApiComplete`  
-**更新的數據**: 
+**監聽的事件**: `trafficApiComplete`
+**更新的數據**:
+
 - `east_west_seconds`
 - `south_north_seconds`
 - `timestamp`
 
 **相關檔案**:
+
 - `src/classes/TrafficLightController.js` (L1853 - 輸出 Object)
 - `src/layouts/MainLayout.vue` (L596, 680, 342 - 接收和顯示)
 
@@ -110,15 +115,14 @@ quasar dev
 
 ## 💬 簡化說明
 
-**Q: 在哪裡看到四個路口的資料?**  
+**Q: 在哪裡看到四個路口的資料?**
 A: 打開 DevTools → Console，發送 API 時會看到一個陣列輸出
 
-**Q: 在哪裡看到燈號時間?**  
+**Q: 在哪裡看到燈號時間?**
 A: MainLayout 右側邊欄下方，有一個綠色高亮的 "🚦 API 響應燈號" 區域
 
-**Q: 如何使用 Console 的資料?**  
+**Q: 如何使用 Console 的資料?**
 A: 複製陣列，貼到你的代碼中進行測試
 
-**Q: 顯示的秒數準確嗎?**  
+**Q: 顯示的秒數準確嗎?**
 A: 是的，直接來自 API 響應的 east_west_seconds 和 south_north_seconds
-

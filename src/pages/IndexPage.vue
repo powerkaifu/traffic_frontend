@@ -1868,6 +1868,18 @@ onMounted(async () => {
       const runStuckCheck = stuckCheckAccumulator >= 5000 // 每 5 秒執行一次
 
       if (window.liveVehicles && (runPeriodicCheck || runStuckCheck)) {
+        // ✅ P2 修復：每幀重建 SpatialHashGrid（用於碰撞檢測優化）
+        // 原因：需要在碰撞檢測前重建空間索引以確保準確性
+        if (runPeriodicCheck && CollisionController.spatialGrid) {
+          CollisionController.spatialGrid.clear()
+          for (const v of window.liveVehicles) {
+            if (v.element) {
+              const pos = v.getCurrentPosition()
+              CollisionController.spatialGrid.insert(v, pos.x, pos.y)
+            }
+          }
+        }
+
         for (const vehicle of window.liveVehicles) {
           // ═══════════════════════════════════════════════════════════════════════
           // 【Phase 4】✅ 執行 50ms 的碰撞檢測邏輯 (從 Vehicle.js onUpdate 遷移)

@@ -358,7 +358,7 @@ export default class AutoTrafficGenerator {
     // ✅ P1 修復：已遷移到 IndexPage mainSimulationLoop 的累加器模式
     // 原因：避免 setInterval 與 RAF 競爭，統一計時器驅動
     // this.autoModeTimer = setInterval(...)  // ❌ 已禁用
-    this.autoModeTimer = null  // ✅ 改為 null，由 IndexPage 統一驅動
+    this.autoModeTimer = null // ✅ 改為 null，由 IndexPage 統一驅動
   }
 
   // 停止自動模式循環

@@ -1855,7 +1855,7 @@ export default class TrafficLightController {
       // 🎯 【調試】輸出四個方向的 Object 陣列到 Console，方便複製測試
       console.log('📋 [發送 API - 四個路口數據] 複製以下陣列進行測試:')
       console.log(adjustedDataToSend)
-      
+
       // 發送 API 開始事件 (數據已保存,前端可以讀取)
       window.dispatchEvent(new CustomEvent('trafficApiSending', { detail: { timestamp: new Date().toISOString() } }))
 

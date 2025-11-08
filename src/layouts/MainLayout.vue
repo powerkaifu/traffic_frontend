@@ -380,25 +380,6 @@
                   </div>
                 </div>
               </div>
-
-              <!-- 燈號時間 (API 響應) -->
-              <div class="traffic-zone api-response-zone" v-if="apiResponseLightTimes.east_west_seconds !== null || apiResponseLightTimes.south_north_seconds !== null">
-                <div class="zone-title">🚦 API 響應燈號</div>
-                <div class="zone-data">
-                  <div class="data-row highlight">
-                    <span class="data-label">東西向 (秒)</span>
-                    <span class="data-value api-light-time"> {{ apiResponseLightTimes.east_west_seconds ?? 'N/A' }} s </span>
-                  </div>
-                  <div class="data-row highlight">
-                    <span class="data-label">南北向 (秒)</span>
-                    <span class="data-value api-light-time"> {{ apiResponseLightTimes.south_north_seconds ?? 'N/A' }} s </span>
-                  </div>
-                  <div class="data-row timestamp" v-if="apiResponseLightTimes.timestamp">
-                    <span class="data-label">時間戳</span>
-                    <span class="data-value" style="font-size: 0.8em">{{ new Date(apiResponseLightTimes.timestamp).toLocaleTimeString() }}</span>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -611,13 +592,6 @@ const lightPosition = computed(() => (rightDrawerOpen.value && $q.screen.gt.md ?
 // 🎯 響應式追蹤 API 數據更新
 const apiDataUpdateTrigger = ref(0)
 
-// 🎯 API 響應的燈號時間
-const apiResponseLightTimes = ref({
-  east_west_seconds: null,
-  south_north_seconds: null,
-  timestamp: null,
-})
-
 /**
  * 🎯 獲取發送到後端的 API 數據(原始 VD 數據)
  * 此函數讀取 TrafficLightController 保存的 window.lastApiVDDataArray
@@ -710,25 +684,10 @@ function setupListeners() {
     }
   }
 
-  // 🎯 【新增】監聽 API 完成事件，接收燈號時間
-  const handleApiComplete = (event) => {
-    const response = event.detail?.response
-    if (response) {
-      if (process.env.DEV) console.log('🚦 [MainLayout] 收到 API 響應燈號:', response)
-      apiResponseLightTimes.value = {
-        east_west_seconds: response.east_west_seconds,
-        south_north_seconds: response.south_north_seconds,
-        timestamp: event.detail?.timestamp || new Date().toISOString(),
-      }
-    }
-  }
-
   window.addEventListener('trafficApiSending', handleApiSending)
-  window.addEventListener('trafficApiComplete', handleApiComplete)
 
   return () => {
     window.removeEventListener('trafficApiSending', handleApiSending)
-    window.removeEventListener('trafficApiComplete', handleApiComplete)
   }
 }
 
@@ -1466,42 +1425,6 @@ onUnmounted(() => {
   position: relative;
   top: 42px;
   left: 14px;
-}
-
-.api-response-zone {
-  position: relative;
-  grid-column: 1 / -1;
-  top: 60px;
-  left: 0;
-  background: linear-gradient(135deg, rgba(76, 175, 80, 0.15), rgba(56, 142, 60, 0.1)) !important;
-  border-top: 2px solid rgba(76, 175, 80, 0.4);
-  border-radius: 6px;
-}
-
-.api-response-zone .zone-title {
-  color: #4caf50;
-  font-size: 15px;
-}
-
-.api-response-zone .data-row {
-  background: rgba(76, 175, 80, 0.08);
-}
-
-.api-response-zone .data-row.highlight {
-  background: rgba(76, 175, 80, 0.15);
-  border-left: 3px solid #4caf50;
-  font-weight: bold;
-}
-
-.api-response-zone .data-row.timestamp {
-  opacity: 0.8;
-  font-size: 11px;
-}
-
-.data-value.api-light-time {
-  color: #4caf50;
-  font-size: 16px;
-  font-weight: bold;
 }
 
 .zone-data {

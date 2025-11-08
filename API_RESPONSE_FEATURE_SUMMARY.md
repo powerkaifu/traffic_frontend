@@ -1,7 +1,7 @@
 # 🚦 API 響應燈號時間顯示功能 - 總結報告
 
-**提交 Hash**: `6514ea8`  
-**提交時間**: 2025-11-09  
+**提交 Hash**: `6514ea8`
+**提交時間**: 2025-11-09
 **功能狀態**: ✅ **完成並已驗證**
 
 ---
@@ -19,6 +19,7 @@ console.log(adjustedDataToSend)
 ```
 
 **效果**:
+
 ```
 📋 [發送 API - 四個路口數據] 複製以下陣列進行測試:
 [
@@ -131,7 +132,8 @@ window.addEventListener('trafficApiComplete', handleApiComplete)
 }
 ```
 
-**視覺效果**: 
+**視覺效果**:
+
 - 🟢 綠色高亮顯示 (與紅綠燈主題一致)
 - 字體大 + 粗體，易於閱讀
 - 與四個方向資料區域整合
@@ -168,10 +170,10 @@ MainLayout 模板重新渲染
 
 ## 📁 修改檔案清單
 
-| 檔案 | 修改內容 | 行數 |
-|------|--------|------|
-| `src/classes/TrafficLightController.js` | 添加 console.log 輸出四個路口 Object | 1853-1856 |
-| `src/layouts/MainLayout.vue` | 添加 ref、事件監聽器、UI 和 CSS | 596-603, 680-704, 342-362, 1454-1482 |
+| 檔案                                    | 修改內容                             | 行數                                 |
+| --------------------------------------- | ------------------------------------ | ------------------------------------ |
+| `src/classes/TrafficLightController.js` | 添加 console.log 輸出四個路口 Object | 1853-1856                            |
+| `src/layouts/MainLayout.vue`            | 添加 ref、事件監聽器、UI 和 CSS      | 596-603, 680-704, 342-362, 1454-1482 |
 
 ---
 
@@ -183,7 +185,7 @@ Build succeeded (3765ms)
 Build summary:
   - Total JS (18 files): 1718.66 KB
   - Total CSS (4 files): 232.43 KB
-  
+
 ✅ 無編譯錯誤
 ✅ 無警告 (除外預先存在的 LF/CRLF 警告)
 ✅ 成功編譯
@@ -265,6 +267,7 @@ apiResponseLightTimes.value = response
 ### 1. 查看 Console 中的四個路口資料
 
 **步驟**:
+
 1. 打開瀏覽器 DevTools (F12)
 2. 切換到 Console 標籤
 3. 發送 API 請求
@@ -272,6 +275,7 @@ apiResponseLightTimes.value = response
 5. 複製陣列用於測試
 
 **示例複製**:
+
 ```javascript
 // 複製的陣列可直接貼到代碼中測試
 const testData = [
@@ -287,12 +291,14 @@ const testData = [
 **位置**: MainLayout 右側邊欄下方 (特徵模擬數據下方)
 
 **顯示內容**:
+
 - 🚦 API 響應燈號 (標題)
 - 東西向: XX 秒
 - 南北向: XX 秒
 - 時間戳: HH:MM:SS
 
 **特徵**:
+
 - 綠色高亮，與路燈主題一致
 - 當沒有資料時隱藏
 - 實時更新 (每次 API 響應)
@@ -301,11 +307,11 @@ const testData = [
 
 ## 🔗 相關事件
 
-| 事件名稱 | 觸發條件 | 攜帶資料 |
-|---------|--------|--------|
-| `trafficApiSending` | 即將發送 API | timestamp |
+| 事件名稱             | 觸發條件        | 攜帶資料            |
+| -------------------- | --------------- | ------------------- |
+| `trafficApiSending`  | 即將發送 API    | timestamp           |
 | `trafficApiComplete` | API 完成 (成功) | response, timestamp |
-| `trafficApiError` | API 錯誤 | error, timestamp |
+| `trafficApiError`    | API 錯誤        | error, timestamp    |
 
 ---
 
@@ -321,14 +327,14 @@ const testData = [
 
 ## 📝 變更摘要
 
-| 項目 | 說明 |
-|------|------|
-| **新增功能** | API 響應燈號時間實時顯示 |
-| **Console 輸出** | 四個路口 Object 陣列便於複製測試 |
-| **UI 展示** | 綠色高亮區域顯示東西向和南北向秒數 |
-| **編譯狀態** | ✅ 通過 |
-| **測試狀態** | ✅ 準備就緒 |
-| **Git 提交** | ✅ 6514ea8 |
+| 項目             | 說明                               |
+| ---------------- | ---------------------------------- |
+| **新增功能**     | API 響應燈號時間實時顯示           |
+| **Console 輸出** | 四個路口 Object 陣列便於複製測試   |
+| **UI 展示**      | 綠色高亮區域顯示東西向和南北向秒數 |
+| **編譯狀態**     | ✅ 通過                            |
+| **測試狀態**     | ✅ 準備就緒                        |
+| **Git 提交**     | ✅ 6514ea8                         |
 
 ---
 
@@ -342,4 +348,3 @@ const testData = [
 - ✅ Git 提交 - **成功**
 
 **立即可用**: 開發伺服器啟動後，發送 API 請求即可在 Console 看到四個路口資料，並在 MainLayout 中看到實時的燈號時間顯示！
-
