@@ -521,6 +521,12 @@ export default class Vehicle {
 
     div.vehicleInstance = this // 保存車輛實例的引用
 
+    // ✅ 立即設置初始位置到 (startPosition.x, startPosition.y)，避免視覺跳動
+    gsap.set(div, {
+      x: this.startPosition.x,
+      y: this.startPosition.y,
+    })
+
     // 💨 新增：創建速度線容器，委託給 SpeedLineUtils
     this.speedLines = SpeedLineUtils.createSpeedLines(div, vehicleConfig, this.direction)
 
