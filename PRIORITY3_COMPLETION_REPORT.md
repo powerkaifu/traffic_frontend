@@ -53,13 +53,13 @@
 
 ### ⏳ Phase 2-6 待遷移
 
-| Phase | 目標模塊 | 優先級 | 狀態 |
-|-------|---------|-------|------|
-| 2 | IndexPage.vue | 🔴 高 | ⏳ 待開始 |
-| 3 | AutoTrafficGenerator | 🟡 中 | ⏳ 待開始 |
-| 4 | Vehicle.js | 🟡 中 | ⏳ 待開始 |
-| 5 | TrafficLightController | 🟡 中 | ⏳ 待開始 |
-| 6 | CollisionController | 🟢 低 | ⏳ 待開始 |
+| Phase | 目標模塊               | 優先級 | 狀態      |
+| ----- | ---------------------- | ------ | --------- |
+| 2     | IndexPage.vue          | 🔴 高  | ⏳ 待開始 |
+| 3     | AutoTrafficGenerator   | 🟡 中  | ⏳ 待開始 |
+| 4     | Vehicle.js             | 🟡 中  | ⏳ 待開始 |
+| 5     | TrafficLightController | 🟡 中  | ⏳ 待開始 |
+| 6     | CollisionController    | 🟢 低  | ⏳ 待開始 |
 
 ---
 
@@ -71,6 +71,7 @@
 **功能**: 完整的狀態管理容器
 
 **主要特性**:
+
 - ✅ 響應式狀態管理（使用 Vue ref）
 - ✅ 計算屬性（使用 Vue computed）
 - ✅ 異步 actions 支持
@@ -78,6 +79,7 @@
 - ✅ 生命週期管理（reset）
 
 **代碼質量**:
+
 - ✅ TypeScript 兼容
 - ✅ Pinia 最佳實踐
 - ✅ 完整的 JSDoc 註釋
@@ -103,6 +105,7 @@
 ```
 
 **實用特性**:
+
 - ✅ 完整的代碼範例（可直接複製使用）
 - ✅ 步驟清晰、循序漸進
 - ✅ 包含向後相容方案
@@ -130,6 +133,7 @@
 ```
 
 **特點**:
+
 - ✅ 可立即執行
 - ✅ 包含完整的代碼片段
 - ✅ 包含驗證步驟
@@ -180,14 +184,14 @@ simulationStore
 
 **替代 window.dispatchEvent 的好處**:
 
-| 特性 | window.dispatchEvent | Store.emit |
-|------|-------------------|-----------|
-| 類型安全 | ❌ | ✅ |
-| 智能提示 | ❌ | ✅ |
-| 取消訂閱 | 複雜 | ✅ 簡單 |
-| 範疇 | 全局 | 限制到 Store |
-| 可測試性 | 困難 | ✅ 容易 |
-| DevTools | ❌ | ✅ Pinia DevTools |
+| 特性     | window.dispatchEvent | Store.emit        |
+| -------- | -------------------- | ----------------- |
+| 類型安全 | ❌                   | ✅                |
+| 智能提示 | ❌                   | ✅                |
+| 取消訂閱 | 複雜                 | ✅ 簡單           |
+| 範疇     | 全局                 | 限制到 Store      |
+| 可測試性 | 困難                 | ✅ 容易           |
+| DevTools | ❌                   | ✅ Pinia DevTools |
 
 ---
 
@@ -200,6 +204,7 @@ simulationStore
 **影響範圍**: IndexPage.vue
 
 **任務**:
+
 1. [ ] 導入 `useSimulationStore`
 2. [ ] 在 setup() 中初始化 Store
 3. [ ] 替換所有 `window.*` 初始化
@@ -207,6 +212,7 @@ simulationStore
 5. [ ] 驗證功能完整性
 
 **驗證清單**:
+
 - [ ] `npm run build` 成功
 - [ ] 應用正常啟動
 - [ ] 車輛正常生成/移除
@@ -256,6 +262,7 @@ Priority 3: 架構解耦            🔄 進行中 (Phase 1 完成)
 ### 為什麼保留向後相容？
 
 在遷移期間，我們保留 `window` 賦值以確保：
+
 - ✅ 不破壞現有功能
 - ✅ 逐步遷移不同模塊
 - ✅ 便於調試和測試
@@ -266,6 +273,7 @@ Priority 3: 架構解耦            🔄 進行中 (Phase 1 完成)
 ### 事件系統的優勢
 
 相比 `window.dispatchEvent`：
+
 - ✅ 類型安全
 - ✅ 自動取消訂閱
 - ✅ 範疇限制
@@ -278,7 +286,8 @@ Priority 3: 架構解耦            🔄 進行中 (Phase 1 完成)
 
 ### Q: 為什麼不能一次性遷移所有代碼？
 
-**A**: 
+**A**:
+
 1. 避免一次性大型修改導致的風險
 2. 便於逐個測試每個模塊
 3. 允許並行開發
@@ -286,7 +295,8 @@ Priority 3: 架構解耦            🔄 進行中 (Phase 1 完成)
 
 ### Q: 如何確保遷移正確性？
 
-**A**: 
+**A**:
+
 1. 每個 Phase 完成後運行 `npm run build`
 2. 驗證功能完整性
 3. 使用 DevTools 檢查 Store 狀態
@@ -294,8 +304,9 @@ Priority 3: 架構解耦            🔄 進行中 (Phase 1 完成)
 
 ### Q: 可以跳過某些 Phase 嗎？
 
-**A**: 
+**A**:
 **不建議**。遵循計劃順序：
+
 1. Phase 2 (IndexPage) → 提供 Store 基礎
 2. Phase 3 (AutoGen) → 依賴 Phase 2
 3. Phase 4 (Vehicle) → 依賴 Phase 3
@@ -305,6 +316,7 @@ Priority 3: 架構解耦            🔄 進行中 (Phase 1 完成)
 ### Q: 遷移期間可以保留 window 嗎？
 
 **A**: **是的**！
+
 - 過渡期間保留 `window.*` 為備用
 - 所有新代碼優先使用 Store
 - 逐步淘汰 `window.*`
@@ -321,7 +333,7 @@ Morning:
   09:00 - 閱讀遷移指南 (30 min)
   09:30 - Phase 2 開始 (IndexPage.vue) (2-3 hours)
   12:00 - 午餐
-  
+
 Afternoon:
   13:00 - Phase 2 驗證和測試 (1-2 hours)
   14:00 - Phase 3 準備 (AutoTrafficGenerator) (1-2 hours)
@@ -333,7 +345,7 @@ Afternoon:
 Day 2:
   - Phase 3: AutoTrafficGenerator 完全遷移
   - Phase 4: Vehicle.js 遷移
-  
+
 Day 3:
   - Phase 5: TrafficLightController 遷移
   - Phase 6: CollisionController 遷移
@@ -375,26 +387,29 @@ Day 3:
 
 ### 完成後的改進
 
-| 指標 | 之前 | 之後 | 改進 |
-|------|------|------|------|
-| 全域污染 | 10+ `window.*` | 0 | ✅ 100% |
-| 耦合度 | 高 | 低 | ✅ 大幅降低 |
-| 可維護性 | 困難 | 容易 | ✅ 顯著改善 |
-| 可測試性 | 低 | 高 | ✅ 完整支持 |
-| 代碼清晰度 | 中 | 高 | ✅ 更清晰 |
-| IDE 支持 | 基礎 | 完整 | ✅ 智能提示 |
+| 指標       | 之前           | 之後 | 改進        |
+| ---------- | -------------- | ---- | ----------- |
+| 全域污染   | 10+ `window.*` | 0    | ✅ 100%     |
+| 耦合度     | 高             | 低   | ✅ 大幅降低 |
+| 可維護性   | 困難           | 容易 | ✅ 顯著改善 |
+| 可測試性   | 低             | 高   | ✅ 完整支持 |
+| 代碼清晰度 | 中             | 高   | ✅ 更清晰   |
+| IDE 支持   | 基礎           | 完整 | ✅ 智能提示 |
 
 ---
 
 ## 🎓 學習資源
 
 ### Pinia 官方文檔
+
 - https://pinia.vuejs.org/
 
 ### Vue 3 Composition API
+
 - https://vuejs.org/guide/extras/composition-api-faq.html
 
 ### TypeScript 最佳實踐
+
 - https://www.typescriptlang.org/docs/
 
 ---
@@ -416,6 +431,7 @@ Day 3:
 **下一個里程碑**: Phase 2 IndexPage.vue 遷移
 
 **提交記錄**:
+
 ```
 436a293 - Priority 3: Architecture Decoupling - Create Pinia simulationStore and migration guide
 b9a03ec - Add Priority 3 quick start guide for Pinia migration
@@ -428,4 +444,3 @@ b9a03ec - Add Priority 3 quick start guide for Pinia migration
 建議立即開始 Phase 2（IndexPage.vue 遷移），預計 1-2 小時完成。
 
 詳細步驟請參考 `PRIORITY3_QUICK_START.md`
-

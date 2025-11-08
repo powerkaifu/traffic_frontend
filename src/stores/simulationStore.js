@@ -73,6 +73,20 @@ export const useSimulationStore = defineStore('simulation', () => {
     return liveVehicles.value.filter((v) => v.direction === direction)
   }
 
+  /**
+   * 獲取指定方向和車道的車輛
+   */
+  const getVehiclesByDirectionAndLane = (direction, laneNumber) => {
+    return liveVehicles.value.filter((v) => v.direction === direction && v.laneNumber === laneNumber)
+  }
+
+  /**
+   * 獲取活躍車輛列表（公開方法，便於外部訪問）
+   */
+  const getLiveVehicles = () => {
+    return liveVehicles.value
+  }
+
   // ==========================================
   // 🎛️ 核心模塊實例
   // ==========================================
@@ -117,9 +131,55 @@ export const useSimulationStore = defineStore('simulation', () => {
     adaptiveFlowController.value = controller
   }
 
-  // ==========================================
-  // 📊 VD 數據流
-  // ==========================================
+  /**
+   * 交通數據收集器實例
+   * 替代：window.trafficDataCollector
+   */
+  const trafficDataCollector = ref(null)
+
+  const setTrafficDataCollector = (collector) => {
+    trafficDataCollector.value = collector
+  }
+
+  /**
+   * 天氣控制器實例
+   * 替代：window.weatherController
+   */
+  const weatherController = ref(null)
+
+  const setWeatherController = (controller) => {
+    weatherController.value = controller
+  }
+
+  /**
+   * 便利 getter 方法：獲取交通燈控制器
+   */
+  const getTrafficController = () => trafficController.value
+
+  /**
+   * 便利 getter 方法：獲取自動生成器
+   */
+  const getAutoTrafficGenerator = () => autoTrafficGenerator.value
+
+  /**
+   * 便利 getter 方法：獲取自適應流量控制器
+   */
+  const getAdaptiveFlowController = () => adaptiveFlowController.value
+
+  /**
+   * 便利 getter 方法：獲取交通數據收集器
+   */
+  const getTrafficDataCollector = () => trafficDataCollector.value
+
+  /**
+   * 便利 getter 方法：獲取天氣控制器
+   */
+  const getWeatherController = () => weatherController.value
+
+  /**
+   * 便利 getter 方法：獲取 API VD 數據
+   */
+  const getLastApiVDDataArray = () => lastApiVDDataArray.value
 
   /**
    * 當前生成的 VD 數據
@@ -167,6 +227,56 @@ export const useSimulationStore = defineStore('simulation', () => {
 
   const setLastNormalizedDataArray = (data) => {
     lastNormalizedDataArray.value = Array.isArray(data) ? data : []
+  }
+
+  // ==========================================
+  // 🚗 車輛距離配置（代理 Vehicle 靜態方法）
+  // ==========================================
+
+  /**
+   * 設置全局車輛距離乘數
+   * 替代：window.setVehicleDistance
+   */
+  const setVehicleDistance = (multiplier) => {
+    try {
+      const Vehicle = require('../classes/Vehicle.js').default
+      if (Vehicle && Vehicle.setDistanceMultiplier) {
+        Vehicle.setDistanceMultiplier(multiplier)
+      }
+    } catch (error) {
+      console.warn('⚠️ [SimulationStore] 設置車輛距離失敗:', error)
+    }
+  }
+
+  /**
+   * 設置南北向車輛距離乘數
+   * 替代：window.setNorthSouthDistance
+   */
+  const setNorthSouthDistance = (multiplier) => {
+    try {
+      const Vehicle = require('../classes/Vehicle.js').default
+      if (Vehicle && Vehicle.setNorthSouthDistanceMultiplier) {
+        Vehicle.setNorthSouthDistanceMultiplier(multiplier)
+      }
+    } catch (error) {
+      console.warn('⚠️ [SimulationStore] 設置南北向距離失敗:', error)
+    }
+  }
+
+  /**
+   * 獲取當前車輛距離配置
+   * 替代：window.getVehicleDistanceConfig
+   */
+  const getVehicleDistanceConfig = () => {
+    try {
+      const Vehicle = require('../classes/Vehicle.js').default
+      if (Vehicle && Vehicle.getDistanceConfig) {
+        return Vehicle.getDistanceConfig()
+      }
+    } catch (error) {
+      console.warn('⚠️ [SimulationStore] 獲取車輛距離配置失敗:', error)
+    }
+    return {}
   }
 
   // ==========================================
@@ -343,24 +453,41 @@ export const useSimulationStore = defineStore('simulation', () => {
     clearAllVehicles,
     vehicleCount,
     getVehiclesByDirection,
+    getVehiclesByDirectionAndLane,
+    getLiveVehicles,
 
     // 核心模塊
     trafficController,
     setTrafficController,
+    getTrafficController,
     autoTrafficGenerator,
     setAutoTrafficGenerator,
+    getAutoTrafficGenerator,
     collisionController,
     setCollisionController,
     adaptiveFlowController,
     setAdaptiveFlowController,
+    getAdaptiveFlowController,
+    trafficDataCollector,
+    setTrafficDataCollector,
+    getTrafficDataCollector,
+    weatherController,
+    setWeatherController,
+    getWeatherController,
 
     // VD 數據流
     currentGeneratedVDData,
     setCurrentGeneratedVDData,
     lastApiVDDataArray,
     setLastApiVDDataArray,
+    getLastApiVDDataArray,
     lastNormalizedDataArray,
     setLastNormalizedDataArray,
+
+    // 車輛距離配置
+    setVehicleDistance,
+    setNorthSouthDistance,
+    getVehicleDistanceConfig,
 
     // 場景配置
     selectedTrafficScenario,

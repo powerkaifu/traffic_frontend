@@ -3,11 +3,13 @@
 ## 現狀總結
 
 ✅ **已完成**:
+
 - Pinia Store 已創建 (`src/stores/simulationStore.js`)
 - 完整的遷移指南已提供 (`ARCHITECTURE_MIGRATION_GUIDE.md`)
 - 所有狀態容器已定義
 
 ⏳ **待遷移**:
+
 - IndexPage.vue (需要集成 Store)
 - AutoTrafficGenerator.js (需要接收 Store)
 - Vehicle.js (需要移除直接操作 window)
@@ -60,12 +62,12 @@ onMounted(() => {
 // ✅ 新代碼
 onMounted(() => {
   // ...其他初始化代碼保持不變...
-  
+
   // 將核心模塊保存到 Store
   simulationStore.setTrafficController(trafficController)
   simulationStore.setAutoTrafficGenerator(autoTrafficGenerator)
   simulationStore.setCollisionController(collisionController)
-  
+
   // ⚠️ 暫時保留 window 賦值以相容舊代碼
   // (這些會在後續階段逐步移除)
   window.liveVehicles = activeCars.value
@@ -90,7 +92,7 @@ onUnmounted(() => {
 ```javascript
 onUnmounted(() => {
   // ...現有清理代碼...
-  
+
   // ✅ 新增：重置 Pinia Store
   simulationStore.reset()
 })
@@ -115,6 +117,7 @@ quasar dev
 ```
 
 **預期結果**:
+
 - ✅ 應用正常啟動
 - ✅ 交通模擬正常進行
 - ✅ 車輛正常生成和移除
@@ -230,7 +233,8 @@ console.log(store.$state)
 
 ### Q: 構建失敗怎麼辦？
 
-**A**: 
+**A**:
+
 1. 檢查導入語句是否正確
 2. 確認文件路徑沒有拼寫錯誤
 3. 運行 `npm run build` 查看詳細錯誤信息
@@ -269,15 +273,15 @@ const setTrafficController = (controller) => {
 
 ### 時間線
 
-| 階段 | 目標 | 狀態 | ETA |
-|------|------|------|-----|
-| Phase 1 | Store 創建 | ✅ 完成 | - |
-| Phase 2 | IndexPage 遷移 | ⏳ 開始 | 1-2 小時 |
-| Phase 3 | AutoTrafficGenerator | ⏳ 待開始 | 2-3 小時 |
-| Phase 4 | Vehicle.js | ⏳ 待開始 | 1-2 小時 |
+| 階段    | 目標                   | 狀態      | ETA      |
+| ------- | ---------------------- | --------- | -------- |
+| Phase 1 | Store 創建             | ✅ 完成   | -        |
+| Phase 2 | IndexPage 遷移         | ⏳ 開始   | 1-2 小時 |
+| Phase 3 | AutoTrafficGenerator   | ⏳ 待開始 | 2-3 小時 |
+| Phase 4 | Vehicle.js             | ⏳ 待開始 | 1-2 小時 |
 | Phase 5 | TrafficLightController | ⏳ 待開始 | 2-3 小時 |
-| Phase 6 | CollisionController | ⏳ 待開始 | 1-2 小時 |
-| 完成 | 全面去除 window | ⏳ 待開始 | 1 小時 |
+| Phase 6 | CollisionController    | ⏳ 待開始 | 1-2 小時 |
+| 完成    | 全面去除 window        | ⏳ 待開始 | 1 小時   |
 
 **預計總耗時**: 8-13 小時 (可分多次進行)
 
@@ -305,4 +309,3 @@ git commit -m "Migrate IndexPage.vue to use Pinia simulationStore - Phase 2 Step
 **祝您遷移順利！** 🚀
 
 有任何問題，請參考 `ARCHITECTURE_MIGRATION_GUIDE.md` 的詳細說明。
-

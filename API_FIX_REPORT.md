@@ -3,9 +3,11 @@
 ## 問題分析
 
 ### 🔴 根本原因
+
 API 數據串接功能失效的**根本原因**是 Worker 代碼缺少 API 觸發邏輯。
 
 #### 具體問題：
+
 在 `TrafficLightController.js` 中，`initCountdownWorker()` 方法創建 Worker 時，使用的 `workerCode` 內聯字符串中：
 
 ```javascript
@@ -26,17 +28,19 @@ const workerCode = `
 ```
 
 #### 發送端發送了參數，但接收端不接收：
+
 ```javascript
 // TrafficLightController.js countdownDelayWithAPI() 方法
 this.countdownWorker.postMessage({
   command: 'startCountdown',
   duration: totalMs,
   precision: 100,
-  apiTriggerSecond: actualTriggerSeconds  // ❌ 發送了，但 Worker 不接收!
+  apiTriggerSecond: actualTriggerSeconds, // ❌ 發送了，但 Worker 不接收!
 })
 ```
 
 **結果**：
+
 - ✅ 倒數計時正常工作（tick 消息被發送）
 - ❌ API 觸發消息從未被發送
 - ❌ `sendDataToBackend()` 從未被調用
@@ -51,12 +55,14 @@ this.countdownWorker.postMessage({
 在 `TrafficLightController.js` 的 `initCountdownWorker()` 方法中更新 `workerCode`：
 
 #### 新增變量：
+
 ```javascript
 let apiTriggerSecond = null
 let apiTriggered = false
 ```
 
 #### 更新 onmessage 處理：
+
 ```javascript
 self.onmessage = (event) => {
   const { command, duration: messageDuration, precision = 50, apiTriggerSecond: triggerSecond } = event.data
@@ -64,20 +70,21 @@ self.onmessage = (event) => {
 
   if (command === 'startCountdown') {
     // ... 其他初始化 ...
-    apiTriggerSecond = triggerSecond  // ✅ 保存 API 觸發秒數
-    apiTriggered = false  // ✅ 重置觸發標記
+    apiTriggerSecond = triggerSecond // ✅ 保存 API 觸發秒數
+    apiTriggered = false // ✅ 重置觸發標記
   }
 }
 ```
 
 #### 在倒數迴圈中添加 API 檢查：
+
 ```javascript
 countdownInterval = setInterval(() => {
   const elapsed = Date.now() - startTime
   const remaining = Math.max(0, Math.ceil((duration - elapsed) / 1000))
 
   // 發送 tick 消息...
-  
+
   // ✅ 新增：檢查是否需要觸發 API
   if (apiTriggerSecond !== null && remaining === apiTriggerSecond && !apiTriggered) {
     apiTriggered = true
@@ -121,11 +128,13 @@ countdownInterval = setInterval(() => {
 ## 修復驗證
 
 ### ✅ 構建狀態
+
 ```
 Build succeeded ✓
 ```
 
 ### ✅ 提交信息
+
 ```
 Commit: c820a91
 Message: Fix API integration - Add API trigger logic to Worker
@@ -142,6 +151,7 @@ Files changed: 5
 ## 快速驗證清單
 
 ### 步驟 1: 確認後端服務運行 ✅
+
 ```bash
 # 確認 localhost:8000 可訪問
 curl -X POST http://localhost:8000/api/traffic/predict/ \
@@ -150,6 +160,7 @@ curl -X POST http://localhost:8000/api/traffic/predict/ \
 ```
 
 ### 步驟 2: 檢查瀏覽器控制台 ✅
+
 ```javascript
 // 應該看到以下日誌序列：
 // 🕐 [API觸發檢查] 總綠燈時間: 12秒, 設定觸發時間: 10秒, 實際觸發時間: 10秒
@@ -159,6 +170,7 @@ curl -X POST http://localhost:8000/api/traffic/predict/ \
 ```
 
 ### 步驟 3: 監控 Network 選項卡 ✅
+
 ```
 在 Chrome DevTools Network 中：
 - 查看是否有 POST 請求到 http://localhost:8000/api/traffic/predict/
@@ -167,6 +179,7 @@ curl -X POST http://localhost:8000/api/traffic/predict/ \
 ```
 
 ### 步驟 4: 檢查 API 計數 ✅
+
 ```javascript
 // 在 DevTools Console 中
 console.log(window.trafficLightController?.apiCallCount)
@@ -177,14 +190,14 @@ console.log(window.trafficLightController?.apiCallCount)
 
 ## 症狀檢查 (修復前 vs 修復後)
 
-| 症狀 | 修復前 ❌ | 修復後 ✅ |
-|------|---------|---------|
-| 倒數計時顯示 | 正常 ✓ | 正常 ✓ |
-| `[API觸發]` 日誌 | 不出現 ✗ | 出現 ✓ |
-| `[API 計數]` 日誌 | 不出現 ✗ | 出現 (每個綠燈週期 1 次) ✓ |
-| 網絡請求到後端 | 無 ✗ | 有 ✓ |
-| 後端 AI 預測 | 無響應 ✗ | 收到預測結果 ✓ |
-| Console 錯誤 | 無 API 相關錯誤 | 無 API 相關錯誤 ✓ |
+| 症狀              | 修復前 ❌       | 修復後 ✅                  |
+| ----------------- | --------------- | -------------------------- |
+| 倒數計時顯示      | 正常 ✓          | 正常 ✓                     |
+| `[API觸發]` 日誌  | 不出現 ✗        | 出現 ✓                     |
+| `[API 計數]` 日誌 | 不出現 ✗        | 出現 (每個綠燈週期 1 次) ✓ |
+| 網絡請求到後端    | 無 ✗            | 有 ✓                       |
+| 後端 AI 預測      | 無響應 ✗        | 收到預測結果 ✓             |
+| Console 錯誤      | 無 API 相關錯誤 | 無 API 相關錯誤 ✓          |
 
 ---
 
@@ -231,16 +244,15 @@ console.log(window.trafficLightController?.apiCallCount)
 
 ## 📊 修復摘要
 
-| 項目 | 值 |
-|------|-----|
-| 修復文件 | 1 個 (TrafficLightController.js) |
-| 新增代碼行數 | ~30 行 |
-| 移除代碼行數 | 0 行 |
-| 構建狀態 | ✅ 成功 |
-| 提交 | c820a91 |
-| 時間戳 | 2024/11/08 |
+| 項目         | 值                               |
+| ------------ | -------------------------------- |
+| 修復文件     | 1 個 (TrafficLightController.js) |
+| 新增代碼行數 | ~30 行                           |
+| 移除代碼行數 | 0 行                             |
+| 構建狀態     | ✅ 成功                          |
+| 提交         | c820a91                          |
+| 時間戳       | 2024/11/08                       |
 
 ---
 
 **API 串接功能現已完全恢復！** 🚀
-

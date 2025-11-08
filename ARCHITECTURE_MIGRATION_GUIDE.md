@@ -6,13 +6,13 @@
 
 ### 🔴 為什麼要做這個？
 
-| 問題 | 影響 |
-|------|------|
-| 高耦合度 | 很難追蹤狀態變化，除錯困難 |
-| 全域污染 | `window` 對象包含了大量內部狀態，易出錯 |
-| 無類型檢查 | TypeScript 無法提供智能提示 |
-| 難以測試 | 無法隔離不同模塊進行單元測試 |
-| 內存泄漏 | 沒有清晰的生命週期管理 |
+| 問題       | 影響                                    |
+| ---------- | --------------------------------------- |
+| 高耦合度   | 很難追蹤狀態變化，除錯困難              |
+| 全域污染   | `window` 對象包含了大量內部狀態，易出錯 |
+| 無類型檢查 | TypeScript 無法提供智能提示             |
+| 難以測試   | 無法隔離不同模塊進行單元測試            |
+| 內存泄漏   | 沒有清晰的生命週期管理                  |
 
 ### ✅ 移至 Pinia 的好處
 
@@ -30,6 +30,7 @@
 ### Phase 1: Store 基礎（已完成）
 
 ✅ 創建 `src/stores/simulationStore.js`
+
 - 包含所有全域狀態的 actions 和 getters
 - 提供事件系統替代 `window.dispatchEvent`
 - 包含統計信息和清理管理
@@ -49,30 +50,30 @@ import { useSimulationStore } from 'src/stores/simulationStore'
 export default {
   setup() {
     const simulationStore = useSimulationStore()
-    
+
     // 移除以下全域變數賦值：
     // window.liveVehicles = activeCars.value
     // window.trafficController = trafficController
     // 等等...
-    
+
     // 改用 Store：
     // simulationStore.setTrafficController(trafficController)
     // simulationStore.liveVehicles 直接讀取
-  }
+  },
 }
 ```
 
 #### 2.2 變數遷移對照表
 
-| 舊（window）| 新（Store）| 位置 |
-|-----------|----------|------|
-| `window.liveVehicles` | `simulationStore.liveVehicles` | IndexPage.vue setup |
-| `window.trafficController` | `simulationStore.trafficController` | IndexPage.vue setup |
-| `window.autoTrafficGenerator` | `simulationStore.autoTrafficGenerator` | IndexPage.vue setup |
-| `window.collisionController` | `simulationStore.collisionController` | IndexPage.vue setup |
+| 舊（window）                    | 新（Store）                              | 位置                |
+| ------------------------------- | ---------------------------------------- | ------------------- |
+| `window.liveVehicles`           | `simulationStore.liveVehicles`           | IndexPage.vue setup |
+| `window.trafficController`      | `simulationStore.trafficController`      | IndexPage.vue setup |
+| `window.autoTrafficGenerator`   | `simulationStore.autoTrafficGenerator`   | IndexPage.vue setup |
+| `window.collisionController`    | `simulationStore.collisionController`    | IndexPage.vue setup |
 | `window.adaptiveFlowController` | `simulationStore.adaptiveFlowController` | IndexPage.vue setup |
 | `window.currentGeneratedVDData` | `simulationStore.currentGeneratedVDData` | IndexPage.vue setup |
-| `window.lastApiVDDataArray` | `simulationStore.lastApiVDDataArray` | IndexPage.vue setup |
+| `window.lastApiVDDataArray`     | `simulationStore.lastApiVDDataArray`     | IndexPage.vue setup |
 | `window.cleanupVehicleInterval` | `simulationStore.cleanupVehicleInterval` | IndexPage.vue setup |
 
 ### Phase 3: AutoTrafficGenerator 遷移
@@ -106,7 +107,7 @@ constructor(trafficController, simulationStore = null) {
 // 在生成數據時使用 Store
 _generateScenarioVDData(scenarioKey) {
   // ...生成數據...
-  
+
   // ✅ 使用 Store 而非 window
   if (this.simulationStore) {
     this.simulationStore.setCurrentGeneratedVDData({
@@ -151,7 +152,7 @@ remove() {
 // IndexPage.vue - mainSimulationLoop 中
 function mainSimulationLoop() {
   // ...其他邏輯...
-  
+
   // ✅ 集中處理車輛移除
   const completedVehicles = simulationStore.liveVehicles.filter(v => v.isCompleted)
   if (completedVehicles.length > 0) {
@@ -210,7 +211,7 @@ constructor(simulationStore = null) {
 // 在檢測碰撞時
 checkSimpleCollision(vehicle1, vehicle2) {
   // ...碰撞檢測邏輯...
-  
+
   if (isColliding) {
     // ✅ 通過 Store 發送事件
     this.simulationStore?.emit('vehicleCollision', {
@@ -238,10 +239,10 @@ const simulationStore = useSimulationStore()
 onMounted(() => {
   const trafficController = new TrafficLightController()
   const autoTrafficGenerator = new AutoTrafficGenerator(trafficController, simulationStore) // ✅ 傳入 Store
-  
+
   simulationStore.setTrafficController(trafficController)
   simulationStore.setAutoTrafficGenerator(autoTrafficGenerator)
-  
+
   // 不再使用 window 賦值
   // window.trafficController = trafficController
   // window.autoTrafficGenerator = autoTrafficGenerator
@@ -251,7 +252,7 @@ onMounted(() => {
 function mainSimulationLoop() {
   const autoGen = simulationStore.autoTrafficGenerator
   const vehicles = simulationStore.liveVehicles
-  
+
   // 使用 Store 中的數據
   // ...
 }
@@ -276,7 +277,7 @@ constructor(trafficController, simulationStore = null) {
 // 在生成數據時
 _generateScenarioVDData(scenarioKey) {
   // ...生成邏輯...
-  
+
   // ✅ 使用 Store 設置數據
   if (this.simulationStore) {
     this.simulationStore.setCurrentGeneratedVDData({
@@ -285,10 +286,10 @@ _generateScenarioVDData(scenarioKey) {
       timestamp: new Date().toISOString(),
       scenario: scenarioKey,
     })
-    
+
     this.simulationStore.setLastApiVDDataArray(apiDataArray)
   }
-  
+
   // ✅ 發送事件（使用 Store 而非 window.dispatchEvent）
   this.simulationStore?.emit('trafficDataGenerated', {
     data: { apiDataArray, vdData: displayData },
@@ -298,12 +299,12 @@ _generateScenarioVDData(scenarioKey) {
 // 在生成車輛時
 _generateVehicle() {
   // ...生成邏輯...
-  
+
   // ✅ 使用 Store 添加車輛
   if (this.simulationStore) {
     this.simulationStore.addVehicle(newVehicle)
   }
-  
+
   // ✅ 發送事件
   this.simulationStore?.emit('vehicleAdded', {
     direction: selectedDir,
@@ -319,7 +320,7 @@ _generateVehicle() {
 // Vehicle.js
 remove() {
   this.isCompleted = true // ✅ 只標記，不移除
-  
+
   // ✅ 不再使用以下代碼：
   // const index = window.liveVehicles.indexOf(this)
   // if (index > -1) window.liveVehicles.splice(index, 1)
@@ -333,20 +334,20 @@ remove() {
 // IndexPage.vue - mainSimulationLoop 中
 function mainSimulationLoop() {
   // ...其他邏輯...
-  
+
   // ✅ 檢查並移除完成的車輛
-  const completedVehicles = simulationStore.liveVehicles.filter(v => v.isCompleted)
+  const completedVehicles = simulationStore.liveVehicles.filter((v) => v.isCompleted)
   if (completedVehicles.length > 0) {
-    const vehicleIds = completedVehicles.map(v => v.id)
-    
+    const vehicleIds = completedVehicles.map((v) => v.id)
+
     // 執行清理邏輯
-    completedVehicles.forEach(v => {
+    completedVehicles.forEach((v) => {
       if (v.remove) v.remove()
     })
-    
+
     // 從 Store 移除
     simulationStore.removeVehicles(vehicleIds)
-    
+
     // 發送事件
     simulationStore.emit('vehiclesRemoved', { count: vehicleIds.length })
   }
@@ -365,16 +366,16 @@ constructor(simulationStore = null) {
 async sendDataToBackend(vdData = null) {
   // ✅ 優先使用傳入的數據，否則從 Store 讀取
   let dataToSend = vdData
-  
+
   if (!dataToSend && this.simulationStore?.currentGeneratedVDData?.apiDataArray) {
     dataToSend = this.simulationStore.currentGeneratedVDData.apiDataArray
   }
-  
+
   if (!dataToSend && this.simulationStore?.liveVehicles) {
     // 備用方案：從 Store 的車輛列表收集數據
     dataToSend = this.collectIntersectionData()
   }
-  
+
   // ...繼續邏輯...
 }
 ```
@@ -386,9 +387,11 @@ async sendDataToBackend(vdData = null) {
 ### 舊方式（window.dispatchEvent）
 
 ```javascript
-window.dispatchEvent(new CustomEvent('vehicleAdded', {
-  detail: { vehicle: newVehicle }
-}))
+window.dispatchEvent(
+  new CustomEvent('vehicleAdded', {
+    detail: { vehicle: newVehicle },
+  }),
+)
 
 window.addEventListener('vehicleAdded', (event) => {
   console.log('車輛已添加:', event.detail.vehicle)
@@ -412,15 +415,15 @@ unsubscribe()
 
 ### 事件列表
 
-| 事件名 | 舊（window） | 新（Store） | 用途 |
-|-------|-----------|----------|------|
-| vehicleAdded | ✅ | ✅ | 車輛生成 |
-| vehicleRemoved | ✅ | ✅ | 車輛移除 |
-| trafficDataGenerated | ✅ | ✅ | VD 數據生成 |
-| vehicleCollision | ❌ | ✅ | 車輛碰撞 |
-| apiDataSending | ❌ | ✅ | API 發送開始 |
-| apiDataSent | ❌ | ✅ | API 發送完成 |
-| scenarioChanged | ✅ | ✅ | 情景變更 |
+| 事件名               | 舊（window） | 新（Store） | 用途         |
+| -------------------- | ------------ | ----------- | ------------ |
+| vehicleAdded         | ✅           | ✅          | 車輛生成     |
+| vehicleRemoved       | ✅           | ✅          | 車輛移除     |
+| trafficDataGenerated | ✅           | ✅          | VD 數據生成  |
+| vehicleCollision     | ❌           | ✅          | 車輛碰撞     |
+| apiDataSending       | ❌           | ✅          | API 發送開始 |
+| apiDataSent          | ❌           | ✅          | API 發送完成 |
+| scenarioChanged      | ✅           | ✅          | 情景變更     |
 
 ---
 
@@ -507,18 +510,23 @@ unsubscribe()
 ## 💡 最佳實踐
 
 ### 1. 漸進式遷移
+
 不要一次性修改整個項目。逐個模塊進行，每次修改後都驗證功能。
 
 ### 2. 向後相容
+
 在過渡期間，保留 `window.*` 作為備用，但逐漸淘汰。
 
 ### 3. 類型安全
+
 使用 TypeScript 接口定義 Store 的數據結構。
 
 ### 4. 事件命名
+
 使用清晰、一致的事件名，例如 `vehicleAdded`, `vehicleRemoved` 等。
 
 ### 5. 錯誤處理
+
 在 Store 中添加 try-catch 以捕獲潛在錯誤。
 
 ---

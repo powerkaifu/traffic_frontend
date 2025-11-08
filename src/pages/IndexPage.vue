@@ -373,6 +373,7 @@ import WeatherController from '../classes/WeatherController.js'
 import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
 import { CollisionController } from '../classes/vehicle_utils/CollisionController.js'
 import { GENERATION_CONFIG } from '../classes/config/vehicleConfig.js'
+import { useSimulationStore } from '../stores/simulationStore.js'
 
 // 註冊 GSAP MotionPathPlugin 和 MotionPathHelper
 gsap.registerPlugin(MotionPathPlugin, MotionPathHelper)
@@ -380,16 +381,20 @@ gsap.registerPlugin(MotionPathPlugin, MotionPathHelper)
 // 使用 Quasar
 const $q = useQuasar()
 
+// 🎯 初始化 Pinia Store
+const store = useSimulationStore()
+
 // 提升 handleScenarioChange 作用域，讓 onUnmounted 可移除
 const handleScenarioChange = (event) => {
-  if (window.autoTrafficGenerator && event.detail && event.detail.config) {
+  const generator = store.getAutoTrafficGenerator()
+  if (generator && event.detail && event.detail.config) {
     const config = event.detail.config
     // 如果只有 interval 欄位，補上 isManualMode: true
     const isManual = Object.keys(config).length === 1 && Object.prototype.hasOwnProperty.call(config, 'interval')
     if (isManual) {
-      window.autoTrafficGenerator.updateConfig({ ...config, isManualMode: true })
+      generator.updateConfig({ ...config, isManualMode: true })
     } else {
-      window.autoTrafficGenerator.updateConfig(config)
+      generator.updateConfig(config)
     }
   }
 }
@@ -405,7 +410,8 @@ const selectOptimalLane = (direction) => {
 
   try {
     // 試圖從 API 數據讀取佔有率
-    if (window.lastApiVDDataArray && Array.isArray(window.lastApiVDDataArray)) {
+    const lastApiData = store.getLastApiVDDataArray()
+    if (lastApiData && Array.isArray(lastApiData)) {
       const directionMap = {
         north: 0,
         east: 1,
@@ -414,8 +420,8 @@ const selectOptimalLane = (direction) => {
       }
       const dirIndex = directionMap[direction]
 
-      if (dirIndex !== undefined && window.lastApiVDDataArray[dirIndex]) {
-        const apiData = window.lastApiVDDataArray[dirIndex]
+      if (dirIndex !== undefined && lastApiData[dirIndex]) {
+        const apiData = lastApiData[dirIndex]
         const occupancy = apiData.Occupancy || 0
 
         // 根據佔有率動態計算最大車道車輛數
@@ -435,9 +441,10 @@ const selectOptimalLane = (direction) => {
     console.warn(`⚠️ [車道密度同步] 讀取 API 佔有率失敗:`, error)
   }
 
+  const liveVehicles = store.getLiveVehicles()
   const laneCounts = [2, 3, 4].map((laneNum) => {
     // 🔧 改進：計算該車道的**全部車輛**數量，而不只是起始區域的車輛
-    const totalVehiclesInLane = activeCars.value.filter((car) => {
+    const totalVehiclesInLane = liveVehicles.filter((car) => {
       return car.direction === direction && car.laneNumber === laneNum
     }).length
 
@@ -554,23 +561,17 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
   vehicle.addTo(vehicleContainer.value || crossroadContainer.value)
   activeCars.value.push(vehicle)
 
-  // 🚨 將車輛添加到 window.liveVehicles（用於自動生成系統計算 progress）
-  if (!window.liveVehicles) {
-    window.liveVehicles = []
-  }
-  window.liveVehicles.push(vehicle)
+  // ✅ 將車輛添加到 Store（用於自動生成系統計算 progress）
+  store.addVehicle(vehicle)
 
-  window.dispatchEvent(
-    new CustomEvent('vehicleAdded', {
-      detail: {
-        direction,
-        type: vehicleType,
-        vehicleId: vehicle.id,
-        speed: vehicle.currentSpeed || 0,
-        timestamp: new Date().toISOString(),
-      },
-    }),
-  )
+  // ✅ 派發事件（通過 Store）
+  store.emit('vehicleAdded', {
+    direction,
+    type: vehicleType,
+    vehicleId: vehicle.id,
+    speed: vehicle.currentSpeed || 0,
+    timestamp: new Date().toISOString(),
+  })
   const startVehicleAnimation = async () => {
     try {
       // 確保 SVG 路徑元素已準備好
@@ -621,14 +622,8 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
         activeCars.value.splice(vehicleIndex, 1)
       }
 
-      // 🚨 同時立即從 window.liveVehicles 中移除（在調用 vehicle.remove() 之前）
-      if (window.liveVehicles && window.liveVehicles.length > 0) {
-        const liveVehicleIdx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
-        if (liveVehicleIdx !== -1) {
-          window.liveVehicles.splice(liveVehicleIdx, 1)
-          console.log(`📍 從 liveVehicles 移除: id="${vehicle.id}" (剩餘: ${window.liveVehicles.length})`)
-        }
-      }
+      // ✅ 同時立即從 Store 中移除
+      store.removeVehicle(vehicle.id)
 
       // 🚨 直接移除車輛，不執行淡出動畫
       // ⚠️ 注意：vehicle.remove() 會自動派發 vehicleRemoved 事件
@@ -646,6 +641,7 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
       if (vehicleIndex > -1) {
         activeCars.value.splice(vehicleIndex, 1)
       }
+      store.removeVehicle(vehicle.id)
       vehicle.remove()
     }
   }
@@ -835,7 +831,8 @@ const clearAllVehicles = () => {
 
   try {
     // 獲取當前活躍車輛數量
-    const vehicleCount = activeCars.value.length
+    const liveVehicles = store.getLiveVehicles()
+    const vehicleCount = liveVehicles.length
     console.log(`📊 當前活躍車輛數量：${vehicleCount}`)
 
     if (vehicleCount === 0) {
@@ -850,16 +847,13 @@ const clearAllVehicles = () => {
     }
 
     // 複製車輛列表，避免在遍歷時修改原數組
-    const vehiclesToRemove = [...activeCars.value]
+    const vehiclesToRemove = [...liveVehicles]
 
-    // 清空車輛列表
+    // 清空 activeCars.value 列表
     activeCars.value = []
 
-    // 同時清空 window.liveVehicles
-    if (window.liveVehicles) {
-      console.log(`📍 清空 window.liveVehicles (從 ${window.liveVehicles.length} → 0)`)
-      window.liveVehicles = []
-    }
+    // 同時清空 Store 中的車輛列表
+    store.clearAllVehicles()
 
     // 逐一移除車輛的 DOM 元素
     vehiclesToRemove.forEach((vehicle) => {
@@ -883,15 +877,11 @@ const clearAllVehicles = () => {
       icon: '🧹',
     })
 
-    // 發送車輛清空事件
-    window.dispatchEvent(
-      new CustomEvent('allVehiclesCleared', {
-        detail: {
-          count: vehicleCount,
-          timestamp: new Date().toISOString(),
-        },
-      }),
-    )
+    // 發送車輛清空事件（通過 Store）
+    store.emit('allVehiclesCleared', {
+      count: vehicleCount,
+      timestamp: new Date().toISOString(),
+    })
   } catch (error) {
     console.error('❌ 清空車輛時發生錯誤:', error)
     $q.notify({
@@ -1285,10 +1275,29 @@ onMounted(async () => {
 
     console.log('🎨 等待DOM完全渲染完成')
 
-    // 監聽情境切換事件（由 MainLayout 發出）
-    window.addEventListener('scenarioChanged', handleScenarioChange)
-    window.addEventListener('generateVehicle', handleAutoGenerate)
-    window.addEventListener('generateLeftTurnVehicle', handleAutoGenerateLeftTurn)
+    // 📡 訂閱 Store 事件（替代 window.addEventListener）
+    const unsubscribeScenarioChanged = store.subscribe('scenarioChanged', handleScenarioChange)
+    const unsubscribeGenerateVehicle = store.subscribe('generateVehicle', handleAutoGenerate)
+    const unsubscribeGenerateLeftTurnVehicle = store.subscribe('generateLeftTurnVehicle', handleAutoGenerateLeftTurn)
+
+    // 保存取消訂閱函數，用於 onUnmounted 時清理
+    window.storeUnsubscribers = {
+      scenarioChanged: unsubscribeScenarioChanged,
+      generateVehicle: unsubscribeGenerateVehicle,
+      generateLeftTurnVehicle: unsubscribeGenerateLeftTurnVehicle,
+    }
+
+    // 同時保留 DOM 事件監聽器，以支持其他外部組件（如 MainLayout）
+    // 這些事件處理器會調用相應的 Store 事件
+    window.addEventListener('scenarioChanged', (event) => {
+      handleScenarioChange(event.detail)
+    })
+    window.addEventListener('generateVehicle', (event) => {
+      handleAutoGenerate(event)
+    })
+    window.addEventListener('generateLeftTurnVehicle', (event) => {
+      handleAutoGenerateLeftTurn(event)
+    })
 
     // 監聽視窗大小變化和佈局變化
     const handleLayoutChange = async () => {
@@ -1354,8 +1363,8 @@ onMounted(async () => {
 
     trafficController.init(eastLight, westLight, southLight, northLight)
 
-    // 設置全域交通控制器供其他組件使用
-    window.trafficController = trafficController
+    // ✅ 設置全域交通控制器供其他組件使用（通過 Store）
+    store.setTrafficController(trafficController)
 
     // 🚀 第1階段優化：初始化空間分割網格用於碰撞檢測
     // 網格單元大小設置為 150px（建議值，基於車輛大小和碰撞檢測半徑）
@@ -1365,34 +1374,37 @@ onMounted(async () => {
 
     // 🎯 設置全域車輛距離配置方法
     window.setVehicleDistance = (multiplier) => {
-      Vehicle.setDistanceMultiplier(multiplier)
+      store.setVehicleDistance(multiplier)
     }
 
     // 🎯 新增：南北向專用距離配置
     window.setNorthSouthDistance = (multiplier) => {
-      Vehicle.setNorthSouthDistanceMultiplier(multiplier)
+      store.setNorthSouthDistance(multiplier)
     }
 
     // 🎯 獲取當前車輛距離配置
     window.getVehicleDistanceConfig = () => {
-      return Vehicle.getDistanceConfig()
+      return store.getVehicleDistanceConfig()
     }
 
     // 🎯 測試直行優先的左轉燈號流程
     window.testNewTrafficFlow = () => {
       console.log('🔄 測試直行優先的左轉燈號流程...')
-      console.log('當前燈號狀態：')
-      console.log(`  東燈：${trafficController.lights.east.currentState}`)
-      console.log(`  西燈：${trafficController.lights.west.currentState}`)
-      console.log(`  南燈：${trafficController.lights.south.currentState}`)
-      console.log(`  北燈：${trafficController.lights.north.currentState}`)
-      console.log(`  當前相位：${trafficController.currentPhase}`)
+      const controller = store.getTrafficController()
+      if (controller && controller.lights) {
+        console.log('當前燈號狀態：')
+        console.log(`  東燈：${controller.lights.east.currentState}`)
+        console.log(`  西燈：${controller.lights.west.currentState}`)
+        console.log(`  南燈：${controller.lights.south.currentState}`)
+        console.log(`  北燈：${controller.lights.north.currentState}`)
+        console.log(`  當前相位：${controller.currentPhase}`)
+      }
     }
 
     // 🎯 測試左轉車道邏輯
     window.testLeftTurnLanes = () => {
       console.log('🔄 測試左轉車道邏輯...')
-      const liveVehicles = window.liveVehicles || []
+      const liveVehicles = store.getLiveVehicles()
       const lane1Vehicles = liveVehicles.filter((v) => v.laneNumber === 1)
       const otherLaneVehicles = liveVehicles.filter((v) => v.laneNumber !== 1)
 
@@ -1494,8 +1506,8 @@ onMounted(async () => {
     // 等待一個小的延遲，確保 DOM 元素和 SVG 路徑都已經完全初始化
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    // 🔧 設置全域 autoTrafficGenerator 供其他組件使用
-    window.autoTrafficGenerator = autoTrafficGenerator
+    // ✅ 設置自動交通生成器到 Store
+    store.setAutoTrafficGenerator(autoTrafficGenerator)
 
     // ✅ 強制啟動車流生成器（如果已停止會重新啟動）
     if (!autoTrafficGenerator.isRunning) {
@@ -1504,15 +1516,13 @@ onMounted(async () => {
       console.log('--------------------- 🤖 自動交通產生器已啟動 ---------------------')
     } else {
       console.log('✅ 自動交通產生器已在運行')
-      // 重新設置全域引用以確保 MainLayout 可以訪問
-      window.autotrafficGenerator = autoTrafficGenerator
     }
 
     // 再次等待一個小延遲，確保 autoTrafficGenerator 完全初始化
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    // 🔧 設置全域 AdaptiveFlowController 供其他組件使用並啟動
-    window.adaptiveFlowController = adaptiveFlowController
+    // ✅ 設置自適應流量控制器到 Store
+    store.setAdaptiveFlowController(adaptiveFlowController)
 
     // ✅ 啟動自適應流量控制器
     console.log('🚀 啟動自適應流量控制器')
@@ -1659,14 +1669,14 @@ onMounted(async () => {
     console.log('📊 啟動交通數據收集器...')
     trafficDataCollector.start()
 
-    // 設置全域交通數據收集器
-    window.trafficDataCollector = trafficDataCollector
+    // ✅ 設置交通數據收集器到 Store
+    store.setTrafficDataCollector(trafficDataCollector)
 
     // 🌤️ 初始化天氣控制器
     console.log('🌤️ 初始化天氣系統...')
     weatherController = new WeatherController(crossroadContainer.value)
-    // 設置全域天氣控制器,讓車輛可以訪問
-    window.weatherController = weatherController
+    // ✅ 設置天氣控制器到 Store
+    store.setWeatherController(weatherController)
     console.log('✅ 天氣系統已初始化')
 
     console.log('✅ 所有系統已初始化完成')
@@ -1680,7 +1690,7 @@ onMounted(async () => {
   window.diagnostics = {
     showMemoryDiagnostics() {
       try {
-        const liveVehicles = window.liveVehicles || []
+        const liveVehicles = store.getLiveVehicles()
         const gsapTweens = gsap.getTweensOf() // ← 可能出現異常，需要保護
 
         const diagnostics = {
@@ -2060,13 +2070,18 @@ onUnmounted(() => {
   // 清理 MotionPathHelper
   disablePathEditing()
 
+  // ✅ 取消訂閱 Store 事件
+  if (window.storeUnsubscribers) {
+    if (window.storeUnsubscribers.scenarioChanged) window.storeUnsubscribers.scenarioChanged()
+    if (window.storeUnsubscribers.generateVehicle) window.storeUnsubscribers.generateVehicle()
+    if (window.storeUnsubscribers.generateLeftTurnVehicle) window.storeUnsubscribers.generateLeftTurnVehicle()
+    delete window.storeUnsubscribers
+  }
+
   // 停止並完全清理交通數據收集器
   if (trafficDataCollector) {
     console.log('📊 停止交通數據收集器...')
     trafficDataCollector.stop()
-    if (typeof window !== 'undefined') {
-      window.trafficDataCollector = null
-    }
   }
 
   // ✅ 停止所有生成器和控制器，清理回調
@@ -2120,9 +2135,6 @@ onUnmounted(() => {
       weatherController.destroy()
     }
     weatherController = null
-    if (typeof window !== 'undefined') {
-      window.weatherController = null
-    }
   }
 
   // 移除鍵盤事件監聽
@@ -2138,6 +2150,10 @@ onUnmounted(() => {
     window.mainSimulationRAFId = null
     console.log('🛑 [RAF 主循環] 已停止')
   }
+
+  // ✅ 完全重置 Store 狀態
+  console.log('🔄 重置 Pinia Store...')
+  store.reset()
 
   console.log('🧹 IndexPage 資源完全清理完成')
   console.log('═══════════════════════════════════════════════════════════')
