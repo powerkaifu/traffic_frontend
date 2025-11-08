@@ -939,11 +939,11 @@ onUnmounted(() => {
 }
 
 .q-header {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-bottom: 1px solid rgba(0, 81, 220, 0.5) !important;
 }
 .q-drawer {
   background: transparent !important;
-  border-left: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-left: 1px solid rgba(0, 81, 220, 0.5) !important;
 }
 
 .q-page-container {
