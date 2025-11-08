@@ -5,6 +5,7 @@
 **症狀**：某些車輛在動畫走到最後時不會消失，會停留在路徑終點位置。
 
 **根本原因**：
+
 1. 邊界檢測回調和 onComplete 回調之間的邏輯不一致
 2. `hasBeenRemovedFromCollision` flag 在邊界檢測時被設置，導致 onComplete 中的回調不執行
 3. RAF 主循環中的清理邏輯直接調用 `vehicle.remove()`，與對象池機制衝突
@@ -44,13 +45,13 @@ if (onVehicleOutOfBounds) {
 // 【修復前】
 if (isOutOfBounds && !hasBeenRemovedFromCollision && onVehicleOutOfBounds) {
   hasBeenRemovedFromCollision = true
-  onVehicleOutOfBounds(this.id)  // ❌ 只傳遞 ID
+  onVehicleOutOfBounds(this.id) // ❌ 只傳遞 ID
 }
 
 // 【修復後】
 if (isOutOfBounds && !hasBeenRemovedFromCollision && onVehicleOutOfBounds) {
   hasBeenRemovedFromCollision = true
-  onVehicleOutOfBounds(this)  // ✅ 傳遞完整實例
+  onVehicleOutOfBounds(this) // ✅ 傳遞完整實例
 }
 ```
 
@@ -130,14 +131,14 @@ release(vehicle) {
 ```javascript
 // 【修復前】
 if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
-  vehicle.remove()  // ❌ 直接移除，與池衝突
+  vehicle.remove() // ❌ 直接移除，與池衝突
   return false
 }
 
 // 【修復後】
 if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
   if (vehiclePool) {
-    vehiclePool.release(vehicle)  // ✅ 放回池中
+    vehiclePool.release(vehicle) // ✅ 放回池中
   } else {
     vehicle.remove()
   }
