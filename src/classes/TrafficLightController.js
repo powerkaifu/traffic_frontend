@@ -854,16 +854,15 @@ export default class TrafficLightController {
       `🕐 [API觸發檢查] 總綠燈時間: ${totalSeconds}秒, 設定觸發時間: ${apiTriggerSeconds}秒, 實際觸發時間: ${actualTriggerSeconds}秒`,
     )
 
-    // ✅ 如果 Worker 可用，使用 Worker（獨立線程計時 + 主線程 API 觸發）
+    // ✅ 如果 Worker 可用，使用 Worker（獨立線程計時 + API 觸發）
     if (this.countdownWorker) {
       return new Promise((resolve) => {
-        const startTime = Date.now()
-
-        // 發送倒數命令到 Worker
+        // 發送倒數命令到 Worker，包含 API 觸發秒數
         this.countdownWorker.postMessage({
           command: 'startCountdown',
           duration: totalMs,
           precision: 100,
+          apiTriggerSecond: actualTriggerSeconds,  // ✅ 新增：傳遞 API 觸發秒數
         })
 
         // 監聽 Worker 消息
@@ -871,45 +870,26 @@ export default class TrafficLightController {
           const { type, remaining } = event.data
 
           if (type === 'tick') {
-            // 💡 關鍵修復：在每個 tick 消息時更新 UI
+            // 💡 在每個 tick 消息時更新 UI
             if (this.onTimerUpdate) {
               this.onTimerUpdate(null, remaining)
             }
-          } else if (type === 'complete') {
-            this.countdownWorker.removeEventListener('message', handleMessage)
-            if (!apiTriggered) {
-              logWarn(`⚠️ [API觸發失敗] 南北向綠燈 ${totalSeconds} 秒已結束，但未觸發API`)
-            }
-            resolve()
-          }
-        }
-
-        this.countdownWorker.addEventListener('message', handleMessage)
-
-        // 在主線程監控 API 觸發時機（確保能捕捉到觸發點）
-        const apiCheckInterval = setInterval(() => {
-          const elapsed = Date.now() - startTime
-          const remaining = Math.max(0, Math.ceil((totalMs - elapsed) / 1000))
-
-          if (remaining === actualTriggerSeconds && !apiTriggered) {
-            clearInterval(apiCheckInterval)
+          } else if (type === 'api_trigger') {
+            // ✅ 新增：處理 Worker 發送的 API 觸發消息
             logInfo(`⏰ [API觸發] 剩餘 ${remaining} 秒，開始 AI 預測流程...`)
 
             // 收集數據並發送 API
             const currentCycleData = this.collectIntersectionData()
             this.sendDataToBackend(currentCycleData)
             this.updateFeatureSimulationDisplay(currentCycleData)
-
-            apiTriggered = true
-          } else if (elapsed >= totalMs) {
-            clearInterval(apiCheckInterval)
+          } else if (type === 'complete') {
+            this.countdownWorker.removeEventListener('message', handleMessage)
+            logInfo(`✅ [倒數完成] 南北向綠燈 ${totalSeconds} 秒結束`)
+            resolve()
           }
-        }, 100)
+        }
 
-        // 倒數結束時清理 interval
-        setTimeout(() => {
-          clearInterval(apiCheckInterval)
-        }, totalMs + 100)
+        this.countdownWorker.addEventListener('message', handleMessage)
       })
     }
 

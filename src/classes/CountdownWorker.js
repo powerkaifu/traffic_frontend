@@ -14,12 +14,14 @@ let countdownInterval = null
 let startTime = null
 let duration = null
 let lastReportedSecond = null
+let apiTriggerSecond = null  // ✅ 新增：API 觸發秒數
+let apiTriggered = false     // ✅ 新增：標記 API 是否已觸發
 
 /**
  * 處理主線程消息
  */
 self.onmessage = (event) => {
-  const { command, duration: messageDuration, precision = 100 } = event.data
+  const { command, duration: messageDuration, precision = 100, apiTriggerSecond: triggerSecond } = event.data
 
   if (command === 'startCountdown') {
     // 停止之前的倒數
@@ -31,6 +33,8 @@ self.onmessage = (event) => {
     duration = messageDuration
     startTime = Date.now()
     lastReportedSecond = Math.floor(duration / 1000)
+    apiTriggerSecond = triggerSecond  // ✅ 接收 API 觸發秒數
+    apiTriggered = false              // ✅ 重置觸發標記
 
     // 發送初始秒數
     self.postMessage({
@@ -49,6 +53,16 @@ self.onmessage = (event) => {
         lastReportedSecond = remaining
         self.postMessage({
           type: 'tick',
+          remaining,
+          elapsed,
+        })
+      }
+
+      // ✅ 新增：檢查是否需要觸發 API
+      if (apiTriggerSecond !== null && remaining === apiTriggerSecond && !apiTriggered) {
+        apiTriggered = true
+        self.postMessage({
+          type: 'api_trigger',
           remaining,
           elapsed,
         })
