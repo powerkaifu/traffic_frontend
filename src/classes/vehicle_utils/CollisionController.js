@@ -1624,6 +1624,81 @@ export class CollisionController {
   }
 
   /**
+   * ✅ Phase 8：調整位置以保持最小間距
+   * 當碰撞且距離 < requiredGap 時，調整位置使車輛後退保持安全距離
+   * @param {Vehicle} frontVehicle - 前方車輛
+   * @param {number} requiredGap - 所需的最小間距（像素）
+   */
+  adjustPositionToMaintainGap(frontVehicle, requiredGap) {
+    if (!frontVehicle || !this.vehicle.element) {
+      return
+    }
+
+    const myPos = this.vehicle.getCurrentPosition()
+    const frontPos = frontVehicle.getCurrentPosition()
+
+    if (!myPos || !frontPos) {
+      return
+    }
+
+    // 計算需要調整的距離（後退量）
+    const currentDistance = this.calculateDirectionalDistance(myPos, frontPos)
+    const adjustmentNeeded = requiredGap - currentDistance
+
+    if (adjustmentNeeded <= 0) {
+      // 距離已經足夠，無需調整
+      return
+    }
+
+    // 根據方向調整位置
+    try {
+      // 使用 gsap.to 進行平滑的位置調整，而不是突然跳動
+      const adjustmentDuration = 0.1 // 100ms 的平滑調整
+      const gsap = window.gsap
+
+      switch (this.vehicle.direction) {
+        case 'east':
+          // 東向：後退（向西移動）
+          gsap.to(this.vehicle.element, {
+            x: `-=${adjustmentNeeded}`,
+            duration: adjustmentDuration,
+            overwrite: 'auto',
+          })
+          break
+
+        case 'west':
+          // 西向：後退（向東移動）
+          gsap.to(this.vehicle.element, {
+            x: `+=${adjustmentNeeded}`,
+            duration: adjustmentDuration,
+            overwrite: 'auto',
+          })
+          break
+
+        case 'north':
+          // 北向：後退（向南移動）
+          gsap.to(this.vehicle.element, {
+            y: `+=${adjustmentNeeded}`,
+            duration: adjustmentDuration,
+            overwrite: 'auto',
+          })
+          break
+
+        case 'south':
+          // 南向：後退（向北移動）
+          gsap.to(this.vehicle.element, {
+            y: `-=${adjustmentNeeded}`,
+            duration: adjustmentDuration,
+            overwrite: 'auto',
+          })
+          break
+      }
+    } catch (error) {
+      console.warn(`⚠️ [${this.vehicle.id}] 位置調整失敗:`, error.message)
+    }
+  }
+
+  /**
    * 計算方向性距離
    * 根據車輛行進方向，只計算前方車輛的距離
    */
