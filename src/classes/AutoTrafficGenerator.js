@@ -355,19 +355,10 @@ export default class AutoTrafficGenerator {
     // 立即套用一次當前時間的設定
     this._applyTrafficProfile()
 
-    // ✅ 每 37.5 秒更新一次 (共48次, 完整一天)
-    // 每次時間跳進 30 分鐘
-    // 總耗時: 37.5秒 × 48次 = 1800秒 = 30分鐘
-    this.autoModeTimer = setInterval(() => {
-      this.simulationTime.setMinutes(this.simulationTime.getMinutes() + 30)
-
-      // 模擬時間顯示
-      const hours = String(this.simulationTime.getHours()).padStart(2, '0')
-      const minutes = String(this.simulationTime.getMinutes()).padStart(2, '0')
-      console.log(`🕐 [自動模式] 模擬時間: ${hours}:${minutes}`)
-
-      this._applyTrafficProfile()
-    }, 37500) // ✅ 37500 毫秒 = 37.5 秒
+    // ✅ P1 修復：已遷移到 IndexPage mainSimulationLoop 的累加器模式
+    // 原因：避免 setInterval 與 RAF 競爭，統一計時器驅動
+    // this.autoModeTimer = setInterval(...)  // ❌ 已禁用
+    this.autoModeTimer = null  // ✅ 改為 null，由 IndexPage 統一驅動
   }
 
   // 停止自動模式循環
