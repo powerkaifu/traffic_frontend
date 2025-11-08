@@ -13,18 +13,22 @@ Performance Monitor 中 DOM Nodes 數字劇烈跳動：
 ## 🔍 根本原因分析
 
 ### 階段 1：DOM 節點上升 (900 → 3000)
+
 ```javascript
 // AutoTrafficGenerator.js 不斷創建新車
 const vehicle = new Vehicle(x, y, direction, type, lane)
-vehicle.addTo(container)  // ← appendChild
+vehicle.addTo(container) // ← appendChild
 ```
+
 **結果**：DOM 不斷增加
 
 ### 階段 2：DOM 節點下降 (3000 → 1000)
+
 ```javascript
 // 垃圾回收觸發
 performCleanup() → removeChild()
 ```
+
 **結果**：GC 暫停、DOM 突然下降
 
 ---
@@ -32,16 +36,19 @@ performCleanup() → removeChild()
 ## ✅ 已完成的工作
 
 ### 1. **物件池實現** ✓
+
 - `VehiclePool.js`：核心池管理類
 - `Vehicle.js reset()`：車輛重置邏輯
 - `IndexPage.vue`：池整合
 
 ### 2. **診斷工具實現** ✓
+
 - ✅ **每秒自動診斷**：記錄 DOM 節點數、池狀態、效率指標
 - ✅ **即時監控**：控制台實時輸出
 - ✅ **快速開始指南**：`DIAGNOSTIC_QUICK_START.md`
 
 ### 3. **文檔完成** ✓
+
 - `DOM_POOLING_DIAGNOSTIC.md`：詳細診斷方案
 - `DIAGNOSTIC_QUICK_START.md`：快速診斷步驟
 
@@ -80,6 +87,7 @@ quasar dev
 ## 📈 診斷結果解讀
 
 ### ✅ **成功**（修復完成）
+
 ```
 時間: 0秒  → 900 個 DOM 節點，45 輛車
 時間: 30秒 → 950 個 DOM 節點，50 輛車
@@ -92,6 +100,7 @@ quasar dev
 ```
 
 ### ❌ **問題**（修復未完成）
+
 ```
 時間: 0秒  → 900 個 DOM 節點
 時間: 10秒 → 3000 個 DOM 節點  ← ❌ 激增 3 倍
@@ -112,10 +121,11 @@ quasar dev
 **根本原因**：池中的車輛未正確隱藏
 
 **修復步驟**：
+
 ```javascript
 // 1. 在 VehiclePool.release() 中檢查是否有這行
 gsap.set(vehicle.element, {
-  autoAlpha: 0,  // ← 必須隱藏
+  autoAlpha: 0, // ← 必須隱藏
   x: -9999,
   y: -9999,
 })
@@ -128,6 +138,7 @@ gsap.set(vehicle.element, {
 **根本原因**：池耗盡，強制創建新車輛
 
 **修復步驟**：
+
 ```javascript
 // 1. 檢查控制台是否有這個警告
 ⚠️ 池耗盡！創建了新車 [east]
@@ -142,11 +153,12 @@ const INITIAL_POOL_SIZE = 30  // ← 改大
 **根本原因**：`release()` 未被調用
 
 **修復步驟**：
+
 ```javascript
 // 1. 檢查 IndexPage.vue 中的 removeVehicleFromSimulation()
 // 2. 確認這行存在
 if (vehiclePool) {
-  vehiclePool.release(vehicle)  // ← 必須調用
+  vehiclePool.release(vehicle) // ← 必須調用
 }
 ```
 
@@ -155,6 +167,7 @@ if (vehiclePool) {
 ## 📊 實時診斷數據
 
 ### 診斷輸出示例（成功）
+
 ```
 🔍 【DOM 池化診斷報告】
 ├─ 活動車輛數: 45
@@ -193,24 +206,24 @@ if (vehiclePool) {
 
 ## 📋 實施時間表
 
-| 時間 | 任務 | 預期結果 |
-|------|------|---------|
-| **0 分鐘** | 啟動 `quasar dev` | 模擬開始 |
-| **1 分鐘** | 打開控制台觀察 | 看到診斷輸出 |
-| **2 分鐘** | 初步判斷 | 確認池是否工作 |
-| **5 分鐘** | 長時間監控 | 檢查波動情況 |
-| **10 分鐘** | 最終判斷 | 確認修復成功 |
+| 時間        | 任務              | 預期結果       |
+| ----------- | ----------------- | -------------- |
+| **0 分鐘**  | 啟動 `quasar dev` | 模擬開始       |
+| **1 分鐘**  | 打開控制台觀察    | 看到診斷輸出   |
+| **2 分鐘**  | 初步判斷          | 確認池是否工作 |
+| **5 分鐘**  | 長時間監控        | 檢查波動情況   |
+| **10 分鐘** | 最終判斷          | 確認修復成功   |
 
 ---
 
 ## 📚 相關文檔
 
-| 文檔 | 用途 |
-|------|------|
-| `DIAGNOSTIC_QUICK_START.md` | ⭐ **先讀這個** - 5 步快速診斷 |
-| `DOM_POOLING_DIAGNOSTIC.md` | 深入診斷方案 + 可能問題清單 |
-| `GHOST_VEHICLE_FIX.md` | 幽靈車修復記錄 |
-| `OBJECT_POOLING_IMPLEMENTATION.md` | 池實現架構 |
+| 文檔                               | 用途                           |
+| ---------------------------------- | ------------------------------ |
+| `DIAGNOSTIC_QUICK_START.md`        | ⭐ **先讀這個** - 5 步快速診斷 |
+| `DOM_POOLING_DIAGNOSTIC.md`        | 深入診斷方案 + 可能問題清單    |
+| `GHOST_VEHICLE_FIX.md`             | 幽靈車修復記錄                 |
+| `OBJECT_POOLING_IMPLEMENTATION.md` | 池實現架構                     |
 
 ---
 
@@ -239,6 +252,7 @@ quasar dev
 ### 物件池工作原理（修復前後對比）
 
 #### ❌ 修復前（持續波動）
+
 ```javascript
 循環：
   1. 創建新車: new Vehicle() → appendChild
@@ -250,6 +264,7 @@ quasar dev
 ```
 
 #### ✅ 修復後（穩定）
+
 ```javascript
 初始化：
   1. 預創建 100 個車輛元素 (固定)
@@ -269,12 +284,12 @@ quasar dev
 
 ### 性能提升
 
-| 指標 | 修復前 | 修復後 |
-|------|-------|-------|
-| DOM 波動 | 900-3000 | 900-950 |
-| GC 暫停 | 每 10 秒 | 極少 |
-| 幀率 | 45-55 fps | 58-60 fps |
-| 卡頓 | 明顯 | 無 |
+| 指標     | 修復前    | 修復後    |
+| -------- | --------- | --------- |
+| DOM 波動 | 900-3000  | 900-950   |
+| GC 暫停  | 每 10 秒  | 極少      |
+| 幀率     | 45-55 fps | 58-60 fps |
+| 卡頓     | 明顯      | 無        |
 
 ### 用戶體驗提升
 

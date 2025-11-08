@@ -1,27 +1,33 @@
 # 🚀 DOM 池化問題診斷 - 快速開始
 
 ## 目標
+
 診斷 DOM 節點波動 (900 → 3000 → 1000...)，確認物件池是否完全生效。
 
 ## 如何執行診斷
 
 ### 步驟 1：啟動模擬
+
 ```bash
 quasar dev
 ```
 
 ### 步驟 2：打開瀏覽器開發者工具
+
 - 按 `F12` 或 `Ctrl+Shift+I`
 - 切換到 **Console** 標籤
 
 ### 步驟 3：打開 Performance Monitor（可選）
+
 - 按 `Ctrl+Shift+P`（Windows/Linux）或 `Cmd+Shift+P`（Mac）
 - 搜尋 "Show console"
 - 點擊 Rendering → Frame Rendering Stats
 - 查看 `DOM Nodes` 數字的變化
 
 ### 步驟 4：觀察診斷日誌
+
 **預期看到的日誌（每秒一次）**：
+
 ```
 🔍 【DOM 池化診斷報告】
 ├─ 活動車輛數: 45
@@ -63,6 +69,7 @@ quasar dev
 ```
 
 **特徵**：
+
 - ✅ `DOM 節點數 ≈ 活動車輛數` (1:1 匹配)
 - ✅ 池中保留 10-20 個空閒車輛
 - ✅ 效率指標始終 100%
@@ -93,6 +100,7 @@ quasar dev
 ```
 
 **特徵**：
+
 - ❌ `DOM 節點數 >> 活動車輛數` (僵屍 DOM)
 - ❌ 效率指標遠大於 100%（>1000%)
 - ❌ DOM 節點數劇烈波動（鋸齒狀，可見 Performance Monitor 中閃爍）
@@ -102,12 +110,12 @@ quasar dev
 
 ## 立即檢查清單
 
-| 項目 | 檢查項目 | 預期 |
-|------|--------|------|
-| 池大小 | `totalPooled` 是否 > 0 | ✅ 應 > 10 |
-| 活躍 | `totalActive` 是否 ≈ `activeCars.length` | ✅ 應相等 |
-| DOM 節點 | `DOM 節點數` 是否 ≈ `活動車輛數` | ✅ 應相等 |
-| 效率 | `效率指標` 是否 ≈ 100% | ✅ 應 90-110% |
+| 項目     | 檢查項目                                 | 預期          |
+| -------- | ---------------------------------------- | ------------- |
+| 池大小   | `totalPooled` 是否 > 0                   | ✅ 應 > 10    |
+| 活躍     | `totalActive` 是否 ≈ `activeCars.length` | ✅ 應相等     |
+| DOM 節點 | `DOM 節點數` 是否 ≈ `活動車輛數`         | ✅ 應相等     |
+| 效率     | `效率指標` 是否 ≈ 100%                   | ✅ 應 90-110% |
 
 ---
 
@@ -118,11 +126,13 @@ quasar dev
 **症狀**：`DOM 節點數 >> 活動車輛數`
 
 **可能原因**：
+
 1. 池中的車輛未正確隱藏（`autoAlpha: 0` 未設置）
 2. 僵屍 DOM 節點未清理
 3. 緊急備用路徑創建了太多新車
 
 **檢查**：
+
 ```javascript
 // 在控制台運行
 const pool = vehiclePool.poolMap.get('east')
@@ -140,17 +150,20 @@ console.log('位置:', vehicle.element.style.transform)
 **症狀**：900 → 3000 → 1000 → 2500 → ...
 
 **可能原因**：
+
 1. 池正常工作，但缺少初始預熱
 2. 生成速度與清理速度不匹配
 3. 池耗盡，強制創建新車輛
 
 **檢查**：
+
 ```javascript
 // 查看控制台是否有這個警告
 ⚠️ 池耗盡！創建了新車 [east]
 ```
 
 **修復**：
+
 1. 增加池大小（在 `VehiclePool` 的 `constructor` 中）
 2. 調整 `AutoTrafficGenerator` 的生成速度
 
@@ -161,10 +174,12 @@ console.log('位置:', vehicle.element.style.transform)
 **症狀**：池中沒有空閒車輛
 
 **可能原因**：
+
 1. 池被耗盡，所有車輛都活躍
 2. `release()` 未被正確調用
 
 **檢查**：
+
 ```javascript
 // 搜尋控制台日誌
 console.log('搜尋: 從池中取車')
@@ -186,11 +201,11 @@ let diagnosticLogs = []
 const startDiagnosticLog = () => {
   // 替換原本的 console.log 診斷輸出
   window._originalLog = console.log
-  console.log = function(...args) {
+  console.log = function (...args) {
     if (args[0]?.includes?.('🔍 【DOM 池化診斷報告】')) {
       diagnosticLogs.push({
         time: new Date().toISOString(),
-        log: args.join(' ')
+        log: args.join(' '),
       })
     }
     window._originalLog.apply(console, args)
@@ -199,7 +214,7 @@ const startDiagnosticLog = () => {
 
 const stopAndExportLog = () => {
   console.log = window._originalLog
-  const csv = diagnosticLogs.map(d => `${d.time}, ${d.log}`).join('\n')
+  const csv = diagnosticLogs.map((d) => `${d.time}, ${d.log}`).join('\n')
   console.log('【診斷日誌】', csv)
   return csv
 }
@@ -217,13 +232,13 @@ stopAndExportLog()
 
 ## 預期時間表
 
-| 時間點 | 預期結果 |
-|--------|---------|
-| **0 秒** | 初始化完成，DOM 節點 = 0 |
-| **30 秒** | 車流穩定，DOM 節點 ≈ 50，不波動 |
-| **1 分鐘** | 效率 100%，GC 罕見 |
-| **5 分鐘** | 持續穩定，無幀率下降 |
-| **10 分鐘** | 內存占用平穩 |
+| 時間點      | 預期結果                        |
+| ----------- | ------------------------------- |
+| **0 秒**    | 初始化完成，DOM 節點 = 0        |
+| **30 秒**   | 車流穩定，DOM 節點 ≈ 50，不波動 |
+| **1 分鐘**  | 效率 100%，GC 罕見              |
+| **5 分鐘**  | 持續穩定，無幀率下降            |
+| **10 分鐘** | 內存占用平穩                    |
 
 如果在**任何時間點**看到波動，立即查看上面的"如果診斷顯示問題"部分。
 
@@ -232,6 +247,7 @@ stopAndExportLog()
 ## 成功指標
 
 診斷通過的標誌：
+
 - ✅ `DOM 節點數` 穩定（波動 < 10%）
 - ✅ `效率指標` ≈ 100%（90-110% 範圍內）
 - ✅ 無 `⚠️ 池耗盡` 警告

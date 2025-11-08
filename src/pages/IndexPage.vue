@@ -1813,7 +1813,7 @@ onMounted(async () => {
   let periodicCheckAccumulator = 0 // 用於 Vehicle.js 的 50ms 檢查 (directTrafficLightResponse 等)
   let stuckCheckAccumulator = 0 // 用於 Vehicle.js 的 5000ms 卡車檢查
   let cleanupAccumulator = 0 // 用於 IndexPage.vue 的動態清理 (1000-3000ms)
-  
+
   // 🔍 診斷用：追蹤 DOM 節點和池的狀態
   let diagnosticAccumulator = 0
   const DIAGNOSTIC_INTERVAL = 1000 // 每秒報告一次
@@ -1845,7 +1845,7 @@ onMounted(async () => {
       // 🔍 每秒進行一次診斷
       if (diagnosticAccumulator >= DIAGNOSTIC_INTERVAL) {
         diagnosticAccumulator = 0
-        
+
         const poolStats = vehiclePool ? vehiclePool.getStats() : null
         const domNodeCount = vehicleContainer.value?.querySelectorAll('.vehicle').length || 0
         const vehicleCount = window.liveVehicles?.length || 0
@@ -1860,7 +1860,7 @@ onMounted(async () => {
   │  ├─ 活躍: ${poolStats?.totalActive || 0}
   │  ├─ 空閒池化: ${poolStats?.totalPooled || 0}
   │  └─ 各方向: ${poolStats ? JSON.stringify(poolStats.byDirection) : 'N/A'}
-  └─ 效率指標: ${vehicleCount > 0 ? ((domNodeCount / vehicleCount * 100).toFixed(1)) + '%' : 'N/A'}
+  └─ 效率指標: ${vehicleCount > 0 ? ((domNodeCount / vehicleCount) * 100).toFixed(1) + '%' : 'N/A'}
         `)
       }
 
