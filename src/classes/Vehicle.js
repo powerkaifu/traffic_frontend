@@ -1616,6 +1616,22 @@ export default class Vehicle {
                 )
               }
             }
+          } else {
+            // ✅ 若無初始 progress，強制設置到 Path 起始點 (progress = 0)
+            const pathId = this.getSvgPathId()
+            const pathElement = document.getElementById(pathId)
+            if (pathElement && pathElement.getTotalLength) {
+              const point = pathElement.getPointAtLength(0) // 路徑起始點
+              if (point) {
+                gsap.set(this.element, {
+                  x: point.x,
+                  y: point.y,
+                })
+                console.log(
+                  `🚗 [${this.id}] 初始化到 Path 起始點: (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`,
+                )
+              }
+            }
           }
 
           this.movementTimeline.to(this.element, {
