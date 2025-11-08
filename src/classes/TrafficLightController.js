@@ -639,7 +639,7 @@ export default class TrafficLightController {
           // 🎯【階段1】南北向直行綠燈（先直行）
           this.updateLightState('east', 'red') // 東西向保持紅燈
           this.updateLightState('west', 'red')
-          
+
           // ✅ Phase 7：發送 greenLightStarted 事件
           if (this.simulationStore) {
             this.simulationStore.emit('greenLightStarted', { direction: 'north-south', phase: 'northSouth' })
@@ -729,7 +729,7 @@ export default class TrafficLightController {
           // 🎯【階段1】東西向直行綠燈（先直行）
           this.updateLightState('south', 'red') // 南北向保持紅燈
           this.updateLightState('north', 'red')
-          
+
           // ✅ Phase 7：發送 greenLightStarted 事件
           if (this.simulationStore) {
             this.simulationStore.emit('greenLightStarted', { direction: 'east-west', phase: 'eastWest' })

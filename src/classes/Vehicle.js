@@ -1325,8 +1325,6 @@ export default class Vehicle {
               // 預期效果：減少 67% 的碰撞檢測調用（從 6000/秒 → 2000/秒）
               // ═══════════════════════════════════════════════════════════════════════
 
-              
-
               // 停止線檢查和紅綠燈控制流程
               this.checkStopLineAndRespond(trafficController, allVehicles)
             },
