@@ -1213,7 +1213,11 @@ export default class Vehicle {
               this.lastMovementTime = Date.now()
             },
             onUpdate: () => {
-              //  【效能優化 Phase 1】移除每幀的 SpatialHashGrid 重建 - 改由 IndexPage.vue 執行
+              // � 第1階段優化：每幀重建 SpatialHashGrid（用於優化碰撞檢測）
+              // 只在有活躍車輛時執行
+              if (allVehicles.length > 0) {
+                CollisionController.rebuildSpatialGrid(allVehicles)
+              }
 
               // �🚨 防守：車輛已銷毀時，不執行更新邏輯（車輛可能已被移除，但GSAP動畫仍繼續執行）
               if (!this.element) {
@@ -1279,12 +1283,6 @@ export default class Vehicle {
 
               // 檢測佈局變化
               this.checkLayoutChange()
-
-              //  【關鍵修復】在碰撞檢測之前重建空間網格
-              // 此時所有車輛位置已更新，網格需要重新構建以反映最新位置
-              if (allVehicles.length > 0) {
-                CollisionController.rebuildSpatialGrid(allVehicles)
-              }
 
               // 檢查是否離開畫面邊界
               const isOutOfBounds = this.checkOutOfBounds(currentPos)
