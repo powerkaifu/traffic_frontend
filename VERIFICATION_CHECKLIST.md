@@ -3,6 +3,7 @@
 ## ✅ 代碼審查
 
 ### VehiclePool.js
+
 - [x] acquire() 正確返回池中車輛或新建車輛
 - [x] release() 隱藏元素（autoAlpha: 0）而不移除 DOM
 - [x] release() 正確調用 reset()
@@ -11,6 +12,7 @@
 - [x] ESLint 無警告
 
 ### Vehicle.js - reset() 方法
+
 - [x] 隱藏元素（x: -9999, y: -9999）
 - [x] 重置所有狀態（速度、位置、燈號標記）
 - [x] 重置 waitingForGreen（關鍵！）
@@ -23,43 +25,50 @@
 - [x] getVehicleConfig() 存在且可用
 
 ### Vehicle.js - moveAlongPath onComplete
+
 - [x] 改為傳遞 vehicle 實例（this）
 - [x] 移除 this.remove() 調用
 - [x] 正確傳遞給 onVehicleOutOfBounds 回調
 
 ### IndexPage.vue - 初始化
+
 - [x] 導入 VehiclePool
 - [x] onMounted 中初始化 vehiclePool
 - [x] 傳入 vehicleContainer 和 store
 
 ### IndexPage.vue - 車輛創建
+
 - [x] 改為使用 vehiclePool.acquire()
 - [x] 備用邏輯：池未初始化時直接創建
 - [x] 保留 progress 設置邏輯
 
 ### IndexPage.vue - handleVehicleOutOfBounds
+
 - [x] 接收 vehicle 實例（而不是 vehicleId）
 - [x] 從 activeCars 中移除車輛
 - [x] 呼叫 vehiclePool.release()
 - [x] 備用邏輯：池未初始化時直接 reset
 
 ### IndexPage.vue - 清理
+
 - [x] onUnmounted 中呼叫 vehiclePool.dispose()
 - [x] 正確清理池參考
 
 ### 燈號邏輯保護
+
 - [x] checkStopLineAndRespond() 完全未修改
 - [x] shouldStop 邏輯完全保留
   - [x] 紅燈：停止
-  - [x] 全紅：停止  
+  - [x] 全紅：停止
   - [x] 1 號車道 + 直行綠燈：停止
-- [x] _performStopAtLine() 邏輯完全保留
-- [x] _canProceedThroughStopLine() 邏輯完全保留
+- [x] \_performStopAtLine() 邏輯完全保留
+- [x] \_canProceedThroughStopLine() 邏輯完全保留
 - [x] TrafficLightController 未修改
 
 ## 🧪 功能測試場景
 
 ### 場景 1：長時間運行 (15+ 分鐘)
+
 ```
 步驟：
 1. 打開開發者工具 → Elements 面板
@@ -76,6 +85,7 @@
 ```
 
 ### 場景 2：燈號互斥性
+
 ```
 步驟：
 1. 切換燈號到「東西向綠燈」
@@ -92,6 +102,7 @@
 ```
 
 ### 場景 3：左轉綠燈
+
 ```
 步驟：
 1. 確保有 1 號車道（左轉）的車輛
@@ -107,6 +118,7 @@
 ```
 
 ### 場景 4：碰撞檢測
+
 ```
 步驟：
 1. 正常運行 5-10 分鐘
@@ -121,6 +133,7 @@
 ```
 
 ### 場景 5：邊界偵測
+
 ```
 步驟：
 1. 觀察車輛離開畫面時的行為
@@ -135,6 +148,7 @@
 ```
 
 ### 場景 6：性能基準
+
 ```
 步驟：
 1. Chrome DevTools → Performance → Record
@@ -152,6 +166,7 @@
 ## 🔍 日誌驗證
 
 ### 關鍵日誌點
+
 - [ ] onMounted: "🚀 VehiclePool 已初始化" - 池初始化
 - [ ] 首次車輛創建: "acquire() 創建新車輛" - 新車輛分配
 - [ ] 後續車輛: "acquire() 從池中取車" - 車輛重用
@@ -159,6 +174,7 @@
 - [ ] 應用卸載: "🚀 清理 VehiclePool..." - 池清理
 
 ### 異常日誌（應該看不到）
+
 - [ ] ⚠️ 大量的「新建 Vehicle」日誌
 - [ ] 🗑️ 「車輛移除」日誌
 - [ ] ❌ 「回收失敗」日誌
@@ -166,12 +182,14 @@
 ## 📊 統計數據
 
 ### 預期統計值
+
 - 最大並發車輛：100（由 GENERATION_CONFIG 定義）
 - DOM 元素 (div.vehicle)：~100
 - 池中空閒車輛：0-50（取決於運行時)
 - 池中活躍車輛：~50-100
 
 ### 檢查方法
+
 ```javascript
 // 在瀏覽器控制台執行
 console.log(window.vehiclePool?.getStats())
@@ -191,6 +209,7 @@ console.log(window.vehiclePool?.getStats())
 ## ✨ 最終檢查清單
 
 ### 部署前
+
 - [ ] 無 ESLint 錯誤或警告
 - [ ] 無控制台錯誤
 - [ ] 記憶體使用穩定
@@ -199,6 +218,7 @@ console.log(window.vehiclePool?.getStats())
 - [ ] 所有 6 個測試場景通過
 
 ### 部署後
+
 - [ ] 用戶報告無新 Bug
 - [ ] 記憶體使用量明顯改善
 - [ ] 幀率穩定性改善
@@ -207,6 +227,7 @@ console.log(window.vehiclePool?.getStats())
 ## 回滾計畫
 
 如遇重大問題：
+
 ```bash
 # 方式 1：撤銷最後兩個提交
 git revert 1518847  # 撤銷文檔

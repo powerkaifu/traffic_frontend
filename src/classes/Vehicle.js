@@ -1752,9 +1752,7 @@ export default class Vehicle {
     vehicleType = vehicleType || this.vehicleType || 'small'
     store = store || this.simulationStore || null
 
-    console.log(
-      `🔄 [Vehicle.reset] ${this.id}: direction=${direction}, lane=${laneNumber}, type=${vehicleType}`,
-    )
+    console.log(`🔄 [Vehicle.reset] ${this.id}: direction=${direction}, lane=${laneNumber}, type=${vehicleType}`)
 
     // ✅ 【關鍵】隱藏元素但不移除 DOM
     if (this.element) {
