@@ -460,11 +460,17 @@ export default class Vehicle {
 
     const eventName = action === 'added' ? 'vehicleAdded' : 'vehicleRemoved'
 
-    window.dispatchEvent(
-      new CustomEvent(eventName, {
-        detail: eventData,
-      }),
-    )
+    // ✅ Phase 7：使用 Store emit() 替代 window.dispatchEvent
+    if (this.simulationStore) {
+      this.simulationStore.emit(eventName, eventData)
+    } else {
+      // 🆘 備用：如果 Store 不可用，使用 window.dispatchEvent
+      window.dispatchEvent(
+        new CustomEvent(eventName, {
+          detail: eventData,
+        }),
+      )
+    }
   }
 
   // 🌤️ 【新增】天氣改變事件處理器
@@ -1716,18 +1722,25 @@ export default class Vehicle {
     // 所有清理邏輯由 IndexPage RAF 迴圈統一執行
     // 這樣可以避免異步清理導致的時序問題
 
-    // 派發 vehicleRemoved 事件（供監聽者處理）
-    window.dispatchEvent(
-      new CustomEvent('vehicleRemoved', {
-        detail: {
-          vehicleId: this.id,
-          direction: this.direction,
-          type: this.vehicleType,
-          timestamp: Date.now(),
-          travelTime: this.travelTime,
-        },
-      }),
-    )
+    // ✅ Phase 7：派發 vehicleRemoved 事件，使用 Store emit() 替代 window.dispatchEvent
+    const vehicleRemovedDetail = {
+      vehicleId: this.id,
+      direction: this.direction,
+      type: this.vehicleType,
+      timestamp: Date.now(),
+      travelTime: this.travelTime,
+    }
+
+    if (this.simulationStore) {
+      this.simulationStore.emit('vehicleRemoved', vehicleRemovedDetail)
+    } else {
+      // 🆘 備用：如果 Store 不可用，使用 window.dispatchEvent
+      window.dispatchEvent(
+        new CustomEvent('vehicleRemoved', {
+          detail: vehicleRemovedDetail,
+        }),
+      )
+    }
   }
 
   // ✅ Phase 4 新增：集中清理方法（由 IndexPage RAF 迴圈調用）

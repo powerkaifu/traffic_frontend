@@ -603,11 +603,15 @@ export default class TrafficLightController {
     }
     this.notifyObservers(direction, state) // Observer Pattern
 
-    // 🎯 【新增】發送燈號變化事件，讓等待的車輛立即響應
-    if (typeof window !== 'undefined') {
+    // ✅ Phase 7：【改進】發送燈號變化事件，優先使用 Store emit()
+    const lightStateDetail = { direction, state }
+    if (this.simulationStore) {
+      this.simulationStore.emit('lightStateChanged', lightStateDetail)
+    } else if (typeof window !== 'undefined') {
+      // 🆘 備用：如果 Store 不可用，使用 window.dispatchEvent
       window.dispatchEvent(
         new CustomEvent('lightStateChanged', {
-          detail: { direction, state },
+          detail: lightStateDetail,
         }),
       )
     }
@@ -635,7 +639,13 @@ export default class TrafficLightController {
           // 🎯【階段1】南北向直行綠燈（先直行）
           this.updateLightState('east', 'red') // 東西向保持紅燈
           this.updateLightState('west', 'red')
-          window.dispatchEvent(new CustomEvent('greenLightStarted'))
+          
+          // ✅ Phase 7：發送 greenLightStarted 事件
+          if (this.simulationStore) {
+            this.simulationStore.emit('greenLightStarted', { direction: 'north-south', phase: 'northSouth' })
+          } else {
+            window.dispatchEvent(new CustomEvent('greenLightStarted'))
+          }
 
           // ✅ 改進：移除硬性 800ms 暫停，完全依賴 STOP_LINE_VEHICLE_LIMITS
           // 原理：AutoTrafficGenerator._generateVehicle() 中已有完美的流量控制
@@ -660,7 +670,12 @@ export default class TrafficLightController {
           })
 
           // 南北向綠燈結束
-          window.dispatchEvent(new CustomEvent('greenLightEnded'))
+          // ✅ Phase 7：發送 greenLightEnded 事件
+          if (this.simulationStore) {
+            this.simulationStore.emit('greenLightEnded', { direction: 'north-south', phase: 'northSouth' })
+          } else {
+            window.dispatchEvent(new CustomEvent('greenLightEnded'))
+          }
 
           // 🎯【階段2】南北向直行黃燈 - 立即更新燈色
           logInfo('🟡 [燈號轉換] 南北向 綠燈 → 黃燈（立即更新，無延遲）')
@@ -714,7 +729,13 @@ export default class TrafficLightController {
           // 🎯【階段1】東西向直行綠燈（先直行）
           this.updateLightState('south', 'red') // 南北向保持紅燈
           this.updateLightState('north', 'red')
-          window.dispatchEvent(new CustomEvent('greenLightStarted'))
+          
+          // ✅ Phase 7：發送 greenLightStarted 事件
+          if (this.simulationStore) {
+            this.simulationStore.emit('greenLightStarted', { direction: 'east-west', phase: 'eastWest' })
+          } else {
+            window.dispatchEvent(new CustomEvent('greenLightStarted'))
+          }
 
           // ✅ 改進：移除硬性 800ms 暫停，完全依賴 STOP_LINE_VEHICLE_LIMITS
 
@@ -737,7 +758,12 @@ export default class TrafficLightController {
           })
 
           // 東西向綠燈結束
-          window.dispatchEvent(new CustomEvent('greenLightEnded'))
+          // ✅ Phase 7：發送 greenLightEnded 事件
+          if (this.simulationStore) {
+            this.simulationStore.emit('greenLightEnded', { direction: 'east-west', phase: 'eastWest' })
+          } else {
+            window.dispatchEvent(new CustomEvent('greenLightEnded'))
+          }
 
           // 🎯【階段2】東西向直行黃燈 - 立即更新燈色
           logInfo('🟡 [燈號轉換] 東西向 綠燈 → 黃燈（立即更新，無延遲）')
