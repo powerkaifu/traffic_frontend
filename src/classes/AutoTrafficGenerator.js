@@ -9,7 +9,6 @@ import {
 } from './config/trafficScenarioConfig.js'
 import {
   FOLLOWING_CONFIG,
-  GENERATION_CONFIG,
   VEHICLE_DIMENSIONS,
   LANE_SPAWN_CONFIG,
   VOLUME_LIMITS_CONFIG,
@@ -17,7 +16,6 @@ import {
 import VDNormalizationUtils from './utils/VDNormalizationUtils.js'
 import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
 import { getTimeConfigForScenario, generateVDDataByPattern } from './config/vdPatternConfig.js'
-import { VD_DISPLAY_CONFIG } from './config/vdDisplayConfig.js'
 
 export default class AutoTrafficGenerator {
   constructor(trafficController, simulationStore) {
@@ -423,7 +421,7 @@ export default class AutoTrafficGenerator {
   pauseGeneration(durationMs = 800) {
     if (!this.isRunning) return
     this.isRunning = false
-    console.log(`⏸️ [流量控制] 已暫停生成`)
+    console.log(`⏸️ [流量控制] 已暫停生成${durationMs ? `，持續 ${durationMs} ms` : ''}`)
   }
 
   /**
@@ -685,7 +683,7 @@ export default class AutoTrafficGenerator {
     // 為每個方向生成**完全不同的數據**（模擬真實交通多樣性）
     // 每個方向都有獨立的車流量、速度波動
     const apiDataArray = []
-    directions.forEach((direction, dirIdx) => {
+    directions.forEach((direction) => {
       // 🎯 為每個方向生成獨立的波動倍數
       // 尖峰時段：60-80% 的基礎流量
       // 離峰時段：50-90% 的基礎流量

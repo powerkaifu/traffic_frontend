@@ -1876,23 +1876,7 @@ onMounted(async () => {
       // 🔍 每秒進行一次診斷
       if (diagnosticAccumulator >= DIAGNOSTIC_INTERVAL) {
         diagnosticAccumulator = 0
-
-        const poolStats = vehiclePool ? vehiclePool.getStats() : null
-        const domNodeCount = vehicleContainer.value?.querySelectorAll('.vehicle').length || 0
-        const vehicleCount = window.liveVehicles?.length || 0
-        const activeCarsCount = activeCars.value?.length || 0
-
-        console.log(`
-  🔍 【DOM 池化診斷報告】
-  ├─ 活動車輛數: ${vehicleCount}
-  ├─ activeCars 長度: ${activeCarsCount}
-  ├─ DOM 節點數: ${domNodeCount}
-  ├─ 池統計:
-  │  ├─ 活躍: ${poolStats?.totalActive || 0}
-  │  ├─ 空閒池化: ${poolStats?.totalPooled || 0}
-  │  └─ 各方向: ${poolStats ? JSON.stringify(poolStats.byDirection) : 'N/A'}
-  └─ 效率指標: ${vehicleCount > 0 ? ((domNodeCount / vehicleCount) * 100).toFixed(1) + '%' : 'N/A'}
-        `)
+        // ...existing code...
       }
 
       // ═══════════════════════════════════════════════════════════════════════
