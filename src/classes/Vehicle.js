@@ -1137,6 +1137,14 @@ export default class Vehicle {
         return
       }
 
+      // 🚀 GSAP 優化 1：快取 MotionPath 路徑數據
+      // 這會快取路徑的原始數據，顯著加快後續動畫的初始化速度
+      try {
+        MotionPathPlugin.cacheRawPath(pathElement)
+      } catch (error) {
+        console.warn(`⚠️ MotionPathPlugin.cacheRawPath() 失敗:`, error)
+      }
+
       // 🚀 第1階段優化：在第一個 vehicle 的 onUpdate 時初始化 SpatialHashGrid
       // 使用靜態計數器確保只執行一次
       if (!Vehicle._spatialGridFrameInitialized) {

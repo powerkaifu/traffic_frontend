@@ -507,6 +507,7 @@ export class VehicleDOMUtils {
       z-index: 10;
       top: 0;
       left: 0;
+      will-change: transform;
       ${transform ? `transform: ${transform.trim()};` : ''}
       transform-origin: center center;
     `
