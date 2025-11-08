@@ -1393,7 +1393,7 @@ export default class Vehicle {
                   this.movementTimeline.pause()
                   this.movementTimeline.timeScale(0)
                 }
-                this.currentState = 'safetyStopped'
+                this.currentState = 'gapRecovery'
                 return
               }
 
@@ -1474,7 +1474,7 @@ export default class Vehicle {
                 } else if (!shouldStop.frontVehicleIsMoving) {
                   // 前方車輛停止且不移動：停止跟車
                   this.movementTimeline.timeScale(0)
-                  this.currentState = 'stopped'
+                  this.currentState = 'gapRecovery'
                   return
                 }
               } else if (this.movementTimeline) {

@@ -1342,7 +1342,7 @@ export class CollisionController {
 
     // 🚨 關鍵修復：在 TIME_MULTIPLIER: 0.1 極速下，必須首先進行強制最小間距檢查
     // 防止碰撞檢查被其他邏輯跳過導致車輛相互穿透
-    const minGapCheckResult = this.performMinimumGapCheck(sameDirectionVehicles)
+    const minGapCheckResult = this.performMinimumGapCheck(sameDirectionVehicles, stopLineInfo)
     if (minGapCheckResult) {
       return minGapCheckResult
     }
@@ -1546,9 +1546,13 @@ export class CollisionController {
    * @param {Array} sameDirectionVehicles 同方向車輛列表
    * @returns {Object|null} 衝突結果或null
    */
-  performMinimumGapCheck(sameDirectionVehicles) {
+  performMinimumGapCheck(sameDirectionVehicles, stopLineInfo) {
     const myPos = this.vehicle.getCurrentPosition()
     const ABSOLUTE_MIN_GAP = 2 // 極小最小間距（2px）
+
+    // 判斷是否在停止線區域
+    const isInStopLineZone =
+      stopLineInfo && (stopLineInfo.isNear || stopLineInfo.lightState === 'red' || stopLineInfo.lightState === 'yellow')
 
     // 🚀 優化 7：只檢查最近的2輛前方車輛而不是全部
     let frontVehicles = []
@@ -1583,7 +1587,7 @@ export class CollisionController {
           distance: distance,
           shouldStop: true,
           shouldFollow: true, // 允許持續跟隨評估
-          targetSpeed: 0, // 完全停止
+          targetSpeed: isInStopLineZone ? 0 : 0.02, // 停止線區域完全停止，開放道路爬行
           requiredGap: ABSOLUTE_MIN_GAP,
           reason: `緊急停止：距離${distance.toFixed(1)}px，避免重疊`,
           isEmergencyStop: true, // 標記為緊急停止
@@ -1594,9 +1598,9 @@ export class CollisionController {
         const otherSpeed = other.movementTimeline ? other.movementTimeline.timeScale() : 0
 
         // 💡 改進邏輯：根據前車狀態調整復甦速度
-        let targetSpeed = 0.001 // 預設極極慢速 (0.1%)
-        if (otherSpeed <= 0.15 && distance < 3) {
-          // 前車停止且距離極近，嘗試以稍快的速度恢復移動
+        let targetSpeed = isInStopLineZone ? 0 : 0.05 // 停止線區域停止，開放道路較慢爬行
+        if (!isInStopLineZone && otherSpeed <= 0.15 && distance < 3) {
+          // 在開放道路逐漸加速恢復
           targetSpeed = 0.02 // 稍微快一點以便逐漸恢復
         }
 
