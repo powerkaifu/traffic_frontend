@@ -1827,7 +1827,7 @@ export default class TrafficLightController {
 
       // 🎯 【重要】保存實際發送給後端的數據（已調整）
       window.lastApiVDDataArray = adjustedDataToSend // ✅ 這是實際發送的數據
-      
+
       // ✅ Phase 5：同時保存到 Store
       if (this.simulationStore) {
         this.simulationStore.setLastApiVDDataArray(adjustedDataToSend)
@@ -2261,7 +2261,8 @@ export default class TrafficLightController {
     console.log('\n🔍 [統一數據線驗證] ========================================')
 
     // 【第 1 層】生成層
-    const generated = this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArray || window.currentGeneratedVDData?.apiDataArray
+    const generated =
+      this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArray || window.currentGeneratedVDData?.apiDataArray
     console.log('【第 1 層】生成層:', generated ? `✅ 存在 (${generated.length} 筆數據)` : '❌ 不存在')
     if (generated) {
       console.log(`  - 總流量: ${generated.reduce((sum, d) => sum + d.Volume_M + d.Volume_S + d.Volume_L, 0)} 輛`)

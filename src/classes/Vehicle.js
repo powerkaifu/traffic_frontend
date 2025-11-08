@@ -1927,7 +1927,7 @@ export default class Vehicle {
       return
     }
     this.isRemoved = true
-    this.isCompleted = true  // ✅ Phase 4：標記為已完成，由 IndexPage RAF 迴圈集中處理
+    this.isCompleted = true // ✅ Phase 4：標記為已完成，由 IndexPage RAF 迴圈集中處理
 
     // 記錄移除時間
     this.movementEndTime = new Date().toISOString()

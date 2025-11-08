@@ -1908,84 +1908,84 @@ onMounted(async () => {
         }
       }
 
-        // 檢查是否達到清理時間
-        if (cleanupAccumulator >= cleanupFrequency) {
-          try {
-            const initialCount = activeCars.value?.length || 0
-            const maxLiveVehicles = autoTrafficGenerator.config.maxLiveVehicles || 100
+      // 檢查是否達到清理時間
+      if (cleanupAccumulator >= cleanupFrequency) {
+        try {
+          const initialCount = activeCars.value?.length || 0
+          const maxLiveVehicles = autoTrafficGenerator.config.maxLiveVehicles || 100
 
-            // ✅ Phase 4：【新增】集中清理已完成的車輛（isCompleted = true）
-            if (activeCars.value) {
-              const vehiclesToCleanup = activeCars.value.filter((vehicle) => vehicle.isCompleted)
+          // ✅ Phase 4：【新增】集中清理已完成的車輛（isCompleted = true）
+          if (activeCars.value) {
+            const vehiclesToCleanup = activeCars.value.filter((vehicle) => vehicle.isCompleted)
 
-              for (const vehicle of vehiclesToCleanup) {
-                try {
-                  // 確保先調用 remove() 標記
-                  if (!vehicle.isRemoved && vehicle.remove && typeof vehicle.remove === 'function') {
-                    vehicle.remove()
-                  }
-
-                  // 調用清理方法（非阻塞式，performCleanup 內部可以自行處理異步）
-                  if (vehicle.performCleanup && typeof vehicle.performCleanup === 'function') {
-                    vehicle.performCleanup().catch((e) => {
-                      console.warn(`⚠️ [${vehicle.id}] 清理異常: ${e.message}`)
-                    })
-                  }
-
-                  // ✅ 同步到 window.liveVehicles 和 Store
-                  if (window.liveVehicles) {
-                    const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
-                    if (liveIdx !== -1) window.liveVehicles.splice(liveIdx, 1)
-                  }
-                  
-                  store.removeVehicle(vehicle.id)
-
-                  console.log(`✅ [${vehicle.id}] 已提交清理任務`)
-                } catch (e) {
-                  console.warn(`⚠️ [${vehicle.id}] 清理提交異常: ${e.message}`)
+            for (const vehicle of vehiclesToCleanup) {
+              try {
+                // 確保先調用 remove() 標記
+                if (!vehicle.isRemoved && vehicle.remove && typeof vehicle.remove === 'function') {
+                  vehicle.remove()
                 }
-              }
 
-              // 移除已清理的車輛
-              activeCars.value = activeCars.value.filter((vehicle) => !vehicle.isCompleted)
+                // 調用清理方法（非阻塞式，performCleanup 內部可以自行處理異步）
+                if (vehicle.performCleanup && typeof vehicle.performCleanup === 'function') {
+                  vehicle.performCleanup().catch((e) => {
+                    console.warn(`⚠️ [${vehicle.id}] 清理異常: ${e.message}`)
+                  })
+                }
+
+                // ✅ 同步到 window.liveVehicles 和 Store
+                if (window.liveVehicles) {
+                  const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
+                  if (liveIdx !== -1) window.liveVehicles.splice(liveIdx, 1)
+                }
+
+                store.removeVehicle(vehicle.id)
+
+                console.log(`✅ [${vehicle.id}] 已提交清理任務`)
+              } catch (e) {
+                console.warn(`⚠️ [${vehicle.id}] 清理提交異常: ${e.message}`)
+              }
             }
 
-            // 清理孤立車輛和已完成的車輛
-            if (activeCars.value) {
-              activeCars.value = activeCars.value.filter((vehicle) => {
-                // 檢查車輛是否還在DOM中
-                if (!vehicle.element || !vehicle.element.parentNode) {
-                  console.log(`🗑️ 清理孤立車輛: ${vehicle.id}`)
-                  if (window.liveVehicles) {
-                    const idx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
-                    if (idx !== -1) window.liveVehicles.splice(idx, 1)
-                  }
-                  return false
+            // 移除已清理的車輛
+            activeCars.value = activeCars.value.filter((vehicle) => !vehicle.isCompleted)
+          }
+
+          // 清理孤立車輛和已完成的車輛
+          if (activeCars.value) {
+            activeCars.value = activeCars.value.filter((vehicle) => {
+              // 檢查車輛是否還在DOM中
+              if (!vehicle.element || !vehicle.element.parentNode) {
+                console.log(`🗑️ 清理孤立車輛: ${vehicle.id}`)
+                if (window.liveVehicles) {
+                  const idx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
+                  if (idx !== -1) window.liveVehicles.splice(idx, 1)
                 }
+                return false
+              }
 
-                // 檢查車輛存在時間，避免剛創建的車輛被誤清理
-                const vehicleAge = Date.now() - new Date(vehicle.createdAt).getTime()
-                const isNewVehicle = vehicleAge < 5000
+              // 檢查車輛存在時間，避免剛創建的車輛被誤清理
+              const vehicleAge = Date.now() - new Date(vehicle.createdAt).getTime()
+              const isNewVehicle = vehicleAge < 5000
 
-                if (vehicle.justCreated || isNewVehicle) {
-                  return true
-                }
-
-                // 如果車輛狀態是 completed 或 nearComplete，清理
-                if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
-                  if (vehicle.remove && typeof vehicle.remove === 'function') {
-                    vehicle.remove()
-                  }
-                  if (window.liveVehicles) {
-                    const idx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
-                    if (idx !== -1) window.liveVehicles.splice(idx, 1)
-                  }
-                  return false
-                }
-
+              if (vehicle.justCreated || isNewVehicle) {
                 return true
-              })
-            }          // 超限清理：只清理已完成的車輛
+              }
+
+              // 如果車輛狀態是 completed 或 nearComplete，清理
+              if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
+                if (vehicle.remove && typeof vehicle.remove === 'function') {
+                  vehicle.remove()
+                }
+                if (window.liveVehicles) {
+                  const idx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
+                  if (idx !== -1) window.liveVehicles.splice(idx, 1)
+                }
+                return false
+              }
+
+              return true
+            })
+          } // 超限清理：只清理已完成的車輛
           if (activeCars.value && activeCars.value.length > maxLiveVehicles) {
             const excessCount = activeCars.value.length - maxLiveVehicles
             console.warn(`🚨 [車輛超限] 超過限制 ${excessCount} 輛，準備清理已完成的車輛...`)

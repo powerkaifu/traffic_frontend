@@ -1,23 +1,23 @@
 # Priority 3: Phase 4 Vehicle.js 遷移完成報告
 
-**完成時間**: 2024-01-XX  
-**總耗時**: ~15 分鐘  
-**編譯結果**: ✅ 成功（0 錯誤）  
+**完成時間**: 2024-01-XX
+**總耗時**: ~15 分鐘
+**編譯結果**: ✅ 成功（0 錯誤）
 **Git 提交**: 2 個
 
 ---
 
 ## 📊 Phase 4 進度統計
 
-| 項目 | 狀態 | 完成度 |
-|------|------|--------|
-| Vehicle.js 改造 | ✅ 完成 | 100% |
-| performCleanup() 新增 | ✅ 完成 | 100% |
-| isCompleted 初始化 | ✅ 完成 | 100% |
-| IndexPage RAF 集成 | ✅ 完成 | 100% |
-| Store 同步 | ✅ 完成 | 100% |
-| window.liveVehicles 同步 | ✅ 完成 | 100% |
-| **Phase 4 總體進度** | ✅ 完成 | **100%** |
+| 項目                     | 狀態    | 完成度   |
+| ------------------------ | ------- | -------- |
+| Vehicle.js 改造          | ✅ 完成 | 100%     |
+| performCleanup() 新增    | ✅ 完成 | 100%     |
+| isCompleted 初始化       | ✅ 完成 | 100%     |
+| IndexPage RAF 集成       | ✅ 完成 | 100%     |
+| Store 同步               | ✅ 完成 | 100%     |
+| window.liveVehicles 同步 | ✅ 完成 | 100%     |
+| **Phase 4 總體進度**     | ✅ 完成 | **100%** |
 
 ---
 
@@ -26,9 +26,10 @@
 ### 1. Vehicle.js 改造 (Commit: f10460c 和 84834b6)
 
 #### 1.1 構造函數修改
+
 ```javascript
 // 第 172-175 行：添加 isCompleted 初始化
-this.isCompleted = false  // ✅ Phase 4 新增，用於標記已完成的車輛
+this.isCompleted = false // ✅ Phase 4 新增，用於標記已完成的車輛
 ```
 
 #### 1.2 remove() 方法重構 (1919-1969 行)
@@ -36,6 +37,7 @@ this.isCompleted = false  // ✅ Phase 4 新增，用於標記已完成的車輛
 **改變原理**: 分離標記和清理兩個步驟
 
 **舊設計** (問題):
+
 ```javascript
 remove() {
   // 直接執行清理
@@ -47,12 +49,13 @@ remove() {
 ```
 
 **新設計** (改進):
+
 ```javascript
 remove() {
   if (this.isRemoved) return
   this.isRemoved = true
   this.isCompleted = true  // ✅ 只標記完成
-  
+
   // 記錄數據、派發事件
   // 但不執行清理邏輯
 }
@@ -65,34 +68,34 @@ remove() {
 ```javascript
 async performCleanup() {
   if (!this.isRemoved) return
-  
+
   try {
     // ✅ 完全殺死 GSAP 動畫
     gsap.killTweensOf(this)
     gsap.killTweensOf(this.element)
     gsap.killTweensOf(this.displayObject)
     gsap.killTweensOf(this.path)
-    
+
     // ✅ 清理定時器
     clearInterval(this.periodicCheckTimer)
     clearInterval(this.stuckCheckTimer)
-    
+
     // ✅ 清理時間線
     this.movementTimeline?.kill()
-    
+
     // ✅ 清理車道標籤、控制器
     LaneLabelUtils.removeLaneLabel(this.laneLabel)
     this.stopLineController?.dispose()
     this.collisionController?.dispose()
-    
+
     // ✅ 移除事件監聽器
     window.removeEventListener('weatherChanged', this.weatherChangeHandler)
     window.removeEventListener('lightStateChanged', this.lightStateChangeHandler)
-    
+
     // ✅ 移除 DOM
     this.element?.parentNode?.removeChild(this.element)
     this.element = null
-    
+
     console.log(`🗑️ [${this.id}] 已完成清理`)
   } catch (e) {
     console.warn(`⚠️ GSAP 清理異常: ${e.message}`)
@@ -128,7 +131,7 @@ if (activeCars.value) {
         const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
         if (liveIdx !== -1) window.liveVehicles.splice(liveIdx, 1)
       }
-      
+
       store.removeVehicle(vehicle.id)
 
       console.log(`✅ [${vehicle.id}] 已提交清理任務`)
@@ -182,16 +185,19 @@ if (activeCars.value) {
 ## 🔧 技術亮點
 
 ### 1. **職責分離設計**
+
 - ✅ **remove()**: 只負責標記和通知
 - ✅ **performCleanup()**: 負責所有清理邏輯
 - ✅ **RAF 迴圈**: 負責協調和同步
 
 ### 2. **異步安全**
+
 - 使用 `.catch()` 處理 Promise 異常
 - 非阻塞式清理（不用 await）
 - 防止 RAF 迴圈阻塞
 
 ### 3. **三層同步**
+
 ```
 activeCars (Vue ref)
         ↓
@@ -201,6 +207,7 @@ window.liveVehicles (向後相容)
 ```
 
 ### 4. **完整清理覆蓋**
+
 - GSAP 動畫清理（防僵屍動畫）
 - 定時器清理（防定時器洩漏）
 - 時間線清理（防時間線洩漏）
@@ -213,19 +220,20 @@ window.liveVehicles (向後相容)
 
 ### 改進前後對比
 
-| 指標 | 改進前 | 改進後 |
-|------|--------|--------|
+| 指標         | 改進前   | 改進後   |
+| ------------ | -------- | -------- |
 | 車輛清理方式 | 即時清理 | 集中清理 |
-| 清理頻率 | 隨機 | 1-3 秒 |
-| 異步安全 | ❌ 低 | ✅ 高 |
-| 內存洩漏風險 | ⚠️ 中 | ✅ 低 |
-| RAF 迴圈阻塞 | ⚠️ 可能 | ✅ 不會 |
+| 清理頻率     | 隨機     | 1-3 秒   |
+| 異步安全     | ❌ 低    | ✅ 高    |
+| 內存洩漏風險 | ⚠️ 中    | ✅ 低    |
+| RAF 迴圈阻塞 | ⚠️ 可能  | ✅ 不會  |
 
 ---
 
 ## 🧪 編譯驗證
 
 ### 編譯結果 1
+
 ```
 App •  DONE  • SPA UI compiled with success by Vite • 2686ms
 Build succeeded ✅
@@ -234,6 +242,7 @@ Build succeeded ✅
 ```
 
 ### 編譯結果 2 (Store 同步)
+
 ```
 App •  DONE  • SPA UI compiled with success by Vite • 2692ms
 Build succeeded ✅
@@ -246,6 +255,7 @@ Build succeeded ✅
 ## 📝 Git 提交紀錄
 
 ### 提交 1: f10460c
+
 ```
 Author: GitHub Copilot
 Date: [自動生成]
@@ -256,6 +266,7 @@ Phase 4: Migrate Vehicle.js - centralized cleanup in IndexPage RAF loop
 ```
 
 ### 提交 2: 84834b6
+
 ```
 Author: GitHub Copilot
 Date: [自動生成]
@@ -286,30 +297,33 @@ Phase 4: Add Store and window.liveVehicles sync in RAF cleanup loop
 ### 完成情況
 
 **✅ Phase 1-3 已完成** (100%)
+
 - Phase 1: Pinia Store 創建 ✅
 - Phase 2: IndexPage 遷移 ✅
 - Phase 3: AutoTrafficGenerator 遷移 ✅
 
 **✅ Phase 4 已完成** (100%)
+
 - Vehicle.js 改造 ✅
 - performCleanup() 新增 ✅
 - IndexPage RAF 集成 ✅
 
 **⏳ Phase 5-6 待進行** (計劃中)
+
 - Phase 5: TrafficLightController 遷移
 - Phase 6: CollisionController 遷移
 
 ### 進度統計
 
-| Phase | 名稱 | 進度 |
-|-------|------|------|
-| 1 | Pinia Store 創建 | ✅ 100% |
-| 2 | IndexPage 遷移 | ✅ 100% |
-| 3 | AutoTrafficGenerator 遷移 | ✅ 100% |
-| 4 | Vehicle.js 遷移 | ✅ 100% |
-| 5 | TrafficLightController 遷移 | ⏳ 0% |
-| 6 | CollisionController 遷移 | ⏳ 0% |
-| **整體進度** | **Priority 3 Pinia 遷移** | **66.7%** |
+| Phase        | 名稱                        | 進度      |
+| ------------ | --------------------------- | --------- |
+| 1            | Pinia Store 創建            | ✅ 100%   |
+| 2            | IndexPage 遷移              | ✅ 100%   |
+| 3            | AutoTrafficGenerator 遷移   | ✅ 100%   |
+| 4            | Vehicle.js 遷移             | ✅ 100%   |
+| 5            | TrafficLightController 遷移 | ⏳ 0%     |
+| 6            | CollisionController 遷移    | ⏳ 0%     |
+| **整體進度** | **Priority 3 Pinia 遷移**   | **66.7%** |
 
 ---
 
@@ -320,6 +334,7 @@ Phase 4: Add Store and window.liveVehicles sync in RAF cleanup loop
 **目標**: 完全遷移 TrafficLightController 到 Pinia Store
 
 **預期改動**:
+
 1. 構造函數注入 Store 參數
 2. 燈號變化事件使用 store.emit()
 3. 狀態變更使用 store.setTrafficLightState()
@@ -330,6 +345,7 @@ Phase 4: Add Store and window.liveVehicles sync in RAF cleanup loop
 **目標**: 完全遷移 CollisionController 到 Pinia Store
 
 **預期改動**:
+
 1. 構造函數注入 Store 參數
 2. 碰撞事件使用 store.emit()
 3. 碰撞數據使用 store.recordCollision()
@@ -342,12 +358,14 @@ Phase 4: Add Store and window.liveVehicles sync in RAF cleanup loop
 ✅ **車輛清理邏輯完全遷移到 Pinia Store 架構**
 
 **核心改進**:
+
 - 🔄 集中管理車輛清理，避免異步時序問題
 - 🛡️ 完整的異步安全設計
 - 🔗 三層數據同步（activeCars ↔ Store ↔ window.liveVehicles）
 - 📊 性能監控更清晰（可在 RAF 迴圈統計清理次數）
 
 **代碼質量**:
+
 - 編譯：0 錯誤、0 警告
 - 架構：清晰的職責分離
 - 可維護性：模式化的清理流程
@@ -356,5 +374,5 @@ Phase 4: Add Store and window.liveVehicles sync in RAF cleanup loop
 
 ---
 
-**報告完成時間**: 2024-01-XX  
+**報告完成時間**: 2024-01-XX
 **下一階段**: Phase 5 TrafficLightController 遷移
