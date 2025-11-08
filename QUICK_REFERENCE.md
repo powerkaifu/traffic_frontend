@@ -4,22 +4,24 @@
 
 ### 3 個文件被修改，15 行插入，26 行刪除
 
-| 文件 | 修改 | 理由 |
-|------|------|------|
-| `src/classes/AutoTrafficGenerator.js` | 移除 6 個 `setTimeout()` 調用 | 消除 setTimeout 堆積 (爆量 Bug) |
-| `src/classes/Vehicle.js` | 移除 2 個 `setInterval` 調用 | 消除 200+ 實例 (死當 Bug) |
-| `src/classes/vehicle_utils/CollisionController.js` | 修復 `getCurrentCollisionState()` | 添加區域感知 (死鎖 Bug) |
+| 文件                                               | 修改                              | 理由                            |
+| -------------------------------------------------- | --------------------------------- | ------------------------------- |
+| `src/classes/AutoTrafficGenerator.js`              | 移除 6 個 `setTimeout()` 調用     | 消除 setTimeout 堆積 (爆量 Bug) |
+| `src/classes/Vehicle.js`                           | 移除 2 個 `setInterval` 調用      | 消除 200+ 實例 (死當 Bug)       |
+| `src/classes/vehicle_utils/CollisionController.js` | 修復 `getCurrentCollisionState()` | 添加區域感知 (死鎖 Bug)         |
 
 ---
 
 ## 🎯 3 大根本原因修復
 
 ### ❌ Bug 1: 爆量 (Explosion)
+
 **症狀**: 5-10 輛車突然出現，FPS 從 60 → 5
 
 **根因**: AutoTrafficGenerator 的 `setTimeout(() => this._scheduleNext(), ...)` 不被清理
 
-**修復**: 
+**修復**:
+
 ```javascript
 // 移除了 AutoTrafficGenerator.js 中的 6 個 setTimeout 調用
 // 改由 IndexPage mainSimulationLoop 通過 update(deltaTimeMs) 驅動
@@ -30,19 +32,22 @@
 ---
 
 ### ❌ Bug 2: 死當 (Crash)
+
 **症狀**: 70 秒後系統崩潰，CPU 爆表
 
 **根因**: 100 輛車 × 2 個 `setInterval` = 200+ 實例爆炸
 
 **修復**:
+
 ```javascript
 // 移除了 Vehicle.js 中的 2 個 setInterval
-// 1. stuckCheckTimer (5 秒檢查) 
+// 1. stuckCheckTimer (5 秒檢查)
 // 2. periodicCheckTimer (50ms 檢查)
 // 改由 IndexPage mainSimulationLoop 累積器驅動
 ```
 
-**位置**: 
+**位置**:
+
 - `Vehicle.js` 第 198 行: 移除 `setupAntiStuckMechanism()` 調用
 - `Vehicle.js` 第 237 行: 清空 `setupAntiStuckMechanism()` 方法
 - `Vehicle.js` 第 1210 行: 移除 `periodicCheckTimer` setInterval
@@ -50,11 +55,13 @@
 ---
 
 ### ❌ Bug 3: 死鎖 (Deadlock)
+
 **症狀**: 車輛在開放道路上停滯不動
 
 **根因**: CollisionController 對停止線和開放道路應用相同的停止邏輯
 
 **修復**:
+
 ```javascript
 // performMinimumGapCheck() 已支持區域感知
 // 停止線區域: targetSpeed: 0 (完全停止)
@@ -107,19 +114,22 @@ RAF Loop (mainSimulationLoop)
 ## ✅ 驗證清單
 
 ### 代碼驗證
-- ✅ AutoTrafficGenerator.js 沒有 `setTimeout(() => this._scheduleNext()` 
+
+- ✅ AutoTrafficGenerator.js 沒有 `setTimeout(() => this._scheduleNext()`
 - ✅ Vehicle.js 沒有 `setInterval`
 - ✅ Vehicle.js `update(deltaTimeMs)` 在 IndexPage mainSimulationLoop 中被調用
 - ✅ CollisionController.performMinimumGapCheck() 有 `isInStopLineZone` 邏輯
 - ✅ Build 成功，無編譯錯誤
 
 ### 功能驗證
+
 - ✅ 交通燈變化時車輛正確響應
 - ✅ 沒有 5-10 輛車突然爆炸
 - ✅ 車輛不會永久停滯
 - ✅ 左轉車輛只在 leftGreen 時通過
 
 ### 性能驗證
+
 - ✅ 主線程 CPU 預期下降 60%
 - ✅ setInterval 實例從 200+ 降至 0
 - ✅ setTimeout 堆積消除
@@ -130,19 +140,22 @@ RAF Loop (mainSimulationLoop)
 ## 🔄 影響範圍分析
 
 ### 直接影響的模塊
+
 - ✅ AutoTrafficGenerator (完全改寫時間驅動)
 - ✅ Vehicle (移除計時器邏輯)
 - ✅ CollisionController (添加區域感知)
 - ✅ IndexPage.vue mainSimulationLoop (已有支持)
 
 ### 間接影響的模塊
+
 - ℹ️ TrafficLightController (無變化，但受益於主線程改善)
 - ℹ️ TrafficDataCollector (無變化)
 - ℹ️ PerformanceOptimizer (無變化)
 
 ### 不受影響的模塊
-- ℹ️ 配置文件 (*.config.js)
-- ℹ️ 工具類 (*.utils.js)
+
+- ℹ️ 配置文件 (\*.config.js)
+- ℹ️ 工具類 (\*.utils.js)
 - ℹ️ 路由和 UI 組件
 
 ---
@@ -152,6 +165,7 @@ RAF Loop (mainSimulationLoop)
 ### AutoTrafficGenerator.js
 
 **改動 1: 第 1079 行**
+
 ```diff
 - if (availableDirs.length === 0) {
 -   setTimeout(() => this._scheduleNext(), this.minLaneInterval / 2)
@@ -169,6 +183,7 @@ RAF Loop (mainSimulationLoop)
 ### Vehicle.js
 
 **改動 1: 第 198 行**
+
 ```diff
   this.lastMovementTime = Date.now()
   this.stuckCheckTimer = null
@@ -177,6 +192,7 @@ RAF Loop (mainSimulationLoop)
 ```
 
 **改動 2: 第 237 行**
+
 ```diff
   setupAntiStuckMechanism() {
 -   this.stuckCheckTimer = setInterval(() => {
@@ -187,6 +203,7 @@ RAF Loop (mainSimulationLoop)
 ```
 
 **改動 3: 第 1210 行**
+
 ```diff
   if (this.periodicCheckTimer) {
     clearInterval(this.periodicCheckTimer)
@@ -206,6 +223,7 @@ RAF Loop (mainSimulationLoop)
 ### CollisionController.js
 
 **改動: 第 1871 行**
+
 ```diff
   getCurrentCollisionState(sameDirectionVehicles) {
     if (!sameDirectionVehicles || sameDirectionVehicles.length === 0) {
@@ -224,12 +242,14 @@ RAF Loop (mainSimulationLoop)
 ## 🚀 部署說明
 
 ### 前置準備
+
 1. ✅ 本地測試通過
 2. ✅ Build 成功
 3. ✅ 70+ 秒穩定性驗證
 4. ✅ 無新 Bug 發現
 
 ### 部署步驟
+
 ```bash
 # 1. 切換到主分支
 git checkout main
@@ -251,7 +271,9 @@ npm run deploy
 ```
 
 ### 回滾計畫
+
 如果發現問題，回滾到之前的提交：
+
 ```bash
 # 查看提交歷史
 git log --oneline | head -20
@@ -268,6 +290,7 @@ git reset --hard <previous_commit>
 ## 📊 期望的性能改進
 
 ### CPU 使用率
+
 ```
 之前: ▓▓▓▓▓▓▓▓░░ (80-90%)
 之後: ▓▓▓░░░░░░░ (30-40%)
@@ -275,6 +298,7 @@ git reset --hard <previous_commit>
 ```
 
 ### 系統穩定性
+
 ```
 時間 | 之前 | 之後
 -----|------|-------
@@ -285,6 +309,7 @@ git reset --hard <previous_commit>
 ```
 
 ### 最高車輛數
+
 ```
 之前: 50-70 輛
 之後: 100+ 輛
