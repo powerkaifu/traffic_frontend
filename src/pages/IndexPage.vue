@@ -1314,6 +1314,17 @@ onMounted(async () => {
       handleAutoGenerateLeftTurn(event)
     })
 
+    // ✅ 【新增】Store 事件訂閱 - 包裝成 event.detail 格式以兼容現有的事件處理器
+    store.on('generateVehicle', (detail) => {
+      handleAutoGenerate({ detail })
+    })
+    store.on('generateLeftTurnVehicle', (detail) => {
+      handleAutoGenerateLeftTurn({ detail })
+    })
+    store.on('scenarioChanged', (detail) => {
+      handleScenarioChange(detail)
+    })
+
     // 監聽視窗大小變化和佈局變化
     const handleLayoutChange = async () => {
       // 等待下一幀以確保DOM更新
