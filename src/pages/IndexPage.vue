@@ -2144,7 +2144,7 @@ onMounted(async () => {
           const maxLiveVehicles = autoTrafficGenerator.config.maxLiveVehicles || 100
 
           // ✅ Phase 5：【優化】集中清理已完成的車輛（isCompleted = true）
-          // 使用統一的 removeVehicleFromSimulation() 方法確保邏輯一致
+          // 🚨【POOL LEAK FIX】確保所有異常移除的車輛都放回物件池
           if (activeCars.value) {
             const vehiclesToCleanup = activeCars.value.filter((vehicle) => vehicle.isCompleted)
 
@@ -2155,17 +2155,23 @@ onMounted(async () => {
                   vehicle.remove()
                 }
 
-                // 調用清理方法（非阻塞式，performCleanup 內部可以自行處理異步）
-                if (vehicle.performCleanup && typeof vehicle.performCleanup === 'function') {
-                  vehicle.performCleanup().catch((e) => {
-                    console.warn(`⚠️ [${vehicle.id}] 清理異常: ${e.message}`)
-                  })
+                // 🚨【CRITICAL】將異常移除的車輛放回物件池，防止洩漏
+                if (vehiclePool) {
+                  vehiclePool.release(vehicle)
+                  console.log(`♻️ [${vehicle.id}] 異常移除的車輛已放回物件池`)
+                } else {
+                  // 備用：如果池未初始化，執行清理
+                  if (vehicle.performCleanup && typeof vehicle.performCleanup === 'function') {
+                    vehicle.performCleanup().catch((e) => {
+                      console.warn(`⚠️ [${vehicle.id}] 清理異常: ${e.message}`)
+                    })
+                  }
                 }
 
-                // ✅ Phase 5：使用統一的移除方法
+                // ✅ 同步從其他追蹤列表中移除
                 removeVehicleFromSimulation(vehicle.id)
 
-                console.log(`✅ [${vehicle.id}] 已提交清理任務`)
+                console.log(`✅ [${vehicle.id}] 已清理並放回物件池`)
               } catch (e) {
                 console.warn(`⚠️ [${vehicle.id}] 清理提交異常: ${e.message}`)
               }
@@ -2182,14 +2188,20 @@ onMounted(async () => {
               if (!vehicle.element || !vehicle.element.parentNode) {
                 console.log(`🗑️ 清理孤立車輛: ${vehicle.id}`)
 
-                // 🚨【CRITICAL FIX】調用 performCleanup() 清除所有監聽器和定時器
-                if (vehicle.performCleanup && typeof vehicle.performCleanup === 'function') {
-                  vehicle.performCleanup().catch((e) => {
-                    console.warn(`⚠️ [${vehicle.id}] 孤立車輛清理異常: ${e.message}`)
-                  })
+                // 🚨【POOL LEAK FIX】孤立車輛也要放回物件池
+                if (vehiclePool) {
+                  vehiclePool.release(vehicle)
+                  console.log(`♻️ [${vehicle.id}] 孤立車輛已放回物件池`)
+                } else {
+                  // 備用清理
+                  if (vehicle.performCleanup && typeof vehicle.performCleanup === 'function') {
+                    vehicle.performCleanup().catch((e) => {
+                      console.warn(`⚠️ [${vehicle.id}] 孤立車輛清理異常: ${e.message}`)
+                    })
+                  }
                 }
 
-                // ✅ Phase 5：使用統一方法移除
+                // ✅ 同步移除追蹤
                 removeVehicleFromSimulation(vehicle.id)
                 return false
               }
@@ -2204,10 +2216,16 @@ onMounted(async () => {
 
               // 如果車輛狀態是 completed 或 nearComplete，清理
               if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
-                if (vehicle.remove && typeof vehicle.remove === 'function') {
-                  vehicle.remove()
+                // 🚨【POOL LEAK FIX】確保通過物件池回收
+                if (vehiclePool) {
+                  vehiclePool.release(vehicle)
+                  console.log(`♻️ [${vehicle.id}] 狀態 completed 的車輛已放回物件池`)
+                } else {
+                  if (vehicle.remove && typeof vehicle.remove === 'function') {
+                    vehicle.remove()
+                  }
                 }
-                // ✅ Phase 5：使用統一方法移除
+                // ✅ 同步移除追蹤
                 removeVehicleFromSimulation(vehicle.id)
                 return false
               }

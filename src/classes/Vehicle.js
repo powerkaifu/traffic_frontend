@@ -1127,6 +1127,9 @@ export default class Vehicle {
   // Command Pattern + Observer Pattern: 使用 MotionPath 的移動命令（專注於往東路徑）
   moveAlongPath(trafficController, allVehicles = [], onVehicleOutOfBounds = null) {
     // Command Pattern: 將複雜的路徑移動邏輯封裝為可執行的命令
+    // 🚨【POOL LEAK FIX】存儲回調以便 remove() 也能使用
+    this.onVehicleOutOfBoundsCallback = onVehicleOutOfBounds
+
     return new Promise((resolve) => {
       // 獲取 SVG 路徑元素
       const pathElement = document.querySelector(`#${this.getSvgPathId()}`)
@@ -1704,6 +1707,13 @@ export default class Vehicle {
     }
     this.isRemoved = true
     this.isCompleted = true // ✅ Phase 4：標記為已完成，由 IndexPage RAF 迴圈集中處理
+
+    // 🚨【POOL LEAK FIX】如果有儲存的回調，立即觸發以確保回收
+    if (this.onVehicleOutOfBoundsCallback && typeof this.onVehicleOutOfBoundsCallback === 'function') {
+      console.log(`🔄 [${this.id}] remove() 正在觸發回收回調`)
+      this.onVehicleOutOfBoundsCallback(this)
+      this.onVehicleOutOfBoundsCallback = null // 清空以防多次執行
+    }
 
     // 記錄移除時間
     this.movementEndTime = new Date().toISOString()
