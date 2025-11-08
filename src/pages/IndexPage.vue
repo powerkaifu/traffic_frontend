@@ -619,14 +619,8 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
         activeCars.value.splice(vehicleIndex, 1)
       }
 
-      // ✅ 同時立即從 Store 中移除
-      store.removeVehicle(vehicle.id)
-
-      // ✅ 同步移除 window.liveVehicles
-      if (window.liveVehicles) {
-        const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
-        if (liveIdx !== -1) window.liveVehicles.splice(liveIdx, 1)
-      }
+      // ✅ Phase 5：使用統一方法移除
+      removeVehicleFromSimulation(vehicle.id)
 
       // 🚨 直接移除車輛，不執行淡出動畫
       // ⚠️ 注意：vehicle.remove() 會自動派發 vehicleRemoved 事件
@@ -644,12 +638,8 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
       if (vehicleIndex > -1) {
         activeCars.value.splice(vehicleIndex, 1)
       }
-      store.removeVehicle(vehicle.id)
-      // ✅ 同步移除 window.liveVehicles
-      if (window.liveVehicles) {
-        const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
-        if (liveIdx !== -1) window.liveVehicles.splice(liveIdx, 1)
-      }
+      // ✅ Phase 5：使用統一方法移除
+      removeVehicleFromSimulation(vehicle.id)
       vehicle.remove()
     }
   }
@@ -1222,6 +1212,35 @@ let getNorthLane1Path = () => 'M530,-600 L530,1400'
 let getNorthLane2Path = () => 'M560,-600 L560,1400'
 let getNorthLane3Path = () => 'M590,-600 L590,1400'
 let getNorthLane4Path = () => 'M620,-600 L620,1400'
+
+// ✅ Phase 5：【新增】統一的車輛移除方法 - 集中化車輛生命週期管理
+// 這個方法是唯一的車輛移除入口，確保所有移除邏輯一致
+function removeVehicleFromSimulation(vehicleId) {
+  try {
+    // 1. 從 activeCars.value 移除
+    const idx = activeCars.value.findIndex((v) => v.id === vehicleId)
+    if (idx !== -1) {
+      activeCars.value.splice(idx, 1)
+    }
+
+    // 2. 從 window.liveVehicles 移除
+    if (window.liveVehicles) {
+      const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicleId)
+      if (liveIdx !== -1) {
+        window.liveVehicles.splice(liveIdx, 1)
+      }
+    }
+
+    // 3. 從 Store 移除
+    if (store && store.removeVehicle && typeof store.removeVehicle === 'function') {
+      store.removeVehicle(vehicleId)
+    }
+
+    // console.log(`✅ [${vehicleId}] 已從模擬中完全移除`)
+  } catch (error) {
+    console.warn(`⚠️ [${vehicleId}] 移除失敗: ${error.message}`)
+  }
+}
 
 onMounted(async () => {
   console.log('═══════════════════════════════════════════════════════════')
@@ -2082,13 +2101,14 @@ onMounted(async () => {
           const initialCount = activeCars.value?.length || 0
           const maxLiveVehicles = autoTrafficGenerator.config.maxLiveVehicles || 100
 
-          // ✅ Phase 4：【新增】集中清理已完成的車輛（isCompleted = true）
+          // ✅ Phase 5：【優化】集中清理已完成的車輛（isCompleted = true）
+          // 使用統一的 removeVehicleFromSimulation() 方法確保邏輯一致
           if (activeCars.value) {
             const vehiclesToCleanup = activeCars.value.filter((vehicle) => vehicle.isCompleted)
 
             for (const vehicle of vehiclesToCleanup) {
               try {
-                // 確保先調用 remove() 標記
+                // 確保先調用 remove() 標記完成（如果還沒標記）
                 if (!vehicle.isRemoved && vehicle.remove && typeof vehicle.remove === 'function') {
                   vehicle.remove()
                 }
@@ -2100,13 +2120,8 @@ onMounted(async () => {
                   })
                 }
 
-                // ✅ 同步到 window.liveVehicles 和 Store
-                if (window.liveVehicles) {
-                  const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
-                  if (liveIdx !== -1) window.liveVehicles.splice(liveIdx, 1)
-                }
-
-                store.removeVehicle(vehicle.id)
+                // ✅ Phase 5：使用統一的移除方法
+                removeVehicleFromSimulation(vehicle.id)
 
                 console.log(`✅ [${vehicle.id}] 已提交清理任務`)
               } catch (e) {
@@ -2124,10 +2139,8 @@ onMounted(async () => {
               // 檢查車輛是否還在DOM中
               if (!vehicle.element || !vehicle.element.parentNode) {
                 console.log(`🗑️ 清理孤立車輛: ${vehicle.id}`)
-                if (window.liveVehicles) {
-                  const idx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
-                  if (idx !== -1) window.liveVehicles.splice(idx, 1)
-                }
+                // ✅ Phase 5：使用統一方法移除
+                removeVehicleFromSimulation(vehicle.id)
                 return false
               }
 
@@ -2144,10 +2157,8 @@ onMounted(async () => {
                 if (vehicle.remove && typeof vehicle.remove === 'function') {
                   vehicle.remove()
                 }
-                if (window.liveVehicles) {
-                  const idx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
-                  if (idx !== -1) window.liveVehicles.splice(idx, 1)
-                }
+                // ✅ Phase 5：使用統一方法移除
+                removeVehicleFromSimulation(vehicle.id)
                 return false
               }
 
@@ -2176,10 +2187,8 @@ onMounted(async () => {
                 if (vehicleToRemove.remove && typeof vehicleToRemove.remove === 'function') {
                   vehicleToRemove.remove()
                 }
-                if (window.liveVehicles) {
-                  const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicleToRemove.id)
-                  if (liveIdx !== -1) window.liveVehicles.splice(liveIdx, 1)
-                }
+                // ✅ Phase 5：使用統一方法移除
+                removeVehicleFromSimulation(vehicleToRemove.id)
                 console.log(`🗑️ 清理已完成車輛: ${vehicleToRemove.id}`)
               }
               activeCars.value.splice(idx, 1)
