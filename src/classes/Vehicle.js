@@ -1356,7 +1356,7 @@ export default class Vehicle {
 
           // 🚨 如果有初始 progress，先使用 gsap.set() 將元素設置到該路徑位置
           // 【修復】如果是剛從池中取出（isJustReset=true），跳過路徑起始點設置，保留 pool.acquire() 設置的位置
-          if (!this.isJustReset && (this.progress && this.progress !== 0)) {
+          if (!this.isJustReset && this.progress && this.progress !== 0) {
             const pathId = this.getSvgPathId()
             const pathElement = document.getElementById(pathId)
             if (pathElement && pathElement.getTotalLength) {
