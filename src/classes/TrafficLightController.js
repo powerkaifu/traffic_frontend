@@ -1452,23 +1452,15 @@ export default class TrafficLightController {
         dataToSend = vdData
         logInfo('⏳ 已取得傳入的 VD 原始數據，準備進行正規化轉換...')
       } else if (this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArray) {
-        // ✅ Phase 5：使用 Store 中的數據
+        // ✅ Phase 6：優先使用 Store 中的數據
         dataToSend = this.simulationStore.getCurrentGeneratedVDData().apiDataArray
         logInfo('✅ 已取得 Store 中的 4-方向 API 數據陣列，將直接發送到後端...')
-      } else if (window.currentGeneratedVDData?.apiDataArray) {
-        // 🎯【新】使用 AutoTrafficGenerator 生成的 4-方向 API 數據陣列
-        dataToSend = window.currentGeneratedVDData.apiDataArray
-        logInfo('✅ 已取得 AutoTrafficGenerator 生成的 4-方向 API 數據陣列，將直接發送到後端...')
       } else if (this.simulationStore?.getCurrentGeneratedVDData()?.apiVDData) {
-        // ✅ Phase 5：使用 Store 中的舊版本數據
+        // ✅ Phase 6：使用 Store 中的舊版本數據
         dataToSend = this.simulationStore.getCurrentGeneratedVDData().apiVDData
         logInfo('⏳ 已取得 Store 中的生成 VD 原始數據（舊版本），準備進行正規化轉換...')
-      } else if (window.currentGeneratedVDData?.apiVDData) {
-        // 備用方案：相容舊版本
-        dataToSend = window.currentGeneratedVDData.apiVDData
-        logInfo('⏳ 已取得全局保存的生成 VD 原始數據（舊版本），準備進行正規化轉換...')
       } else {
-        // 備用方案：使用本地收集的數據
+        // ✅ Phase 6：最後備用方案 - 使用本地收集
         dataToSend = this.collectIntersectionData()
         logInfo('⏳ 已使用本地收集的數據（備用方案），準備進行正規化轉換...')
       }
@@ -1826,12 +1818,13 @@ export default class TrafficLightController {
       }
 
       // 🎯 【重要】保存實際發送給後端的數據（已調整）
-      window.lastApiVDDataArray = adjustedDataToSend // ✅ 這是實際發送的數據
-
-      // ✅ Phase 5：同時保存到 Store
+      // ✅ Phase 6：統一使用 Store 保存（完全遷移）
       if (this.simulationStore) {
         this.simulationStore.setLastApiVDDataArray(adjustedDataToSend)
       }
+
+      // 保留向後相容性（但不再主動寫入新數據）
+      // ⚠️ window.lastApiVDDataArray 已廢棄，請使用 simulationStore.getLastApiVDDataArray()
 
       // 發送 API 開始事件 (數據已保存,前端可以讀取)
       window.dispatchEvent(new CustomEvent('trafficApiSending', { detail: { timestamp: new Date().toISOString() } }))
@@ -1893,12 +1886,14 @@ export default class TrafficLightController {
       let dataToSend = null
       if (vdData) {
         dataToSend = vdData
+      } else if (this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArray) {
+        // ✅ Phase 6：優先使用 Store 中的新版本數據
+        dataToSend = this.simulationStore.getCurrentGeneratedVDData().apiDataArray
       } else if (this.simulationStore?.getCurrentGeneratedVDData()?.apiVDData) {
-        // ✅ Phase 5：使用 Store 中的數據
+        // ✅ Phase 6：使用 Store 中的舊版本數據
         dataToSend = this.simulationStore.getCurrentGeneratedVDData().apiVDData
-      } else if (window.currentGeneratedVDData?.apiVDData) {
-        dataToSend = window.currentGeneratedVDData.apiVDData
       } else {
+        // ✅ Phase 6：最後備用 - 使用本地收集
         dataToSend = this.collectIntersectionData()
       }
       const result = this.getAISuggestion(dataToSend)
@@ -2261,8 +2256,8 @@ export default class TrafficLightController {
     console.log('\n🔍 [統一數據線驗證] ========================================')
 
     // 【第 1 層】生成層
-    const generated =
-      this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArray || window.currentGeneratedVDData?.apiDataArray
+    // ✅ Phase 6：只使用 Store 讀取，不再查詢 window
+    const generated = this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArray
     console.log('【第 1 層】生成層:', generated ? `✅ 存在 (${generated.length} 筆數據)` : '❌ 不存在')
     if (generated) {
       console.log(`  - 總流量: ${generated.reduce((sum, d) => sum + d.Volume_M + d.Volume_S + d.Volume_L, 0)} 輛`)
