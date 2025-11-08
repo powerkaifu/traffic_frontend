@@ -1627,9 +1627,7 @@ export default class Vehicle {
                   x: point.x,
                   y: point.y,
                 })
-                console.log(
-                  `🚗 [${this.id}] 初始化到 Path 起始點: (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`,
-                )
+                console.log(`🚗 [${this.id}] 初始化到 Path 起始點: (${point.x.toFixed(1)}, ${point.y.toFixed(1)})`)
               }
             }
           }
