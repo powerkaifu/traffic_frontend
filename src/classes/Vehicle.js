@@ -65,7 +65,9 @@ export default class Vehicle {
     VehicleStaticManager.lastGlobalAdjustTime = value
   }
 
-  constructor(x, y, direction = 'east', vehicleType = 'large', laneNumber = 1) {
+  constructor(x, y, direction = 'east', vehicleType = 'large', laneNumber = 1, simulationStore = null) {
+    // ✅ Phase 6：保存 simulationStore 參數
+    this.simulationStore = simulationStore
     // Factory Pattern: 根據不同參數創建不同類型的車輛實例
     this.direction = direction
     this.vehicleType = vehicleType // 車輛類型（motor, small, large）
@@ -204,7 +206,7 @@ export default class Vehicle {
     this.stopLineController = new StopLineController(this)
 
     // 🚀 新增：碰撞控制器（整合 SimpleCollisionDetector 功能）
-    this.collisionController = CollisionController.createForLane(this, laneNumber)
+    this.collisionController = CollisionController.createForLane(this, laneNumber, this.simulationStore)
 
     // 🌤️ 【新增】監聽天氣改變事件
     this.weatherChangeHandler = (event) => {

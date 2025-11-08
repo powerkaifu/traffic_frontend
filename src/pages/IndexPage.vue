@@ -549,7 +549,7 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
   }
 
   // 使用指定位置創建車輛
-  const vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, trafficController)
+  const vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, store) // ✅ Phase 6：傳入 store
 
   // 🚨 設置初始 progress（如果提供的話）
   if (typeof initialProgress === 'number' && initialProgress !== 0) {

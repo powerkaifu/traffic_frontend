@@ -15,7 +15,10 @@ export class CollisionController {
   // 🚀 第1階段優化：全局空間分割網格（在 IndexPage.vue 中初始化）
   static spatialGrid = null
 
-  constructor(vehicle) {
+  constructor(vehicle, simulationStore = null) {
+    // ✅ Phase 6：注入 simulationStore 參數
+    this.simulationStore = simulationStore
+
     this.vehicle = vehicle
     this.lastCollisionCheck = 0 // 上次碰撞檢查時間
     this.collisionCheckInterval = COLLISION_CONFIG.CHECK_INTERVAL // 碰撞檢查間隔（毫秒）
@@ -1840,8 +1843,8 @@ export class CollisionController {
   /**
    * 工廠方法：創建特定配置的碰撞控制器
    */
-  static createForLane(vehicle, laneNumber) {
-    const controller = new CollisionController(vehicle)
+  static createForLane(vehicle, laneNumber, simulationStore = null) {
+    const controller = new CollisionController(vehicle, simulationStore)
 
     // 根據車道調整檢查間隔和參數
     if (laneNumber === 1) {
