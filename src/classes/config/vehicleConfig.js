@@ -147,7 +147,7 @@ export const LANE_SPAWN_CONFIG = {
 // ===== 車輛間距與安全距離設定 =====
 export const DISTANCE_CONFIG = {
   // 🚗 唯一需要調整的參數
-  MIN_GAP: 25, // 車輛停車時的間隔距離（像素）- 調整此值可改變排隊間距
+  MIN_GAP: 40, // 車輛停車時的間隔距離（像素）- 調整此值可改變排隊間距
 
   // 🔧 碰撞檢測內部使用（不建議修改，會影響碰撞檢測功能）
   SAFE_FOLLOWING: 35, // 跟車安全距離

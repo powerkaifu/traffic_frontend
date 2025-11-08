@@ -1588,7 +1588,7 @@ export class CollisionController {
           shouldStop: true,
           shouldFollow: true, // 允許持續跟隨評估
           targetSpeed: isInStopLineZone ? 0 : 0.02, // 停止線區域完全停止，開放道路爬行
-          requiredGap: isInStopLineZone ? 8 : ABSOLUTE_MIN_GAP, // 停止線區域需要 8px 的隊列間距
+          requiredGap: isInStopLineZone ? 15 : ABSOLUTE_MIN_GAP, // 停止線區域需要 15px 的隊列間距
           reason: `緊急停止：距離${distance.toFixed(1)}px，避免重疊`,
           isEmergencyStop: true, // 標記為緊急停止
         }

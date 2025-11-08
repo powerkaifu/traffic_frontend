@@ -1359,6 +1359,14 @@ export default class Vehicle {
               const shouldStop = this.collisionController.checkSimpleCollision(allVehicles)
               const isFirstVehicle = this.collisionController.isClosestToStopLine(allVehicles)
 
+              // ✅ 最簡單的碰撞處理：檢測到碰撞就停止，不做任何恢復
+              if (shouldStop && !shouldStop.frontVehicleIsMoving) {
+                // 前方車輛停止了，就停止自己
+                this.movementTimeline.timeScale(0)
+                this.currentState = 'stopped'
+                return
+              }
+
               // 🚗 優先處理重新加入隊列動作（碰撞後的車輛需要融入隊伍）
               if (shouldStop && shouldStop.action === 'rejoin_queue') {
                 gsap.to(this.movementTimeline, {
@@ -1486,47 +1494,10 @@ export default class Vehicle {
                     }
                   }
                 } else if (!shouldStop.frontVehicleIsMoving) {
-                  // 前方車輛停止且不移動：停止跟車
+                  // ⚠️ 已在前面優先檢查過了，不應該到這裡
+                  // 這裡只是防御性編程
                   this.movementTimeline.timeScale(0)
-
-                  // 🚨 關鍵修復：如果距離太近（< requiredGap），調整位置避免重疊
-                  const distance = shouldStop.distance
-                  const requiredGap = shouldStop.requiredGap || 8
-                  if (distance > 0 && distance < requiredGap) {
-                    // 距離不足，需要後退保持安全距離
-                    const adjustmentNeeded = requiredGap - distance
-                    const currentPos = this.getCurrentPosition()
-
-                    // 根據方向調整位置
-                    switch (this.direction) {
-                      case 'east':
-                        gsap.set(this.element, { x: currentPos.x - adjustmentNeeded })
-                        break
-                      case 'west':
-                        gsap.set(this.element, { x: currentPos.x + adjustmentNeeded })
-                        break
-                      case 'north':
-                        gsap.set(this.element, { y: currentPos.y - adjustmentNeeded })
-                        break
-                      case 'south':
-                        gsap.set(this.element, { y: currentPos.y + adjustmentNeeded })
-                        break
-                    }
-                  }
-
-                  // 🚨 區分排隊停止 vs 碰撞恢復
-                  // 如果在停止線區域且紅/黃燈，應該是排隊停止，不應該用 gapRecovery
-                  const currentLightState = trafficController.getCurrentLightState(this.direction)
-                  const isInStopLineZone = this.isNearStopLine()
-                  const isRedOrYellow = currentLightState === 'red' || currentLightState === 'yellow'
-
-                  if (isInStopLineZone && isRedOrYellow) {
-                    // 排隊停止：等待前車或燈號變化，不主動恢復
-                    this.currentState = 'waitingForVehicle'
-                  } else {
-                    // 碰撞恢復：在開放道路碰撞，需要主動恢復
-                    this.currentState = 'gapRecovery'
-                  }
+                  this.currentState = 'stopped'
                   return
                 }
               } else if (this.movementTimeline) {
@@ -1586,11 +1557,19 @@ export default class Vehicle {
               }
 
               // 等待前車的恢復檢查
+              // ✅ 關鍵修復：只在不是停止線區域排隊時調用恢復邏輯
+              const currentLightState = trafficController.getCurrentLightState(this.direction)
+              const isInStopLineZone = this.isNearStopLine()
+              const isRedOrYellow = currentLightState === 'red' || currentLightState === 'yellow'
+              const isQueuedAtStopLine = isInStopLineZone && isRedOrYellow && this.currentState === 'stopped'
+
               if (
-                this.currentState === 'waitingForVehicle' ||
-                this.currentState === 'autoFollowing' ||
-                this.currentState === 'rejoiningQueue' ||
-                this.currentState === 'gapRecovery'
+                (this.currentState === 'waitingForVehicle' ||
+                  this.currentState === 'autoFollowing' ||
+                  this.currentState === 'rejoiningQueue' ||
+                  this.currentState === 'gapRecovery' ||
+                  this.currentState === 'stopped') &&
+                !isQueuedAtStopLine // ✅ 停止線排隊時不恢復
               ) {
                 this.resumeMovement(allVehicles)
               }
