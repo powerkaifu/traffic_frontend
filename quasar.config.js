@@ -53,7 +53,34 @@ export default defineConfig(() => {
       // polyfillModulePreload: true,
       // distDir
 
-      // extendViteConf (viteConf) {},
+      // 💥 擴展 Vite 設定：強制完整頁面重新加載（處理 config 文件變更）
+      extendViteConf(viteConf, { isClient }) {
+        if (isClient) {
+          // 新增自訂 Vite 插件：監聽 config 文件變更
+          viteConf.plugins = viteConf.plugins || []
+          viteConf.plugins.push({
+            name: 'force-reload-on-config-change',
+            apply: 'serve', // 只在開發模式下應用
+            handleHotUpdate({ file, server }) {
+              // 🎯 監聽 src/classes/config/ 目錄下的所有檔案變更
+              if (file.includes('/src/classes/config/') || file.includes('\\src\\classes\\config\\')) {
+                console.log('⚡ [HMR 攔截] 偵測到 config 文件變更，強制執行完整頁面重新加載...')
+                console.log(`   📁 變更檔案: ${file}`)
+
+                // 💡 傳送 "full-reload" 訊號給客戶端，強制完整頁面重新整理
+                server.ws.send({
+                  type: 'full-reload',
+                  event: 'special',
+                  path: '*',
+                })
+
+                // ⏹️ 回傳空陣列，阻止 HMR 繼續處理此更新
+                return []
+              }
+            },
+          })
+        }
+      },
       // viteVuePluginOptions: {},
 
       vitePlugins: [
