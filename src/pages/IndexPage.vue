@@ -473,12 +473,11 @@ const handleAutoGenerate = (event) => {
 
   const laneNumber = selectOptimalLane(direction)
 
-  // ✅ 【新增】如果 selectOptimalLane 返回 null，表示該方向所有車道都已滿
+  // ✅ 【改進】如果 selectOptimalLane 返回 null，表示該方向所有車道都已滿
+  // 🎯 RAF 主循環會在下一幀自動重試，無需手動 setTimeout
   if (laneNumber === null) {
-    // 延遲重新嘗試生成
-    if (window.autoTrafficGenerator && window.autoTrafficGenerator._scheduleNext) {
-      setTimeout(() => window.autoTrafficGenerator._scheduleNext(), 1000)
-    }
+    // ✨ 移除：setTimeout 會創建計時器副本
+    // ✨ 改由 RAF 主循環的下一幀自動重試（timeSinceLastGenerate 會繼續累積）
     return
   }
 
@@ -1522,6 +1521,10 @@ onMounted(async () => {
 
     // 定期清理超時車輛機制
     // 🚨 動態清理間隔管理 - 根據車輛負載調整
+    // ✨ 【改進】以下的 startDynamicCleanupCycle 和 cleanupInterval 已被 RAF 主循環取代
+    // ✨ 保留註釋的代碼以供參考，但所有清理邏輯現在由 RAF 主循環統一驅動
+
+    /*
     let cleanupInterval = null
     const maxLiveVehicles = autoTrafficGenerator.config.maxLiveVehicles || 100
 
@@ -1639,15 +1642,17 @@ onMounted(async () => {
         startDynamicCleanupCycle()
       }, cleanupFrequency)
     }
+    */
 
     // 初始啟動動態清理循環
-    startDynamicCleanupCycle()
+    // ✨ 改進：現在由 RAF 主循環統一驅動清理邏輯，無需獨立 setInterval
+    // startDynamicCleanupCycle()  // ❌ 已移除
 
-    // 在組件卸載時清理定時器 - 保存到 window 供卸載時使用
-    window.cleanupVehicleInterval = cleanupInterval
-    window.getCleanupInterval = () => cleanupInterval
-    window.setCleanupInterval = (interval) => {
-      cleanupInterval = interval
+    // 在組件卸載時清理定時器 - 保存到 window 供卸載時使用（保留以防舊代碼引用）
+    window.cleanupVehicleInterval = null
+    window.getCleanupInterval = () => null
+    window.setCleanupInterval = () => {
+      // 無效果（不再使用 setInterval）
     }
 
     // 初始化並啟動交通數據收集器
@@ -1782,11 +1787,16 @@ onMounted(async () => {
   console.log('✅ [性能監測工具已啟用] 按 Ctrl+Shift+P 開始/停止監測')
 
   // ═══════════════════════════════════════════════════════════════════════
-  // 【Step 3】✨ RAF 主循環 - 驅動所有模擬邏輯 ✨
+  // 【Step 3】✨ 統一的 RAF 主循環 - 驅動所有模擬邏輯 ✨
   // ═══════════════════════════════════════════════════════════════════════
 
   let lastFrameTime = 0
   let rafId = null
+
+  // 🎯 新增：用於合併 setInterval 的累積計時器 (單位: ms)
+  let periodicCheckAccumulator = 0 // 用於 Vehicle.js 的 50ms 檢查 (directTrafficLightResponse 等)
+  let stuckCheckAccumulator = 0 // 用於 Vehicle.js 的 5000ms 卡車檢查
+  let cleanupAccumulator = 0 // 用於 IndexPage.vue 的動態清理 (1000-3000ms)
 
   function mainSimulationLoop(currentTime) {
     try {
@@ -1797,10 +1807,178 @@ onMounted(async () => {
       // ✅ 限制 deltaTime（防止瀏覽器標籤頁切換導致的巨大時間跳躍）
       const clampedDeltaTime = Math.min(deltaTimeMs, 100)
 
-      // 🎯 【關鍵】驅動車輛生成引擎 - RAF 主時鐘
+      // ═══════════════════════════════════════════════════════════════════════
+      // 1. 🎯 驅動車輛生成引擎 (AutoTrafficGenerator)
+      // ═══════════════════════════════════════════════════════════════════════
       if (window.autoTrafficGenerator && typeof window.autoTrafficGenerator.update === 'function') {
         window.autoTrafficGenerator.update(clampedDeltaTime)
       }
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 2. 🎯 累加所有定期檢查的計時器
+      // ═══════════════════════════════════════════════════════════════════════
+      periodicCheckAccumulator += clampedDeltaTime
+      stuckCheckAccumulator += clampedDeltaTime
+      cleanupAccumulator += clampedDeltaTime
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 3. 🎯 執行所有 Vehicle 的定期邏輯 (原來由 Vehicle.js 的 setInterval 驅動)
+      // ═══════════════════════════════════════════════════════════════════════
+      const runPeriodicCheck = periodicCheckAccumulator >= 50 // 每 50ms 執行一次
+      const runStuckCheck = stuckCheckAccumulator >= 5000 // 每 5 秒執行一次
+
+      if (window.liveVehicles && (runPeriodicCheck || runStuckCheck)) {
+        for (const vehicle of window.liveVehicles) {
+          // 執行 50ms 的檢查 (directTrafficLightResponse, resumeMovement)
+          if (runPeriodicCheck && vehicle.directTrafficLightResponse) {
+            try {
+              vehicle.directTrafficLightResponse(window.trafficController)
+
+              // 自動恢復移動邏輯
+              if (
+                vehicle.currentState === 'waitingForVehicle' ||
+                vehicle.currentState === 'autoFollowing' ||
+                vehicle.currentState === 'rejoiningQueue' ||
+                vehicle.currentState === 'gapRecovery'
+              ) {
+                if (vehicle.resumeMovement && typeof vehicle.resumeMovement === 'function') {
+                  vehicle.resumeMovement(window.liveVehicles)
+                }
+              }
+            } catch (e) {
+              console.error('❌ [RAF] Vehicle periodic check error:', e)
+            }
+          }
+
+          // 執行 5 秒的檢查 (checkAndResolveStuckState)
+          if (runStuckCheck && vehicle.checkAndResolveStuckState) {
+            try {
+              vehicle.checkAndResolveStuckState()
+            } catch (e) {
+              console.error('❌ [RAF] Vehicle stuck check error:', e)
+            }
+          }
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 4. 🎯 執行 IndexPage 的動態車輛清理 (原來由 startDynamicCleanupCycle 中的 setInterval 驅動)
+      // ═══════════════════════════════════════════════════════════════════════
+      // 根據車輛數量動態調整清理頻率
+      let cleanupFrequency = 3000 // 預設 3 秒
+      if (activeCars.value) {
+        const maxLiveVehicles = autoTrafficGenerator.config.maxLiveVehicles || 100
+        const currentVehicleCount = activeCars.value.length
+
+        if (currentVehicleCount > maxLiveVehicles * 0.8) {
+          cleanupFrequency = 1000 // 高負載（>80 輛）：1 秒
+        } else if (currentVehicleCount > maxLiveVehicles * 0.5) {
+          cleanupFrequency = 2000 // 中等負載（50-80 輛）：2 秒
+        }
+      }
+
+      // 檢查是否達到清理時間
+      if (cleanupAccumulator >= cleanupFrequency) {
+        try {
+          const initialCount = activeCars.value?.length || 0
+          const maxLiveVehicles = autoTrafficGenerator.config.maxLiveVehicles || 100
+
+          // 清理孤立車輛和已完成的車輛
+          if (activeCars.value) {
+            activeCars.value = activeCars.value.filter((vehicle) => {
+              // 檢查車輛是否還在DOM中
+              if (!vehicle.element || !vehicle.element.parentNode) {
+                console.log(`🗑️ 清理孤立車輛: ${vehicle.id}`)
+                if (window.liveVehicles) {
+                  const idx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
+                  if (idx !== -1) window.liveVehicles.splice(idx, 1)
+                }
+                return false
+              }
+
+              // 檢查車輛存在時間，避免剛創建的車輛被誤清理
+              const vehicleAge = Date.now() - new Date(vehicle.createdAt).getTime()
+              const isNewVehicle = vehicleAge < 5000
+
+              if (vehicle.justCreated || isNewVehicle) {
+                return true
+              }
+
+              // 如果車輛狀態是 completed 或 nearComplete，清理
+              if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
+                if (vehicle.remove && typeof vehicle.remove === 'function') {
+                  vehicle.remove()
+                }
+                if (window.liveVehicles) {
+                  const idx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
+                  if (idx !== -1) window.liveVehicles.splice(idx, 1)
+                }
+                return false
+              }
+
+              return true
+            })
+          }
+
+          // 超限清理：只清理已完成的車輛
+          if (activeCars.value && activeCars.value.length > maxLiveVehicles) {
+            const excessCount = activeCars.value.length - maxLiveVehicles
+            console.warn(`🚨 [車輛超限] 超過限制 ${excessCount} 輛，準備清理已完成的車輛...`)
+
+            let removedCount = 0
+            const vehiclesToRemove = []
+
+            for (let i = activeCars.value.length - 1; i >= 0 && removedCount < excessCount; i--) {
+              const vehicle = activeCars.value[i]
+              if (vehicle.currentState === 'completed' || vehicle.currentState === 'nearComplete') {
+                vehiclesToRemove.push(i)
+                removedCount++
+              }
+            }
+
+            vehiclesToRemove.sort((a, b) => b - a)
+            vehiclesToRemove.forEach((idx) => {
+              const vehicleToRemove = activeCars.value[idx]
+              if (vehicleToRemove) {
+                if (vehicleToRemove.remove && typeof vehicleToRemove.remove === 'function') {
+                  vehicleToRemove.remove()
+                }
+                if (window.liveVehicles) {
+                  const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicleToRemove.id)
+                  if (liveIdx !== -1) window.liveVehicles.splice(liveIdx, 1)
+                }
+                console.log(`🗑️ 清理已完成車輛: ${vehicleToRemove.id}`)
+              }
+              activeCars.value.splice(idx, 1)
+            })
+
+            if (removedCount < excessCount) {
+              console.warn(`⚠️ [車輛超限] 只清理了 ${removedCount} 輛，仍超限 ${excessCount - removedCount} 輛`)
+            }
+          }
+
+          // 定期日誌
+          if (activeCars.value && (initialCount !== activeCars.value.length || initialCount > 80)) {
+            const maxLiveVehicles = autoTrafficGenerator.config.maxLiveVehicles || 100
+            console.log(
+              `📊 [清理統計] 當前: ${activeCars.value.length} 輛 (限制: ${maxLiveVehicles}), ` +
+                `liveVehicles: ${window.liveVehicles?.length || 0}, ` +
+                `清理頻率: ${cleanupFrequency}ms`,
+            )
+          }
+
+          cleanupAccumulator = 0
+        } catch (e) {
+          console.error('❌ [RAF] Cleanup error:', e)
+          cleanupAccumulator = 0
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 5. 🎯 重置檢查計時器
+      // ═══════════════════════════════════════════════════════════════════════
+      if (runPeriodicCheck) periodicCheckAccumulator = 0
+      if (runStuckCheck) stuckCheckAccumulator = 0
 
       // ℹ️ 性能監測：可選的 FPS 顯示
       if (window.performanceMonitor?.isMonitoring) {
@@ -1817,8 +1995,8 @@ onMounted(async () => {
     }
   }
 
-  // 🚀 啟動 RAF 主循環
-  console.log('🚀 [RAF 主循環] 已啟動 - 驅動所有模擬邏輯')
+  // 🚀 啟動統一的 RAF 主循環
+  console.log('🚀 [RAF 主循環] 已啟動 - 驅動所有模擬邏輯 (生成 + Vehicle 檢查 + 清理)')
   rafId = requestAnimationFrame(mainSimulationLoop)
 
   // 記錄 RAF ID 以便後續清理
