@@ -564,9 +564,7 @@ export default class AutoTrafficGenerator {
     )
 
     // 🎯 生成該情景對應的 VD 數據
-    console.log(`🔍 [_generateScenarioVDData] CALLING for scenario: ${scenarioKey}`)
     const vdData = this._generateScenarioVDData(scenarioKey)
-    console.log(`🔍 [_generateScenarioVDData] RETURNED vdData:`, vdData)
 
     // ✅ 🔧 CRITICAL FIX：在自動模式下使用模擬時間，否則使用系統時間
     const timeToUse = this.isAutoMode ? this.simulationTime : new Date()
@@ -608,8 +606,6 @@ export default class AutoTrafficGenerator {
       console.error(`❌ 無法獲取情景 ${scenarioKey} 的目標特徵`)
       return null
     }
-
-    console.log(`🔍 [_generateScenarioVDData] scenario.targetFeatures:`, JSON.stringify(scenario.targetFeatures))
 
     // 🎯 🔧 CRITICAL FIX：根據是否在自動模式決定時間生成方式
     let hour, minute, second, isPeakHour
@@ -837,26 +833,6 @@ export default class AutoTrafficGenerator {
     // 🔙 向後相容：同時保存到 window
     window.currentGeneratedVDData = currentVDData
 
-    console.log(`🔍 [currentGeneratedVDData] SET - apiDataArray.length=${currentVDData.apiDataArray.length}`)
-    console.log(`🔍 [currentGeneratedVDData] Speeds:`)
-    currentVDData.apiDataArray.forEach((data, idx) => {
-      console.log(`   方向 ${idx}: Speed_M=${data.Speed_M}, Speed_S=${data.Speed_S}, Speed_L=${data.Speed_L}`)
-    })
-
-    // 🔍 調試：檢查每個方向的 Volume_L
-    console.log('🔍 [AutoTrafficGenerator] 4 方向 API 數據 Volume_L 值：')
-    apiDataArray.forEach((data, index) => {
-      console.log(`  方向 ${index} (${data.VD_ID}): Volume_L = ${data.Volume_L} (小數位: ${typeof data.Volume_L})`)
-    })
-
-    // 🔍 調試：檢查每個方向的速度值
-    console.log('🔍 [AutoTrafficGenerator] 4 方向 API 數據速度值（Speed_M/S/L）：')
-    apiDataArray.forEach((data, index) => {
-      console.log(
-        `  方向 ${index} (${data.VD_ID}): Speed_M=${data.Speed_M}, Speed_S=${data.Speed_S}, Speed_L=${data.Speed_L}`,
-      )
-    })
-
     // 🎯【重要】返回包含 4 個方向 API 數據的結構
     // 新增：apiData 屬性包含原始 API 數據以保持向後兼容性
     const returnData = {
@@ -930,7 +906,6 @@ export default class AutoTrafficGenerator {
   // 根據模擬時間套用交通設定檔，使用於自動模式
   // 🎯 每日自動模式的核心方法：生成 VD 數據 + 傳送 API 預測
   _applyTrafficProfile() {
-    console.log(`🔍 [_applyTrafficProfile] CALLED - isAutoMode=${this.isAutoMode}, onTimeUpdate=${!!this.onTimeUpdate}`)
     // 🔧 CRITICAL FIX：如果已離開自動模式，則不執行
     if (!this.isAutoMode) {
       console.log(`⏸️ [自動模式] 已停止，跳過本次應用`)
@@ -968,10 +943,6 @@ export default class AutoTrafficGenerator {
     }
     this.config.peakMultiplier = scenario.peakMultiplier
     this.config.vehicleTypes = scenario.vehicleTypes
-
-    console.log(
-      `📊 [_applyTrafficProfile] 時間: ${this.simulationTime.toLocaleTimeString('it-IT')}, 情景: ${scenarioKey}, 間隔: ${normalInterval}ms`,
-    )
 
     if (scenarioConfig) {
       // 使用情景配置中的 targetFeatures 生成 VD 數據

@@ -91,6 +91,11 @@ export const timeScenarios = [
         small: 3, // 小客車：約 30%
         large: 2, // 大客車：約 20%
       },
+      speedByType: {
+        motor: { min: 35, max: 50 }, // 機車速度範圍
+        small: { min: 30, max: 45 }, // 小客車速度範圍
+        large: { min: 25, max: 40 }, // 大客車速度範圍
+      },
     },
 
     config: {
@@ -140,6 +145,11 @@ export const timeScenarios = [
         motor: 4, // 機車：約 40%
         small: 4, // 小客車：約 40%
         large: 2, // 大客車：約 20%
+      },
+      speedByType: {
+        motor: { min: 45, max: 60 }, // 機車速度範圍（離峰時速度較高）
+        small: { min: 40, max: 55 }, // 小客車速度範圍
+        large: { min: 35, max: 50 }, // 大客車速度範圍
       },
     },
 
@@ -193,6 +203,11 @@ export const timeScenarios = [
         motor: 0.6, // 機車：主要是機車
         small: 0.4, // 小客車：很少
         large: 0.0, // 大客車：少量 ✅ 改為 0.2 以顯示大車數據
+      },
+      speedByType: {
+        motor: { min: 50, max: 65 }, // 機車速度範圍（凌晨速度最快）
+        small: { min: 45, max: 60 }, // 小客車速度範圍
+        large: { min: 40, max: 55 }, // 大客車速度範圍
       },
     },
 
@@ -306,6 +321,13 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 35 },
         { type: 'large', weight: 5 },
       ],
+      targetFeatures: {
+        speedByType: {
+          motor: { min: 50, max: 65 },
+          small: { min: 45, max: 60 },
+          large: { min: 40, max: 55 },
+        },
+      },
       description: '🌙 凌晨時段 - 極低流量 (0-6 點)',
     }
   }
@@ -326,6 +348,13 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 40 },
         { type: 'large', weight: 10 },
       ],
+      targetFeatures: {
+        speedByType: {
+          motor: { min: 48, max: 62 },
+          small: { min: 43, max: 57 },
+          large: { min: 38, max: 52 },
+        },
+      },
       description: '🌄 清晨時段 - 低流量 (6-7 點)',
     }
   }
@@ -346,6 +375,13 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 45 },
         { type: 'large', weight: 10 },
       ],
+      targetFeatures: {
+        speedByType: {
+          motor: { min: 35, max: 50 },
+          small: { min: 30, max: 45 },
+          large: { min: 25, max: 40 },
+        },
+      },
       description: '🚀 早尖峰時段 - 極高流量 (7-9 點)',
     }
   }
@@ -366,6 +402,13 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 52 },
         { type: 'large', weight: 10 },
       ],
+      targetFeatures: {
+        speedByType: {
+          motor: { min: 42, max: 57 },
+          small: { min: 37, max: 52 },
+          large: { min: 32, max: 47 },
+        },
+      },
       description: '🌤️ 上午時段 - 中等流量 (9-11 點)',
     }
   }
@@ -386,6 +429,13 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 58 },
         { type: 'large', weight: 7 },
       ],
+      targetFeatures: {
+        speedByType: {
+          motor: { min: 45, max: 60 },
+          small: { min: 40, max: 55 },
+          large: { min: 35, max: 50 },
+        },
+      },
       description: '☀️ 午間時段 - 中等流量 (11-14 點)',
     }
   }
@@ -406,6 +456,13 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 57 },
         { type: 'large', weight: 7 },
       ],
+      targetFeatures: {
+        speedByType: {
+          motor: { min: 45, max: 60 },
+          small: { min: 40, max: 55 },
+          large: { min: 35, max: 50 },
+        },
+      },
       description: '🌝 下午時段 - 中等流量 (14-16 點)',
     }
   }
@@ -426,6 +483,13 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 48 },
         { type: 'large', weight: 10 },
       ],
+      targetFeatures: {
+        speedByType: {
+          motor: { min: 38, max: 53 },
+          small: { min: 33, max: 48 },
+          large: { min: 28, max: 43 },
+        },
+      },
       description: '🌆 傍晚過渡 - 高流量 (16-17 點)',
     }
   }
@@ -446,6 +510,13 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 45 },
         { type: 'large', weight: 10 },
       ],
+      targetFeatures: {
+        speedByType: {
+          motor: { min: 35, max: 50 },
+          small: { min: 30, max: 45 },
+          large: { min: 25, max: 40 },
+        },
+      },
       description: '🌇 晚尖峰時段 - 極高流量 (17-19 點)',
     }
   }
@@ -466,6 +537,13 @@ export function getScenarioByTime(currentTime) {
         { type: 'small', weight: 50 },
         { type: 'large', weight: 10 },
       ],
+      targetFeatures: {
+        speedByType: {
+          motor: { min: 40, max: 55 },
+          small: { min: 35, max: 50 },
+          large: { min: 30, max: 45 },
+        },
+      },
       description: '🌃 晚間時段 - 中等流量 (19-21 點)',
     }
   }
