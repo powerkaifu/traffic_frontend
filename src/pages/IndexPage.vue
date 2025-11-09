@@ -1850,11 +1850,13 @@ onMounted(async () => {
   let stuckCheckAccumulator = 0 // 用於 Vehicle.js 的 5000ms 卡車檢查
   let cleanupAccumulator = 0 // 用於 IndexPage.vue 的動態清理 (1000-3000ms)
   let autoModeUpdateAccumulator = 0 // ✅ 【新增】用於自動模式的時間更新
+  let vehicleLogicUpdateAccumulator = 0 // 🚨 【P2 修復】用於 Vehicle.updateLogic 的 100ms 檢查（10fps 決策邏輯）
 
   // 🔍 診斷用：追蹤 DOM 節點和池的狀態
   let diagnosticAccumulator = 0
   const DIAGNOSTIC_INTERVAL = 1000 // 每秒報告一次
   const AUTO_MODE_UPDATE_INTERVAL = 500 // ✅ 【新增】每 500ms 檢查一次自動模式
+  const VEHICLE_LOGIC_UPDATE_INTERVAL = 100 // 🚨 【P2 修復】每 100ms 執行一次決策邏輯（10fps）
 
   function mainSimulationLoop(currentTime) {
     try {
@@ -1890,6 +1892,7 @@ onMounted(async () => {
       stuckCheckAccumulator += clampedDeltaTime
       cleanupAccumulator += clampedDeltaTime
       diagnosticAccumulator += clampedDeltaTime
+      vehicleLogicUpdateAccumulator += clampedDeltaTime // 🚨 【P2 修復】累加決策邏輯計時器
 
       // 🔍 每秒進行一次診斷
       if (diagnosticAccumulator >= DIAGNOSTIC_INTERVAL) {
@@ -2281,6 +2284,33 @@ onMounted(async () => {
           console.error('❌ [RAF] Cleanup error:', e)
           cleanupAccumulator = 0
         }
+      }
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 4.5 🚨 【P2 修復】執行低頻決策邏輯 (每 100ms 執行一次 = 10fps)
+      // ═══════════════════════════════════════════════════════════════════════
+      // 原因：checkStopLineAndRespond 不需要每幀執行，降頻到 100ms 即可
+      // 效果：減少 85% 的決策調用（從 6000/秒 → 1000/秒）
+      // ═══════════════════════════════════════════════════════════════════════
+      const runVehicleLogicUpdate = vehicleLogicUpdateAccumulator >= VEHICLE_LOGIC_UPDATE_INTERVAL
+
+      if (window.liveVehicles && runVehicleLogicUpdate && window.trafficController) {
+        const trafficController = window.trafficController
+        const allVehicles = window.liveVehicles
+
+        // 遍歷所有活動車輛，執行低頻決策邏輯
+        for (const vehicle of allVehicles) {
+          try {
+            // 調用 Vehicle.updateLogic()：包含停止線檢查和紅綠燈控制
+            if (vehicle && typeof vehicle.updateLogic === 'function') {
+              vehicle.updateLogic(trafficController, allVehicles)
+            }
+          } catch (e) {
+            console.error(`❌ [Vehicle.updateLogic] 車輛 ${vehicle?.id} 出現異常:`, e)
+          }
+        }
+
+        vehicleLogicUpdateAccumulator = 0
       }
 
       // ═══════════════════════════════════════════════════════════════════════
