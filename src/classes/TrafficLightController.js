@@ -1226,7 +1226,7 @@ export default class TrafficLightController {
     })
 
     // 🔧 添加日誌：顯示處理後的數據
-    logInfo('📤 [數據發送] 處理後的 vdData:', JSON.stringify(vdData, null, 2))
+    // logInfo('📤 [數據發送] 處理後的 vdData:', JSON.stringify(vdData, null, 2))
 
     // 【Priority 3 Integration】檢查並應用時段過渡權重
     const transitionState = this.checkTimeSegmentTransition()
@@ -2205,7 +2205,6 @@ export default class TrafficLightController {
     console.log(`  原始結果:`, result)
 
     if (result && result.east_west_seconds && result.south_north_seconds) {
-      console.log(`✅ 條件檢查通過 - 秒數都存在`)
       console.log(`  東西向: ${result.east_west_seconds}s, 南北向: ${result.south_north_seconds}s`)
 
       // 🎯 【修復 2】應用時間映射調整

@@ -109,8 +109,7 @@
 
               <!-- 自動模式狀態顯示 -->
               <div class="simulation-status" v-if="isAutoMode">
-                <span class="time-status">{{ simulationStatus || '正在初始化...' }}</span>
-                <span v-if="currentAutoInterval" class="interval-status">生成間隔: {{ currentAutoInterval }}s</span>
+                <span class="time-status">{{ simulationStatus || '⏳ 正在初始化自動模式...' }}</span>
               </div>
 
               <!-- 🎯【新增】VD 情景選擇 - 3 個時段按鈕 -->
@@ -622,7 +621,6 @@ function getApiVDData(dir) {
 
   // 檢查是否有保存的 API 數據
   if (!lastApiVDDataArray || lastApiVDDataArray.length === 0) {
-    if (process.env.DEV) console.log(`🔍 [MainLayout] getApiVDData(${dir}): 無數據，返回預設值`)
     return defaultData
   }
 
@@ -803,6 +801,7 @@ function toggleAutoMode() {
     // 切換到自動模式：移除按鈕的 active 狀態
     if (process.env.DEV) console.log('🔄 [MainLayout] 切換到自動模式 - 清除情景選擇')
     selectedVDScenario.value = null
+    // ✅ 不要預設置「正在初始化」，讓 _applyTrafficProfile 直接更新
   } else {
     // 切換回手動模式：重置為 INITIAL_VD_SCENARIO
     if (process.env.DEV) console.log(`🔄 [MainLayout] 切換回手動模式 - 設回 ${INITIAL_VD_SCENARIO}`)
@@ -816,7 +815,6 @@ function toggleAutoMode() {
     window.autoTrafficGenerator.toggleAutoMode(isAutoMode.value)
   }
 }
-
 onMounted(() => {
   const cleanup = setupListeners()
 
@@ -842,7 +840,16 @@ onMounted(() => {
         // 初始化完成後，設定自動模式的回調
         window.autoTrafficGenerator.setOnTimeUpdate((status) => {
           if (status) {
-            simulationStatus.value = `${status.time} - ${status.description}`
+            // ✅ 【新增】取得生成間隔
+            let intervalMs =
+              status.interval?.normal ||
+              (window.autoTrafficGenerator.config && window.autoTrafficGenerator.config.interval?.normal) ||
+              3000
+            const intervalSec = Math.round(intervalMs / 1000)
+            currentAutoInterval.value = intervalSec
+
+            // ✅ 【新增】完整顯示：時間 - 情景描述 - 生成間隔
+            simulationStatus.value = `${status.time}   /   ${status.description}  /  生成間隔: ${intervalSec}s`
 
             // 🎭 新增：在自動模式下更新 currentTimeScenario
             if (status.scenarioMode) {
@@ -857,14 +864,6 @@ onMounted(() => {
                 targetFeatures: status.targetFeatures,
                 timestamp: new Date().toISOString(),
               }
-              if (process.env.DEV) console.log('💾 [MainLayout] 已保存生成的 VD 數據:', window.currentGeneratedVDData)
-            }
-
-            // 獲取當前間隔時間（毫秒轉秒）
-            if (window.autoTrafficGenerator.config && window.autoTrafficGenerator.config.interval) {
-              const intervalMs =
-                window.autoTrafficGenerator.config.interval.normal || window.autoTrafficGenerator.config.interval.min
-              currentAutoInterval.value = Math.round(intervalMs / 1000)
             }
           } else {
             simulationStatus.value = null

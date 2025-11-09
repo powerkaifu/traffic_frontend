@@ -30,7 +30,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, onUnmounted, watch, nextTick } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import gsap from 'gsap'
 import { SplitText } from 'gsap/SplitText'
 

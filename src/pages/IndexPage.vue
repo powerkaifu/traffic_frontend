@@ -1488,8 +1488,6 @@ onMounted(async () => {
     // ✅ 【統一數據線】監聽統一的預測事件（新方式 - 優先使用）
     const handleUnifiedPrediction = (event) => {
       const prediction = event.detail.prediction
-      console.log(`\n✨ [IndexPage 事件監聽] 收到 trafficPredictionReady 事件`)
-      console.log(`  事件詳情:`, event.detail)
       console.log(`  預測物件:`, prediction)
       console.log(`  東西向: ${prediction.east_west_seconds}秒`)
       console.log(`  南北向: ${prediction.south_north_seconds}秒`)
@@ -1851,10 +1849,12 @@ onMounted(async () => {
   let periodicCheckAccumulator = 0 // 用於 Vehicle.js 的 50ms 檢查 (directTrafficLightResponse 等)
   let stuckCheckAccumulator = 0 // 用於 Vehicle.js 的 5000ms 卡車檢查
   let cleanupAccumulator = 0 // 用於 IndexPage.vue 的動態清理 (1000-3000ms)
+  let autoModeUpdateAccumulator = 0 // ✅ 【新增】用於自動模式的時間更新
 
   // 🔍 診斷用：追蹤 DOM 節點和池的狀態
   let diagnosticAccumulator = 0
   const DIAGNOSTIC_INTERVAL = 1000 // 每秒報告一次
+  const AUTO_MODE_UPDATE_INTERVAL = 500 // ✅ 【新增】每 500ms 檢查一次自動模式
 
   function mainSimulationLoop(currentTime) {
     try {
@@ -1870,6 +1870,17 @@ onMounted(async () => {
       // ═══════════════════════════════════════════════════════════════════════
       if (window.autoTrafficGenerator && typeof window.autoTrafficGenerator.update === 'function') {
         window.autoTrafficGenerator.update(clampedDeltaTime)
+      }
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 1.5. ✅ 【新增】更新自動模式狀態（每 500ms 檢查一次時間變化）
+      // ═══════════════════════════════════════════════════════════════════════
+      autoModeUpdateAccumulator += clampedDeltaTime
+      if (autoModeUpdateAccumulator >= AUTO_MODE_UPDATE_INTERVAL) {
+        autoModeUpdateAccumulator = 0
+        if (window.autoTrafficGenerator && typeof window.autoTrafficGenerator.updateAutoMode === 'function') {
+          window.autoTrafficGenerator.updateAutoMode()
+        }
       }
 
       // ═══════════════════════════════════════════════════════════════════════

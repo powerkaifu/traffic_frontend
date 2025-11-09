@@ -57,6 +57,12 @@ export default class AutoTrafficGenerator {
     this.autoModeTimer = null
     this.onTimeUpdate = null // 時間更新回調
 
+    // ✅ 【新增】自動模式時間累積器
+    // 每 37.5 秒實際時間推進 30 分鐘模擬時間
+    // 計算：1800秒 ÷ 48次更新 = 37.5秒/次
+    this.autoModeTimeAccumulator = 0 // 累積的毫秒數
+    this.AUTO_MODE_TIME_UPDATE_INTERVAL = 37500 // 37.5 秒 = 37500 ms
+
     // ==========================================
     // 🎭 手動情景模式相關屬性
     // ==========================================
@@ -320,6 +326,14 @@ export default class AutoTrafficGenerator {
     this.onTimeUpdate = callback
   }
 
+  // ✅ 【新增】公開方法：更新自動模式狀態（由主循環定期調用）
+  // 用途：每幀檢查自動模式是否需要更新（時間變化時更新配置）
+  updateAutoMode() {
+    if (this.isAutoMode) {
+      this._applyTrafficProfile()
+    }
+  }
+
   // 切換自動模式
   toggleAutoMode(enabled) {
     this.isAutoMode = enabled
@@ -348,10 +362,17 @@ export default class AutoTrafficGenerator {
     this._stopScenarioModeLoop()
 
     this.isAutoMode = true
+
+    // ✅ 【新增】重置時間累積器
+    this.autoModeTimeAccumulator = 0
+
     console.log(`🚀 [AUTO MODE] STARTED - _startAutoModeLoop() called`)
 
     // 立即套用一次當前時間的設定
     this._applyTrafficProfile()
+
+    // ✅ 【新增】確保初始回調已執行（用於 UI 立即顯示）
+    console.log(`✅ [AUTO MODE] 初始化完成，時間: ${this.simulationTime.toLocaleTimeString('it-IT')}`)
 
     // ✅ P1 修復：已遷移到 IndexPage mainSimulationLoop 的累加器模式
     // 原因：避免 setInterval 與 RAF 競爭，統一計時器驅動
@@ -384,6 +405,23 @@ export default class AutoTrafficGenerator {
 
     // ⚠️ 【修復】在幀開始時清空當前幀的生成記錄
     this.currentFrameGeneratedVehicles = []
+
+    // ✅ 【新增】自動模式時間推進（每 37.5 秒推進 30 分鐘）
+    if (this.isAutoMode) {
+      this.autoModeTimeAccumulator += deltaTimeMs
+      if (this.autoModeTimeAccumulator >= this.AUTO_MODE_TIME_UPDATE_INTERVAL) {
+        this.autoModeTimeAccumulator = 0
+        // 推進 30 分鐘 (30*60*1000 = 1800000 ms)
+        this.simulationTime.setTime(this.simulationTime.getTime() + 30 * 60 * 1000)
+        console.log(`🕐 [自動模式] 模擬時間推進 30 分鐘 → ${this.simulationTime.toLocaleTimeString('it-IT')}`)
+
+        // ✅ 【新增】時間變化時立即更新配置
+        this._applyTrafficProfile()
+
+        // ✅ 【新增詳細日誌】確認回調是否被觸發
+        console.log(`✅ [update] _applyTrafficProfile 已調用，onTimeUpdate=${!!this.onTimeUpdate}`)
+      }
+    }
 
     // 1. 累加時間
     this.timeSinceLastGenerate += deltaTimeMs
@@ -713,7 +751,23 @@ export default class AutoTrafficGenerator {
       let dirBaseSpeedM, dirBaseSpeedS, dirBaseSpeedL
 
       // 無論自動模式還是手動模式，都使用 speedByType 配置
-      const speedByType = scenario.targetFeatures.speedByType
+      // ✅ 防衛性檢查：確保 targetFeatures 和 speedByType 存在
+      let speedByType = scenario?.targetFeatures?.speedByType
+
+      // 如果 speedByType 不存在，使用備用的速度配置
+      if (!speedByType) {
+        console.warn(`⚠️ [_generateScenarioVDData] scenario.targetFeatures.speedByType 未定義，使用備用方案`, {
+          scenario,
+          targetFeatures: scenario?.targetFeatures,
+        })
+        // 使用默認速度範圍作為備用
+        speedByType = {
+          motor: { min: 30, max: 45 },
+          small: { min: 25, max: 40 },
+          large: { min: 20, max: 35 },
+        }
+      }
+
       dirBaseSpeedM = this._getRandomSpeed(speedByType.motor)
       dirBaseSpeedS = this._getRandomSpeed(speedByType.small)
       dirBaseSpeedL = this._getRandomSpeed(speedByType.large)
@@ -811,8 +865,8 @@ export default class AutoTrafficGenerator {
       vdData: apiDataArray, // 同時提供 vdData 別名，用於 UI 消費
     }
 
-    console.log(`🔍 [RETURN DATA] apiDataArray.length=${returnData.apiDataArray.length}`)
-    console.log(`🔍 [RETURN DATA] Full data:`, JSON.stringify(returnData, null, 2))
+    // console.log(`🔍 [RETURN DATA] apiDataArray.length=${returnData.apiDataArray.length}`)
+    // console.log(`🔍 [RETURN DATA] Full data:`, JSON.stringify(returnData, null, 2))
 
     return returnData
   }
@@ -876,7 +930,7 @@ export default class AutoTrafficGenerator {
   // 根據模擬時間套用交通設定檔，使用於自動模式
   // 🎯 每日自動模式的核心方法：生成 VD 數據 + 傳送 API 預測
   _applyTrafficProfile() {
-    console.log(`🔍 [_applyTrafficProfile] CALLED - isAutoMode=${this.isAutoMode}`)
+    console.log(`🔍 [_applyTrafficProfile] CALLED - isAutoMode=${this.isAutoMode}, onTimeUpdate=${!!this.onTimeUpdate}`)
     // 🔧 CRITICAL FIX：如果已離開自動模式，則不執行
     if (!this.isAutoMode) {
       console.log(`⏸️ [自動模式] 已停止，跳過本次應用`)
@@ -885,11 +939,22 @@ export default class AutoTrafficGenerator {
 
     // 使用統一配置取得當前時段情境
     const scenario = getScenarioByTime(this.simulationTime)
-    const scenarioKey = scenario.key
+    const hour = this.simulationTime.getHours()
+
+    // ✅ 【新增】根據時間判定 scenario key
+    let scenarioKey = 'late_night' // 預設值
+    if ((hour >= 7 && hour < 9) || (hour >= 17 && hour < 19)) {
+      scenarioKey = 'peak_hours' // 早尖峰(7-9) 或晚尖峰(17-19)
+    } else if (hour >= 9 && hour < 17) {
+      scenarioKey = 'off_peak' // 上午、中午、下午
+    } else if (hour >= 19 && hour < 24) {
+      scenarioKey = 'off_peak' // 晚間 (19-24) 也用 off_peak
+    }
+    // else: late_night (0-7, 24-0)
+
     const scenarioConfig = getScenarioByKey(scenarioKey)
 
     // ✅ 新增：自動時段檢測和正規化
-    const hour = this.simulationTime.getHours()
     const timePeriod = getCurrentTimePeriod()
     const normParams = VDNormalizationUtils.getTimePeriodAndParamsByHour('VLRJM60', hour)
 
@@ -904,43 +969,59 @@ export default class AutoTrafficGenerator {
     this.config.peakMultiplier = scenario.peakMultiplier
     this.config.vehicleTypes = scenario.vehicleTypes
 
+    console.log(
+      `📊 [_applyTrafficProfile] 時間: ${this.simulationTime.toLocaleTimeString('it-IT')}, 情景: ${scenarioKey}, 間隔: ${normalInterval}ms`,
+    )
+
     if (scenarioConfig) {
       // 使用情景配置中的 targetFeatures 生成 VD 數據
       const visualVDData = this._generateScenarioVDData(scenarioKey)
 
       // 回傳給 UI (使用視覺層數據用於前端顯示)
-      if (this.onTimeUpdate && visualVDData) {
-        this.onTimeUpdate({
+      // ✅ 【重要修復】無論 visualVDData 是否存在都要調用回調，確保 UI 能立即更新
+      if (this.onTimeUpdate) {
+        const updateData = {
           time: this.simulationTime.toLocaleTimeString('it-IT'),
           description: scenario.description,
-          vdData: visualVDData, // 傳送視覺層數據
-          apiVDData: visualVDData.apiData, // 傳送原始 API 數據
           scenarioMode: scenarioKey, // 🎭 情景 key
           targetFeatures: scenarioConfig.targetFeatures, // 傳遞目標特徵供 UI 參考
+          // ✅ 【新增】傳遞生成間隔信息供 UI 顯示
+          interval: this.config.interval,
           // ✅ 新增：時段和正規化信息
           timePeriod: timePeriod,
           normalizationParams: normParams,
           normalizationInfo: `[正規化] 時段=${timePeriod}, 小時=${hour}:00, displayMultiplier=${normParams.params.displayMultiplier}x`,
-        })
+        }
+
+        // 只有在 VD 數據成功生成時才添加
+        if (visualVDData) {
+          updateData.vdData = visualVDData // 傳送視覺層數據
+          updateData.apiVDData = visualVDData.apiData // 傳送原始 API 數據
+        }
+
+        this.onTimeUpdate(updateData)
+      } else {
+        console.warn(`⚠️ [_applyTrafficProfile] onTimeUpdate 未設置！`)
       }
 
       // 🎯 VD 數據已生成，交由 TrafficLightController.sendDataToBackend() 負責發送 API
       // AutoTrafficGenerator 只負責生成車輛，不負責發送 API
     } else {
+      console.warn(`⚠️ [_applyTrafficProfile] 未找到 scenarioConfig: ${scenarioKey}`)
       // 備用方案：如果沒有找到配置，使用原始邏輯
       if (this.onTimeUpdate) {
         this.onTimeUpdate({
           time: this.simulationTime.toLocaleTimeString('it-IT'),
           description: scenario.description,
-          scenarioMode: 'unknown',
+          scenarioMode: scenarioKey,
+          // ✅ 【新增】傳遞生成間隔信息供 UI 顯示
+          interval: this.config.interval,
           timePeriod: timePeriod,
           normalizationParams: normParams,
         })
       }
     }
-  }
-
-  // 🎯 新增：根據 displayMultiplier 生成視覺層 VD 數據
+  } // 🎯 新增：根據 displayMultiplier 生成視覺層 VD 數據
   // ==========================================
   //  генерирање возила (Vehicle Generation)
   // ==========================================
