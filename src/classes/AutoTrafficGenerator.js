@@ -631,11 +631,6 @@ export default class AutoTrafficGenerator {
       // 使用 pattern 配置中的拉桿間隔進行生成
       const currentInterval = this.config.interval?.normal || 2700
       patternData = generateVDDataByPattern(timePeriod, 'VLRJX20', currentInterval)
-
-      console.log(
-        `🕐 [自動模式] 使用模擬時間=${hour}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}, 時段=${timePeriod}, IsPeakHour=${isPeakHour}`,
-      )
-      console.log(`📊 [自動模式] 使用 VD Pattern: Volume_T=${patternData?.Volume_T}, Speed=${patternData?.Speed}`)
     } else {
       // 手動模式：使用隨機時間配置 + 使用 targetFeatures
       const timeConfig = getTimeConfigForScenario(scenarioKey)
@@ -669,10 +664,6 @@ export default class AutoTrafficGenerator {
       speedM = Math.max(1, Math.min(100, baseSpeedM))
       speedS = Math.max(1, Math.min(100, baseSpeedS))
       speedL = Math.max(1, Math.min(100, baseSpeedL))
-
-      console.log(
-        `📊 [Pattern 數據] Volume_T=${volumeT}, 占有率=${occupancy}%, 速度=${speed}km/h, 車型速度: 機=${speedM}, 小=${speedS}, 大=${speedL}`,
-      )
     } else {
       // 手動模式或無 pattern：使用 targetFeatures 數據
       const features = scenario.targetFeatures
