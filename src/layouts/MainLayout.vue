@@ -109,7 +109,12 @@
 
               <!-- 自動模式狀態顯示 -->
               <div class="simulation-status" v-if="isAutoMode">
-                <span class="time-status">{{ simulationStatus || '⏳ 正在初始化自動模式...' }}</span>
+                <div v-if="simulationStatus" class="auto-mode-display">
+                  <div class="auto-time">{{ simulationStatusTime }}</div>
+                  <div class="auto-scenario">{{ simulationStatusScenario }}</div>
+                  <div class="auto-interval">{{ simulationStatusInterval }}</div>
+                </div>
+                <div v-else class="initializing">⏳ 正在初始化自動模式...</div>
               </div>
 
               <!-- 🎯【新增】VD 情景選擇 - 3 個時段按鈕 -->
@@ -409,6 +414,9 @@ const route = useRoute()
 // 新增：自動模式狀態
 const isAutoMode = ref(false)
 const simulationStatus = ref(null)
+const simulationStatusTime = ref('')
+const simulationStatusScenario = ref('')
+const simulationStatusInterval = ref('')
 const currentAutoInterval = ref(null)
 
 function navigateToSimulation() {
@@ -809,15 +817,18 @@ function toggleAutoMode() {
     let scenarioDesc = ''
 
     if ((hour >= 7 && hour < 9) || (hour >= 17 && hour < 19)) {
-      scenarioDesc = '🚀 尖峰時段'
+      scenarioDesc = '🚀 尖峰時段 - 極高流量'
     } else if (hour >= 9 && hour < 17) {
-      scenarioDesc = '🌞 離峰時段'
+      scenarioDesc = '🌞 離峰時段 - 中等流量'
     } else {
-      scenarioDesc = '🌙 凌晨時段'
+      scenarioDesc = '🌙 凌晨時段 - 極低流量'
     }
 
-    // 使用預設的生成間隔 15 秒
-    simulationStatus.value = `${timeStr}   /   ${scenarioDesc}  /  生成間隔: 15s`
+    // ✅ 分別設置三個 ref 用於美化顯示
+    simulationStatus.value = true // 表示正在初始化
+    simulationStatusTime.value = timeStr
+    simulationStatusScenario.value = scenarioDesc
+    simulationStatusInterval.value = '生成間隔: 15s'
   } else {
     // 切換回手動模式：重置為 INITIAL_VD_SCENARIO
     if (process.env.DEV) console.log(`🔄 [MainLayout] 切換回手動模式 - 設回 ${INITIAL_VD_SCENARIO}`)
@@ -828,6 +839,9 @@ function toggleAutoMode() {
 
     // ✅ 清除模擬狀態
     simulationStatus.value = null
+    simulationStatusTime.value = ''
+    simulationStatusScenario.value = ''
+    simulationStatusInterval.value = ''
   }
 
   if (window.autoTrafficGenerator) {
@@ -867,8 +881,11 @@ onMounted(() => {
             const intervalSec = Math.round(intervalMs / 1000)
             currentAutoInterval.value = intervalSec
 
-            // ✅ 【新增】完整顯示：時間 - 情景描述 - 生成間隔
-            simulationStatus.value = `${status.time}   /   ${status.description}  /  生成間隔: ${intervalSec}s`
+            // ✅ 【新增】分別設置三個 ref 用於美化顯示
+            simulationStatus.value = true
+            simulationStatusTime.value = status.time
+            simulationStatusScenario.value = status.description
+            simulationStatusInterval.value = `生成間隔: ${intervalSec}s`
 
             // 🎭 新增：在自動模式下更新 currentTimeScenario
             if (status.scenarioMode) {
@@ -886,6 +903,9 @@ onMounted(() => {
             }
           } else {
             simulationStatus.value = null
+            simulationStatusTime.value = ''
+            simulationStatusScenario.value = ''
+            simulationStatusInterval.value = ''
             currentAutoInterval.value = null
             // 清空保存的 VD 數據
             window.currentGeneratedVDData = null
@@ -946,11 +966,60 @@ onUnmounted(() => {
   color: #81c784;
   font-size: 12px;
   font-weight: bold;
-  margin-top: 4px;
+  margin-top: 8px;
   text-align: center;
+}
+
+.auto-mode-display {
+  border-radius: 8px;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  justify-content: space-around;
+  gap: 6px;
+  box-shadow: inset 0 0 10px rgba(0, 188, 212, 0.1);
+}
+
+.auto-time {
+  font-size: 16px;
+  font-weight: bold;
+  color: #4dd0e1;
+  letter-spacing: 1px;
+  text-align: center;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.auto-scenario {
+  font-size: 13px;
+  color: #81c784;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.auto-interval {
+  font-size: 12px;
+  color: #ffb74d;
+  text-align: center;
+  background: rgba(255, 183, 77, 0.15);
+  padding: 4px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
+
+.initializing {
+  color: #81c784;
+  font-size: 12px;
+  font-weight: bold;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .interval-status {
