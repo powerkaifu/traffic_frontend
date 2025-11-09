@@ -1110,15 +1110,96 @@ export default class Vehicle {
       return
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // 🚀【優化 P2】將所有邏輯計算從 onUpdate (60fps) 移至此 updateLogic (10fps)
+    // 原因：onUpdate 每秒執行 100*60=6000 次，updateLogic 只執行 100*10=1000 次
+    // 效果：減少 83% 的邏輯計算負載，從 6000/秒 → 1000/秒
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // ⏱️ 從 onUpdate 移來：計算當前速度（每 10Hz 一次，而不是 60Hz）
+    if (this.lastUpdateTime) {
+      const now = Date.now()
+      const deltaTime = (now - this.lastUpdateTime) / 1000
+
+      if (deltaTime > 0 && this.element) {
+        const currentPos = this.getCurrentPosition()
+        const deltaDistance = Math.sqrt(
+          Math.pow(currentPos.x - (this._lastLogicPos?.x || currentPos.x), 2) +
+            Math.pow(currentPos.y - (this._lastLogicPos?.y || currentPos.y), 2),
+        )
+
+        const pixelSpeed = deltaDistance / deltaTime
+        const meterSpeed = (pixelSpeed / 100) * 15
+        let kmhSpeed = meterSpeed * 3.6
+
+        // 🌤️ 應用天氣影響到速度計算
+        const weatherMultiplier = this.getWeatherSpeedMultiplier()
+        kmhSpeed *= weatherMultiplier
+
+        this.currentSpeed = Math.round(kmhSpeed)
+        this.maxSpeed = Math.max(this.maxSpeed, this.currentSpeed)
+        this._lastLogicPos = currentPos
+      }
+      this.lastUpdateTime = now
+    } else {
+      this.lastUpdateTime = Date.now()
+      this._lastLogicPos = this.getCurrentPosition()
+    }
+
     // 🚨 已通過停止線的車輛無需決策邏輯
     // （它們已經被綠燈釋放，只需保持勻速前進）
     if (this.hasPassedStopLine) {
-      return
+      // ⏱️ 從 onUpdate 移來：轉向速度控制（只在經過停止線後）
+      if (TURN_SPEED_CONFIG.TURN_DETECTION.ENABLED && this.movementTimeline) {
+        const isOnTurnSection = this.isOnTurnSection()
+
+        if (isOnTurnSection) {
+          const turnRadius = this.estimateTurnRadius()
+          const maxTurnSpeedRatio = this.calculateMaxTurnSpeed(turnRadius)
+          const currentTimeScale = this.movementTimeline.timeScale()
+
+          if (currentTimeScale > maxTurnSpeedRatio + 0.05) {
+            this.movementTimeline.timeScale(maxTurnSpeedRatio)
+            if (TURN_SPEED_CONFIG.DEBUG.ENABLED) {
+              console.log(`🔄 [${this.id}] 轉向減速: radius=${turnRadius}, speedRatio=${maxTurnSpeedRatio.toFixed(2)}`)
+            }
+          }
+        } else {
+          const currentTimeScale = this.movementTimeline.timeScale()
+          if (currentTimeScale < 0.95) {
+            this.movementTimeline.timeScale(1)
+          }
+        }
+      }
+
+      // ⏱️ 從 onUpdate 移來：邊界檢查（10fps 而不是 60fps）
+      if (this.element) {
+        const currentPos = this.getCurrentPosition()
+        const isOutOfBounds = this.checkOutOfBounds(currentPos)
+
+        if (isOutOfBounds && this.onVehicleOutOfBoundsCallback && !this._hasBeenRemovedFromLogic) {
+          this._hasBeenRemovedFromLogic = true
+          this.onVehicleOutOfBoundsCallback(this)
+        }
+      }
+
+      return // 停止線後無需進一步決策
     }
 
     // 【決策邏輯 1】停止線檢查和紅綠燈控制流程
     // 這是最重要的決策邏輯，負責車輛何時可以通過停止線
     this.checkStopLineAndRespond(trafficController, allVehicles)
+
+    // ⏱️ 從 onUpdate 移來：邊界檢查（停止線前也要檢查）
+    if (this.element) {
+      const currentPos = this.getCurrentPosition()
+      const isOutOfBounds = this.checkOutOfBounds(currentPos)
+
+      if (isOutOfBounds && this.onVehicleOutOfBoundsCallback && !this._hasBeenRemovedFromLogic) {
+        this._hasBeenRemovedFromLogic = true
+        this.onVehicleOutOfBoundsCallback(this)
+      }
+    }
   }
 
   // Static Method: 獲取指定方向和車道的路徑起始位置
@@ -1244,118 +1325,20 @@ export default class Vehicle {
               this.lastMovementTime = Date.now()
             },
             onUpdate: () => {
-              // � 第1階段優化：每幀重建 SpatialHashGrid（用於優化碰撞檢測）
-              // 原因：100輛車 × 每輛車onUpdate = 每幀100次rebuildSpatialGrid → 卡頓
-              // if (allVehicles.length > 0) {
-              //   CollisionController.rebuildSpatialGrid(allVehicles)
-              // }
+              // ═══════════════════════════════════════════════════════════════════════
+              // 🚀【優化 P2】onUpdate (60fps) 已淨空 - 只保留必要的渲染狀態更新
+              // 所有邏輯計算已移至 updateLogic (10fps)：
+              //   ✅ 速度計算 → updateLogic
+              //   ✅ 轉向速度控制 → updateLogic
+              //   ✅ 邊界檢查 → updateLogic
+              // ═══════════════════════════════════════════════════════════════════════
 
-              // �🚨 防守：車輛已銷毀時，不執行更新邏輯（車輛可能已被移除，但GSAP動畫仍繼續執行）
               if (!this.element) {
                 return
               }
 
-              // 🚨 移動中持續更新時間
               this.lastMovementTime = Date.now()
-
-              // 計算當前速度（與原方法相同的邏輯）
-              const currentPos = this.getCurrentPosition()
-              const currentTime = Date.now()
-              const deltaTime = (currentTime - lastTime) / 1000
-
-              if (deltaTime > 0) {
-                const deltaDistance = Math.sqrt(
-                  Math.pow(currentPos.x - lastPosition.x, 2) + Math.pow(currentPos.y - lastPosition.y, 2),
-                )
-                const pixelSpeed = deltaDistance / deltaTime
-                const meterSpeed = (pixelSpeed / 100) * 15
-                let kmhSpeed = meterSpeed * 3.6
-
-                // 🌤️ 應用天氣影響到速度計算
-                const weatherMultiplier = this.getWeatherSpeedMultiplier()
-                kmhSpeed *= weatherMultiplier
-
-                this.currentSpeed = Math.round(kmhSpeed)
-                this.maxSpeed = Math.max(this.maxSpeed, this.currentSpeed)
-                lastPosition = currentPos
-                lastTime = currentTime
-              }
-
-              // 🚨 P0 FIX #2：轉向速度控制 - 檢查是否在轉向區域
-              let isOnTurnSection = false
-              if (this.hasPassedStopLine && TURN_SPEED_CONFIG.TURN_DETECTION.ENABLED) {
-                isOnTurnSection = this.isOnTurnSection()
-
-                if (isOnTurnSection) {
-                  // 車輛正在轉向：應用轉向速度限制
-                  const turnRadius = this.estimateTurnRadius()
-                  const maxTurnSpeedRatio = this.calculateMaxTurnSpeed(turnRadius)
-                  const currentTimeScale = this.movementTimeline.timeScale()
-
-                  // 只在需要減速時調整（避免不必要的動畫）
-                  if (currentTimeScale > maxTurnSpeedRatio + 0.05) {
-                    // 🚨 直接設置，避免重複創建動畫
-                    this.movementTimeline.timeScale(maxTurnSpeedRatio)
-                    if (TURN_SPEED_CONFIG.DEBUG.ENABLED) {
-                      console.log(
-                        `🔄 [${this.id}] 轉向減速: radius=${turnRadius}, speedRatio=${maxTurnSpeedRatio.toFixed(2)}`,
-                      )
-                    }
-                  }
-                } else if (this.hasPassedStopLine) {
-                  // 不在轉向區域：可以恢復正常速度
-                  const currentTimeScale = this.movementTimeline.timeScale()
-                  if (currentTimeScale < 0.95) {
-                    // 🚨 直接設置，避免重複創建動畫
-                    this.movementTimeline.timeScale(1)
-                  }
-                }
-              }
-
-              // 檢測佈局變化
               this.checkLayoutChange()
-
-              // 檢查是否離開畫面邊界
-              const isOutOfBounds = this.checkOutOfBounds(currentPos)
-              if (isOutOfBounds && !hasBeenRemovedFromCollision && onVehicleOutOfBounds) {
-                hasBeenRemovedFromCollision = true
-                // ✅ 傳遞完整的 vehicle 實例（與 onComplete 一致）
-                onVehicleOutOfBounds(this)
-                // 修復：避免車輛突然消失，讓動畫自然完成
-                return
-              }
-
-              // � 【優化】已通過停止線的車輛無需碰撞檢測和跟隨
-              // 在綠燈通行時，車子只需保持勻速前進，跳過所有碰撞邏輯
-              // 【優化】已通過停止線的車輛無需碰撞檢測和跟隨
-              // 在綠燈通行時，車子只需保持勻速前進，跳過所有碰撞邏輯
-              if (this.hasPassedStopLine) {
-                // 車輛已通過停止線，恢復到正常速度並繼續前進
-                if (this.movementTimeline && !isOnTurnSection) {
-                  const currentTimeScale = this.movementTimeline.timeScale()
-                  if (currentTimeScale < 0.95) {
-                    // 🚨 直接設置，避免重複創建動畫
-                    this.movementTimeline.timeScale(1)
-                    this.currentState = 'throughIntersection'
-                  }
-                }
-                return // 跳過所有碰撞檢測和跟隨邏輯
-              }
-
-              // �🚨 簡化碰撞檢測系統 - 區分第一台車和後續車輛
-              // ✅ Phase 5E: 綠燈優先邏輯 - 移除「綠燈後立即加速時的碰撞」
-              // 當燈號變綠且車輛準備通過停止線時，無條件加速（跳過碰撞檢測）
-              // ═══════════════════════════════════════════════════════════════════════
-              // 【Phase 3 - 碰撞檢測遷移】✅ 碰撞邏輯已移至 IndexPage.vue mainSimulationLoop
-              // 此處移除所有碰撞檢測邏輯（每幀執行 60Hz），改由 IndexPage.vue 50ms 執行一次
-              // 預期效果：減少 67% 的碰撞檢測調用（從 6000/秒 → 2000/秒）
-              // ═══════════════════════════════════════════════════════════════════════
-
-              // 🚨 【P2 修復】移除停止線檢查邏輯
-              // 原因：checkStopLineAndRespond() 每幀執行 60 次，造成大量決策調用
-              // 改由：Vehicle.updateLogic() 每 100ms 執行一次（10fps），由 IndexPage 控制
-              // 效果：減少 85% 的決策調用（從 6000/秒 → 1000/秒）
-              // ✅ 關鍵邏輯已保留在 updateLogic() 方法中
             },
             onComplete: () => {
               // 清理定期檢查定時器
