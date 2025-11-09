@@ -801,7 +801,23 @@ function toggleAutoMode() {
     // 切換到自動模式：移除按鈕的 active 狀態
     if (process.env.DEV) console.log('🔄 [MainLayout] 切換到自動模式 - 清除情景選擇')
     selectedVDScenario.value = null
-    // ✅ 不要預設置「正在初始化」，讓 _applyTrafficProfile 直接更新
+
+    // ✅ 【新增】立即顯示初始狀態，避免一直卡在「正在初始化」
+    const now = new Date()
+    const timeStr = now.toLocaleTimeString('it-IT')
+    const hour = now.getHours()
+    let scenarioDesc = ''
+
+    if ((hour >= 7 && hour < 9) || (hour >= 17 && hour < 19)) {
+      scenarioDesc = '🚀 尖峰時段'
+    } else if (hour >= 9 && hour < 17) {
+      scenarioDesc = '🌞 離峰時段'
+    } else {
+      scenarioDesc = '🌙 凌晨時段'
+    }
+
+    // 使用預設的生成間隔 15 秒
+    simulationStatus.value = `${timeStr}   /   ${scenarioDesc}  /  生成間隔: 15s`
   } else {
     // 切換回手動模式：重置為 INITIAL_VD_SCENARIO
     if (process.env.DEV) console.log(`🔄 [MainLayout] 切換回手動模式 - 設回 ${INITIAL_VD_SCENARIO}`)
@@ -809,6 +825,9 @@ function toggleAutoMode() {
     currentTimeScenario.value = INITIAL_VD_SCENARIO
     manualInterval.value = 1000 // 重置拉桿到 1s
     updateGenerationConfig()
+
+    // ✅ 清除模擬狀態
+    simulationStatus.value = null
   }
 
   if (window.autoTrafficGenerator) {
