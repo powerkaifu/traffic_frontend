@@ -201,7 +201,7 @@ export const timeScenarios = [
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
       vehiclesPerInterval: { min: 1, max: 1 }, // 👈 🎯 每個 interval 只生成 1 台車
-      interval: { min: 15000, max: 30000, normal: 10000 }, // ⏱️ 生成間隔 15-30 秒（超級稀疏）
+      interval: { min: 15000, max: 30000, normal: 15000 }, // ⏱️ 生成間隔 15-30 秒（超級稀疏）
       peakMultiplier: 1.0, // 👈 凌晨不加倍
       displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier, // ✅ 從配置讀取（預設為 1.0）
 
@@ -274,227 +274,219 @@ export const vehicleMixes = {
  * - interval.normal：該時段的平均生成間隔（毫秒）
  * - peakMultiplier：該時段的強度倍數（越大越密集）
  * - 實際生成間隔 = interval.normal / peakMultiplier
+ *
+ * 💡 設計原則：
+ * - 凌晨（00:00-06:00）: 極低流量，機車為主
+ * - 清晨過渡（06:00-07:00）: 逐漸增加
+ * - 早尖峰（07:00-09:00）: 極高流量（最高峰）
+ * - 上午（09:00-11:00）: 開始下降
+ * - 午間（11:00-14:00）: 穩定離峰
+ * - 下午（14:00-16:00）: 略升
+ * - 傍晚過渡（16:00-17:00）: 逐漸升高
+ * - 晚尖峰（17:00-19:00）: 極高流量（第二高峰）
+ * - 晚間下降（19:00-21:00）: 逐漸下降
+ * - 深夜（21:00-24:00）: 回到極低流量
  */
 export function getScenarioByTime(currentTime) {
   const currentHour = currentTime.getHours()
 
   // ==========================================
-  // 🌙 午夜-清晨時段 (00:00-07:00)
+  // 🌙 深夜時段 (00:00-06:00)
   // ==========================================
-
-  // 00:00-06:00 深夜（凌晨低峰）
-  // 參考：late_night 情景模式
+  // 特點：極低流量，以機車為主，生成間隔最長
   if (currentHour >= 0 && currentHour < 6) {
     return {
-      name: '深夜',
-      interval: { min: 15000, max: 40000, normal: 20000 },
+      name: `凌晨 ${currentHour}:00`,
+      interval: { min: 10000, max: 20000, normal: 15000 }, // 15 秒平均
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 1 },
       vehicleTypes: [
-        { type: 'motor', weight: 60 },
-        { type: 'small', weight: 40 },
-        { type: 'large', weight: 0 },
+        { type: 'motor', weight: 60 }, // 凌晨以機車為主
+        { type: 'small', weight: 35 },
+        { type: 'large', weight: 5 },
       ],
-      description: '深夜時段 - 極低流量',
+      description: '🌙 凌晨時段 - 極低流量 (0-6 點)',
     }
   }
 
-  // 06:00-07:00 清晨（開始增加）
-  // 參考：late_night → off_peak 過渡
+  // ==========================================
+  // 🌄 清晨時段 (06:00-07:00)
+  // ==========================================
+  // 特點：流量開始增加，準備進入上班時間
   else if (currentHour >= 6 && currentHour < 7) {
     return {
-      name: '清晨',
-      interval: { min: 12000, max: 20000, normal: 16000 },
+      name: '清晨 06:00',
+      interval: { min: 6000, max: 10000, normal: 6000 }, // 6 秒平均
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 1 },
-      vehicleTypes: [
-        { type: 'motor', weight: 55 },
-        { type: 'small', weight: 40 },
-        { type: 'large', weight: 5 },
-      ],
-      description: '清晨時段 - 低流量（過渡段：late_night→peak_hours）',
-    }
-  }
-
-  // ==========================================
-  // 🌅 早晨尖峰時段 (07:00-11:00)
-  // ==========================================
-
-  // 07:00-09:00 早尖峰（最高峰）
-  // 參考：peak_hours 情景模式
-  else if (currentHour >= 7 && currentHour < 9) {
-    return {
-      name: '早尖峰',
-      // 與手動情景 peak_hours 保持一致：更短的平均生成間隔與較高的每 interval 車量
-      interval: { min: 2000, max: 8000, normal: 3500 },
-      peakMultiplier: 1.0,
-      displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 1 },
-      vehicleTypes: [
-        { type: 'motor', weight: 40 },
-        { type: 'small', weight: 50 },
-        { type: 'large', weight: 10 },
-      ],
-      description: '早尖峰時段 - 極高流量',
-    }
-  }
-
-  // 09:00-11:00 上午（略降至中等）
-  // 參考：peak_hours → off_peak 過渡
-  else if (currentHour >= 9 && currentHour < 11) {
-    return {
-      name: '上午',
-      interval: { min: 5000, max: 9000, normal: 7500 },
-      peakMultiplier: 1.0,
-      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 1 },
-      vehicleTypes: [
-        { type: 'motor', weight: 35 },
-        { type: 'small', weight: 55 },
-        { type: 'large', weight: 10 },
-      ],
-      description: '上午時段 - 中等流量（過渡段：peak_hours→off_peak）',
-    }
-  }
-
-  // ==========================================
-  // ☀️ 中午時段 (11:00-17:00)
-  // ==========================================
-
-  // 11:00-14:00 午間（穩定離峰）
-  // 參考：off_peak 情景模式
-  else if (currentHour >= 11 && currentHour < 14) {
-    return {
-      name: '午間',
-      interval: { min: 5000, max: 10000, normal: 8500 },
-      peakMultiplier: 1.0,
-      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 1 },
-      vehicleTypes: [
-        { type: 'motor', weight: 30 },
-        { type: 'small', weight: 65 },
-        { type: 'large', weight: 5 },
-      ],
-      description: '午間時段 - 中等流量',
-    }
-  }
-
-  // 14:00-16:00 下午（穩定離峰，略升）
-  // 參考：off_peak 情景模式
-  else if (currentHour >= 14 && currentHour < 16) {
-    return {
-      name: '下午',
-      interval: { min: 5000, max: 10000, normal: 8500 },
-      peakMultiplier: 1.0,
-      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 1 },
-      vehicleTypes: [
-        { type: 'motor', weight: 32 },
-        { type: 'small', weight: 63 },
-        { type: 'large', weight: 5 },
-      ],
-      description: '下午時段 - 中等流量',
-    }
-  }
-
-  // ==========================================
-  // 🌆 傍晚尖峰時段 (16:00-21:00)
-  // ==========================================
-
-  // 16:00-17:00 傍晚前（開始壅塞）
-  // 參考：off_peak → peak_hours 過渡
-  else if (currentHour >= 16 && currentHour < 17) {
-    return {
-      name: '傍晚前',
-      interval: { min: 4000, max: 9000, normal: 7000 },
-      peakMultiplier: 1.0,
-      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 1 },
-      vehicleTypes: [
-        { type: 'motor', weight: 36 },
-        { type: 'small', weight: 58 },
-        { type: 'large', weight: 6 },
-      ],
-      description: '傍晚前時段 - 高流量（過渡段：off_peak→peak_hours）',
-    }
-  }
-
-  // 17:00-19:00 晚尖峰（高峰）
-  // 參考：peak_hours 情景模式
-  else if (currentHour >= 17 && currentHour < 19) {
-    return {
-      name: '晚尖峰',
-      // 與手動情景 peak_hours 保持一致
-      interval: { min: 2000, max: 8000, normal: 3500 },
-      peakMultiplier: 1.0,
-      displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 1 },
-      vehicleTypes: [
-        { type: 'motor', weight: 40 },
-        { type: 'small', weight: 50 },
-        { type: 'large', weight: 10 },
-      ],
-      description: '晚尖峰時段 - 極高流量',
-    }
-  }
-
-  // 19:00-21:00 晚間（逐漸降低）
-  // 參考：peak_hours → off_peak 過渡
-  else if (currentHour >= 19 && currentHour < 21) {
-    return {
-      name: '晚間',
-      interval: { min: 5000, max: 10000, normal: 8500 },
-      peakMultiplier: 1.0,
-      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 1 },
-      vehicleTypes: [
-        { type: 'motor', weight: 32 },
-        { type: 'small', weight: 63 },
-        { type: 'large', weight: 5 },
-      ],
-      description: '晚間時段 - 中等流量',
-    }
-  }
-
-  // ==========================================
-  // 🌃 夜間時段 (21:00-23:00)
-  // ==========================================
-
-  // 21:00-23:00 深夜前（持續降低）
-  // 參考：off_peak → late_night 過渡
-  else if (currentHour >= 21 && currentHour < 23) {
-    return {
-      name: '深夜前',
-      interval: { min: 12000, max: 20000, normal: 16000 },
-      peakMultiplier: 1.0,
-      displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 1 },
+      vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
         { type: 'motor', weight: 50 },
-        { type: 'small', weight: 45 },
-        { type: 'large', weight: 5 },
+        { type: 'small', weight: 40 },
+        { type: 'large', weight: 10 },
       ],
-      description: '深夜前時段 - 低流量（過渡段：off_peak→late_night）',
+      description: '🌄 清晨時段 - 低流量 (6-7 點)',
     }
   }
 
-  // 23:00-24:00 深夜（回到低峰）
-  // 參考：late_night 情景模式
+  // ==========================================
+  // 🌅 早尖峰時段 (07:00-09:00)
+  // ==========================================
+  // 特點：最高峰期之一，上班時間，流量密集
+  else if (currentHour >= 7 && currentHour < 9) {
+    return {
+      name: `早尖峰 ${currentHour}:00`,
+      interval: { min: 1800, max: 5000, normal: 2000 }, // 2.5 秒平均（最短）
+      peakMultiplier: 1.0,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier, // 尖峰設定
+      vehiclesPerInterval: { min: 1, max: 3 }, // 允許一次生成 1-2 台
+      vehicleTypes: [
+        { type: 'motor', weight: 45 },
+        { type: 'small', weight: 45 },
+        { type: 'large', weight: 10 },
+      ],
+      description: '🚀 早尖峰時段 - 極高流量 (7-9 點)',
+    }
+  }
+
+  // ==========================================
+  // 🌤️ 上午過渡時段 (09:00-11:00)
+  // ==========================================
+  // 特點：流量開始下降，但仍保持中等以上
+  else if (currentHour >= 9 && currentHour < 11) {
+    return {
+      name: `上午 ${currentHour}:00`,
+      interval: { min: 4500, max: 10000, normal: 4000 }, // 7 秒平均
+      peakMultiplier: 1.0,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // 切換到離峰
+      vehiclesPerInterval: { min: 1, max: 3 },
+      vehicleTypes: [
+        { type: 'motor', weight: 38 },
+        { type: 'small', weight: 52 },
+        { type: 'large', weight: 10 },
+      ],
+      description: '🌤️ 上午時段 - 中等流量 (9-11 點)',
+    }
+  }
+
+  // ==========================================
+  // ☀️ 午間時段 (11:00-14:00)
+  // ==========================================
+  // 特點：離峰時段，流量穩定較低
+  else if (currentHour >= 11 && currentHour < 14) {
+    return {
+      name: `午間 ${currentHour}:00`,
+      interval: { min: 3000, max: 8000, normal: 3000 }, // 4 秒平均
+      peakMultiplier: 1.0,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // 離峰設定
+      vehiclesPerInterval: { min: 1, max: 3 },
+      vehicleTypes: [
+        { type: 'motor', weight: 35 },
+        { type: 'small', weight: 58 },
+        { type: 'large', weight: 7 },
+      ],
+      description: '☀️ 午間時段 - 中等流量 (11-14 點)',
+    }
+  }
+
+  // ==========================================
+  // 🌝 下午時段 (14:00-16:00)
+  // ==========================================
+  // 特點：離峰但略升，開始準備傍晚
+  else if (currentHour >= 14 && currentHour < 16) {
+    return {
+      name: `下午 ${currentHour}:00`,
+      interval: { min: 2000, max: 10000, normal: 2500 }, // 8 秒平均
+      peakMultiplier: 1.0,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // 離峰設定
+      vehiclesPerInterval: { min: 1, max: 3 },
+      vehicleTypes: [
+        { type: 'motor', weight: 36 },
+        { type: 'small', weight: 57 },
+        { type: 'large', weight: 7 },
+      ],
+      description: '🌝 下午時段 - 中等流量 (14-16 點)',
+    }
+  }
+
+  // ==========================================
+  // 🌆 傍晚過渡時段 (16:00-17:00)
+  // ==========================================
+  // 特點：逐漸升高，準備進入晚尖峰
+  else if (currentHour >= 16 && currentHour < 17) {
+    return {
+      name: '傍晚 16:00',
+      interval: { min: 1000, max: 8000, normal: 2500 }, // 6 秒平均
+      peakMultiplier: 1.0,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // 過渡中
+      vehiclesPerInterval: { min: 1, max: 3 },
+      vehicleTypes: [
+        { type: 'motor', weight: 42 },
+        { type: 'small', weight: 48 },
+        { type: 'large', weight: 10 },
+      ],
+      description: '🌆 傍晚過渡 - 高流量 (16-17 點)',
+    }
+  }
+
+  // ==========================================
+  // 🌇 晚尖峰時段 (17:00-19:00)
+  // ==========================================
+  // 特點：最高峰期之二，下班時間，流量密集
+  else if (currentHour >= 17 && currentHour < 19) {
+    return {
+      name: `晚尖峰 ${currentHour}:00`,
+      interval: { min: 1800, max: 5000, normal: 2000 }, // 2.5 秒平均（與早尖峰相同）
+      peakMultiplier: 1.0,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier, // 尖峰設定
+      vehiclesPerInterval: { min: 1, max: 3 }, // 允許一次生成 1-2 台
+      vehicleTypes: [
+        { type: 'motor', weight: 45 },
+        { type: 'small', weight: 45 },
+        { type: 'large', weight: 10 },
+      ],
+      description: '🌇 晚尖峰時段 - 極高流量 (17-19 點)',
+    }
+  }
+
+  // ==========================================
+  // 🌃 晚間下降時段 (19:00-21:00)
+  // ==========================================
+  // 特點：逐漸下降，從尖峰回到離峰
+  else if (currentHour >= 19 && currentHour < 21) {
+    return {
+      name: `晚間 ${currentHour}:00`,
+      interval: { min: 1000, max: 11000, normal: 2500 }, // 8 秒平均
+      peakMultiplier: 1.0,
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // 切換回離峰
+      vehiclesPerInterval: { min: 1, max: 3 },
+      vehicleTypes: [
+        { type: 'motor', weight: 40 },
+        { type: 'small', weight: 50 },
+        { type: 'large', weight: 10 },
+      ],
+      description: '🌃 晚間時段 - 中等流量 (19-21 點)',
+    }
+  }
+
+  // ==========================================
+  // � 夜間時段 (21:00-24:00)
+  // ==========================================
+  // 特點：回到極低流量，接近凌晨
   else {
     return {
-      name: '深夜',
-      interval: { min: 15000, max: 40000, normal: 20000 },
+      name: `夜間 ${currentHour}:00`,
+      interval: { min: 2000, max: 8000, normal: 3500 }, // 20 秒平均
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 1 },
+      vehiclesPerInterval: { min: 1, max: 2 },
       vehicleTypes: [
-        { type: 'motor', weight: 60 },
-        { type: 'small', weight: 40 },
-        { type: 'large', weight: 0 },
+        { type: 'motor', weight: 55 },
+        { type: 'small', weight: 38 },
+        { type: 'large', weight: 7 },
       ],
-      description: '深夜時段 - 極低流量',
+      description: '🌌 夜間時段 - 低流量 (21-24 點)',
     }
   }
 }

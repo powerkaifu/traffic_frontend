@@ -402,7 +402,7 @@ import { VD_DISPLAY_CONFIG } from 'src/classes/config/vdDisplayConfig.js'
 
 // 🎛️ 統一初始化常數 - 只需改這一個地方！
 // 選項: 'peak_hours' | 'off_peak' | 'late_night'
-const INITIAL_VD_SCENARIO = 'peak_hours' // ← 改這裡快速切換預設情景
+const INITIAL_VD_SCENARIO = 'off_peak' // ← 改這裡快速切換預設情景
 
 const router = useRouter()
 const route = useRoute()
