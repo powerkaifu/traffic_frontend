@@ -1165,33 +1165,27 @@ export default class TrafficLightController {
       // 根據實際車輛數線性映射到占有率，不受時段限制
 
       const occupancyConfig = {
-        // ⭐ v7.1 修復：maxVehicles 過小導致占有率 100% 的問題
-        // 原問題：27輛車 / 20輛上限 = 135% → 被上限到 100%
-        // 修復：提高 maxVehicles 到 200，使尖峰時期對應 12-16% 占有率
+        // ⭐ v8 修復：maxVehicles 應該基於每個方向的實際容量
+        // 每方向容量計算：MAX_VEHICLES_PER_LANE(6) × 車道數(4) = 24 輛
+        // 使用 STOP_LINE_VEHICLE_LIMITS[direction] 作為該方向的最大容量
+        // 占有率 = 實際車輛數 / 該方向最大容量 × 100%
+        // 例子：20 輛 / 24 輛 × 100 = 83.3%（空間占有率）
         // SHAP：IsPeakHour(29.41) > Occupancy(9.36) > Hour(4.11) > Volume_S(3.10)
         baselineVehicles: 50, // 50 輛 → 25%（低流量基準）
         midpointVehicles: 100, // 100 輛 → 50%（中點）
-        maxVehicles: 200, // 200 輛 → 100%（大幅提高，防止超限）
+        maxVehicles: STOP_LINE_VEHICLE_LIMITS[direction] || 24, // ✅ 使用該方向的實際限制（預設 24 輛）
         randomRange: 3, // 隨機波動 ±3%（減少波動）
       }
 
       // ✅ 修復公式：線性映射 0-100%，但不會超限
-      // 28 輛 → 14% (在 12-16% 目標範圍內) ✅
+      // 20 輛 → 83% (20/24*100) - 空間占有率 ✅
       const vehicleRatio = Math.min(totalVehicles / occupancyConfig.maxVehicles, 1.0)
       let occupancyBase = vehicleRatio * 100 // 線性計算：0-100%，上限 100%
 
       // ✅ 添加方向特定的波動係數，確保各方向占有率不同
-      // v7.1 修復：降低係數避免超限
-      const directionBias = {
-        east: 1.0, // 東向：正常（避免 1.2 導致超限）
-        west: 0.95, // 西向：略低 5%
-        south: 0.98, // 南向：略低 2%
-        north: 0.9, // 北向：低 10%
-      }
-      const directionFactor = directionBias[direction] || 1.0
-
-      // 應用方向係數
-      let occupancyValue = occupancyBase * directionFactor
+      // ⭐ v8 修復：移除方向係數，占有率應該是純粹的空間百分比
+      // 不應該因方向而有偏差，每個方向用各自的 maxVehicles 計算
+      let occupancyValue = occupancyBase
 
       // 加入隨機波動（只在 API 初期添加，避免波動過大）
       if (this.apiCallCount === 1 || this.apiCallCount === 2) {
