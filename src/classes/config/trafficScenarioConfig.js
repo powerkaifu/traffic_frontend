@@ -79,12 +79,13 @@ export const timeScenarios = [
       { start: 17, end: 19 },
     ],
 
-    // 早峰/晚峰：7輛/車道，占有率 10%，速度 38-45 km/h
+    // 早峰/晚峰：7輛/車道，占有率 40%（偵測器占用率標準），速度 42 km/h
     // 🎭 API 層：後端接收的原始數據（不放大）
-    // 📊 調整邏輯：降低生成數據以避免後端飽和（99秒）
+    // 📊 調整邏輯：基於偵測器占用率標準，車流繁忙但仍可流動
     targetFeatures: {
-      totalVolumePer5Min: 7, // 每輞道：7 輛/5分鐘（從 11 降低 36%）
-      occupancy: 10, // 佔有率：10%（從 14 降低 29%）
+      totalVolumePer5Min: 7, // 每輞道：7 輛/5分鐘
+      occupancy: 40, // 🎯 佔有率：40%（偵測器占用率標準 - 車流繁忙期）
+      occupancyRange: [35, 45], // 🎯 佔有率波動範圍：35-45%（±5%）
       speed: 42, // 平均速度：42 km/h
       volumeByType: {
         motor: 5, // 機車：約 50%
@@ -136,10 +137,11 @@ export const timeScenarios = [
     ],
 
     // 🎯 目標特徵（基於 VD 配置文檔統計數據）
-    // 中午/晚間：3-4輛/車道，占有率 6-8%，速度 50-55 km/h
+    // 中午/晚間：3-4輛/車道，占有率 12%（暢通狀態上限），速度 52 km/h
     targetFeatures: {
       totalVolumePer5Min: 4, // 每車道：3-4 輛/5分鐘（原始數據）
-      occupancy: 7, // 佔有率：6-8%（原始數據）
+      occupancy: 12, // 🎯 佔有率：12%（偵測器占用率標準 - 暢通狀態）
+      occupancyRange: [9, 15], // 🎯 佔有率波動範圍：9-15%（±3%）
       speed: 52, // 平均速度：52 km/h
       volumeByType: {
         motor: 4, // 機車：約 40%
@@ -194,10 +196,11 @@ export const timeScenarios = [
     ],
 
     // 🎯 目標特徵（基於 VD 配置文檔統計數據）
-    // 凌晨：0-1輛/車道，占有率 2%，速度 58-60 km/h
+    // 凌晨：0-1輛/車道，占有率 3%（暢通狀態），速度 58-60 km/h
     targetFeatures: {
       totalVolumePer5Min: 1, // 每車道：0-1 輛/5分鐘（原始數據）
-      occupancy: 2, // 佔有率：2%（原始數據，極低）
+      occupancy: 3, // 🎯 佔有率：3%（偵測器占用率標準 - 極度暢通）
+      occupancyRange: [2, 4], // 🎯 佔有率波動範圍：2-4%（±1%）
       speed: 59, // 平均速度：59 km/h（流量少，速度快）
       volumeByType: {
         motor: 0.6, // 機車：主要是機車

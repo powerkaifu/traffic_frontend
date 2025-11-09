@@ -688,10 +688,24 @@ export default class AutoTrafficGenerator {
       const totalVolume = volumeM + volumeS + volumeL
       speed = totalVolume > 0 ? Math.round((speedM * volumeM + speedS * volumeS + speedL * volumeL) / totalVolume) : 0
 
-      // ✅ 佔有率
-      occupancy = Math.round(
-        features.occupancyRange[0] + Math.random() * (features.occupancyRange[1] - features.occupancyRange[0]),
-      )
+      // ✅ 佔有率：使用 occupancyRange 範圍，或使用 occupancy 作為中心值
+      if (features.occupancyRange && Array.isArray(features.occupancyRange)) {
+        // 有設定佔有率範圍：在範圍內隨機
+        occupancy = Math.round(
+          features.occupancyRange[0] + Math.random() * (features.occupancyRange[1] - features.occupancyRange[0]),
+        )
+      } else if (features.occupancy) {
+        // 無範圍但有基礎佔有率：使用 ±5% 的變動
+        const baseOccupancy = features.occupancy
+        const range = Math.max(5, Math.round(baseOccupancy * 0.15)) // 至少 ±5%，或基礎值的 15%
+        occupancy = Math.round(
+          baseOccupancy - range + Math.random() * (range * 2),
+        )
+      } else {
+        // 完全沒有：使用預設值
+        occupancy = Math.round(5 + Math.random() * 35) // 5-40%
+      }
+      occupancy = Math.max(0, Math.min(100, occupancy)) // 確保在 0-100% 範圍內
     }
 
     // ✅ 聯結車禁止進入，不需計算 speedT
