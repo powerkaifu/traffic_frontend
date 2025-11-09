@@ -933,13 +933,11 @@ export default class AutoTrafficGenerator {
     const timePeriod = getCurrentTimePeriod()
     const normParams = VDNormalizationUtils.getTimePeriodAndParamsByHour('VLRJM60', hour)
 
-    // interval.normal 加入隨機波動 ±10%
-    const rand = 0.9 + Math.random() * 0.2
-    const normalInterval = Math.round(scenario.interval.normal * rand)
+    // ✅ 【修復】自動模式下使用固定間隔，不加隨機波動
     this.config.interval = {
       min: scenario.interval.min,
       max: scenario.interval.max,
-      normal: normalInterval,
+      normal: scenario.interval.normal, // 直接使用配置值，不加隨機係數
     }
     this.config.peakMultiplier = scenario.peakMultiplier
     this.config.vehicleTypes = scenario.vehicleTypes
@@ -1017,23 +1015,18 @@ export default class AutoTrafficGenerator {
       return Math.max(min, Math.min(max * 2, interval)) // 允許最大間隔延長2倍
     }
 
-    // 自動模式下，使用 peakMultiplier 和密度共同決定
-    const density = this._getTotalDensity()
-    let base = normal
-    const { light, moderate, heavy, congested } = this.config.densityThresholds
+    // ✅ 自動模式下：使用 normal 值作為固定間隔，確保穩定性
+    // 不引入隨機性，確保 37.5 秒時間更新的穩定性
+    let interval = Math.round(normal / (this.config.peakMultiplier * displayMultiplierAdjustment))
 
-    if (density <= light) base = max
-    else if (density <= moderate) base = normal
-    else if (density <= heavy) base = normal * 0.7
-    else if (density <= congested) base = min * 1.2
-    else base = min
+    // 🔍 調試：查看間隔計算過程
+    if (window.__DEBUG_INTERVAL__) {
+      console.log(
+        `🔧 [_calcInterval] normal=${normal}, peakMultiplier=${this.config.peakMultiplier}, displayMult=${displayMultiplierAdjustment}, 計算結果=${interval}ms (${(interval / 1000).toFixed(1)}s)`,
+      )
+    }
 
-    // 自動模式下，讓 peakMultiplier 發揮作用，並應用 displayMultiplier 調整
-    base /= this.config.peakMultiplier * displayMultiplierAdjustment
-
-    const rand = 0.8 + Math.random() * 0.4
-    const val = Math.round(base * rand)
-    return Math.max(min, Math.min(max, val))
+    return Math.max(min, Math.min(max, interval))
   }
 
   // 🎯 新增：獲取基於當前時段的 displayMultiplier 調整因子
