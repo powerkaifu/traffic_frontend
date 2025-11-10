@@ -2429,6 +2429,28 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.5);
 }
 
+/* AI 分析錯誤提示樣式 */
+.ai-error-card {
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.5);
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.ai-error-message {
+  color: rgba(255, 100, 100, 0.9);
+  font-size: 0.95rem;
+  flex: 1;
+}
+
+.ai-retry-btn {
+  flex-shrink: 0;
+}
+
 /* 針對不同解析度調整 AI 分析區域高度 */
 @media (min-width: 1920px) {
   .ai-empty-state {

@@ -2742,11 +2742,6 @@ onUnmounted(() => {
   transition: all 0.3s ease; /* 添加顏色變化過渡效果 */
 }
 
-.timer-unit {
-  font-size: 1rem;
-  color: rgb(180, 200, 255);
-}
-
 /* 中央參考矩形 - 十字路口中央的隱藏矩形，用於統一計算停止線位置 */
 .central-reference {
   position: absolute;
@@ -2809,20 +2804,6 @@ onUnmounted(() => {
   font-weight: bold;
   font-size: 16px;
   text-shadow: 0 0 5px rgba(0, 255, 136, 0.4);
-}
-
-.center-dot {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 18px;
-  height: 18px;
-  background: red;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 9999;
-  box-shadow: 0 0 8px 2px rgba(255, 0, 0, 0.5);
-  pointer-events: none;
 }
 
 /* Photoshop 風格左側工具欄 ---------------------------------------- */

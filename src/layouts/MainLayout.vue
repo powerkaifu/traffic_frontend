@@ -645,12 +645,6 @@ function getApiVDData(dir) {
   const data = lastApiVDDataArray[index]
   if (!data) return defaultData
 
-  // 🔍 調試：檢查讀取到的 Volume_L
-  if (index === 0 && process.env.DEV) {
-    console.log('🔍 [MainLayout] lastApiVDDataArray (from Store):', lastApiVDDataArray)
-    console.log(`🔍 [MainLayout] 方向 ${dir} (index ${index}): Volume_L = ${data.Volume_L}`)
-  }
-
   // 返回與前端顯示相同的結構(方便模板使用)
   const apiData = {
     vdId: data.VD_ID || 'N/A',
@@ -1093,15 +1087,6 @@ onUnmounted(() => {
   50% {
     opacity: 1;
   }
-}
-
-.interval-status {
-  color: #ffb74d;
-  font-size: 12px;
-  background: rgba(255, 183, 77, 0.1);
-  padding: 2px 6px;
-  border-radius: 3px;
-  margin-left: 8px;
 }
 
 .q-header {
@@ -1927,40 +1912,9 @@ onUnmounted(() => {
   }
 
   /* 正規化標記樣式 */
-  .normalized-badge {
-    color: #ffd700;
-    font-size: 0.85em;
-    margin-left: 2px;
-    opacity: 0.9;
-    font-weight: 500;
-  }
 
   .data-value[title] {
     cursor: help;
-  }
-
-  /* 正規化信息區塊 */
-  .normalization-info {
-    display: flex;
-    gap: 12px;
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    font-size: 12px;
-    color: #aaa;
-  }
-
-  .normalization-info .time-period,
-  .normalization-info .multiplier {
-    display: inline-block;
-  }
-
-  .normalization-info .time-period {
-    color: #87ceeb;
-  }
-
-  .normalization-info .multiplier {
-    color: #ffd700;
   }
 
   .data-row .data-label,
@@ -2026,44 +1980,5 @@ onUnmounted(() => {
   100% {
     background-position: 0% 50%;
   }
-}
-
-/* API 數據標記樣式 */
-.api-data-badge {
-  margin-top: 10px;
-  padding: 6px 12px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 6px;
-  text-align: center;
-}
-
-.api-data-badge span {
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-
-.no-data {
-  padding: 20px;
-  text-align: center;
-  color: #999;
-  font-size: 14px;
-}
-
-.total-flow {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  font-weight: 600;
-}
-
-.total-flow .data-label {
-  color: #ffd700;
-}
-
-.total-flow .data-value {
-  color: #ffd700;
-  font-size: 16px;
 }
 </style>
