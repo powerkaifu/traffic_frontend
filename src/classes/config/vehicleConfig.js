@@ -41,15 +41,6 @@ export const ANIMATION_CONFIG = {
   STUCK_CHECK_THRESHOLD: 10000, // 車輛停滯檢查閾值（毫秒）
 }
 
-// ===== 交通燈響應設定 =====
-export const TRAFFIC_LIGHT_CONFIG = {
-  //  等待燈號變化時的減速設定
-  WAITING_FOR_LIGHT: {
-    SLOW_SPEED: 0.6, // 等待燈號時的減速速度（60%）
-    STOP_DISTANCE_THRESHOLD: 5, // 接近停止線的距離閾值（5px內停止）
-  },
-}
-
 // ===== 🚨 P0 FIX #1：黃燈決策配置 =====
 export const YELLOW_LIGHT_DECISION_CONFIG = {
   // 🟡 黃燈安全停止距離計算參數
@@ -346,13 +337,14 @@ export const GENERATION_CONFIG = {
 }
 
 // ===== 車輛退出檢測設定 =====
+// ⚠️ 已移除 - 此配置未被任何檔案使用
+// 原定義已移至備註中以備參考
+/*
 export const VEHICLE_EXIT_CONFIG = {
-  // 🚗 車輛超出邊界的檢測範圍（像素）
   BOUNDARY_MARGIN: 50,
-
-  // 🔄 檢測間隔（毫秒）
   CHECK_INTERVAL: 100,
 }
+*/
 
 // ===== 循環流量機制設定 =====
 export const VEHICLE_RECYCLING_CONFIG = {
@@ -505,12 +497,10 @@ export const VOLUME_LIMITS_CONFIG = {
 // ===== 匯出所有設定 =====
 export default {
   ANIMATION_CONFIG,
-  TRAFFIC_LIGHT_CONFIG,
   DISTANCE_CONFIG,
   FOLLOWING_CONFIG,
   COLLISION_CONFIG,
   GENERATION_CONFIG,
-  VEHICLE_EXIT_CONFIG,
   VEHICLE_RECYCLING_CONFIG,
   LANE_CHANGING_CONFIG,
   VEHICLE_DIMENSIONS,
