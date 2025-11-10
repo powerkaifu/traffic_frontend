@@ -182,7 +182,7 @@
                     type="range"
                     v-model="manualInterval"
                     min="1000"
-                    max="30000"
+                    max="20000"
                     :step="100"
                     @input="onSliderInput"
                     class="freq-slider"
@@ -211,41 +211,41 @@
                 <div class="zone-data">
                   <div class="data-row main-stats">
                     <span class="data-label">平均車速</span>
-                    <span class="data-value"> {{ eastData.averageSpeed }} km/h </span>
+                    <span class="data-value" data-key="east-averageSpeed"></span>
                   </div>
                   <div class="data-row main-stats">
                     <span class="data-label">占用率</span>
-                    <span class="data-value"> {{ eastData.occupancy.toFixed(1) }}% </span>
+                    <span class="data-value" data-key="east-occupancy"></span>
                   </div>
                   <!-- 機車流量 -->
                   <div class="data-row">
                     <span class="data-label">機車流量</span>
-                    <span class="data-value"> {{ eastData.motorFlow }} 輛 </span>
+                    <span class="data-value" data-key="east-motorFlow"></span>
                   </div>
                   <!-- 小型車流量 -->
                   <div class="data-row">
                     <span class="data-label">小型車流量</span>
-                    <span class="data-value"> {{ eastData.smallCarFlow }} 輛 </span>
+                    <span class="data-value" data-key="east-smallCarFlow"></span>
                   </div>
                   <!-- 大型車流量 -->
                   <div class="data-row">
                     <span class="data-label">大型車流量</span>
-                    <span class="data-value"> {{ eastData.largeCarFlow }} 輛 </span>
+                    <span class="data-value" data-key="east-largeCarFlow"></span>
                   </div>
                   <!-- 機車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">機車平均速率</span>
-                    <span class="data-value"> {{ eastData.motorSpeed }} km/h </span>
+                    <span class="data-value" data-key="east-motorSpeed"></span>
                   </div>
                   <!-- 小型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">小型車平均速率</span>
-                    <span class="data-value"> {{ eastData.smallCarSpeed }} km/h </span>
+                    <span class="data-value" data-key="east-smallCarSpeed"></span>
                   </div>
                   <!-- 大型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">大型車平均速率</span>
-                    <span class="data-value"> {{ eastData.largeCarSpeed }} km/h </span>
+                    <span class="data-value" data-key="east-largeCarSpeed"></span>
                   </div>
                 </div>
               </div>
@@ -256,41 +256,41 @@
                 <div class="zone-data">
                   <div class="data-row main-stats">
                     <span class="data-label">平均車速</span>
-                    <span class="data-value"> {{ westData.averageSpeed }} km/h </span>
+                    <span class="data-value" data-key="west-averageSpeed"></span>
                   </div>
                   <div class="data-row main-stats">
                     <span class="data-label">占用率</span>
-                    <span class="data-value"> {{ westData.occupancy.toFixed(1) }}% </span>
+                    <span class="data-value" data-key="west-occupancy"></span>
                   </div>
                   <!-- 機車流量 -->
                   <div class="data-row">
                     <span class="data-label">機車流量</span>
-                    <span class="data-value"> {{ westData.motorFlow }} 輛 </span>
+                    <span class="data-value" data-key="west-motorFlow"></span>
                   </div>
                   <!-- 小型車流量 -->
                   <div class="data-row">
                     <span class="data-label">小型車流量</span>
-                    <span class="data-value"> {{ westData.smallCarFlow }} 輛 </span>
+                    <span class="data-value" data-key="west-smallCarFlow"></span>
                   </div>
                   <!-- 大型車流量 -->
                   <div class="data-row">
                     <span class="data-label">大型車流量</span>
-                    <span class="data-value"> {{ westData.largeCarFlow }} 輛 </span>
+                    <span class="data-value" data-key="west-largeCarFlow"></span>
                   </div>
                   <!-- 機車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">機車平均速率</span>
-                    <span class="data-value"> {{ westData.motorSpeed }} km/h </span>
+                    <span class="data-value" data-key="west-motorSpeed"></span>
                   </div>
                   <!-- 小型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">小型車平均速率</span>
-                    <span class="data-value"> {{ westData.smallCarSpeed }} km/h </span>
+                    <span class="data-value" data-key="west-smallCarSpeed"></span>
                   </div>
                   <!-- 大型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">大型車平均速率</span>
-                    <span class="data-value"> {{ westData.largeCarSpeed }} km/h </span>
+                    <span class="data-value" data-key="west-largeCarSpeed"></span>
                   </div>
                 </div>
               </div>
@@ -301,41 +301,41 @@
                 <div class="zone-data">
                   <div class="data-row main-stats">
                     <span class="data-label">平均車速</span>
-                    <span class="data-value"> {{ southData.averageSpeed }} km/h </span>
+                    <span class="data-value" data-key="south-averageSpeed"></span>
                   </div>
                   <div class="data-row main-stats">
                     <span class="data-label">占用率</span>
-                    <span class="data-value"> {{ southData.occupancy.toFixed(1) }}% </span>
+                    <span class="data-value" data-key="south-occupancy"></span>
                   </div>
                   <!-- 機車流量 -->
                   <div class="data-row">
                     <span class="data-label">機車流量</span>
-                    <span class="data-value"> {{ southData.motorFlow }} 輛 </span>
+                    <span class="data-value" data-key="south-motorFlow"></span>
                   </div>
                   <!-- 小型車流量 -->
                   <div class="data-row">
                     <span class="data-label">小型車流量</span>
-                    <span class="data-value"> {{ southData.smallCarFlow }} 輛 </span>
+                    <span class="data-value" data-key="south-smallCarFlow"></span>
                   </div>
                   <!-- 大型車流量 -->
                   <div class="data-row">
                     <span class="data-label">大型車流量</span>
-                    <span class="data-value"> {{ southData.largeCarFlow }} 輛 </span>
+                    <span class="data-value" data-key="south-largeCarFlow"></span>
                   </div>
                   <!-- 機車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">機車平均速率</span>
-                    <span class="data-value"> {{ southData.motorSpeed }} km/h </span>
+                    <span class="data-value" data-key="south-motorSpeed"></span>
                   </div>
                   <!-- 小型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">小型車平均速率</span>
-                    <span class="data-value"> {{ southData.smallCarSpeed }} km/h </span>
+                    <span class="data-value" data-key="south-smallCarSpeed"></span>
                   </div>
                   <!-- 大型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">大型車平均速率</span>
-                    <span class="data-value"> {{ southData.largeCarSpeed }} km/h </span>
+                    <span class="data-value" data-key="south-largeCarSpeed"></span>
                   </div>
                 </div>
               </div>
@@ -346,41 +346,41 @@
                 <div class="zone-data">
                   <div class="data-row main-stats">
                     <span class="data-label">平均車速</span>
-                    <span class="data-value"> {{ northData.averageSpeed }} km/h </span>
+                    <span class="data-value" data-key="north-averageSpeed"></span>
                   </div>
                   <div class="data-row main-stats">
                     <span class="data-label">占用率</span>
-                    <span class="data-value"> {{ northData.occupancy.toFixed(1) }}% </span>
+                    <span class="data-value" data-key="north-occupancy"></span>
                   </div>
                   <!-- 機車流量 -->
                   <div class="data-row">
                     <span class="data-label">機車流量</span>
-                    <span class="data-value"> {{ northData.motorFlow }} 輛 </span>
+                    <span class="data-value" data-key="north-motorFlow"></span>
                   </div>
                   <!-- 小型車流量 -->
                   <div class="data-row">
                     <span class="data-label">小型車流量</span>
-                    <span class="data-value"> {{ northData.smallCarFlow }} 輛 </span>
+                    <span class="data-value" data-key="north-smallCarFlow"></span>
                   </div>
                   <!-- 大型車流量 -->
                   <div class="data-row">
                     <span class="data-label">大型車流量</span>
-                    <span class="data-value"> {{ northData.largeCarFlow }} 輛 </span>
+                    <span class="data-value" data-key="north-largeCarFlow"></span>
                   </div>
                   <!-- 機車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">機車平均速率</span>
-                    <span class="data-value"> {{ northData.motorSpeed }} km/h </span>
+                    <span class="data-value" data-key="north-motorSpeed"></span>
                   </div>
                   <!-- 小型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">小型車平均速率</span>
-                    <span class="data-value"> {{ northData.smallCarSpeed }} km/h </span>
+                    <span class="data-value" data-key="north-smallCarSpeed"></span>
                   </div>
                   <!-- 大型車平均速率 -->
                   <div class="data-row speed-stat">
                     <span class="data-label">大型車平均速率</span>
-                    <span class="data-value"> {{ northData.largeCarSpeed }} km/h </span>
+                    <span class="data-value" data-key="north-largeCarSpeed"></span>
                   </div>
                 </div>
               </div>
@@ -403,10 +403,10 @@ import { useRouter, useRoute } from 'vue-router'
 import { useSimulationStore } from 'src/stores/simulationStore'
 import { timeScenarios } from 'src/classes/config/trafficScenarioConfig.js'
 import { VD_DISPLAY_CONFIG } from 'src/classes/config/vdDisplayConfig.js'
+import { numberAnimator } from 'src/classes/NumberAnimator.js' // 🎯 導入數字動畫類
 
-// 🎛️ 統一初始化常數 - 只需改這一個地方！
 // 選項: 'peak_hours' | 'off_peak' | 'late_night'
-const INITIAL_VD_SCENARIO = 'peak_hours' // ← 改這裡快速切換預設情景
+const INITIAL_VD_SCENARIO = 'off_peak' // ← 改這裡快速切換預設情景
 
 const router = useRouter()
 const route = useRoute()
@@ -848,6 +848,13 @@ function toggleAutoMode() {
     window.autoTrafficGenerator.toggleAutoMode(isAutoMode.value)
   }
 }
+// 🎯 數字動畫輔助函數 - 支援交錯播放
+function animateDataKey(key, value, options = {}, staggerIndex = 0) {
+  const el = document.querySelector(`[data-key="${key}"]`)
+  if (!el) return
+  numberAnimator.animateCounter(el, value, { ...options, staggerIndex })
+}
+
 onMounted(() => {
   const cleanup = setupListeners()
 
@@ -869,6 +876,71 @@ onMounted(() => {
         // 🚀 【關鍵修復】初始化時套用預設情景的完整配置
         if (process.env.DEV) console.log(`🎯 [MainLayout] 套用預設情景配置: ${INITIAL_VD_SCENARIO}`)
         selectVDScenario(INITIAL_VD_SCENARIO)
+
+        // 🎯 【新增】綁定動畫監聽器 - 監聽四個方向資料變化（交錯播放）
+        watch(
+          () => eastData.value,
+          (nv) => {
+            if (!nv) return
+            animateDataKey('east-averageSpeed', nv.averageSpeed, { suffix: ' km/h' }, 0)
+            animateDataKey('east-occupancy', nv.occupancy, { suffix: '%' }, 1)
+            animateDataKey('east-motorFlow', nv.motorFlow, { suffix: ' 輛' }, 2)
+            animateDataKey('east-smallCarFlow', nv.smallCarFlow, { suffix: ' 輛' }, 3)
+            animateDataKey('east-largeCarFlow', nv.largeCarFlow, { suffix: ' 輛' }, 4)
+            animateDataKey('east-motorSpeed', nv.motorSpeed, { suffix: ' km/h' }, 5)
+            animateDataKey('east-smallCarSpeed', nv.smallCarSpeed, { suffix: ' km/h' }, 6)
+            animateDataKey('east-largeCarSpeed', nv.largeCarSpeed, { suffix: ' km/h' }, 7)
+          },
+          { deep: true },
+        )
+
+        watch(
+          () => westData.value,
+          (nv) => {
+            if (!nv) return
+            animateDataKey('west-averageSpeed', nv.averageSpeed, { suffix: ' km/h' }, 0)
+            animateDataKey('west-occupancy', nv.occupancy, { suffix: '%' }, 1)
+            animateDataKey('west-motorFlow', nv.motorFlow, { suffix: ' 輛' }, 2)
+            animateDataKey('west-smallCarFlow', nv.smallCarFlow, { suffix: ' 輛' }, 3)
+            animateDataKey('west-largeCarFlow', nv.largeCarFlow, { suffix: ' 輛' }, 4)
+            animateDataKey('west-motorSpeed', nv.motorSpeed, { suffix: ' km/h' }, 5)
+            animateDataKey('west-smallCarSpeed', nv.smallCarSpeed, { suffix: ' km/h' }, 6)
+            animateDataKey('west-largeCarSpeed', nv.largeCarSpeed, { suffix: ' km/h' }, 7)
+          },
+          { deep: true },
+        )
+
+        watch(
+          () => southData.value,
+          (nv) => {
+            if (!nv) return
+            animateDataKey('south-averageSpeed', nv.averageSpeed, { suffix: ' km/h' }, 0)
+            animateDataKey('south-occupancy', nv.occupancy, { suffix: '%' }, 1)
+            animateDataKey('south-motorFlow', nv.motorFlow, { suffix: ' 輛' }, 2)
+            animateDataKey('south-smallCarFlow', nv.smallCarFlow, { suffix: ' 輛' }, 3)
+            animateDataKey('south-largeCarFlow', nv.largeCarFlow, { suffix: ' 輛' }, 4)
+            animateDataKey('south-motorSpeed', nv.motorSpeed, { suffix: ' km/h' }, 5)
+            animateDataKey('south-smallCarSpeed', nv.smallCarSpeed, { suffix: ' km/h' }, 6)
+            animateDataKey('south-largeCarSpeed', nv.largeCarSpeed, { suffix: ' km/h' }, 7)
+          },
+          { deep: true },
+        )
+
+        watch(
+          () => northData.value,
+          (nv) => {
+            if (!nv) return
+            animateDataKey('north-averageSpeed', nv.averageSpeed, { suffix: ' km/h' }, 0)
+            animateDataKey('north-occupancy', nv.occupancy, { suffix: '%' }, 1)
+            animateDataKey('north-motorFlow', nv.motorFlow, { suffix: ' 輛' }, 2)
+            animateDataKey('north-smallCarFlow', nv.smallCarFlow, { suffix: ' 輛' }, 3)
+            animateDataKey('north-largeCarFlow', nv.largeCarFlow, { suffix: ' 輛' }, 4)
+            animateDataKey('north-motorSpeed', nv.motorSpeed, { suffix: ' km/h' }, 5)
+            animateDataKey('north-smallCarSpeed', nv.smallCarSpeed, { suffix: ' km/h' }, 6)
+            animateDataKey('north-largeCarSpeed', nv.largeCarSpeed, { suffix: ' km/h' }, 7)
+          },
+          { deep: true },
+        )
 
         // 初始化完成後，設定自動模式的回調
         window.autoTrafficGenerator.setOnTimeUpdate((status) => {
@@ -957,6 +1029,7 @@ watch(manualInterval, (newValue) => {
 
 onUnmounted(() => {
   window.mainLayoutCleanup?.()
+  numberAnimator.stopAll() // 🎯 卸載時停止所有動畫
 })
 </script>
 

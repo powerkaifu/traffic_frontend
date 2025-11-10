@@ -64,8 +64,8 @@ export default defineConfig(() => {
             handleHotUpdate({ file, server }) {
               // 🎯 監聽 src/classes/config/ 目錄下的所有檔案變更
               if (file.includes('/src/classes/config/') || file.includes('\\src\\classes\\config\\')) {
-                console.log('⚡ [HMR 攔截] 偵測到 config 文件變更，強制執行完整頁面重新加載...')
-                console.log(`   📁 變更檔案: ${file}`)
+                // console.log('⚡ [HMR 攔截] 偵測到 config 文件變更，強制執行完整頁面重新加載...')
+                // console.log(`   📁 變更檔案: ${file}`)
 
                 // 💡 傳送 "full-reload" 訊號給客戶端，強制完整頁面重新整理
                 server.ws.send({

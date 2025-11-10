@@ -83,7 +83,7 @@ export const timeScenarios = [
     // 🎭 API 層：後端接收的原始數據（不放大）
     // 📊 調整邏輯：基於偵測器占用率標準，車流繁忙但仍可流動
     targetFeatures: {
-      totalVolumePer5Min: 7, // 每輞道：7 輛/5分鐘
+      totalVolumePer5Min: 7, // 每車道：7 輛/5分鐘
       occupancy: 40, // 🎯 佔有率：40%（偵測器占用率標準 - 車流繁忙期）
       occupancyRange: [35, 45], // 🎯 佔有率波動範圍：35-45%（±5%）
       speed: 42, // 平均速度：42 km/h
@@ -112,8 +112,8 @@ export const timeScenarios = [
       // 🚌 【次常調整】- 車型與系統參數
       // =========================================
       vehicleTypes: [
-        { type: 'motor', weight: 50 }, // 機車 40%
-        { type: 'small', weight: 30 }, // 小客車 40%
+        { type: 'motor', weight: 50 }, // 機車 50%
+        { type: 'small', weight: 30 }, // 小客車 30%
         { type: 'large', weight: 20 }, // 大客車 20%
       ],
       maxLiveVehicles: GLOBAL_MAX_LIVE_VEHICLES, // ✅ 使用全局配置
@@ -160,7 +160,7 @@ export const timeScenarios = [
       // 🎚️ 【常調整】- 車流密度相關參數
       // =========================================
       vehiclesPerInterval: { min: 1, max: 3 }, // 👈 🎯 FIXED: 改為單一生成模式，避免爆發
-      interval: { min: 6000, max: 12000, normal: 5000 }, // ⏱️ FIXED: 延長到 8 秒基準，避免短時間內堆積
+      interval: { min: 4000, max: 12000, normal: 4000 }, // ⏱️ FIXED: 延長到 8 秒基準，避免短時間內堆積
       peakMultiplier: 1.0, // 👈 離峰不加倍
       displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // ✅ 從配置讀取（預設為 1.0）
 
@@ -342,7 +342,7 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 6 && currentHour < 7) {
     return {
       name: '清晨 06:00',
-      interval: { min: 6000, max: 10000, normal: 6000 }, // 6 秒平均
+      interval: { min: 2000, max: 10000, normal: 4000 }, // 6 秒平均
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 2 },
@@ -423,7 +423,7 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 11 && currentHour < 14) {
     return {
       name: `午間 ${currentHour}:00`,
-      interval: { min: 3000, max: 8000, normal: 3000 }, // 4 秒平均
+      interval: { min: 2000, max: 8000, normal: 2500 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // 離峰設定
       vehiclesPerInterval: { min: 1, max: 3 },
@@ -504,7 +504,7 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 17 && currentHour < 19) {
     return {
       name: `晚尖峰 ${currentHour}:00`,
-      interval: { min: 1800, max: 5000, normal: 2000 }, // 2.5 秒平均（與早尖峰相同）
+      interval: { min: 1000, max: 5000, normal: 2000 }, // 2.5 秒平均（與早尖峰相同）
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier, // 尖峰設定
       vehiclesPerInterval: { min: 1, max: 3 }, // 允許一次生成 1-2 台
@@ -561,7 +561,7 @@ export function getScenarioByTime(currentTime) {
       interval: { min: 2000, max: 8000, normal: 3500 }, // 20 秒平均
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier,
-      vehiclesPerInterval: { min: 1, max: 2 },
+      vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
         { type: 'motor', weight: 55 },
         { type: 'small', weight: 38 },

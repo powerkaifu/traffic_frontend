@@ -276,11 +276,13 @@
         <div class="prediction-content">
           <div class="prediction-item">
             <span class="direction-label">東西向綠燈：</span>
-            <span class="timing-value">{{ aiPrediction.eastWest }} 秒</span>
+            <span ref="ewLightRef" class="timing-value">{{ aiPrediction.eastWest }}</span>
+            <span class="unit">秒</span>
           </div>
           <div class="prediction-item">
             <span class="direction-label">南北向綠燈：</span>
-            <span class="timing-value">{{ aiPrediction.northSouth }} 秒</span>
+            <span ref="snLightRef" class="timing-value">{{ aiPrediction.northSouth }}</span>
+            <span class="unit">秒</span>
           </div>
         </div>
       </div>
@@ -356,7 +358,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
@@ -375,6 +377,7 @@ import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
 import { CollisionController } from '../classes/vehicle_utils/CollisionController.js'
 import { GENERATION_CONFIG } from '../classes/config/vehicleConfig.js'
 import { useSimulationStore } from '../stores/simulationStore.js'
+import { numberAnimator } from '../classes/NumberAnimator.js'
 
 // 註冊 GSAP MotionPathPlugin 和 MotionPathHelper
 gsap.registerPlugin(MotionPathPlugin, MotionPathHelper)
@@ -697,6 +700,10 @@ const aiPrediction = ref({
   eastWest: 0,
   northSouth: 0,
 })
+
+// ✨ 綠燈秒數動畫用的 ref
+const ewLightRef = ref(null)
+const snLightRef = ref(null)
 
 // MotionPathHelper 控制
 const isPathEditMode = ref(false)
@@ -1722,6 +1729,33 @@ onMounted(async () => {
     console.log('✅ 天氣系統已初始化')
 
     console.log('✅ 所有系統已初始化完成')
+
+    // ✨ 為綠燈秒數添加動畫監聽
+    watch(
+      () => aiPrediction.value.eastWest,
+      (newVal) => {
+        if (ewLightRef.value) {
+          numberAnimator.animateCounter(ewLightRef.value, newVal, {
+            duration: 0.8,
+            decimals: 0,
+            suffix: '',
+          })
+        }
+      },
+    )
+
+    watch(
+      () => aiPrediction.value.northSouth,
+      (newVal) => {
+        if (snLightRef.value) {
+          numberAnimator.animateCounter(snLightRef.value, newVal, {
+            duration: 0.8,
+            decimals: 0,
+            suffix: '',
+          })
+        }
+      },
+    )
   }
 
   console.log('═══════════════════════════════════════════════════════════')
@@ -2492,6 +2526,9 @@ onUnmounted(() => {
   // ✅ 完全重置 Store 狀態
   console.log('🔄 重置 Pinia Store...')
   store.reset()
+
+  // ✨ 停止所有數字動畫
+  numberAnimator.stopAll()
 
   console.log('🧹 IndexPage 資源完全清理完成')
   console.log('═══════════════════════════════════════════════════════════')

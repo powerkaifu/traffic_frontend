@@ -108,6 +108,47 @@ export default class AutoTrafficGenerator {
   }
 
   /**
+   * 🎯 輔助方法：處理 API 數據並調整生成間隔
+   * @private
+   */
+  _processApiDataAndAdjustInterval(apiData) {
+    if (!apiData || apiData.length === 0) {
+      console.warn('⚠️ [API 同步] 無 API 數據可用')
+      return
+    }
+
+    // 計算目標總車量（平均所有方向）
+    let totalVolume = 0
+    let totalSpeed = 0
+    let occupancySum = 0
+
+    apiData.forEach((data) => {
+      const volume = (data.Volume_M || 0) + (data.Volume_S || 0) + (data.Volume_L || 0)
+      totalVolume += volume
+      totalSpeed += data.Speed || 0
+      occupancySum += data.Occupancy || 0
+    })
+
+    const avgSpeed = totalSpeed / apiData.length
+    const avgOccupancy = occupancySum / apiData.length
+
+    // 🎯 根據目標流量動態調整生成間隔
+    // API 期望在 10 秒內生成 totalVolume 輛車
+    // 則每輛車之間的平均間隔應該是 (10 * 1000) / totalVolume 毫秒
+    if (totalVolume > 0) {
+      const targetInterval = (10 * 1000) / totalVolume
+      const adjustedMinInterval = Math.max(200, Math.round(targetInterval)) // 最少 200ms
+
+      this.minLaneInterval = adjustedMinInterval
+
+      console.log(
+        `🎯 [API 同步] 目標流量=${totalVolume}/10秒 → 調整生成間隔=${adjustedMinInterval}ms` +
+          `, 平均速度=${avgSpeed.toFixed(1)}km/h, 佔有率=${avgOccupancy.toFixed(1)}%`,
+      )
+    }
+  }
+
+  /**
    * 🎯【修復 1】根據最新的 API 數據動態調整車流生成
    * 確保前端動畫中的車輛數量與 API 返回的目標流量一致
    */
@@ -116,79 +157,13 @@ export default class AutoTrafficGenerator {
     if (this.simulationStore) {
       this.simulationStore.subscribe('trafficApiComplete', () => {
         const apiData = this.simulationStore.getLastApiVDDataArray()
-
-        if (!apiData || apiData.length === 0) {
-          console.warn('⚠️ [API 同步] 無 API 數據可用')
-          return
-        }
-
-        // 計算目標總車量（平均所有方向）
-        let totalVolume = 0
-        let totalSpeed = 0
-        let occupancySum = 0
-
-        apiData.forEach((data) => {
-          const volume = (data.Volume_M || 0) + (data.Volume_S || 0) + (data.Volume_L || 0)
-          totalVolume += volume
-          totalSpeed += data.Speed || 0
-          occupancySum += data.Occupancy || 0
-        })
-
-        const avgSpeed = totalSpeed / apiData.length
-        const avgOccupancy = occupancySum / apiData.length
-
-        // 🎯 根據目標流量動態調整生成間隔
-        // API 期望在 10 秒內生成 totalVolume 輛車
-        // 則每輛車之間的平均間隔應該是 (10 * 1000) / totalVolume 毫秒
-        if (totalVolume > 0) {
-          const targetInterval = (10 * 1000) / totalVolume
-          const adjustedMinInterval = Math.max(200, Math.round(targetInterval)) // 最少 200ms
-
-          this.minLaneInterval = adjustedMinInterval
-
-          console.log(
-            `🎯 [API 同步] 目標流量=${totalVolume}/10秒 → 調整生成間隔=${adjustedMinInterval}ms` +
-              `, 平均速度=${avgSpeed.toFixed(1)}km/h, 佔有率=${avgOccupancy.toFixed(1)}%`,
-          )
-        }
+        this._processApiDataAndAdjustInterval(apiData)
       })
     } else {
       // 🔙 向後相容：如果沒有 Store，仍然使用 window 事件
       window.addEventListener('trafficApiComplete', () => {
         const apiData = window.lastApiVDDataArray
-
-        if (!apiData || apiData.length === 0) {
-          console.warn('⚠️ [API 同步] 無 API 數據可用')
-          return
-        }
-
-        // 計算目標總車量（平均所有方向）
-        let totalVolume = 0
-        let totalSpeed = 0
-        let occupancySum = 0
-
-        apiData.forEach((data) => {
-          const volume = (data.Volume_M || 0) + (data.Volume_S || 0) + (data.Volume_L || 0)
-          totalVolume += volume
-          totalSpeed += data.Speed || 0
-          occupancySum += data.Occupancy || 0
-        })
-
-        const avgSpeed = totalSpeed / apiData.length
-        const avgOccupancy = occupancySum / apiData.length
-
-        // 🎯 根據目標流量動態調整生成間隔
-        if (totalVolume > 0) {
-          const targetInterval = (10 * 1000) / totalVolume
-          const adjustedMinInterval = Math.max(200, Math.round(targetInterval)) // 最少 200ms
-
-          this.minLaneInterval = adjustedMinInterval
-
-          console.log(
-            `🎯 [API 同步] 目標流量=${totalVolume}/10秒 → 調整生成間隔=${adjustedMinInterval}ms` +
-              `, 平均速度=${avgSpeed.toFixed(1)}km/h, 佔有率=${avgOccupancy.toFixed(1)}%`,
-          )
-        }
+        this._processApiDataAndAdjustInterval(apiData)
       })
     }
   }
@@ -698,9 +673,7 @@ export default class AutoTrafficGenerator {
         // 無範圍但有基礎佔有率：使用 ±5% 的變動
         const baseOccupancy = features.occupancy
         const range = Math.max(5, Math.round(baseOccupancy * 0.15)) // 至少 ±5%，或基礎值的 15%
-        occupancy = Math.round(
-          baseOccupancy - range + Math.random() * (range * 2),
-        )
+        occupancy = Math.round(baseOccupancy - range + Math.random() * (range * 2))
       } else {
         // 完全沒有：使用預設值
         occupancy = Math.round(5 + Math.random() * 35) // 5-40%
