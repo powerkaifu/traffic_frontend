@@ -53,28 +53,42 @@ export default defineConfig(() => {
       // polyfillModulePreload: true,
       // distDir
 
-      // 💥 擴展 Vite 設定：強制完整頁面重新加載（處理 config 文件變更）
+      // 💥 擴展 Vite 設定：強制完整頁面重新加載（處理 Vehicle 相關文件變更）
       extendViteConf(viteConf, { isClient }) {
         if (isClient) {
-          // 新增自訂 Vite 插件：監聽 config 文件變更
+          // 新增自訂 Vite 插件：監聽 Vehicle 相關文件變更
           viteConf.plugins = viteConf.plugins || []
           viteConf.plugins.push({
-            name: 'force-reload-on-config-change',
+            name: 'force-reload-vehicle-changes',
             apply: 'serve', // 只在開發模式下應用
             handleHotUpdate({ file, server }) {
-              // 🎯 監聽 src/classes/config/ 目錄下的所有檔案變更
-              if (file.includes('/src/classes/config/') || file.includes('\\src\\classes\\config\\')) {
-                // console.log('⚡ [HMR 攔截] 偵測到 config 文件變更，強制執行完整頁面重新加載...')
-                // console.log(`   📁 變更檔案: ${file}`)
+              // 🎯 監聽 Vehicle 相關的關鍵文件變更
+              // 這些文件的改動無法通過 HMR 正確更新，需要完整重新加載
+              const needsFullReload = [
+                // 配置文件
+                '/src/classes/config/',
+                '\\src\\classes\\config\\',
+                // Vehicle 工具類（StopLineController、CollisionController 等）
+                '/src/classes/vehicle_utils/',
+                '\\src\\classes\\vehicle_utils\\',
+                // Vehicle 主類
+                '/src/classes/Vehicle.js',
+                '\\src\\classes\\Vehicle.js',
+                // AutoTrafficGenerator - 車輛生成邏輯
+                '/src/classes/AutoTrafficGenerator.js',
+                '\\src\\classes\\AutoTrafficGenerator.js',
+              ]
 
-                // 💡 傳送 "full-reload" 訊號給客戶端，強制完整頁面重新整理
+              const shouldReload = needsFullReload.some((path) => file.includes(path))
+
+              if (shouldReload) {
+                // 🔄 發送完整重新加載信號
                 server.ws.send({
                   type: 'full-reload',
                   event: 'special',
                   path: '*',
                 })
-
-                // ⏹️ 回傳空陣列，阻止 HMR 繼續處理此更新
+                // 阻止 HMR 的默認處理
                 return []
               }
             },
