@@ -28,11 +28,17 @@ export const ANIMATION_CONFIG = {
     TIMESCALE_DEBOUNCE: 50, // ✅ 改為 50ms，匹配 SPEED_CHANGE_DURATION.INSTANT
   },
 
-  // 🎯 動畫緩動設定
-  EASING: {
-    NONE: 'none', // 線性動畫，無緩動效果
-    // 其他緩動效果已移除以避免車輛抖動
-  },
+  /*
+   * 🗑️ 已移除：EASING
+   * - 原始定義：動畫緩動設定
+   * - 移除原因：所有緩動效果已移除，不再使用
+   * - 搜尋結果：0 次使用（ANIMATION_CONFIG.EASING 無任何調用）
+   * - 備份日期：2025-11-11
+   *
+   * EASING: {
+   *   NONE: 'none',
+   * },
+   */
 
   // ⏰ 初始化和時間限制設定
   INITIALIZATION_DELAY: 500, // 車輛初始化延遲時間（毫秒）
@@ -188,38 +194,34 @@ export const FOLLOWING_CONFIG = {
     },
   },
 
-  // 🔄 恢復移動速度設定（resumeMovement）
-  RESUME_SPEED: {
-    QUEUE_ZONE: {
-      // 在排隊區域的速度設定
-      VERY_CLOSE: 0, // distance <= gap * 0.3
-      CLOSE: 0.15, // distance <= gap * 0.6
-      NORMAL: 0.3, // distance <= gap * 0.8
-      FAR: 0.5, // distance > gap * 0.8
-    },
-    NON_QUEUE_ZONE: {
-      // 非排隊區域的速度設定
-      VERY_CLOSE: 0, // distance <= gap * 0.3
-      CLOSE: 0.2, // distance <= gap * 0.6
-      NORMAL: 0.5, // distance <= gap * 1.0
-      FAR: 0.8, // distance > gap * 1.0
-    },
-    // 距離閾值比例
-    DISTANCE_THRESHOLDS: {
-      VERY_CLOSE: 0.3,
-      CLOSE: 0.6,
-      NORMAL: 0.8,
-      FAR: 1.0,
-    },
-  },
+  /*
+   * �️ 已移除：RESUME_SPEED
+   * - 原始定義：恢復移動速度設定（resumeMovement）
+   * - 移除原因：未被任何文件使用
+   * - 搜尋結果：0 次使用（僅在定義處出現）
+   * - 備份日期：2025-11-11
+   *
+   * RESUME_SPEED: {
+   *   QUEUE_ZONE: { ... },
+   *   NON_QUEUE_ZONE: { ... },
+   *   DISTANCE_THRESHOLDS: { ... },
+   * },
+   */
 
   // ⏱️ 跟車檢測間隔 (毫秒)
   CHECK_INTERVAL: 100, // ✅ 改為 100ms，與碰撞檢測同步
 
-  // 🔄 推力設定
-  PUSH_FORCE: {
-    STOPPED_VEHICLE: 0.05, // 停車車輛的推力係數
-  },
+  /*
+   * �️ 已移除：PUSH_FORCE
+   * - 原始定義：跟車行為設定中的推力係數
+   * - 移除原因：未被任何文件使用
+   * - 搜尋結果：0 次使用（僅在定義處出現）
+   * - 備份日期：2025-11-11
+   *
+   * PUSH_FORCE: {
+   *   STOPPED_VEHICLE: 0.05,
+   * },
+   */
 
   // 🧠 智能減速預測設定
   PREDICTIVE_SLOWDOWN: {
@@ -282,14 +284,21 @@ export const COLLISION_CONFIG = {
     NEARBY_VEHICLE_RANGE: 100, // 附近車輛檢查範圍
   },
 
-  // ⚠️ 威脅等級設定
-  THREAT_LEVELS: {
-    NO_THREAT: 0, // 無威脅
-    SLOW_DOWN: 1, // 減速
-    STOP: 2, // 停車
-    EMERGENCY_STOP: 3, // 緊急停車
-    OVERLAPPING: 4, // 重疊
-  },
+  /*
+   * 🗑️ 已移除：THREAT_LEVELS
+   * - 原始定義：威脅等級設定
+   * - 移除原因：未被任何文件使用
+   * - 搜尋結果：0 次使用（僅在定義處出現）
+   * - 備份日期：2025-11-11
+   *
+   * THREAT_LEVELS: {
+   *   NO_THREAT: 0,
+   *   SLOW_DOWN: 1,
+   *   STOP: 2,
+   *   EMERGENCY_STOP: 3,
+   *   OVERLAPPING: 4,
+   * },
+   */
 
   // ⏱️ 檢測間隔設定（毫秒）
   // 🆕 優化 1：120ms → 150ms → 175ms（Phase 2B 溫和方案，減少 14% CPU 計算）
@@ -371,7 +380,16 @@ export const VEHICLE_RECYCLING_CONFIG = {
   // ⚙️ 回收機制調整
   MAX_RECYCLES_PER_VEHICLE: null, // 單個車輛的最大循環次數 (null = 無限)
   RECYCLE_COOLDOWN: 500, // 回收後的冷卻時間（毫秒），防止立即再次超出邊界
-  ENABLE_RECYCLE_LOGGING: true, // 是否記錄回收事件
+
+  /*
+   * 🗑️ 已移除：ENABLE_RECYCLE_LOGGING
+   * - 原始定義：是否記錄回收事件
+   * - 移除原因：未被任何文件使用
+   * - 搜尋結果：0 次使用（僅在定義處出現）
+   * - 備份日期：2025-11-11
+   *
+   * ENABLE_RECYCLE_LOGGING: true,
+   */
 }
 
 // ===== 車道變換設定 (改進 8) =====
@@ -462,21 +480,35 @@ export const VOLUME_LIMITS_CONFIG = {
     description: '凌晨時段 - 前端 100 輛 × 1.0 倍 = 視覺 100 輛 / 後端傳 8 輛',
   },
 
-  // 📊 工作日 vs 假日調整
-  dayTypeAdjustment: {
-    weekday: 1.0, // 工作日：100%
-    weekend: 0.85, // 假日：減少 15%（交通較少）
-    holiday: 0.75, // 特殊假日：減少 25%
-  },
+  /*
+   * �️ 已移除：dayTypeAdjustment
+   * - 原始定義：工作日 vs 假日調整
+   * - 移除原因：未被任何文件使用
+   * - 搜尋結果：0 次使用（僅在定義處出現）
+   * - 備份日期：2025-11-11
+   *
+   * dayTypeAdjustment: {
+   *   weekday: 1.0,
+   *   weekend: 0.85,
+   *   holiday: 0.75,
+   * },
+   */
 
-  // 🎯 天氣影響調整
-  weatherAdjustment: {
-    clear: 1.0, // 晴天：100%（基準）
-    cloudy: 0.95, // 陰天：減少 5%
-    rainy: 0.75, // 雨天：減少 25%（視線不佳，車輛減少）
-    foggy: 0.6, // 霧天：減少 40%（嚴重影響）
-    snowy: 0.5, // 下雪：減少 50%（道路困難）
-  },
+  /*
+   * 🗑️ 已移除：weatherAdjustment
+   * - 原始定義：天氣影響調整
+   * - 移除原因：未被任何文件使用
+   * - 搜尋結果：0 次使用（僅在定義處出現）
+   * - 備份日期：2025-11-11
+   *
+   * weatherAdjustment: {
+   *   clear: 1.0,
+   *   cloudy: 0.95,
+   *   rainy: 0.75,
+   *   foggy: 0.6,
+   *   snowy: 0.5,
+   * },
+   */
 
   // 💡 使用說明
   usage: `
