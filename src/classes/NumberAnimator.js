@@ -43,7 +43,7 @@ export class NumberAnimator {
    */
   animateCounter(target, targetValue, options = {}) {
     const {
-      duration = 0.8, // ✅ 改為 0.8（與實際使用一致，而非 1.2）
+      duration = 3.5, // ✅ 改為 0.8（與實際使用一致，而非 1.2）
       decimals = 0,
       prefix = '',
       suffix = '',

@@ -1331,12 +1331,6 @@ onMounted(async () => {
     }
 
     // ⚠️ 【修復】移除 DOM 事件監聽器（已遷移到 Store 訂閱）
-    // AutoTrafficGenerator 現在通過 store.emit() 發送事件
-    // Store 訂閱已完全接手，無需 window.dispatchEvent() 備份
-    // 保留舊的 DOM 事件監聽只會導致同一派車邏輯被執行兩次 ❌
-    // 改為完全依賴 Store 訂閱（第 1343 行的 store.subscribe()）✅
-
-    // 監聽視窗大小變化和佈局變化
     const handleLayoutChange = async () => {
       // 等待下一幀以確保DOM更新
       await new Promise((resolve) => requestAnimationFrame(resolve))
@@ -1427,20 +1421,6 @@ onMounted(async () => {
       return store.getVehicleDistanceConfig()
     }
 
-    // 🎯 測試直行優先的左轉燈號流程
-    window.testNewTrafficFlow = () => {
-      console.log('🔄 測試直行優先的左轉燈號流程...')
-      const controller = store.getTrafficController()
-      if (controller && controller.lights) {
-        console.log('當前燈號狀態：')
-        console.log(`  東燈：${controller.lights.east.currentState}`)
-        console.log(`  西燈：${controller.lights.west.currentState}`)
-        console.log(`  南燈：${controller.lights.south.currentState}`)
-        console.log(`  北燈：${controller.lights.north.currentState}`)
-        console.log(`  當前相位：${controller.currentPhase}`)
-      }
-    }
-
     // 🎯 測試左轉車道邏輯
     window.testLeftTurnLanes = () => {
       console.log('🔄 測試左轉車道邏輯...')
@@ -1524,18 +1504,6 @@ onMounted(async () => {
     }
 
     // ✅ 【調試】暴露 IndexPage 狀態到 window
-    window.debugIndexPageState = () => {
-      console.log('\n════════════════════════════════════════')
-      console.log('📺 【IndexPage 當前狀態】')
-      console.log('════════════════════════════════════════')
-      console.log(`  aiPrediction.eastWest: ${aiPrediction.value.eastWest} 秒`)
-      console.log(`  aiPrediction.northSouth: ${aiPrediction.value.northSouth} 秒`)
-      console.log(`  aiPrediction.timestamp: ${aiPrediction.value.timestamp}`)
-      console.log(`  倒計時: ${countdown.value} 秒`)
-      console.log('════════════════════════════════════════')
-      return aiPrediction.value
-    }
-
     console.log('💡 在控制台執行: window.debugIndexPageState() 查看當前顯示的秒數')
 
     // 初始化自動交通產生器
@@ -1736,7 +1704,6 @@ onMounted(async () => {
       (newVal) => {
         if (ewLightRef.value) {
           numberAnimator.animateCounter(ewLightRef.value, newVal, {
-            duration: 0.8,
             decimals: 0,
             suffix: '',
           })
