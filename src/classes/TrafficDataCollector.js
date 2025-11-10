@@ -3,6 +3,7 @@
  */
 
 import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
+import { VOLUME_LIMITS_CONFIG } from './config/vehicleConfig.js'
 
 export default class TrafficDataCollector {
   constructor() {
@@ -221,6 +222,11 @@ export default class TrafficDataCollector {
     if (vehicleData.action === 'added') {
       this.currentPeriodData.totalCount[direction][type]++
       this.currentPeriodData.totalCount[direction].total++
+
+      // 🔍 調試日誌：記錄車輛添加
+      console.log(
+        `🔍 [車輛添加] ${direction}-${type}: 現在共 ${this.currentPeriodData.totalCount[direction].total} 輛 (${this.currentPeriodData.totalCount[direction].motor}機 + ${this.currentPeriodData.totalCount[direction].small}小 + ${this.currentPeriodData.totalCount[direction].large}大)`,
+      )
     }
   }
 
@@ -295,7 +301,7 @@ export default class TrafficDataCollector {
   }
 
   /**
-   * 計算佔用率 ✅ 改進版：使用動態最大容量（根據時段調整）
+   * 計算佔用率 ✅ 改進版：使用統一的容量配置（VOLUME_LIMITS_CONFIG）
    */
   calculateOccupancy() {
     const directions = ['east', 'west', 'south', 'north']
@@ -303,14 +309,14 @@ export default class TrafficDataCollector {
     // ✅ 導入時段判定函數，動態調整最大容量
     const timePeriod = getCurrentTimePeriod()
 
-    // ✅ 根據時段設定不同的最大容量
-    const maxCapacityByPeriod = {
-      peak_hours: 30, // 尖峰時段：30 輛/方向（較高的占有率要求）
-      off_peak: 25, // 離峰時段：25 輛/方向（標準容量）
-      late_night: 15, // 凌晨時段：15 輛/方向（低流量）
-    }
+    // ✅ 從 VOLUME_LIMITS_CONFIG 獲取該時段的最大後端容量（統一配置來源）
+    // 使用 maxLiveVehiclesForBackend 作為占用率計算的基準容量
+    const maxCapacity = VOLUME_LIMITS_CONFIG[timePeriod]?.maxLiveVehiclesForBackend || 25
 
-    const maxCapacity = maxCapacityByPeriod[timePeriod] || 25 // 預設為 25
+    // 🔍 調試日誌：記錄占用率計算過程
+    console.log(
+      `🔍 [占用率計算] 時段: ${timePeriod}, maxCapacity: ${maxCapacity} (來自 VOLUME_LIMITS_CONFIG.${timePeriod}.maxLiveVehiclesForBackend)`,
+    )
 
     directions.forEach((direction) => {
       const totalVehicles = this.currentPeriodData.totalCount[direction].total
@@ -320,6 +326,11 @@ export default class TrafficDataCollector {
       const occupancy = Math.min((totalVehicles / maxCapacity) * 100, 100)
 
       this.currentPeriodData.occupancy[direction] = Math.round(occupancy * 10) / 10
+
+      // 🔍 調試日誌：詳細記錄每個方向的計算
+      console.log(
+        `  ${direction}: ${totalVehicles} 輛 ÷ ${maxCapacity} = ${this.currentPeriodData.occupancy[direction]}%`,
+      )
     })
   }
 
