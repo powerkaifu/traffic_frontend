@@ -1041,6 +1041,7 @@ onUnmounted(() => {
   border-radius: 8px;
   display: flex;
   justify-content: space-around;
+  align-items: center;
   gap: 6px;
   box-shadow: inset 0 0 10px rgba(0, 188, 212, 0.1);
 }
@@ -1066,7 +1067,6 @@ onUnmounted(() => {
   font-size: 12px;
   color: #ffb74d;
   text-align: center;
-  background: rgba(255, 183, 77, 0.15);
   padding: 4px 6px;
   border-radius: 4px;
   letter-spacing: 0.3px;
