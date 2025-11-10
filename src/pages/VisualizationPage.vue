@@ -277,7 +277,7 @@
                     <q-icon name="psychology" size="3rem" color="primary" class="ai-empty-icon" />
                     <div class="ai-empty-text">
                       <div class="ai-empty-title">AI 智能分析</div>
-                      <div class="ai-empty-subtitle">選擇問題並點擊「AI 分析」開始數據解讀</div>
+                      <div class="ai-empty-subtitle">請選擇問題，點擊「數據分析」解讀數據</div>
                     </div>
                   </div>
                 </div>
@@ -2288,7 +2288,7 @@ onMounted(() => {
 
 @media (min-width: 1920px) {
   .ai-result-content {
-    max-height: 50vh;
+    max-height: 46vh;
   }
 }
 
@@ -2383,8 +2383,22 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.87);
 }
 
+.ai-loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.ai-loading-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: white;
+}
+
 .ai-loading-subtitle {
-  font-size: 0.9rem;
+  font-size: 1.3rem;
   color: rgba(255, 255, 255, 0.6);
 }
 
@@ -2419,13 +2433,13 @@ onMounted(() => {
 }
 
 .ai-empty-title {
-  font-size: 1.2rem;
+  font-size: 1.3rem;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.8);
 }
 
 .ai-empty-subtitle {
-  font-size: 0.95rem;
+  font-size: 1.3rem;
   color: rgba(255, 255, 255, 0.5);
 }
 
