@@ -475,23 +475,28 @@ export default class Vehicle {
   // Command Pattern: 將停止線檢查和交通燈響應邏輯封裝為一個命令
   checkStopLineAndRespond(trafficController, allVehicles = []) {
     // 檢查四個前置條件
-    if (this.hasPassedStopLine || !this.checkStopLine() || this.waitingForGreen || this.isAtStopLine) {
-      return // 前置條件不滿足，無需響應
-    }
-
-    // 🆕 改進：檢查是否有前車在排隊
-    // 如果有前車，由碰撞系統控制排隊，不強制停止線停止
-    const hasFrontVehicle = this._hasFrontVehicleInQueue(allVehicles)
-
-    if (hasFrontVehicle) {
-      // 前面有車在排隊，讓碰撞系統控制
-      // 不設置 isAtStopLine，允許碰撞控制器決定是否停止
+    if (this.hasPassedStopLine || !this.checkStopLine() || this.isAtStopLine) {
       return
     }
 
-    // 沒有前車，這是隊列的第一台車，停止在停止線
-    this.isAtStopLine = true
     const lightState = trafficController.getCurrentLightState(this.direction)
+
+    // 🆕 如果正在等待綠燈，檢查是否可以恢復移動
+    if (this.waitingForGreen) {
+      const canProceed = this._canProceedThroughStopLine(lightState)
+      if (canProceed) {
+        const frontVehicle = this._findNearestFrontVehicle(allVehicles)
+        if (!frontVehicle || frontVehicle.hasPassedStopLine) {
+          this.waitingForGreen = false
+          this.isAtStopLine = false
+          this.hasPassedStopLine = true
+          if (this.movementTimeline && this.movementTimeline.timeScale() === 0) {
+            this.movementTimeline.timeScale(1)
+          }
+        }
+      }
+      return
+    }
 
     // � 簡化決策邏輯：基於燈號直接決定行動
     let shouldStop = false
@@ -528,6 +533,24 @@ export default class Vehicle {
     }
   }
 
+  // Helper Method：檢查是否可以通過停止線
+  _canProceedThroughStopLine(lightState) {
+    // 直行綠燈：2-4號車道可以通過
+    if (lightState === 'green' && this.laneNumber >= 2 && this.laneNumber <= 4) {
+      return true
+    }
+    // 左轉綠燈：1號車道可以通過
+    if (lightState === 'leftGreen' && this.laneNumber === 1) {
+      return true
+    }
+    // 黃燈根據決策邏輯
+    if (lightState === 'yellow') {
+      const decision = this.makeYellowLightDecision()
+      return decision.action === 'accelerate'
+    }
+    return false
+  }
+
   // Helper Method: 執行停止邏輯
   _performStopAtLine(lightState) {
     // 🚨 立即停止（不使用動畫過渡），防止超過停止線
@@ -547,10 +570,12 @@ export default class Vehicle {
     }
   }
 
-  // 🆕 新增：檢查是否有前車在排隊
-  _hasFrontVehicleInQueue(allVehicles = []) {
+  // 🆕 新增：查找最近的前車
+  _findNearestFrontVehicle(allVehicles = []) {
+    let closestVehicle = null
+    let minDistance = Infinity
+
     for (const other of allVehicles) {
-      // 篩選：同方向、同車道、不是自己、沒被移除
       if (
         other.id === this.id ||
         other.direction !== this.direction ||
@@ -560,12 +585,10 @@ export default class Vehicle {
         continue
       }
 
-      // 檢查是否是新進場的車
       if (other.justCreated) {
         continue
       }
 
-      // 計算距離（使用相同的方法）
       const pos1 = this.getCurrentPosition()
       const pos2 = other.getCurrentPosition()
 
@@ -587,13 +610,13 @@ export default class Vehicle {
           break
       }
 
-      // 如果前方有車（距離 > 0），就有前車在排隊
-      if (distance > 0) {
-        return true
+      if (distance > 0 && distance < minDistance) {
+        closestVehicle = other
+        minDistance = distance
       }
     }
 
-    return false
+    return closestVehicle
   }
 
   // Template Method Pattern: 計算車輛到停止線距離的模板方法
