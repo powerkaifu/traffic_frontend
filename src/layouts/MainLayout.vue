@@ -1095,6 +1095,7 @@ onUnmounted(() => {
 .q-drawer {
   background: transparent !important;
   border-left: 1px solid rgba(0, 81, 220, 0.5) !important;
+  filter: saturate(1.1) contrast(1.1);
 }
 
 .q-page-container {
@@ -1103,12 +1104,10 @@ onUnmounted(() => {
     linear-gradient(45deg, rgba(0, 0, 30, 0.3) 0%, rgb(0, 0, 70) 100%),
     radial-gradient(
       circle at var(--light-position, 50% 50%),
-      rgba(0, 50, 150, 1) 0%,
-      rgba(0, 40, 130, 1) 12%,
-      rgba(0, 25, 100, 0.8) 25%,
-      rgba(0, 15, 70, 0.4) 45%,
-      rgba(0, 0, 30, 0.1) 65%,
-      rgb(0, 0, 30) 100%
+      rgba(0, 30, 120, 1) 0%,
+      rgba(0, 15, 100, 1) 8%,
+      rgba(0, 15, 100, 0.5) 15%,
+      rgb(0, 0, 30) 30%
     );
   transition: background-image 0.3s ease;
 }

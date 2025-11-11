@@ -2291,6 +2291,12 @@ onUnmounted(() => {
   pointer-events: none; /* 車輛本身可以有自己的 pointer-events */
 }
 
+.road-label,
+.timer-display,
+.ai-prediction-panel {
+  filter: saturate(1.1) contrast(1.1);
+}
+
 /* 路標背景 ------------------------------------------------- */
 .road-label {
   width: 150px;
@@ -2503,7 +2509,6 @@ onUnmounted(() => {
   padding: 16px;
   box-shadow: 0 0 20px rgba(30, 30, 100, 0.8);
   background: linear-gradient(135deg, rgba(35, 80, 150, 0.9), rgba(35, 30, 100, 0.9));
-  backdrop-filter: blur(10px);
 
   position: absolute;
   bottom: 5%;
@@ -2564,8 +2569,8 @@ onUnmounted(() => {
   box-shadow:
     0 0 20px rgba(30, 30, 100, 0.8),
     4px 0 15px rgba(63, 117, 205, 0.3);
-  backdrop-filter: blur(10px);
   padding: 10px 0;
+  filter: saturate(1.1) contrast(1.1);
 }
 
 .toolbar-btn {
@@ -2612,7 +2617,7 @@ onUnmounted(() => {
   margin-left: 12px;
   padding: 8px 14px;
   /* 與其他介面保持一致的樣式 */
-  background: linear-gradient(135deg, rgba(35, 80, 150, 0.95), rgba(35, 30, 100, 0.95));
+  background: linear-gradient(135deg, rgba(60, 120, 200, 0.95), rgba(50, 70, 150, 0.95));
   border: 2px solid rgb(63, 117, 205);
   border-radius: 8px;
   color: rgb(200, 220, 255);
