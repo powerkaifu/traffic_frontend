@@ -1172,6 +1172,11 @@ export class TrafficLightDirectResponseUtils {
       return
     }
 
+    // 🛑 新增：如果車輛在碰撞停止狀態，不要覆蓋其 timeScale
+    if (vehicleInstance.isInCollisionStop) {
+      return
+    }
+
     const currentLightState = trafficController.getCurrentLightState(vehicleInstance.direction)
 
     // 檢查是否已通過停止線

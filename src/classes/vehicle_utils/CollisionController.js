@@ -40,8 +40,10 @@ export class CollisionController {
 
       if (distance <= collisionDistance) {
         return {
-          targetSpeed: 0,
-          action: 'collision_stop',
+          action: 'follow',
+          frontVehicle: frontVehicle,
+          distance: distance,
+          safeDistance: this.vehicle.safeFollowingDistance || 25,
         }
       }
     }
