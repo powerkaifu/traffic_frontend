@@ -2010,97 +2010,35 @@ onMounted(async () => {
                   }
                   vehicle.currentState = 'acceleratingAtGreen'
                 } else {
-                  // 執行碰撞檢測
+                  // 🎯 執行碰撞檢測 - 極其簡化版本
+                  // 核心原則：碰撞控制器的決定是唯一的真理
+                  // 刪除所有舊的複雜邏輯（rejoin_queue, GREEN_LIGHT_FOLLOWING 等）
                   const shouldStop = vehicle.collisionController.checkSimpleCollision(allVehicles)
-                  const isFirstVehicle = vehicle.collisionController.isClosestToStopLine(allVehicles)
 
-                  // 碰撞處理邏輯 - 極其簡化版本
-                  // 核心原則：targetSpeed 決定一切
-                  // - targetSpeed = 0 → 停止
-                  // - targetSpeed > 0 → 蠕行或跟隨
+                  // ✅ 唯一的邏輯：應用碰撞控制器的 targetSpeed
                   if (shouldStop && shouldStop.targetSpeed !== undefined) {
-                    // 直接執行 targetSpeed（無論是停止還是蠕行）
+                    // 碰撞控制器返回了 targetSpeed
+                    // - targetSpeed = 0 → 停止
+                    // - targetSpeed > 0 → 蠕動跟隨
+                    // - targetSpeed = undefined → 自由加速（見下面）
                     if (vehicle.movementTimeline) {
                       vehicle.movementTimeline.timeScale(shouldStop.targetSpeed)
                     }
-                    vehicle.currentState = shouldStop.targetSpeed === 0 ? 'stopped' : 'autoFollowing'
-                  } else if (shouldStop && shouldStop.action === 'rejoin_queue') {
-                    const distance = shouldStop.distance
-                    const requiredGap = shouldStop.requiredGap || 12
-                    const currentLightState = trafficController.getCurrentLightState(vehicle.direction)
-
-                    // 1號車道在直行綠燈時應該排隊等待左轉綠燈
-                    if (vehicle.laneNumber === 1 && currentLightState === 'green') {
-                      vehicle.movementTimeline.timeScale(0)
-                      vehicle.currentState = 'waitingForLeftTurnGreen'
-                      vehicle.waitingForGreen = true
-                    } else {
-                      // 判斷是否可以跟車
-                      const isValidLightForFollowing =
-                        (vehicle.laneNumber === 1 && currentLightState === 'leftGreen') ||
-                        (vehicle.laneNumber !== 1 && currentLightState === 'green')
-
-                      if (
-                        isValidLightForFollowing &&
-                        !vehicle.waitingForGreen &&
-                        shouldStop.frontVehicleIsMoving &&
-                        vehicle.movementTimeline
-                      ) {
-                        // 綠燈跟車：根據距離調整速度
-                        const FOLLOWING_CONFIG = vehicle.constructor.prototype.constructor.FOLLOWING_CONFIG || {
-                          GREEN_LIGHT_FOLLOWING: {
-                            DISTANCE_THRESHOLDS: { VERY_CLOSE: 0.5, CLOSE: 1.0, NORMAL: 1.5 },
-                            LANE1: { VERY_CLOSE: 0.3, CLOSE: 0.6, NORMAL: 0.8, FAR: 1.0 },
-                            OTHER_LANES: { VERY_CLOSE: 0.2, CLOSE: 0.5, NORMAL: 0.7, FAR: 1.0 },
-                          },
-                        }
-
-                        const isLane1 = vehicle.laneNumber === 1
-                        const thresholds = FOLLOWING_CONFIG.GREEN_LIGHT_FOLLOWING.DISTANCE_THRESHOLDS
-                        const speeds = isLane1
-                          ? FOLLOWING_CONFIG.GREEN_LIGHT_FOLLOWING.LANE1
-                          : FOLLOWING_CONFIG.GREEN_LIGHT_FOLLOWING.OTHER_LANES
-
-                        let targetSpeed
-                        if (distance <= requiredGap * thresholds.VERY_CLOSE) {
-                          targetSpeed = speeds.VERY_CLOSE
-                        } else if (distance <= requiredGap * thresholds.CLOSE) {
-                          targetSpeed = speeds.CLOSE
-                        } else if (distance <= requiredGap * thresholds.NORMAL) {
-                          targetSpeed = speeds.NORMAL
-                        } else {
-                          targetSpeed = speeds.FAR
-                        }
-
-                        vehicle.movementTimeline.timeScale(targetSpeed)
-                        vehicle.currentState = 'following'
-                      } else if (
-                        isFirstVehicle &&
-                        shouldStop.frontVehicleAtStopLine &&
-                        !shouldStop.frontVehicleIsMoving &&
-                        !vehicle.waitingForGreen &&
-                        vehicle.movementTimeline
-                      ) {
-                        // 第一台車：前方在停止線等待且不移動，繼續前進
-                        const recheckLightState = trafficController.getCurrentLightState(vehicle.direction)
-                        if (recheckLightState === 'green' && !vehicle.waitingForGreen) {
-                          const currentTimeScale = vehicle.movementTimeline.timeScale()
-                          if (currentTimeScale < 1) {
-                            vehicle.movementTimeline.timeScale(1)
-                            vehicle.currentState = 'moving'
-                          }
-                        }
-                      } else if (!shouldStop.frontVehicleIsMoving) {
-                        vehicle.movementTimeline.timeScale(0)
-                        vehicle.currentState = 'stopped'
-                      }
-                    }
-                  } else if (vehicle.movementTimeline) {
-                    // 無碰撞風險時，平滑恢復到正常速度
-                    const currentTimeScale = vehicle.movementTimeline.timeScale()
-                    if (currentTimeScale < 1) {
+                    vehicle.currentState =
+                      shouldStop.action === 'collision_stop'
+                        ? 'stopped'
+                        : shouldStop.action === 'crawl_follow'
+                          ? 'crawl_following'
+                          : shouldStop.action === 'traffic_light_stop_locked'
+                            ? 'stopped'
+                            : shouldStop.action === 'align_to_stop_line_locked'
+                              ? 'stopped'
+                              : 'stopped'
+                  } else if (shouldStop && shouldStop.targetSpeed === undefined) {
+                    // 碰撞控制器說「自由加速」，恢復到正常速度
+                    if (vehicle.movementTimeline) {
                       const currentLightState = trafficController.getCurrentLightState(vehicle.direction)
-
+                      // 檢查燈號是否允許通過
                       const canProceed =
                         vehicle.laneNumber === 1 ? currentLightState === 'leftGreen' : currentLightState === 'green'
 
@@ -2109,25 +2047,17 @@ onMounted(async () => {
                         vehicle.currentState = 'moving'
                       }
                     }
-                  }
+                  } else {
+                    // shouldStop 為 null，表示沒有前車，可以自由運動
+                    const currentLightState = trafficController.getCurrentLightState(vehicle.direction)
+                    const canProceed =
+                      vehicle.laneNumber === 1 ? currentLightState === 'leftGreen' : currentLightState === 'green'
 
-                  // 簡化紅綠燈檢查
-                  if (!shouldStop && vehicle.checkTrafficLightSlowDown) {
-                    const slowDownInfo = vehicle.checkTrafficLightSlowDown(trafficController)
-                    if (slowDownInfo && slowDownInfo.action === 'resume_from_slow') {
-                      vehicle.currentState = 'moving'
-                      if (vehicle.originalTimeScale && vehicle.movementTimeline) {
-                        vehicle.movementTimeline.timeScale(vehicle.originalTimeScale)
-                        vehicle.originalTimeScale = null
+                    if (canProceed) {
+                      if (vehicle.movementTimeline && vehicle.movementTimeline.timeScale() < 1) {
+                        vehicle.movementTimeline.timeScale(1)
+                        vehicle.currentState = 'moving'
                       }
-                    } else if (slowDownInfo && slowDownInfo.action === 'stop_for_left_turn_wait') {
-                      vehicle.movementTimeline.timeScale(0)
-                      vehicle.currentState = 'waitingForLeftTurnGreen'
-                      vehicle.waitingForGreen = true
-                    } else if (slowDownInfo && slowDownInfo.action === 'stop_for_straight_wait') {
-                      vehicle.movementTimeline.timeScale(0)
-                      vehicle.currentState = 'waitingForStraightGreen'
-                      vehicle.waitingForGreen = true
                     }
                   }
                 }
