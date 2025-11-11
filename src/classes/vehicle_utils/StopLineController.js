@@ -87,7 +87,7 @@ export class StopLineController {
 
   /**
    * 計算車頭到停止線的距離（考慮 STOP_LINE_OFFSET 偏移）
-   * 🔧 修改：統一使用 COLLISION_CONFIG.STOP_LINE_OFFSET 參數，套用四個方向
+   * 🔧 修改：統一使用 COLLISION_CONFIG.STOP_LINE_OFFSET + 方向特定調整
    * @returns {number|null} 距離（像素），null表示無法計算
    */
   getDistanceToStopLine() {
@@ -98,7 +98,9 @@ export class StopLineController {
     }
 
     const vehicleHead = this.getVehicleHeadPosition()
-    const stopLineOffset = COLLISION_CONFIG.STOP_LINE_OFFSET // 統一使用此參數
+    // 🔧 計算實際停止偏移 = 基礎偏移 + 方向特定調整
+    const directionOffset = COLLISION_CONFIG.STOP_LINE_OFFSET_BY_DIRECTION[this.vehicle.direction] || 0
+    const stopLineOffset = COLLISION_CONFIG.STOP_LINE_OFFSET + directionOffset
     let distance = null
 
     // 四個方向統一邏輯：距離 = 目標位置 - 車頭位置
