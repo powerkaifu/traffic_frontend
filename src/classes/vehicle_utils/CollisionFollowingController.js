@@ -29,9 +29,10 @@ export class CollisionFollowingController {
    * 這是主要的執行方法，應該在 updateLogic 的最後被呼叫
    *
    * @param {Array} allVehicles - 所有車輛陣列
+   * @param {Object} trafficController - 信號燈控制器，用於判斷是否應該穿透
    * @returns {Object} 控制結果 { isFollowing, distance, action }
    */
-  execute(allVehicles = []) {
+  execute(allVehicles = [], trafficController = null) {
     // 防守：檢查必要條件
     if (!this.vehicle || !allVehicles || allVehicles.length === 0) {
       return { isFollowing: false, distance: Infinity, action: 'none' }
@@ -51,6 +52,13 @@ export class CollisionFollowingController {
     // 注意：isAtStopLine 可以進行碰撞排隊，但 waitingForGreen 時跳過
     if (this.vehicle.waitingForGreen) {
       return { isFollowing: false, distance: Infinity, action: 'none' }
+    }
+
+    // 🟢 新增：根據信號燈類型決定哪些車道可以穿透
+    // 直行綠燈：2-4 號自由通行，1 號排隊
+    // 左轉綠燈：1 號自由通行，2-4 號排隊
+    if (trafficController && this._canSkipCollision(trafficController)) {
+      return { isFollowing: false, distance: Infinity, action: 'green_light_bypass' }
     }
 
     const now = Date.now()
@@ -86,6 +94,32 @@ export class CollisionFollowingController {
       this._restoreSpeed()
       return { isFollowing: false, distance, action: 'resume', frontVehicle }
     }
+  }
+
+  /**
+   * 判斷是否可以跳過碰撞檢測
+   * 根據信號燈類型和車道號決定：
+   * - 直行綠燈（green）：2-4 號車道穿透，1 號排隊
+   * - 左轉綠燈（leftGreen）：1 號車道穿透，2-4 號排隊
+   * @private
+   */
+  _canSkipCollision(trafficController) {
+    if (!trafficController) return false
+
+    const lightState = trafficController.getCurrentLightState(this.vehicle.direction)
+    
+    // 直行綠燈：只有 2-4 號車道可以穿透
+    if (lightState === 'green') {
+      return this.vehicle.laneNumber >= 2 && this.vehicle.laneNumber <= 4
+    }
+    
+    // 左轉綠燈：只有 1 號車道可以穿透
+    if (lightState === 'leftGreen') {
+      return this.vehicle.laneNumber === 1
+    }
+    
+    // 其他信號（黃燈、紅燈）：無法穿透
+    return false
   }
 
   /**

@@ -887,8 +887,9 @@ export default class Vehicle {
     // 【決策邏輯 1】碰撞跟隨控制 - 首先執行，優先級最高
     // 檢測範圍：進場到停止線的排隊碰撞
     // 通過停止線後由 CollisionFollowingController 內部禁用（自由通行）
+    // 根據信號燈類型和車道號決定哪些車道可以穿透
     if (this.collisionFollowingController) {
-      this.collisionFollowingController.execute(allVehicles)
+      this.collisionFollowingController.execute(allVehicles, trafficController)
     }
 
     // 【決策邏輯 2】停止線檢查和紅綠燈控制流程
