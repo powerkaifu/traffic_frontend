@@ -435,12 +435,7 @@ import { createLanePathCalculator } from '../classes/draw_utils/lanePathCalculat
 import { stopLineConfig, lightColorConfig } from '../classes/config/trafficConfig.js'
 import WeatherController from '../classes/WeatherController.js'
 import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
-import {
-  CollisionController,
-  updateCollisionConfig,
-  getCollisionConfig,
-  resetCollisionConfig,
-} from '../classes/vehicle_utils/CollisionController.js'
+import { CollisionController } from '../classes/vehicle_utils/CollisionController.js'
 import { GENERATION_CONFIG } from '../classes/config/vehicleConfig.js'
 import { useSimulationStore } from '../stores/simulationStore.js'
 import { numberAnimator } from '../classes/NumberAnimator.js'
@@ -1476,11 +1471,6 @@ onMounted(async () => {
 
     // ✅ 向後相容：暴露到 window
     window.trafficController = trafficController
-
-    // 🎯 暴露碰撞配置管理函數到全局（供控制台調試）
-    window.updateCollisionConfig = updateCollisionConfig
-    window.getCollisionConfig = getCollisionConfig
-    window.resetCollisionConfig = resetCollisionConfig
 
     // 🎯 設置全域車輛距離配置方法
     window.setVehicleDistance = (multiplier) => {
