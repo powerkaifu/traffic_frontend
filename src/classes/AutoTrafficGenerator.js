@@ -1350,7 +1350,6 @@ export default class AutoTrafficGenerator {
           }
 
           speed = Math.round(apiSpeed)
-          console.log(`✅ [車速同步] ${selectedDir} ${type}: API速度=${apiSpeed} km/h`)
         }
       }
     } catch (error) {

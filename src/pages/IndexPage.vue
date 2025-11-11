@@ -595,7 +595,6 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
   if (speed !== null && speed !== undefined) {
     vehicle.initialSpeed = speed
     vehicle.currentSpeed = speed
-    console.log(`✅ [${vehicle.id}] 設置速度: ${speed} km/h (isFromPool: ${isFromPool})`)
   } else {
     console.warn(`⚠️ [${vehicle.id}] 未收到速度參數 (isFromPool: ${isFromPool})`)
   }
