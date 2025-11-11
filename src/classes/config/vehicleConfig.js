@@ -193,7 +193,7 @@ export const FOLLOWING_CONFIG = {
   // 🚗 碰撞後自動跟隨設定
   AUTO_FOLLOW_AFTER_COLLISION: {
     ENABLED: true, // 啟用碰撞後自動跟隨
-    SAFE_DISTANCE: 10, // 碰撞後跟隨的安全距離 (px) - 中度調整
+    SAFE_DISTANCE: 25, // 碰撞後跟隨的安全距離 (px) - 設定為 25px
     MIN_FOLLOW_DISTANCE: 8, // 最小跟隨距離（px），防止重疊
     TARGET_FOLLOW_DISTANCE: 15, // 目標跟隨距離（px）- 理想間距（調小）
     MAX_FOLLOW_DISTANCE: 30, // 最大跟隨距離（px）- 超過此距離啟動跟隨（調小）

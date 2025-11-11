@@ -69,14 +69,15 @@ export class CollisionFollowingController {
       // 距離已達安全距離，完全停止
       this._applyStop()
       return { isFollowing: true, distance, action: 'stop', frontVehicle }
-    } else if (distance <= safeDistance + 100) {
-      // 在安全距離外的接近範圍內，微速前進
+    } else if (distance <= 400) {
+      // 🔥 改進：距離在 25px 到 400px 之間時，都進行動態減速
+      // 這樣能更早地接近前車，避免 200px+ 的大距離
       const distanceDiff = distance - safeDistance
       this._applySlow(distanceDiff, safeDistance)
       return { isFollowing: true, distance, action: 'slow', frontVehicle }
     } else {
-      // 距離太遠，不需要跟隨
-      // 🚨 重要：不要加速！讓其他系統控制速度
+      // 距離太遠（> 400px），不需要跟隨
+      // 保持原速，讓其他系統控制
       return { isFollowing: false, distance, action: 'none' }
     }
   }
@@ -183,13 +184,22 @@ export class CollisionFollowingController {
    * @private
    */
   _applySlow(distanceDiff, safeDistance) {
-    const maxSlowSpeed = 0.03 // 最大微速前進速度
-    const minSlowSpeed = 0.001 // 最小微速前進速度
+    // 🚨 改進：距離越大，速度越快（而不是固定的微速）
+    // 目標：快速接近到安全距離，然後微調
+    const minSlowSpeed = 0.05 // 最小微速前進速度（5%）
+    const maxApproachSpeed = 0.3 // 最大接近速度（30%）
+    const approachThreshold = 150 // 超過150px時開始快速接近
 
-    // 根據距離差計算速度
-    // distanceDiff 越大，速度越快（但不超過 maxSlowSpeed）
-    const speedRatio = distanceDiff / (safeDistance * 2)
-    const newTimeScale = Math.max(minSlowSpeed, Math.min(maxSlowSpeed, speedRatio))
+    let newTimeScale = minSlowSpeed
+
+    if (distanceDiff > approachThreshold) {
+      // 距離很遠時：快速接近
+      newTimeScale = maxApproachSpeed
+    } else if (distanceDiff > safeDistance) {
+      // 在安全距離附近時：線性插值，逐漸減速
+      const ratio = (distanceDiff - safeDistance) / (approachThreshold - safeDistance)
+      newTimeScale = minSlowSpeed + (maxApproachSpeed - minSlowSpeed) * ratio
+    }
 
     if (this.vehicle.movementTimeline) {
       this.vehicle.movementTimeline.timeScale(newTimeScale)

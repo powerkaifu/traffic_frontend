@@ -432,10 +432,9 @@ import Vehicle from '../classes/Vehicle.js'
 import VehiclePool from '../classes/VehiclePool.js'
 import LumoAssistant from '../components/LumoAssistant.vue'
 import { createLanePathCalculator } from '../classes/draw_utils/lanePathCalculator.js'
-import { stopLineConfig, lightColorConfig } from '../classes/config/trafficConfig.js'
+import { lightColorConfig } from '../classes/config/trafficConfig.js'
 import WeatherController from '../classes/WeatherController.js'
 import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
-import { CollisionController } from '../classes/vehicle_utils/CollisionController.js'
 import { GENERATION_CONFIG } from '../classes/config/vehicleConfig.js'
 import { useSimulationStore } from '../stores/simulationStore.js'
 import { numberAnimator } from '../classes/NumberAnimator.js'
@@ -591,10 +590,8 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
     isFromPool = false
   }
 
-  // 🚀【關鍵】為碰撞控制器注入 trafficController（支持燈號停止檢查）
-  if (vehicle.collisionController && trafficController) {
-    vehicle.collisionController.setTrafficController(trafficController)
-  }
+  // 🚀 Vehicle 已經完全初始化，無需在此進行其他設置
+  // （碰撞控制由 Vehicle.updateLogic 中的 CollisionFollowingController 管理）
 
   // 🚨 設置初始 progress（如果提供的話）
   if (typeof initialProgress === 'number' && initialProgress !== 0) {
@@ -1973,95 +1970,9 @@ onMounted(async () => {
       const runStuckCheck = stuckCheckAccumulator >= 5000 // 每 5 秒執行一次
 
       if (window.liveVehicles && (runPeriodicCheck || runStuckCheck)) {
-        // ✅ P2 修復：每幀重建 SpatialHashGrid（用於碰撞檢測優化）
-        // 原因：需要在碰撞檢測前重建空間索引以確保準確性
-        if (runPeriodicCheck && CollisionController.spatialGrid) {
-          CollisionController.spatialGrid.clear()
-          for (const v of window.liveVehicles) {
-            if (v.element) {
-              const pos = v.getCurrentPosition()
-              CollisionController.spatialGrid.insert(v, pos.x, pos.y)
-            }
-          }
-        }
-
         for (const vehicle of window.liveVehicles) {
-          // ═══════════════════════════════════════════════════════════════════════
-          // 【Phase 4】✅ 執行 50ms 的碰撞檢測邏輯 (從 Vehicle.js onUpdate 遷移)
-          // ═══════════════════════════════════════════════════════════════════════
-          if (runPeriodicCheck) {
-            try {
-              // 跳過已通過停止線的車輛
-              if (!vehicle.hasPassedStopLine && vehicle.collisionController && window.trafficController) {
-                const trafficController = window.trafficController
-                const allVehicles = window.liveVehicles
-
-                // 檢測綠燈優先加速（但黃燈時不加速）
-                const currentLightStateForGreen = trafficController.getCurrentLightState(vehicle.direction)
-                const isGreenLightReady =
-                  (vehicle.laneNumber === 1 &&
-                    (currentLightStateForGreen === 'leftGreen' || currentLightStateForGreen === 'green')) ||
-                  (vehicle.laneNumber !== 1 && currentLightStateForGreen === 'green')
-
-                if (isGreenLightReady && vehicle.position && vehicle.position.distance < 50) {
-                  // 綠燈 + 接近停止線距離 < 50px = 無條件加速
-                  if (vehicle.movementTimeline && vehicle.movementTimeline.timeScale() < 1) {
-                    vehicle.movementTimeline.timeScale(1)
-                  }
-                  vehicle.currentState = 'acceleratingAtGreen'
-                } else {
-                  // 🎯 執行碰撞檢測 - 極其簡化版本
-                  // 核心原則：碰撞控制器的決定是唯一的真理
-                  const shouldStop = vehicle.collisionController.checkSimpleCollision(allVehicles)
-
-                  // ✅ 邏輯優化（Phase 20）：
-                  // shouldStop 永遠不會為 null（改進後的 CollisionController 總是返回值）
-                  // 只需根據 targetSpeed 決定：
-                  // - targetSpeed = 0 → 停止
-                  // - targetSpeed > 0 → 蠕動跟隨
-                  // - targetSpeed = undefined → 自由加速
-
-                  if (shouldStop) {
-                    if (shouldStop.targetSpeed !== undefined) {
-                      // ✅ 情況 1：碰撞控制器返回了具體速度（0 或 0.01 等）
-                      if (vehicle.movementTimeline) {
-                        vehicle.movementTimeline.timeScale(shouldStop.targetSpeed)
-                      }
-                      vehicle.currentState =
-                        shouldStop.action === 'collision_stop'
-                          ? 'stopped'
-                          : shouldStop.action === 'crawl_follow'
-                            ? 'crawl_following'
-                            : shouldStop.action === 'traffic_light_stop_locked'
-                              ? 'stopped'
-                              : shouldStop.action === 'align_to_stop_line_locked'
-                                ? 'stopped'
-                                : 'stopped'
-                    } else {
-                      // ✅ 情況 2：碰撞控制器說「無碰撞」（targetSpeed = undefined）
-                      // 檢查燈號是否允許通過，如果允許就加速到 1
-                      if (vehicle.movementTimeline) {
-                        const currentLightState = trafficController.getCurrentLightState(vehicle.direction)
-                        const canProceed =
-                          vehicle.laneNumber === 1 ? currentLightState === 'leftGreen' : currentLightState === 'green'
-
-                        if (canProceed) {
-                          vehicle.movementTimeline.timeScale(1)
-                          vehicle.currentState = 'moving'
-                        } else {
-                          // 燈號不允許，但也沒有前車碰撞
-                          // 這種情況通常不會發生，因為燈號停止在 _checkTrafficLightStop 中處理
-                          // 保持現狀即可
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            } catch (e) {
-              console.error('❌ [RAF Phase 4] Collision detection error:', e)
-            }
-          }
+          // 碰撞檢測邏輯已完全遷移至 Vehicle.updateLogic
+          // 由 CollisionFollowingController.execute() 在 updateLogic 中執行
 
           // 執行 50ms 的流量燈響應檢查 (directTrafficLightResponse, resumeMovement)
           if (runPeriodicCheck && vehicle.directTrafficLightResponse) {
