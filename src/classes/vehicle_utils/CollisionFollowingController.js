@@ -107,17 +107,17 @@ export class CollisionFollowingController {
     if (!trafficController) return false
 
     const lightState = trafficController.getCurrentLightState(this.vehicle.direction)
-    
+
     // 直行綠燈：只有 2-4 號車道可以穿透
     if (lightState === 'green') {
       return this.vehicle.laneNumber >= 2 && this.vehicle.laneNumber <= 4
     }
-    
+
     // 左轉綠燈：只有 1 號車道可以穿透
     if (lightState === 'leftGreen') {
       return this.vehicle.laneNumber === 1
     }
-    
+
     // 其他信號（黃燈、紅燈）：無法穿透
     return false
   }
