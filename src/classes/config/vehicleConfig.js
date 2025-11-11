@@ -137,6 +137,45 @@ export const DISTANCE_CONFIG = {
 
 // ===== 跟車行為設定 =====
 export const FOLLOWING_CONFIG = {
+  // 🚗 碰撞後自動跟隨設定
+  AUTO_FOLLOW_AFTER_COLLISION: {
+    ENABLED: true, // 啟用碰撞後自動跟隨
+    SAFE_DISTANCE: 15, // 預設值（水平方向：東西向）
+    SAFE_DISTANCE_VERTICAL: 30, // 垂直方向（南北向）- 根據車輛尺寸調整
+    MIN_FOLLOW_DISTANCE: 8, // 最小跟隨距離（px），防止重疊
+    TARGET_FOLLOW_DISTANCE: 15, // 目標跟隨距離（px）- 理想間距（調小）
+    MAX_FOLLOW_DISTANCE: 30, // 最大跟隨距離（px）- 超過此距離啟動跟隨（調小）
+
+    // 跟隨速度設定（根據距離動態調整）
+    FOLLOW_SPEEDS: {
+      VERY_CLOSE: 0.05, // 非常接近（8-15px）- 微調速度
+      CLOSE: 0.12, // 接近（15-25px）- 慢速靠近
+      NORMAL: 0.18, // 正常（25-35px）- 一般跟隨
+      FAR: 0.25, // 較遠（35-50px）- 快速跟隨
+    },
+
+    // 距離判斷閾值
+    DISTANCE_THRESHOLDS: {
+      VERY_CLOSE: 15, // 非常接近閾值（px）
+      CLOSE: 25, // 接近閾值（px）
+      NORMAL: 35, // 正常閾值（px）
+    },
+
+    // 🎯 長距離排隊追趕設定（解決碰撞後大空隙問題）
+    LONG_DISTANCE_QUEUE_CATCH_UP: {
+      ENABLED: true, // 啟用長距離追趕
+      MIN_CATCH_UP_DISTANCE: 55, // 最小追趕距離（px）
+      MAX_CATCH_UP_DISTANCE: 300, // 最大追趕距離（px）
+      NORMAL_SPEED_THRESHOLD: 150, // 正常速度閾值（px）
+
+      // 多段式速度控制
+      CATCH_UP_SPEED: 0.35, // 基礎追趕速度（中等距離）
+      NORMAL_DRIVE_SPEED: 0.9, // 遠距離接近正常行駛速度
+
+      // 生成時安全距離檢查
+      SAFE_SPAWN_DISTANCE: 100, // 生成時與前車最小安全距離（px）
+    },
+  },
   // 🎯 跟車速度計算
   SPEED_RATIOS: {
     // 根據距離調整跟車速度
@@ -188,45 +227,6 @@ export const FOLLOWING_CONFIG = {
     PREDICTION_DISTANCE_MULTIPLIER: 1.5, // 預測距離倍數（根據相對速度計算提前減速距離）
     MIN_PREDICTION_DISTANCE: 30, // 最小預測距離（像素）
     MAX_PREDICTION_DISTANCE: 80, // 最大預測距離（像素）
-  },
-
-  // 🚗 碰撞後自動跟隨設定
-  AUTO_FOLLOW_AFTER_COLLISION: {
-    ENABLED: true, // 啟用碰撞後自動跟隨
-    SAFE_DISTANCE: 25, // 碰撞後跟隨的安全距離 (px) - 設定為 25px
-    MIN_FOLLOW_DISTANCE: 8, // 最小跟隨距離（px），防止重疊
-    TARGET_FOLLOW_DISTANCE: 15, // 目標跟隨距離（px）- 理想間距（調小）
-    MAX_FOLLOW_DISTANCE: 30, // 最大跟隨距離（px）- 超過此距離啟動跟隨（調小）
-
-    // 跟隨速度設定（根據距離動態調整）
-    FOLLOW_SPEEDS: {
-      VERY_CLOSE: 0.05, // 非常接近（8-15px）- 微調速度
-      CLOSE: 0.12, // 接近（15-25px）- 慢速靠近
-      NORMAL: 0.18, // 正常（25-35px）- 一般跟隨
-      FAR: 0.25, // 較遠（35-50px）- 快速跟隨
-    },
-
-    // 距離判斷閾值
-    DISTANCE_THRESHOLDS: {
-      VERY_CLOSE: 15, // 非常接近閾值（px）
-      CLOSE: 25, // 接近閾值（px）
-      NORMAL: 35, // 正常閾值（px）
-    },
-
-    // 🎯 長距離排隊追趕設定（解決碰撞後大空隙問題）
-    LONG_DISTANCE_QUEUE_CATCH_UP: {
-      ENABLED: true, // 啟用長距離追趕
-      MIN_CATCH_UP_DISTANCE: 55, // 最小追趕距離（px）
-      MAX_CATCH_UP_DISTANCE: 300, // 最大追趕距離（px）
-      NORMAL_SPEED_THRESHOLD: 150, // 正常速度閾值（px）
-
-      // 多段式速度控制
-      CATCH_UP_SPEED: 0.35, // 基礎追趕速度（中等距離）
-      NORMAL_DRIVE_SPEED: 0.9, // 遠距離接近正常行駛速度
-
-      // 生成時安全距離檢查
-      SAFE_SPAWN_DISTANCE: 100, // 生成時與前車最小安全距離（px）
-    },
   },
 }
 

@@ -72,19 +72,36 @@ export class CollisionFollowingController {
     const distance = this._calculateDistance(this.vehicle, frontVehicle)
     this.lastDistance = distance
 
-    // 獲取安全距離設定
-    const safeDistance = FOLLOWING_CONFIG.AUTO_FOLLOW_AFTER_COLLISION.SAFE_DISTANCE
+    // 🆕 獲取方向特定的安全距離設定
+    const safeDistance = this._getSafeDistance()
 
     // 🔑 簡化排隊邏輯：二元決策
     // 只有兩種狀態：停止 或 自由
     if (distance <= safeDistance) {
-      // 🛑 距離 ≤ 25px：完全停止
+      // 🛑 距離 ≤ 安全距離：完全停止
       this._applyStop()
       return { isFollowing: true, distance, action: 'stop', frontVehicle }
     } else {
-      // ✅ 距離 > 25px：恢復原速（解除停止狀態）
+      // ✅ 距離 > 安全距離：恢復原速（解除停止狀態）
       this._restoreSpeed()
       return { isFollowing: false, distance, action: 'resume', frontVehicle }
+    }
+  }
+
+  /**
+   * 根據方向獲取安全距離
+   * 水平方向（東西向）和垂直方向（南北向）使用不同的間距
+   * @private
+   */
+  _getSafeDistance() {
+    const isVertical = this.vehicle.direction === 'north' || this.vehicle.direction === 'south'
+
+    if (isVertical) {
+      // 垂直方向使用更大的間距
+      return FOLLOWING_CONFIG.AUTO_FOLLOW_AFTER_COLLISION.SAFE_DISTANCE_VERTICAL || 25
+    } else {
+      // 水平方向使用基本間距
+      return FOLLOWING_CONFIG.AUTO_FOLLOW_AFTER_COLLISION.SAFE_DISTANCE || 15
     }
   }
 
