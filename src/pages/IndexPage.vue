@@ -1716,7 +1716,6 @@ onMounted(async () => {
       (newVal) => {
         if (snLightRef.value) {
           numberAnimator.animateCounter(snLightRef.value, newVal, {
-            duration: 0.8,
             decimals: 0,
             suffix: '',
           })
