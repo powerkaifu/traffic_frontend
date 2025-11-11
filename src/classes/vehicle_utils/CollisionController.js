@@ -131,7 +131,7 @@ export class CollisionController {
       return null
     }
 
-    // 距離停止線 >= TRAFFIC_LIGHT_CHECK_DISTANCE，距離還很遠，繼續前進（不受燈號限制）
+    // 距離停止線 >= TRAFFIC_LIGHT_CHECK_DISTANCE，距離還很遠，繼續前進（允許走到停止線）
     if (distanceToStopLine >= COLLISION_CONFIG.TRAFFIC_LIGHT_CHECK_DISTANCE) {
       return null
     }
