@@ -479,7 +479,17 @@ export default class Vehicle {
       return // 前置條件不滿足，無需響應
     }
 
-    // 設置已到達停止線標記
+    // 🆕 改進：檢查是否有前車在排隊
+    // 如果有前車，由碰撞系統控制排隊，不強制停止線停止
+    const hasFrontVehicle = this._hasFrontVehicleInQueue(allVehicles)
+
+    if (hasFrontVehicle) {
+      // 前面有車在排隊，讓碰撞系統控制
+      // 不設置 isAtStopLine，允許碰撞控制器決定是否停止
+      return
+    }
+
+    // 沒有前車，這是隊列的第一台車，停止在停止線
     this.isAtStopLine = true
     const lightState = trafficController.getCurrentLightState(this.direction)
 
@@ -535,6 +545,55 @@ export default class Vehicle {
     if (this.laneNumber === 1 && lightState === 'green') {
       this.currentState = 'waitingForLeftTurnGreen'
     }
+  }
+
+  // 🆕 新增：檢查是否有前車在排隊
+  _hasFrontVehicleInQueue(allVehicles = []) {
+    for (const other of allVehicles) {
+      // 篩選：同方向、同車道、不是自己、沒被移除
+      if (
+        other.id === this.id ||
+        other.direction !== this.direction ||
+        other.laneNumber !== this.laneNumber ||
+        other.isRemoved
+      ) {
+        continue
+      }
+
+      // 檢查是否是新進場的車
+      if (other.justCreated) {
+        continue
+      }
+
+      // 計算距離（使用相同的方法）
+      const pos1 = this.getCurrentPosition()
+      const pos2 = other.getCurrentPosition()
+
+      if (!pos1 || !pos2) continue
+
+      let distance = 0
+      switch (this.direction) {
+        case 'east':
+          distance = pos2.x - pos1.x
+          break
+        case 'west':
+          distance = pos1.x - pos2.x
+          break
+        case 'south':
+          distance = pos2.y - pos1.y
+          break
+        case 'north':
+          distance = pos1.y - pos2.y
+          break
+      }
+
+      // 如果前方有車（距離 > 0），就有前車在排隊
+      if (distance > 0) {
+        return true
+      }
+    }
+
+    return false
   }
 
   // Template Method Pattern: 計算車輛到停止線距離的模板方法
@@ -826,8 +885,8 @@ export default class Vehicle {
     }
 
     // 【決策邏輯 1】碰撞跟隨控制 - 首先執行，優先級最高
-    // 持續執行碰撞檢測：進場階段 + 十字路口通行中
-    // 🆕 移除 !hasPassedStopLine 限制，讓通過停止線後的車輛也進行碰撞檢測
+    // 檢測範圍：進場到停止線的排隊碰撞
+    // 通過停止線後由 CollisionFollowingController 內部禁用（自由通行）
     if (this.collisionFollowingController) {
       this.collisionFollowingController.execute(allVehicles)
     }

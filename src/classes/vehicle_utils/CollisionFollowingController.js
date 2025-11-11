@@ -1,16 +1,17 @@
 /**
- * CollisionFollowingController.js - 碰撞後跟隨控制器
+ * CollisionFollowingController.js - 碰撞排隊控制器
  *
  * 職責：
  * - 檢測前方碰撞
  * - 計算與前車的距離
- * - 根據安全距離決定車輛速度
- * - 確保車輛保持設定的安全距離，不重疊
+ * - 當距離 ≤ SAFE_DISTANCE 時停止車輛
+ * - 當距離 > SAFE_DISTANCE 時允許車輛自由行駛
  *
  * 特點：
+ * - 只處理排隊停止，不進行動態減速
  * - 邏輯簡潔、單一職責
  * - 直接控制 timeScale，不受其他邏輯干擾
- * - 優先級最高，在其他邏輯之後執行
+ * - 優先級：停止線前（排隊）> 通過停止線後（禁用）
  */
 
 import { FOLLOWING_CONFIG } from '../config/vehicleConfig.js'
@@ -41,14 +42,14 @@ export class CollisionFollowingController {
       return { isFollowing: false, distance: Infinity, action: 'none' }
     }
 
-    // 🚨 防守：進場不足 500ms 的新車輛也免除碰撞檢測
-    const vehicleAge = Date.now() - new Date(this.vehicle.createdAt).getTime()
-    if (vehicleAge < 500) {
+    // 🆕 改進：通過停止線後的車輛無需碰撞檢測（進入十字路口自由通行）
+    if (this.vehicle.hasPassedStopLine) {
       return { isFollowing: false, distance: Infinity, action: 'none' }
     }
 
-    // 🚨 防守：停止線附近和等待綠燈時，不進行碰撞跟隨檢測
-    if (this.vehicle.isAtStopLine || this.vehicle.waitingForGreen) {
+    // 🚨 防守：等待綠燈時不進行碰撞跟隨檢測（由信號燈邏輯單獨控制）
+    // 注意：isAtStopLine 可以進行碰撞排隊，但 waitingForGreen 時跳過
+    if (this.vehicle.waitingForGreen) {
       return { isFollowing: false, distance: Infinity, action: 'none' }
     }
 
@@ -74,21 +75,16 @@ export class CollisionFollowingController {
     // 獲取安全距離設定
     const safeDistance = FOLLOWING_CONFIG.AUTO_FOLLOW_AFTER_COLLISION.SAFE_DISTANCE
 
-    // 根據距離決定行動
+    // 🔑 簡化排隊邏輯：二元決策
+    // 只有兩種狀態：停止 或 自由
     if (distance <= safeDistance) {
-      // 距離已達安全距離，完全停止
+      // 🛑 距離 ≤ 25px：完全停止
       this._applyStop()
       return { isFollowing: true, distance, action: 'stop', frontVehicle }
-    } else if (distance <= 400) {
-      // 🔥 改進：距離在 25px 到 400px 之間時，都進行動態減速
-      // 這樣能更早地接近前車，避免 200px+ 的大距離
-      const distanceDiff = distance - safeDistance
-      this._applySlow(distanceDiff, safeDistance)
-      return { isFollowing: true, distance, action: 'slow', frontVehicle }
     } else {
-      // 距離太遠（> 400px），不需要跟隨
-      // 保持原速，讓其他系統控制
-      return { isFollowing: false, distance, action: 'none' }
+      // ✅ 距離 > 25px：恢復原速（解除停止狀態）
+      this._restoreSpeed()
+      return { isFollowing: false, distance, action: 'resume', frontVehicle }
     }
   }
 
@@ -101,34 +97,26 @@ export class CollisionFollowingController {
     let minDistance = Infinity
 
     for (const other of allVehicles) {
-      // 篩選條件：同方向、同車道、不是自己、不是新進場車輛
+      // 🔑 基本篩選：同方向、同車道、不是自己、沒被移除
       if (
         other.id === this.vehicle.id ||
         other.direction !== this.vehicle.direction ||
         other.laneNumber !== this.vehicle.laneNumber ||
-        other.isRemoved ||
-        other.justCreated // 🚨 排除剛進場的車輛（justCreated=true）
+        other.isRemoved
       ) {
         continue
       }
 
-      // 🚨 排除進場不超過 500ms 的車輛（讓它們有時間上路）
-      const vehicleAge = Date.now() - new Date(other.createdAt).getTime()
-      if (vehicleAge < 500) {
-        continue
-      }
-
-      // 🆕 進場階段保護：同車道新生成的車輛不應作為"前車"被檢測
-      // 防止進場車輛互相減速，但不排除檢測本身
-      if (this.vehicle.isInEntryPhase && other.isInEntryPhase) {
-        // 同為進場車輛，不互相檢測
+      // � 排除新進場的車輛
+      // justCreated 在 500ms 後會自動變為 false
+      if (other.justCreated) {
         continue
       }
 
       // 計算距離
       const distance = this._calculateDistance(this.vehicle, other)
 
-      // 只關注前方車輛（距離 > 0）且是最近的
+      // 🔑 只關注前方車輛（距離 > 0）且是最近的
       if (distance > 0 && distance < minDistance) {
         closestVehicle = other
         minDistance = distance
@@ -194,39 +182,38 @@ export class CollisionFollowingController {
 
   /**
    * 應用完全停止
+   * 只有在沒有其他邏輯控制時才停止
    * @private
    */
   _applyStop() {
-    if (this.vehicle.movementTimeline && this.vehicle.movementTimeline.timeScale() !== 0) {
+    if (!this.vehicle.movementTimeline) return
+
+    const currentTimeScale = this.vehicle.movementTimeline.timeScale()
+
+    // 🔑 關鍵改進：只在未被其他邏輯控制時才停止
+    // 如果已經被停止線/信號燈邏輯停止，不要覆蓋
+    if (currentTimeScale !== 0) {
+      // 不是停止狀態，設定為停止
       this.vehicle.movementTimeline.timeScale(0)
       this.vehicle.isInCollisionStop = true
     }
   }
 
   /**
-   * 應用微速前進
+   * 恢復原速（解除停止狀態）
+   * 當距離 > SAFE_DISTANCE 時，車輛應恢復正常速度
    * @private
    */
-  _applySlow(distanceDiff, safeDistance) {
-    // 🚨 改進：距離越大，速度越快（而不是固定的微速）
-    // 目標：快速接近到安全距離，然後微調
-    const minSlowSpeed = 0.05 // 最小微速前進速度（5%）
-    const maxApproachSpeed = 0.3 // 最大接近速度（30%）
-    const approachThreshold = 150 // 超過150px時開始快速接近
+  _restoreSpeed() {
+    if (!this.vehicle.movementTimeline) return
 
-    let newTimeScale = minSlowSpeed
+    const currentTimeScale = this.vehicle.movementTimeline.timeScale()
 
-    if (distanceDiff > approachThreshold) {
-      // 距離很遠時：快速接近
-      newTimeScale = maxApproachSpeed
-    } else if (distanceDiff > safeDistance) {
-      // 在安全距離附近時：線性插值，逐漸減速
-      const ratio = (distanceDiff - safeDistance) / (approachThreshold - safeDistance)
-      newTimeScale = minSlowSpeed + (maxApproachSpeed - minSlowSpeed) * ratio
-    }
-
-    if (this.vehicle.movementTimeline) {
-      this.vehicle.movementTimeline.timeScale(newTimeScale)
+    // 🔑 關鍵改進：只恢復由碰撞系統設定的停止
+    // 不要恢復由停止線/信號燈邏輯設定的停止
+    if (currentTimeScale === 0 && this.vehicle.isInCollisionStop === true) {
+      // 這是碰撞系統的停止，現在可以恢復
+      this.vehicle.movementTimeline.timeScale(1.0)
       this.vehicle.isInCollisionStop = false
     }
   }
