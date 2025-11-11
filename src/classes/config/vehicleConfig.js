@@ -28,17 +28,7 @@ export const ANIMATION_CONFIG = {
     TIMESCALE_DEBOUNCE: 50, // ✅ 改為 50ms，匹配 SPEED_CHANGE_DURATION.INSTANT
   },
 
-  /*
-   * 🗑️ 已移除：EASING
-   * - 原始定義：動畫緩動設定
-   * - 移除原因：所有緩動效果已移除，不再使用
-   * - 搜尋結果：0 次使用（ANIMATION_CONFIG.EASING 無任何調用）
-   * - 備份日期：2025-11-11
-   *
-   * EASING: {
-   *   NONE: 'none',
-   * },
-   */
+
 
   // ⏰ 初始化和時間限制設定
   INITIALIZATION_DELAY: 500, // 車輛初始化延遲時間（毫秒）
@@ -145,10 +135,6 @@ export const LANE_SPAWN_CONFIG = {
 export const DISTANCE_CONFIG = {
   // 🚗 唯一需要調整的參數
   MIN_GAP: 12, // 車輛停車時的間隔距離（像素）- 調整此值可改變排隊間距
-
-  // 🔧 碰撞檢測內部使用（不建議修改，會影響碰撞檢測功能）
-  SAFE_FOLLOWING: 35, // 跟車安全距離
-  EMERGENCY_STOP: 50, // 緊急停車距離
 }
 
 // ===== 跟車行為設定 =====

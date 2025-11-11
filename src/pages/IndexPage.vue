@@ -2072,6 +2072,15 @@ onMounted(async () => {
             }
           }
 
+          // 🚗 恢復排隊間距控制邏輯（MIN_GAP 參數）
+          if (vehicle.resumeMovement && typeof vehicle.resumeMovement === 'function') {
+            try {
+              vehicle.resumeMovement(window.liveVehicles)
+            } catch (e) {
+              console.error('⚠️ [RAF] Resume movement error:', e)
+            }
+          }
+
           // 執行 5 秒的檢查 (checkAndResolveStuckState)
           if (runStuckCheck && vehicle.checkAndResolveStuckState) {
             try {

@@ -36,6 +36,7 @@ import {
   StopMovementUtils,
   TrafficLightSlowDownUtils,
   TrafficLightDirectResponseUtils,
+  ResumeMovementUtils,
 } from './utils/VehicleUtilities.js' // 🚀 新增：車輛工具類
 
 // 註冊 GSAP 插件
@@ -813,7 +814,13 @@ export default class Vehicle {
 
   // 🚨 極簡化恢復移動方法
   // � DRY 優化：委託給恢復移動工具類
-  // 🛣️ 移除：resumeMovement 已不再使用
+  // � 恢復排隊間距控制方法（使用 MIN_GAP 參數）
+  resumeMovement(allVehicles = []) {
+    ResumeMovementUtils.executeResume(this, allVehicles, {
+      duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH,
+      ease: 'power2.out',
+    })
+  }
 
   // Command Pattern + State Pattern: 強制恢復移動命令
   // � 移除 forceResumeMovement 方法 - 功能已被 directTrafficLightResponse 替代
@@ -1056,8 +1063,9 @@ export default class Vehicle {
           theoreticalTime *= Vehicle.timeMultiplier
 
           // 🌤️ 天氣影響：根據天氣調整速度（降低速度 = 增加時間）
+          // 🚨 但在通過停止線時，保持原始速度，不受天氣影響
           const weatherMultiplier = this.getWeatherSpeedMultiplier()
-          if (weatherMultiplier < 1.0) {
+          if (weatherMultiplier < 1.0 && !this.hasPassedStopLine) {
             // 速度降低時，時間需要增加（時間 = 1 / 速度）
             theoreticalTime /= weatherMultiplier
           }
