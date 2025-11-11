@@ -469,46 +469,37 @@ export default class Vehicle {
     this.isAtStopLine = true
     const lightState = trafficController.getCurrentLightState(this.direction)
 
-    // 🟡 P0 FIX #1：決定是否停止（基於燈號和決策邏輯）
+    // � 簡化決策邏輯：基於燈號直接決定行動
     let shouldStop = false
-    if (lightState === 'yellow') {
-      // 🟡 黃燈時：使用新的決策邏輯
-      const decision = this.makeYellowLightDecision()
-      shouldStop = decision.action === 'brake'
-      if (YELLOW_LIGHT_DECISION_CONFIG.DEBUG.ENABLED) {
-        console.log(`🟡 [${this.id}] 黃燈決策執行: ${decision.decision} → ${decision.action}`)
-      }
-    } else {
-      // 紅燈、全紅、或其他燈號
-      shouldStop = lightState === 'red' || lightState === 'allRed' || (this.laneNumber === 1 && lightState === 'green') // 1號車道（左轉）在直行綠燈時停止
+    switch (lightState) {
+      case 'red':
+      case 'allRed':
+        shouldStop = true
+        break
+      case 'green':
+        shouldStop = this.laneNumber === 1
+        break
+      case 'leftGreen':
+        shouldStop = this.laneNumber !== 1
+        break
+      case 'yellow':
+        shouldStop = true
+        break
+      default:
+        shouldStop = true
     }
 
-    // 🚦 執行停止邏輯
     if (shouldStop) {
       this._performStopAtLine(lightState)
-      return
-    }
-
-    // 🚦 檢查是否可以通過停止線
-    const canProceed = this._canProceedThroughStopLine(lightState)
-    if (canProceed) {
-      // 可以通過停止線
+    } else {
       this.isAtStopLine = false
       this.hasPassedStopLine = true
-
-      // 🚨 恢復原始速度：通過停止線後恢復到進場時的初始速度
-      // （動畫在停止線之前已經以天氣倍數的速度進行）
-      // （通過停止線後應該加速回到原始速度）
       this.currentSpeed = this.initialSpeed
       this.maxSpeed = this.initialSpeed
 
-      // 🚨 加速動畫到原始速度（增加 timeScale）
       if (this.movementTimeline && this.movementTimeline.timeScale() > 0) {
         this.movementTimeline.timeScale(1)
       }
-    } else {
-      // 不能通過，需要等待
-      this._performStopAtLine(lightState)
     }
   }
 
@@ -531,16 +522,6 @@ export default class Vehicle {
     }
   }
 
-  // Helper Method: 檢查是否可以通過停止線
-  _canProceedThroughStopLine(lightState) {
-    // 🚨 修正：檢查1號車道是否為左轉綠燈
-    const isNonLane1GreenLight = this.laneNumber !== 1 && lightState === 'green'
-    const isLane1LeftTurnGreen = this.laneNumber === 1 && lightState === 'leftGreen'
-    const isYellowAndCanAccelerate = lightState === 'yellow' && this.makeYellowLightDecision().action === 'accelerate'
-
-    return isNonLane1GreenLight || isLane1LeftTurnGreen || isYellowAndCanAccelerate
-  }
-
   // Template Method Pattern: 計算車輛到停止線距離的模板方法
   // 🚀 簡化：委託給停止線控制器
   getDistanceToStopLine() {
@@ -548,101 +529,7 @@ export default class Vehicle {
     return StopLineUtils.getDistance(this.stopLineController)
   }
 
-  // 🚀 簡化：使用停止線控制器處理交通燈邏輯
-  checkTrafficLightSlowDown(trafficController) {
-    // 🚀 DRY 優化：使用工具類檢查交通燈減速
-    return TrafficLightSlowDownUtils.checkSlowDown({
-      hasPassedStopLine: this.hasPassedStopLine,
-      waitingForGreen: this.waitingForGreen,
-      isAtStopLine: this.isAtStopLine,
-      stopLineController: this.stopLineController,
-      trafficController: trafficController,
-    })
-  }
-
-  // 🚨 P0 FIX #1：黃燈決策方法 - 決定是否衝過黃燈或停止
-  makeYellowLightDecision() {
-    // 檢查配置是否啟用黃燈決策邏輯
-    if (!YELLOW_LIGHT_DECISION_CONFIG.DECISION_LOGIC.ENABLED) {
-      return { action: 'none', decision: 'disabled' }
-    }
-
-    // 🚀 第3階段優化：黃燈決策降頻
-    // 每 50ms (20 Hz) 只進行一次完整決策計算，其他時間使用緩存結果
-    const now = Date.now()
-    if (now - this.lastYellowDecisionTime < this.yellowDecisionCacheInterval) {
-      // 使用緩存的決策結果
-      if (this.cachedYellowDecision) {
-        return this.cachedYellowDecision
-      }
-    }
-
-    // 獲取當前速度和位置
-    const currentSpeed = this.getCurrentSpeedRatio() || 0
-    const distanceToStopLine = this.getDistanceToStopLine()
-
-    // 無法計算距離時，採用保守策略（停止）
-    if (distanceToStopLine === null || distanceToStopLine === undefined) {
-      const decision = { action: 'brake', decision: 'unknown_distance' }
-      this.cachedYellowDecision = decision
-      this.lastYellowDecisionTime = now
-      return decision
-    }
-
-    // 如果距離為負，表示已超過停止線，應該加速通過
-    if (distanceToStopLine < 0) {
-      const decision = { action: 'accelerate', decision: 'already_past' }
-      this.cachedYellowDecision = decision
-      this.lastYellowDecisionTime = now
-      return decision
-    }
-
-    // 計算安全停止距離
-    // 公式：stopping_distance = (speed²) / (2 × deceleration) + safety_margin
-    const deceleration = YELLOW_LIGHT_DECISION_CONFIG.DECELERATION_RATE
-    const speedInPixelsPerFrame = currentSpeed * this.initialSpeed
-    const stoppingDistance =
-      (speedInPixelsPerFrame * speedInPixelsPerFrame) / (2 * deceleration) +
-      YELLOW_LIGHT_DECISION_CONFIG.SAFE_STOPPING_MARGIN
-
-    // 決策邏輯
-    let decision
-    if (distanceToStopLine > stoppingDistance) {
-      // 能夠安全停止 → 減速停車
-      if (YELLOW_LIGHT_DECISION_CONFIG.DEBUG.LOG_DECISIONS) {
-        console.log(
-          `🟡 [${this.id}] 黃燈決策：停止 (距離=${distanceToStopLine.toFixed(1)}, 停止距=${stoppingDistance.toFixed(1)})`,
-        )
-      }
-      decision = {
-        action: 'brake',
-        decision: 'safe_to_stop',
-        stoppingDistance: stoppingDistance,
-        distanceToStopLine: distanceToStopLine,
-      }
-    } else {
-      // 無法安全停止 → 加速通過
-      if (YELLOW_LIGHT_DECISION_CONFIG.DEBUG.LOG_DECISIONS) {
-        console.log(
-          `🟡 [${this.id}] 黃燈決策：衝過 (距離=${distanceToStopLine.toFixed(1)}, 停止距=${stoppingDistance.toFixed(1)})`,
-        )
-      }
-      decision = {
-        action: 'accelerate',
-        decision: 'cannot_stop_safely',
-        stoppingDistance: stoppingDistance,
-        distanceToStopLine: distanceToStopLine,
-      }
-    }
-
-    // 更新緩存
-    this.cachedYellowDecision = decision
-    this.lastYellowDecisionTime = now
-
-    return decision
-  }
-
-  // 🚨 P0 FIX #2：檢測車輛是否在轉向路段
+  //  P0 FIX #2：檢測車輛是否在轉向路段
   isOnTurnSection() {
     if (!this.position || !this.position.progress) {
       return false
@@ -923,8 +810,15 @@ export default class Vehicle {
       return // 停止線後無需進一步決策
     }
 
-    // 【決策邏輯 1】停止線檢查和紅綠燈控制流程
+    // 【決策邏輯 1】碰撞跟隨控制 - 首先執行，優先級最高
+    // 必須在停止線檢查之前執行，以便了解前方是否有車
+    if (this.collisionFollowingController && !this.hasPassedStopLine) {
+      this.collisionFollowingController.execute(allVehicles)
+    }
+
+    // 【決策邏輯 2】停止線檢查和紅綠燈控制流程
     // 這是最重要的決策邏輯，負責車輛何時可以通過停止線
+    // 注意：此方法會覆蓋碰撞系統設定的 timeScale（如果需要停止）
     this.checkStopLineAndRespond(trafficController, allVehicles)
 
     // ⏱️ 從 onUpdate 移來：邊界檢查（停止線前也要檢查）
@@ -936,12 +830,6 @@ export default class Vehicle {
         this._hasBeenRemovedFromLogic = true
         this.onVehicleOutOfBoundsCallback(this)
       }
-    }
-
-    // 【決策邏輯 2】碰撞跟隨控制 - 最後執行，優先級最高
-    // 確保不會被其他邏輯覆蓋
-    if (this.collisionFollowingController && !this.hasPassedStopLine) {
-      this.collisionFollowingController.execute(allVehicles)
     }
   }
 

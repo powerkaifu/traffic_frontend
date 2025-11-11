@@ -36,6 +36,12 @@ export class CollisionFollowingController {
       return { isFollowing: false, distance: Infinity, action: 'none' }
     }
 
+    // 🚨 關鍵：不對停止線上的車輛做任何調整
+    // 停止線邏輯由 checkStopLineAndRespond 完全掌控
+    if (this.vehicle.isAtStopLine || this.vehicle.waitingForGreen) {
+      return { isFollowing: false, distance: Infinity, action: 'none' }
+    }
+
     const now = Date.now()
     if (now - this.lastCheckTime < this.checkInterval) {
       return { isFollowing: false, distance: this.lastDistance, action: 'none' }
@@ -70,6 +76,7 @@ export class CollisionFollowingController {
       return { isFollowing: true, distance, action: 'slow', frontVehicle }
     } else {
       // 距離太遠，不需要跟隨
+      // 🚨 重要：不要加速！讓其他系統控制速度
       return { isFollowing: false, distance, action: 'none' }
     }
   }
