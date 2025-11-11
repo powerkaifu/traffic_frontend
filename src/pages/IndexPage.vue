@@ -1996,7 +1996,7 @@ onMounted(async () => {
                 const trafficController = window.trafficController
                 const allVehicles = window.liveVehicles
 
-                // 檢測綠燈優先加速
+                // 檢測綠燈優先加速（但黃燈時不加速）
                 const currentLightStateForGreen = trafficController.getCurrentLightState(vehicle.direction)
                 const isGreenLightReady =
                   (vehicle.laneNumber === 1 &&

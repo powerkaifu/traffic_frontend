@@ -112,11 +112,10 @@ export class CollisionController {
    * 檢查燈號停止規則
    * 規則：
    * - 距離停止線 < 0（已越過）→ 不受燈號影響
-   * - 距離停止線 >= TRAFFIC_LIGHT_CHECK_DISTANCE（遠離停止線）→ 繼續前進
-   * - 距離停止線 < TRAFFIC_LIGHT_CHECK_DISTANCE（接近停止線）→ 檢查燈號
-   *   - 紅燈、黃燈、全紅 → 停止
-   *   - 綠燈、左轉綠燈 → 放行
-   * 返回值：{ targetSpeed=0, reason, distance, action='traffic_light_stop' } 或 null
+   * - 黃燈 → 允許繼續走（走到停止線停止）
+   * - 紅燈/全紅：距離 < TRAFFIC_LIGHT_CHECK_DISTANCE 時停止
+   * - 綠燈、左轉綠燈 → 放行
+   * 返回值：{ targetSpeed, reason, distance, action } 或 null
    */
   _checkTrafficLightStop() {
     if (!this.trafficController) {
@@ -131,28 +130,32 @@ export class CollisionController {
       return null
     }
 
-    // 距離停止線 >= TRAFFIC_LIGHT_CHECK_DISTANCE，距離還很遠，繼續前進（允許走到停止線）
-    if (distanceToStopLine >= COLLISION_CONFIG.TRAFFIC_LIGHT_CHECK_DISTANCE) {
-      return null
-    }
-
-    // 只有接近停止線（< TRAFFIC_LIGHT_CHECK_DISTANCE）時，才檢查燈號是否需要停止
     // 獲取當前燈號狀態
     const lightState = this.trafficController.getCurrentLightState(this.vehicle.direction)
 
-    // 需要停止的燈號：red（紅）、yellow（黃）、allRed（全紅）
-    const stopLightStates = ['red', 'yellow', 'allRed']
-
-    if (stopLightStates.includes(lightState)) {
-      return {
-        targetSpeed: 0,
-        reason: `燈號停止：${lightState}，距離停止線${distanceToStopLine.toFixed(1)}px`,
-        distance: distanceToStopLine,
-        lightState: lightState,
-        action: 'traffic_light_stop',
-      }
+    // 黃燈：允許繼續走（不加速，但允許移動到停止線）
+    if (lightState === 'yellow') {
+      // 黃燈不返回停止指令，改為允許繼續走（會由碰撞檢測控制速度）
+      return null
     }
 
+    // 紅燈/全紅：只在接近停止線時停止
+    const stopLightStates = ['red', 'allRed']
+    if (stopLightStates.includes(lightState)) {
+      if (distanceToStopLine < COLLISION_CONFIG.TRAFFIC_LIGHT_CHECK_DISTANCE) {
+        return {
+          targetSpeed: 0,
+          reason: `燈號停止：${lightState}，距離停止線${distanceToStopLine.toFixed(1)}px`,
+          distance: distanceToStopLine,
+          lightState: lightState,
+          action: 'traffic_light_stop',
+        }
+      }
+      // 紅燈但距離遠時，允許繼續走（讓車子自然滑行到停止線）
+      return null
+    }
+
+    // 綠燈或左轉綠燈：允許通過
     return null
   } /**
    * 找前方最近的車輛
