@@ -11,16 +11,12 @@ const COLLISION_CONFIG = {
   TRAFFIC_LIGHT_CHECK_DISTANCE: 100, // 燈號停止距離：當車距離停止線 < 此值時，檢查燈號是否需要停止
   TARGET_SPACING: 15, // 🎯 東西向目標間距（px）
   TARGET_SPACING_VERTICAL: 30, // 🎯 南北向目標間距（px）- 南北向車更短，需要稍大的間距來保持視覺一致
-  STOP_LINE_OFFSET: 0, // 🎯 停止線距離（px）- 停止線對齁位置（0 = 精準停在停止線）
-  // 🔧 方向特定的停止線精確調整（用於微調對齑精度）
-  // ✅ 根據精準診斷工具自動生成的值（2025-11-11）
-  // 負值 = 停止線向後移動（首車停在停止線前時使用）
-  // 正值 = 停止線向前移動（首車停在停止線後時使用）
+  STOP_LINE_OFFSET: 0,
   STOP_LINE_OFFSET_BY_DIRECTION: {
-    east: -2, // 🔴 東向：首車誤差 2.43px → 調整 -2px
-    west: 2, // 🔵 西向：首車誤差 -1.59px → 調整 +2px（唯一停在後面的方向）
-    north: -4, // 🟡 北向：首車誤差 4.39px → 調整 -4px
-    south: -6, // 🟢 南向：首車誤差 6.47px → 調整 -6px
+    east: 0, // 🔴 東向：第3輪診斷 -6.84px (後) → 調整 +7px
+    west: 0, // 🔵 西向：第3輪診斷 -2.95px (後) → 調整 +3px
+    north: 0, // 🟡 北向：第3輪診斷 2.10px (前) → 調整 -2px
+    south: 0, // 🟢 南向：第3輪診斷 -2.19px (後) → 調整 +2px
   },
   CRAWL_SPEED: 0.02, // 蠕行速度：當距離 < TARGET_SPACING 時的跟隨速度（降低至 0.02 以提高精度）
   DETECTION_RANGE: 300, // 碰撞檢測範圍：檢查前方最多 300px 內的車輛
@@ -39,7 +35,9 @@ export class CollisionController {
     this.vehicle = vehicle
     this.trafficController = trafficController
     this.lastCheckTime = 0
-    this.checkInterval = 10 // 每 10ms 檢查一次（高頻率：5 倍提升，防止靠近時穿過）
+    this.checkInterval = 5 // 🔧 每 5ms 檢查一次（10ms → 5ms，2倍提升，精準捕捉停止位置）
+    this.isLocked = false // 🔒 停止鎖定標誌：防止停止後抖動
+    this.lockedDistance = null // 鎖定的目標距離
   }
 
   /**
@@ -178,21 +176,30 @@ export class CollisionController {
     // 🔧 使用內部計算的距離，確保精度
     const distanceToStopLine = this._calculateDistanceToStopLine()
     if (distanceToStopLine !== null && distanceToStopLine !== undefined) {
-      // 🔧 激進的停止邏輯：只要接近停止線就停止
-      // STOP_LINE_OFFSET = 0 時：距離 <= 1px 就停止
+      // 🔧 激進的停止邏輯：嚴格模式，容差 = 0
       const effectiveOffset =
         COLLISION_CONFIG.STOP_LINE_OFFSET +
         (COLLISION_CONFIG.STOP_LINE_OFFSET_BY_DIRECTION[this.vehicle.direction] || 0)
 
-      // 停止判斷：距離 <= 偏移量 + 容差 1px
-      if (distanceToStopLine <= effectiveOffset + 1) {
+      // ✅ 改進版停止判斷：
+      // 1. 激進停止：距離 <= 偏移量（無容差）
+      // 2. 停止鎖定：一旦停止就持續返回停止指令，防止抖動
+      if (distanceToStopLine <= effectiveOffset) {
+        this.isLocked = true
+        this.lockedDistance = effectiveOffset
         return {
           targetSpeed: 0,
-          reason: `停止線對齁：距離${distanceToStopLine.toFixed(2)}px，目標${effectiveOffset}px`,
+          reason: `停止線對齁（鎖定）：距離${distanceToStopLine.toFixed(2)}px，目標${effectiveOffset}px`,
           distance: distanceToStopLine,
-          action: 'align_to_stop_line',
+          action: 'align_to_stop_line_locked',
         }
       }
+    }
+
+    // 解除鎖定條件：距離恢復到很遠時
+    if (this.isLocked && distanceToStopLine !== null && distanceToStopLine > this.lockedDistance + 20) {
+      this.isLocked = false
+      this.lockedDistance = null
     }
 
     // 第三步：檢查前方碰撞
@@ -272,14 +279,16 @@ export class CollisionController {
         COLLISION_CONFIG.STOP_LINE_OFFSET +
         (COLLISION_CONFIG.STOP_LINE_OFFSET_BY_DIRECTION[this.vehicle.direction] || 0)
 
-      // 🔧 激進的停止：距離 <= 偏移量 + 1px 時停止
-      if (distanceToStopLine <= effectiveOffset + 1) {
+      // ✅ 改進版停止邏輯：無容差，激進停止
+      if (distanceToStopLine <= effectiveOffset) {
+        this.isLocked = true
+        this.lockedDistance = effectiveOffset
         return {
           targetSpeed: 0,
-          reason: `燈號停止（${lightState}）：距離${distanceToStopLine.toFixed(2)}px，目標${effectiveOffset}px`,
+          reason: `燈號停止（${lightState}）（鎖定）：距離${distanceToStopLine.toFixed(2)}px，目標${effectiveOffset}px`,
           distance: distanceToStopLine,
           lightState: lightState,
-          action: 'traffic_light_stop',
+          action: 'traffic_light_stop_locked',
         }
       }
 
@@ -288,7 +297,9 @@ export class CollisionController {
 
     // 綠燈或左轉綠燈：允許通過
     return null
-  } /**
+  }
+
+  /**
    * 找前方最近的車輛
    */
   _findClosestFrontVehicle(allVehicles) {
