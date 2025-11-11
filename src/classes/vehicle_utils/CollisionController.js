@@ -9,8 +9,9 @@
 // 🎯 可配置參數（全局）
 const COLLISION_CONFIG = {
   TRAFFIC_LIGHT_CHECK_DISTANCE: 100, // 燈號停止距離：當車距離停止線 < 此值時，檢查燈號是否需要停止
-  TARGET_SPACING: 10, // 🎯 目標間距：排隊時車輛之間保持的一致距離（px）。設定 10px 就保持 10px，直覺易懂
-  CRAWL_SPEED: 0.05, // 蠕行速度：當距離 < TARGET_SPACING 時的跟隨速度
+  TARGET_SPACING: 15, // 🎯 東西向目標間距（px）
+  TARGET_SPACING_VERTICAL: 20, // 🎯 南北向目標間距（px）- 南北向車更短，需要稍大的間距來保持視覺一致
+  CRAWL_SPEED: 0.02, // 蠕行速度：當距離 < TARGET_SPACING 時的跟隨速度（降低至 0.02 以提高精度）
   DETECTION_RANGE: 300, // 碰撞檢測範圍：檢查前方最多 300px 內的車輛
 }
 
@@ -19,7 +20,7 @@ export class CollisionController {
     this.vehicle = vehicle
     this.trafficController = trafficController
     this.lastCheckTime = 0
-    this.checkInterval = 20 // 每 20ms 檢查一次（改善：更高頻率以防止穿過）
+    this.checkInterval = 10 // 每 10ms 檢查一次（高頻率：5 倍提升，防止靠近時穿過）
   }
 
   /**
@@ -60,15 +61,22 @@ export class CollisionController {
     const distance = this._getDistance(this.vehicle, frontVehicle)
     const frontSpeed = frontVehicle.movementTimeline?.timeScale() || 0
 
+    // 🎯 根據方向選擇不同的 TARGET_SPACING
+    // 南北向車更短，需要稍大的間距保持視覺一致
+    const targetSpacing =
+      this.vehicle.direction === 'south' || this.vehicle.direction === 'north'
+        ? COLLISION_CONFIG.TARGET_SPACING_VERTICAL
+        : COLLISION_CONFIG.TARGET_SPACING
+
     // 簡單直覺邏輯：
     // 如果距離 < TARGET_SPACING，則需要控制距離
-    if (distance < COLLISION_CONFIG.TARGET_SPACING) {
+    if (distance < targetSpacing) {
       // 前車停止了？
       if (frontSpeed <= 0.01) {
         // 我也停止
         return {
           targetSpeed: 0,
-          reason: `停止：前車停止，距離${distance.toFixed(1)}px < 目標間距${COLLISION_CONFIG.TARGET_SPACING}px`,
+          reason: `停止：前車停止，距離${distance.toFixed(1)}px < 目標間距${targetSpacing}px`,
           distance: distance,
           frontVehicle: frontVehicle,
           frontVehicleIsMoving: false,
@@ -90,7 +98,7 @@ export class CollisionController {
     // 距離 >= TARGET_SPACING，距離足夠
     return {
       targetSpeed: undefined, // 允許自由加速
-      reason: `自由：距離${distance.toFixed(1)}px >= 目標間距${COLLISION_CONFIG.TARGET_SPACING}px`,
+      reason: `自由：距離${distance.toFixed(1)}px >= 目標間距${targetSpacing}px`,
       distance: distance,
       frontVehicle: frontVehicle,
       frontVehicleIsMoving: frontSpeed > 0.01,
@@ -182,6 +190,11 @@ export class CollisionController {
   /**
    * 計算兩車之間的距離（中心到中心）
    * 然後根據車寬度調整為「邊界到邊界的實際間距」
+   *
+   * ⚠️ 重要：南北向和東西向車的長度不同
+   * 東西向：width = 25-35px（長軸）
+   * 南北向：height = 15-20px（短軸，旋轉後作為長軸）
+   * 為保持一致的視覺間距，我們基於前車的方向來計算長度
    */
   _getDistance(vehicle1, vehicle2) {
     const pos1 = vehicle1.getCurrentPosition()
@@ -208,31 +221,30 @@ export class CollisionController {
         return Infinity
     }
 
-    // 獲取兩車的寬度（根據方向調整）
+    // 獲取兩車的配置
     const config1 = vehicle1.getVehicleConfig()
     const config2 = vehicle2.getVehicleConfig()
 
-    // 根據方向確定「長軸」（前進方向的長度）
+    // 根據方向確定「縱軸長度」（前進方向的長度）
     let vehicle1Length = 0
     let vehicle2Length = 0
 
     switch (vehicle1.direction) {
       case 'east':
       case 'west':
-        // 水平移動，width 是前進方向的長度
+        // 水平移動：width 是縱軸（前進方向的長度）
         vehicle1Length = config1.width
         vehicle2Length = config2.width
         break
       case 'south':
       case 'north':
-        // 垂直移動，height 是前進方向的長度（旋轉後）
+        // 垂直移動：height 是縱軸（旋轉後為前進方向的長度）
         vehicle1Length = config1.height
         vehicle2Length = config2.height
         break
     }
 
-    // 實際間距 = 中心距離 - vehicle1後半長 - vehicle2前半長
-    // = centerDistance - (vehicle1Length/2) - (vehicle2Length/2)
+    // 實際間距 = 中心距離 - 車1後半長 - 車2前半長
     const actualSpacing = centerDistance - vehicle1Length / 2 - vehicle2Length / 2
 
     return actualSpacing
@@ -300,9 +312,84 @@ export function getCollisionConfig() {
 export function resetCollisionConfig() {
   Object.assign(COLLISION_CONFIG, {
     TRAFFIC_LIGHT_CHECK_DISTANCE: 100,
-    TARGET_SPACING: 30,
-    CRAWL_SPEED: 0.05,
+    TARGET_SPACING: 50,
+    TARGET_SPACING_VERTICAL: 50,
+    CRAWL_SPEED: 0.02,
     DETECTION_RANGE: 300,
   })
   console.log('✅ [CollisionConfig] 已重置為默認值')
+}
+
+/**
+ * 🔧 調試函數：詳細分析南北向碰撞
+ * 用于診斷南北向車為何不受 TARGET_SPACING 影響
+ */
+export function debugSouthNorthCollision(vehicle, allVehicles) {
+  console.log(`\n🔍 [調試] 南北向碰撞分析 - 車輛 ${vehicle.id}`)
+  console.log(`  方向: ${vehicle.direction}`)
+  console.log(`  配置: `, vehicle.getVehicleConfig())
+
+  // 找到前方最近的車
+  const direction = vehicle.direction
+  const currentPos = vehicle.getCurrentPosition()
+
+  if (!currentPos) {
+    console.warn('  ⚠️ 無法獲取當前位置')
+    return
+  }
+
+  console.log(`  當前位置: (x=${currentPos.x.toFixed(1)}, y=${currentPos.y.toFixed(1)})`)
+
+  // 篩選同方向同車道的車
+  const sameLaneVehicles = allVehicles.filter(
+    (v) => v.id !== vehicle.id && v.direction === vehicle.direction && v.laneNumber === vehicle.laneNumber,
+  )
+
+  console.log(`  同車道車輛: ${sameLaneVehicles.length} 輛`)
+
+  if (sameLaneVehicles.length === 0) {
+    console.log('  沒有前車')
+    return
+  }
+
+  // 找前方最近的車
+  sameLaneVehicles.forEach((v) => {
+    const vPos = v.getCurrentPosition()
+    const vConfig = v.getVehicleConfig()
+
+    if (!vPos) return
+
+    let centerDistance = 0
+    let length1 = 0
+    let length2 = 0
+
+    // 計算距離
+    if (direction === 'south') {
+      centerDistance = vPos.y - currentPos.y
+      length1 = vehicle.getVehicleConfig().height
+      length2 = vConfig.height
+    } else if (direction === 'north') {
+      centerDistance = currentPos.y - vPos.y
+      length1 = vehicle.getVehicleConfig().height
+      length2 = vConfig.height
+    } else if (direction === 'east') {
+      centerDistance = vPos.x - currentPos.x
+      length1 = vehicle.getVehicleConfig().width
+      length2 = vConfig.width
+    } else if (direction === 'west') {
+      centerDistance = currentPos.x - vPos.x
+      length1 = vehicle.getVehicleConfig().width
+      length2 = vConfig.width
+    }
+
+    const actualSpacing = centerDistance - length1 / 2 - length2 / 2
+    const isAffected = actualSpacing < COLLISION_CONFIG.TARGET_SPACING
+
+    console.log(`  ├─ 車 ${v.id}:`)
+    console.log(`  │  位置: (${vPos.x.toFixed(1)}, ${vPos.y.toFixed(1)})`)
+    console.log(`  │  中心距離: ${centerDistance.toFixed(1)}px`)
+    console.log(`  │  車長度: [${length1}px, ${length2}px]`)
+    console.log(`  │  實際間距: ${actualSpacing.toFixed(1)}px`)
+    console.log(`  │  受限制? ${isAffected ? '✅ 是' : '❌ 否'} (目標${COLLISION_CONFIG.TARGET_SPACING}px)`)
+  })
 }
