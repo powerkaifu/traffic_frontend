@@ -7,31 +7,32 @@
  */
 
 // 🎯 可配置參數（全局）
-// 📌 如何調整蠕動跟隨避免重疊？詳見 CRAWL_FOLLOW_ADJUSTMENT_GUIDE.md
+// 📌 蠕動跟隨參數：確保蠕動區間清晰
 const COLLISION_CONFIG = {
-  TRAFFIC_LIGHT_CHECK_DISTANCE: 100, // 燈號停止距離：當車距離停止線 < 此值時，檢查燈號是否需要停止
-  STOP_TRIGGER_DISTANCE: 15, // 🛑 退出蠕動、進入停止的距離 - 東西向
-  STOP_TRIGGER_DISTANCE_VERTICAL: 30, // 🛑 退出蠕動、進入停止的距離 - 南北向
-  CRAWL_TRIGGER_DISTANCE: 20, // 🎯 進入蠕動的距離（外層觸發）- 東西向，距離 > 此值時進入蠕動
-  CRAWL_TRIGGER_DISTANCE_VERTICAL: 35, // 🎯 進入蠕動的距離 - 南北向
-  CRAWL_SPEED: 0.01, // 蠕動速度：在 CRAWL_TRIGGER_DISTANCE 和 STOP_TRIGGER_DISTANCE 之間的跟隨速度
+  TRAFFIC_LIGHT_CHECK_DISTANCE: 100,
 
-  DETECTION_RANGE: 300, // 碰撞檢測範圍：檢查前方最多 300px 內的車輛
+  // 🐌 蠕動觸發距離（進入蠕動的外層觸發點）
+  // 當距離 > 此值時，進入「蠕動跟隨」狀態
+  CRAWL_TRIGGER_DISTANCE: 20, // 🎯 東西向：進入蠕動的距離
+  CRAWL_TRIGGER_DISTANCE_VERTICAL: 30, // 🎯 南北向：進入蠕動的距離
+
+  // 🛑 停止觸發距離（退出蠕動的內層觸發點）
+  // 當距離 <= 此值時，進入「完全停止」狀態，防止重疊
+  STOP_TRIGGER_DISTANCE: 15, // 🛑 東西向：停止的距離
+  STOP_TRIGGER_DISTANCE_VERTICAL: 25, // 🛑 南北向：停止的距離
+
+  // 🐌 蠕動速度
+  CRAWL_SPEED: 0.01, // 蠕動速度：在蠕動區間內以此速度跟隨
+
+  DETECTION_RANGE: 300,
 
   STOP_LINE_OFFSET: 0,
   STOP_LINE_OFFSET_BY_DIRECTION: {
-    east: 7, // 🔴 東向：第3輪診斷 -6.84px (後) → 調整 +7px
-    west: 3, // 🔵 西向：第3輪診斷 -2.95px (後) → 調整 +3px
-    north: -2, // 🟡 北向：第3輪診斷 2.10px (前) → 調整 -2px
-    south: 2, // 🟢 南向：第3輪診斷 -2.19px (後) → 調整 +2px
+    east: 7,
+    west: 3,
+    north: -2,
+    south: 2,
   },
-  // 🔧 停止線位置配置（從 HTML 元素計算）
-  // STOP_LINE_POSITIONS: {
-  //   east: null, // 東向停止線 X 座標
-  //   west: null, // 西向停止線 X 座標
-  //   north: null, // 北向停止線 Y 座標
-  //   south: null, // 南向停止線 Y 座標
-  // },
 }
 
 export class CollisionController {
