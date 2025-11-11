@@ -268,6 +268,67 @@
           opacity: stopLineConfig.centralReference.opacity,
         }"
       ></div>
+
+      <!-- 🛑 四個方向的停止線標記 -->
+      <!-- 東向停止線（中央矩形左邊） -->
+      <div
+        class="stop-line-marker stop-line-east"
+        :style="{
+          position: 'absolute',
+          left: 'calc(50% - ' + stopLineConfig.centralReference.width / 2 + 'px)',
+          top: 'calc(50% - 30px)',
+          width: '3px',
+          height: '60px',
+          backgroundColor: '#FF4444',
+          zIndex: 101,
+        }"
+        title="東向停止線"
+      ></div>
+
+      <!-- 西向停止線（中央矩形右邊） -->
+      <div
+        class="stop-line-marker stop-line-west"
+        :style="{
+          position: 'absolute',
+          left: 'calc(50% + ' + stopLineConfig.centralReference.width / 2 + 'px)',
+          top: 'calc(50% - 30px)',
+          width: '3px',
+          height: '60px',
+          backgroundColor: '#4444FF',
+          zIndex: 101,
+        }"
+        title="西向停止線"
+      ></div>
+
+      <!-- 南向停止線（中央矩形上邊） -->
+      <div
+        class="stop-line-marker stop-line-south"
+        :style="{
+          position: 'absolute',
+          left: 'calc(50% - 30px)',
+          top: 'calc(50% - ' + stopLineConfig.centralReference.height / 2 + 'px)',
+          width: '60px',
+          height: '3px',
+          backgroundColor: '#44FF44',
+          zIndex: 101,
+        }"
+        title="南向停止線"
+      ></div>
+
+      <!-- 北向停止線（中央矩形下邊） -->
+      <div
+        class="stop-line-marker stop-line-north"
+        :style="{
+          position: 'absolute',
+          left: 'calc(50% - 30px)',
+          top: 'calc(50% + ' + stopLineConfig.centralReference.height / 2 + 'px)',
+          width: '60px',
+          height: '3px',
+          backgroundColor: '#FFFF44',
+          zIndex: 101,
+        }"
+        title="北向停止線"
+      ></div>
       <!-- 已移除中心紅色圓點 -->
 
       <!-- AI 交通預測面板 -->
@@ -374,7 +435,12 @@ import { createLanePathCalculator } from '../classes/draw_utils/lanePathCalculat
 import { stopLineConfig, lightColorConfig } from '../classes/config/trafficConfig.js'
 import WeatherController from '../classes/WeatherController.js'
 import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
-import { CollisionController } from '../classes/vehicle_utils/CollisionController.js'
+import {
+  CollisionController,
+  updateCollisionConfig,
+  getCollisionConfig,
+  resetCollisionConfig,
+} from '../classes/vehicle_utils/CollisionController.js'
 import { GENERATION_CONFIG } from '../classes/config/vehicleConfig.js'
 import { useSimulationStore } from '../stores/simulationStore.js'
 import { numberAnimator } from '../classes/NumberAnimator.js'
@@ -528,6 +594,11 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
     // 備用：池未初始化時，直接創建新車輛
     vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, store) // ✅ Phase 6：傳入 store
     isFromPool = false
+  }
+
+  // 🚀【關鍵】為碰撞控制器注入 trafficController（支持燈號停止檢查）
+  if (vehicle.collisionController && trafficController) {
+    vehicle.collisionController.setTrafficController(trafficController)
   }
 
   // 🚨 設置初始 progress（如果提供的話）
@@ -1263,6 +1334,12 @@ onMounted(async () => {
     console.log('🔄 [IndexPage] 偵測到 HMR 恢復，將強制重新初始化...')
   }
 
+  // ✅ 確保全局車輛列表初始化（供 AutoTrafficGenerator 使用）
+  if (!window.liveVehicles) {
+    window.liveVehicles = []
+    console.log('✅ [IndexPage] 全局車輛列表已初始化')
+  }
+
   // ✅ 確保側邊欄在任何情況下都顯示
   if (typeof window !== 'undefined') {
     window.drawerState = true
@@ -1400,11 +1477,10 @@ onMounted(async () => {
     // ✅ 向後相容：暴露到 window
     window.trafficController = trafficController
 
-    // 🚀 第1階段優化：初始化空間分割網格用於碰撞檢測
-    // 網格單元大小設置為 150px（建議值，基於車輛大小和碰撞檢測半徑）
-    const containerRect = crossroadContainer.value.getBoundingClientRect()
-    CollisionController.initializeSpatialGrid(containerRect.width, containerRect.height, 150)
-    console.log(`🚀 [SpatialHashGrid] 初始化完成 (${containerRect.width}x${containerRect.height}, cellSize=150px)`)
+    // 🎯 暴露碰撞配置管理函數到全局（供控制台調試）
+    window.updateCollisionConfig = updateCollisionConfig
+    window.getCollisionConfig = getCollisionConfig
+    window.resetCollisionConfig = resetCollisionConfig
 
     // 🎯 設置全域車輛距離配置方法
     window.setVehicleDistance = (multiplier) => {
@@ -1948,44 +2024,17 @@ onMounted(async () => {
                   const shouldStop = vehicle.collisionController.checkSimpleCollision(allVehicles)
                   const isFirstVehicle = vehicle.collisionController.isClosestToStopLine(allVehicles)
 
-                  // 碰撞處理邏輯
-                  if (shouldStop && shouldStop.shouldStop && !shouldStop.frontVehicleIsMoving) {
-                    // 前方車輛停止了，就停止自己（只有當 shouldStop.shouldStop === true 時）
-                    vehicle.movementTimeline.timeScale(0)
-                    vehicle.currentState = 'stopped'
+                  // 碰撞處理邏輯 - 極其簡化版本
+                  // 核心原則：targetSpeed 決定一切
+                  // - targetSpeed = 0 → 停止
+                  // - targetSpeed > 0 → 蠕行或跟隨
+                  if (shouldStop && shouldStop.targetSpeed !== undefined) {
+                    // 直接執行 targetSpeed（無論是停止還是蠕行）
+                    if (vehicle.movementTimeline) {
+                      vehicle.movementTimeline.timeScale(shouldStop.targetSpeed)
+                    }
+                    vehicle.currentState = shouldStop.targetSpeed === 0 ? 'stopped' : 'autoFollowing'
                   } else if (shouldStop && shouldStop.action === 'rejoin_queue') {
-                    // 重新加入隊列
-                    if (vehicle.movementTimeline) {
-                      vehicle.movementTimeline.timeScale(shouldStop.targetSpeed)
-                    }
-                    vehicle.currentState = 'rejoiningQueue'
-                  } else if (
-                    shouldStop &&
-                    (shouldStop.action === 'gap_recovery' || shouldStop.action === 'emergency_gap_recovery')
-                  ) {
-                    // 緊急間距恢復
-                    if (vehicle.movementTimeline) {
-                      vehicle.movementTimeline.pause()
-                      vehicle.movementTimeline.timeScale(shouldStop.targetSpeed)
-                      if (shouldStop.targetSpeed > 0) {
-                        vehicle.movementTimeline.play()
-                      }
-                    }
-                    vehicle.currentState = 'gapRecovery'
-                  } else if (shouldStop && shouldStop.action === 'follow' && shouldStop.targetSpeed === 0) {
-                    // 停止指令
-                    if (vehicle.movementTimeline) {
-                      vehicle.movementTimeline.pause()
-                      vehicle.movementTimeline.timeScale(0)
-                    }
-                    vehicle.currentState = 'gapRecovery'
-                  } else if (shouldStop && shouldStop.autoFollowing && shouldStop.targetSpeed > 0) {
-                    // 自動跟隨模式
-                    if (vehicle.movementTimeline) {
-                      vehicle.movementTimeline.timeScale(shouldStop.targetSpeed)
-                    }
-                    vehicle.currentState = 'autoFollowing'
-                  } else if (shouldStop) {
                     const distance = shouldStop.distance
                     const requiredGap = shouldStop.requiredGap || 12
                     const currentLightState = trafficController.getCurrentLightState(vehicle.direction)

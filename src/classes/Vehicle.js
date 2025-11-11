@@ -205,8 +205,9 @@ export default class Vehicle {
     // 🚀 新增：停止線控制器
     this.stopLineController = new StopLineController(this)
 
-    // 🚀 新增：碰撞控制器（整合 SimpleCollisionDetector 功能）
-    this.collisionController = CollisionController.createForLane(this, laneNumber, this.simulationStore)
+    // 🚀 新增：碰撞控制器（簡化版 v2）
+    // 注意：trafficController 稍後在 IndexPage 中注入
+    this.collisionController = new CollisionController(this)
 
     // 🌤️ 【新增】監聽天氣改變事件
     this.weatherChangeHandler = (event) => {
@@ -971,30 +972,8 @@ export default class Vehicle {
   // 🚨 新增：檢查是否是同車道最接近停止線的車輛
   // 🚀 簡化：委託給碰撞控制器
   isClosestToStopLine(allVehicles) {
-    // 🚀 DRY 優化：使用工具類檢查
-    return CollisionQueryUtils.isClosestToStopLine(this.collisionController, allVehicles)
-  }
-
-  // 🎯 新增：獲取附近車輛，優化檢查範圍
-  // 🚀 簡化：委託給碰撞控制器
-  getNearbyVehicles(allVehicles) {
-    return this.collisionController.getNearbyVehicles(allVehicles)
-  }
-
-  // 🎯 新增：判斷是否在危險區域
-  // 🚀 簡化：委託給碰撞控制器
-  isInCriticalZone() {
-    return this.collisionController.isInCriticalZone()
-  }
-
-  // 🚀 簡化：委託給碰撞控制器
-  smartCollisionCheck(allVehicles) {
-    return this.collisionController.smartCollisionCheck(allVehicles)
-  }
-
-  // 🚀 簡化：委託給碰撞控制器
-  performDetailedCollisionCheck(vehicles) {
-    return this.collisionController.performDetailedCollisionCheck(vehicles)
+    // 🚀 DRY 優化：委託給碰撞控制器檢查
+    return this.collisionController.isClosestToStopLine(allVehicles)
   }
 
   // 🚀 簡化：委託給碰撞控制器
