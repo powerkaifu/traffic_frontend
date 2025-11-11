@@ -512,6 +512,7 @@ export default class Vehicle {
         shouldStop = this.laneNumber >= 2 && this.laneNumber <= 4
         break
       case 'yellow':
+      case 'leftYellow':
         shouldStop = true
         break
       default:
@@ -555,8 +556,7 @@ export default class Vehicle {
   _performStopAtLine(lightState) {
     // 🚨 立即停止（不使用動畫過渡），防止超過停止線
     if (this.movementTimeline) {
-      // 直接暫停時間軸，確保立即停止
-      this.movementTimeline.pause()
+      // 只設置 timeScale，不調用 pause()
       this.movementTimeline.timeScale(0)
     }
 
