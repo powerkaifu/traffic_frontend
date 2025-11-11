@@ -30,14 +30,24 @@ export class CollisionFollowingController {
    * @param {Array} allVehicles - 所有車輛陣列
    * @returns {Object} 控制結果 { isFollowing, distance, action }
    */
-  execute(allVehicles) {
-    // 防守檢查
-    if (!this.vehicle.element || !this.vehicle.movementTimeline || this.vehicle.isRemoved) {
+  execute(allVehicles = []) {
+    // 防守：檢查必要條件
+    if (!this.vehicle || !allVehicles || allVehicles.length === 0) {
       return { isFollowing: false, distance: Infinity, action: 'none' }
     }
 
-    // 🚨 關鍵：不對停止線上的車輛做任何調整
-    // 停止線邏輯由 checkStopLineAndRespond 完全掌控
+    // 🚨 防守：新進場的車輛（justCreated=true）不進行碰撞檢測
+    if (this.vehicle.justCreated) {
+      return { isFollowing: false, distance: Infinity, action: 'none' }
+    }
+
+    // 🚨 防守：進場不足 500ms 的新車輛也免除碰撞檢測
+    const vehicleAge = Date.now() - new Date(this.vehicle.createdAt).getTime()
+    if (vehicleAge < 500) {
+      return { isFollowing: false, distance: Infinity, action: 'none' }
+    }
+
+    // 🚨 防守：停止線附近和等待綠燈時，不進行碰撞跟隨檢測
     if (this.vehicle.isAtStopLine || this.vehicle.waitingForGreen) {
       return { isFollowing: false, distance: Infinity, action: 'none' }
     }
@@ -91,13 +101,20 @@ export class CollisionFollowingController {
     let minDistance = Infinity
 
     for (const other of allVehicles) {
-      // 篩選條件：同方向、同車道、不是自己
+      // 篩選條件：同方向、同車道、不是自己、不是新進場車輛
       if (
         other.id === this.vehicle.id ||
         other.direction !== this.vehicle.direction ||
         other.laneNumber !== this.vehicle.laneNumber ||
-        other.isRemoved
+        other.isRemoved ||
+        other.justCreated // 🚨 排除剛進場的車輛（justCreated=true）
       ) {
+        continue
+      }
+
+      // 🚨 排除進場不超過 500ms 的車輛（讓它們有時間上路）
+      const vehicleAge = Date.now() - new Date(other.createdAt).getTime()
+      if (vehicleAge < 500) {
         continue
       }
 
