@@ -1350,19 +1350,6 @@ export default class AutoTrafficGenerator {
       speed = this.trafficController.getAverageSpeed(selectedDir, type)
     }
 
-    // 🌤️ 【新增】天氣系統整合 - 應用天氣速度倍數
-    let weatherMultiplier = 1.0
-    if (this.trafficController && this.trafficController.weatherController) {
-      const weatherMult = this.trafficController.weatherController.getSpeedMultiplier()
-      if (weatherMult && typeof weatherMult === 'number') {
-        weatherMultiplier = weatherMult
-        console.log(
-          `🌦️ 天氣倍數應用: ${weatherMultiplier.toFixed(2)}x (${this.trafficController.weatherController.getCurrentWeather()})`,
-        )
-      }
-    }
-    speed = Math.round(speed * weatherMultiplier) // 應用天氣倍數到車速
-
     // 🚨 記錄車道生成時間
     const laneKey = selectedDir // 可以後續擴展為 `${selectedDir}_${laneNumber}`
     this.laneGenerationCooldown[laneKey] = now

@@ -127,9 +127,6 @@ export default class Vehicle {
     this.targetLaneX = null // 目標車道的 X 座標
     this.originalLaneNumber = laneNumber // 原始車道號（便於恢復）
 
-    // 🌤️ 【新增】天氣相關屬性
-    this.weatherMultiplier = 1.0 // 初始天氣倍數為 1.0 (晴天)
-
     // 🚀 第3階段優化：黃燈決策降頻和緩存
     this.lastYellowDecisionTime = 0 // 上次黃燈決策的時間
     this.yellowDecisionCacheInterval = 50 // 黃燈決策檢查間隔（毫秒，20 Hz）
@@ -190,12 +187,6 @@ export default class Vehicle {
 
     // 🚀 新增：碰撞跟隨控制器（專門處理安全距離）
     this.collisionFollowingController = new CollisionFollowingController(this)
-
-    // 🌤️ 【新增】監聽天氣改變事件
-    this.weatherChangeHandler = (event) => {
-      this.onWeatherChanged(event.detail)
-    }
-    window.addEventListener('weatherChanged', this.weatherChangeHandler)
 
     // 🚦 【新增】監聽燈號變化事件，讓等待的車輛立即響應
     this.lightStateChangeHandler = (event) => {
@@ -291,37 +282,6 @@ export default class Vehicle {
           detail: eventData,
         }),
       )
-    }
-  }
-
-  // 🌤️ 【新增】天氣改變事件處理器
-  onWeatherChanged(weatherData) {
-    const { weather, multiplier } = weatherData
-    console.log(`🌤️ [車輛 ${this.id}] 天氣改變: ${weather} (倍數: ${multiplier.toFixed(2)}x)`)
-
-    // 如果車輛還有活動的動畫時間軸，更新時間縮放
-    if (this.movementTimeline && !this.movementTimeline.paused()) {
-      // 獲取當前的時間縮放（可能因紅綠燈被改變）
-      const currentTimeScale = this.movementTimeline.timeScale()
-
-      // 計算新的時間縮放 = 當前時間縮放 / 舊的天氣倍數 × 新的天氣倍數
-      // 由於我們不知道舊的天氣倍數，我們使用簡化方式：
-      // 直接設定新的倍數（假設上次是 1.0）
-      const newTimeScale = currentTimeScale * (multiplier / (this.weatherMultiplier || 1.0))
-
-      // 更新天氣倍數
-      this.weatherMultiplier = multiplier
-
-      // 應用新的時間縮放
-      this.movementTimeline.timeScale(newTimeScale)
-
-      console.log(
-        `🌤️ [車輛 ${this.id}] 速度已更新: 時間縮放 ${currentTimeScale.toFixed(2)}x -> ${newTimeScale.toFixed(2)}x`,
-      )
-    } else {
-      // 車輛還沒開始移動，只記錄天氣倍數
-      this.weatherMultiplier = multiplier
-      console.log(`🌤️ [車輛 ${this.id}] 天氣倍數已設置 (車輛尚未移動): ${multiplier.toFixed(2)}x`)
     }
   }
 
@@ -544,14 +504,7 @@ export default class Vehicle {
 
       // 🚨 加速動畫到原始速度（增加 timeScale）
       if (this.movementTimeline && this.movementTimeline.timeScale() > 0) {
-        // 目前速度已被降低（因為 effectiveSpeed = initialSpeed * weatherMultiplier）
-        // 需要通過提高 timeScale 來恢復
-        // timeScale = 原始速度 / 當前速度 = initialSpeed / (initialSpeed * weatherMultiplier) = 1 / weatherMultiplier
-        const weatherMultiplier = this.getWeatherSpeedMultiplier()
-        if (weatherMultiplier < 1.0) {
-          const newTimeScale = 1.0 / weatherMultiplier
-          this.movementTimeline.timeScale(newTimeScale)
-        }
+        this.movementTimeline.timeScale(1)
       }
     } else {
       // 不能通過，需要等待
@@ -780,12 +733,6 @@ export default class Vehicle {
     return CurrentSpeedUtils.getSpeedRatio(this.movementTimeline, this.originalTimeScale)
   }
 
-  // 🌤️ 獲取天氣對速度的影響倍數
-  getWeatherSpeedMultiplier() {
-    // 🚀 DRY 優化：使用統一的工具類方法
-    return VehiclePositionSpeedUtils.getWeatherSpeedMultiplier()
-  }
-
   // Adapter Pattern: 獲取當前位置的適配器方法
   getCurrentPosition() {
     // 🚀 DRY 優化：使用統一的工具類方法
@@ -926,10 +873,6 @@ export default class Vehicle {
         const meterSpeed = (pixelSpeed / 100) * 15
         let kmhSpeed = meterSpeed * 3.6
 
-        // 🌤️ 應用天氣影響到速度計算
-        const weatherMultiplier = this.getWeatherSpeedMultiplier()
-        kmhSpeed *= weatherMultiplier
-
         this.currentSpeed = Math.round(kmhSpeed)
         this.maxSpeed = Math.max(this.maxSpeed, this.currentSpeed)
         this._lastLogicPos = currentPos
@@ -1053,12 +996,9 @@ export default class Vehicle {
       // 記錄移動開始時間和初始化數據
       this.movementStartTime = new Date().toISOString()
 
-      // 🌤️ 初始化速度時考慮天氣影響
-      const weatherMultiplier = this.getWeatherSpeedMultiplier()
-      const effectiveSpeed = Math.round(this.initialSpeed * weatherMultiplier)
-
-      this.currentSpeed = effectiveSpeed
-      this.maxSpeed = effectiveSpeed
+      // � 直接使用初始速度，無額外影響
+      this.currentSpeed = this.initialSpeed
+      this.maxSpeed = this.initialSpeed
 
       let lastPosition = this.getCurrentPosition()
       let lastTime = Date.now()
@@ -1074,14 +1014,6 @@ export default class Vehicle {
           let theoreticalTime = realDistance / speedMs
           // 🎬 動畫速度控制：TIME_MULTIPLIER 越小越快，越大越慢
           theoreticalTime *= Vehicle.timeMultiplier
-
-          // 🌤️ 天氣影響：根據天氣調整速度（降低速度 = 增加時間）
-          // 🚨 但在通過停止線時，保持原始速度，不受天氣影響
-          const weatherMultiplier = this.getWeatherSpeedMultiplier()
-          if (weatherMultiplier < 1.0 && !this.hasPassedStopLine) {
-            // 速度降低時，時間需要增加（時間 = 1 / 速度）
-            theoreticalTime /= weatherMultiplier
-          }
 
           animationDuration = Math.max(1, Math.min(30, theoreticalTime)) // 擴大時間範圍
         } catch (error) {
@@ -1737,12 +1669,6 @@ export default class Vehicle {
     if (this.collisionFollowingController) {
       this.collisionFollowingController.dispose()
       this.collisionFollowingController = null
-    }
-
-    // 🌤️ 【新增】移除天氣改變事件監聽器
-    if (this.weatherChangeHandler) {
-      window.removeEventListener('weatherChanged', this.weatherChangeHandler)
-      this.weatherChangeHandler = null
     }
 
     // 🚦 【新增】移除燈號變化事件監聽器

@@ -91,28 +91,6 @@ export class VehiclePositionSpeedUtils {
   }
 
   /**
-   * 獲取天氣速度倍數
-   * 從全域天氣控制器獲取速度影響係數
-   *
-   * @returns {number} 天氣倍數（1.0 = 無影響，<1.0 = 減速，>1.0 = 加速）
-   */
-  static getWeatherSpeedMultiplier() {
-    // ✅ 安全的全域訪問：檢查存在性和類型
-    if (window.weatherController && typeof window.weatherController.getSpeedMultiplier === 'function') {
-      try {
-        const multiplier = window.weatherController.getSpeedMultiplier()
-        // ✅ 驗證返回值
-        if (typeof multiplier === 'number' && Number.isFinite(multiplier) && multiplier > 0) {
-          return multiplier
-        }
-      } catch (error) {
-        console.warn('⚠️ [VehicleUtilities] 獲取天氣倍數失敗:', error)
-      }
-    }
-    return 1.0 // 預設：無影響
-  }
-
-  /**
    * 安全地獲取座標，帶有驗證
    * @param {Object} position - {x, y} 座標對象
    * @returns {Object} 驗證後的座標
