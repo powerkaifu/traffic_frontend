@@ -11,7 +11,7 @@ const COLLISION_CONFIG = {
   TRAFFIC_LIGHT_CHECK_DISTANCE: 100, // 燈號停止距離：當車距離停止線 < 此值時，檢查燈號是否需要停止
   TARGET_SPACING: 15, // 🎯 東西向目標間距（px）
   TARGET_SPACING_VERTICAL: 30, // 🎯 南北向目標間距（px）- 南北向車更短，需要稍大的間距來保持視覺一致
-  STOP_LINE_OFFSET: 0, // 🎯 停止線距離（px）- 統一停止線偏移（四個方向）
+  STOP_LINE_OFFSET: 0, // 🎯 停止線距離（px）- 停止線對齁位置（0 = 精準停在停止線）
   // 🔧 方向特定的停止線精確調整（用於微調對齐精度）
   STOP_LINE_OFFSET_BY_DIRECTION: {
     east: 0, // 東向精確調整（相對於基礎 STOP_LINE_OFFSET）
@@ -21,6 +21,14 @@ const COLLISION_CONFIG = {
   },
   CRAWL_SPEED: 0.02, // 蠕行速度：當距離 < TARGET_SPACING 時的跟隨速度（降低至 0.02 以提高精度）
   DETECTION_RANGE: 300, // 碰撞檢測範圍：檢查前方最多 300px 內的車輛
+
+  // 🔧 停止線位置配置（從 HTML 元素計算）
+  STOP_LINE_POSITIONS: {
+    east: null, // 東向停止線 X 座標
+    west: null, // 西向停止線 X 座標
+    north: null, // 北向停止線 Y 座標
+    south: null, // 南向停止線 Y 座標
+  },
 }
 
 export class CollisionController {
@@ -39,11 +47,114 @@ export class CollisionController {
   }
 
   /**
+   * 🔧 內部計算：獲取停止線位置
+   * 直接從 DOM 計算，確保精度
+   */
+  _getStopLinePosition() {
+    const centralRef = document.querySelector('.central-reference')
+    const container = document.querySelector('.crossroad-area')
+    if (!centralRef || !container) return null
+
+    const centralRect = centralRef.getBoundingClientRect()
+    const containerRect = container.getBoundingClientRect()
+
+    const centralX = centralRect.left - containerRect.left
+    const centralY = centralRect.top - containerRect.top
+    const centralWidth = centralRect.width
+    const centralHeight = centralRect.height
+
+    switch (this.vehicle.direction) {
+      case 'east':
+        return { type: 'x', value: centralX } // 東向停止線在中央矩形左邊界
+      case 'west':
+        return { type: 'x', value: centralX + centralWidth } // 西向停止線在中央矩形右邊界
+      case 'north':
+        return { type: 'y', value: centralY + centralHeight } // 北向停止線在中央矩形下邊界
+      case 'south':
+        return { type: 'y', value: centralY } // 南向停止線在中央矩形上邊界
+      default:
+        return null
+    }
+  }
+
+  /**
+   * 🔧 內部計算：獲取車頭位置
+   * 直接從車輛元素計算，確保精度
+   */
+  _getVehicleHeadPosition() {
+    const element = this.vehicle.element
+    if (!element) return null
+
+    const rect = element.getBoundingClientRect()
+    const container = document.querySelector('.crossroad-area')
+    if (!container) return null
+    const containerRect = container.getBoundingClientRect()
+
+    // 車輛在容器中的相對位置
+    const x = rect.left - containerRect.left
+    const y = rect.top - containerRect.top
+    const width = rect.width
+    const height = rect.height
+
+    switch (this.vehicle.direction) {
+      case 'east':
+        return { type: 'x', value: x + width } // 東向車頭在右側
+      case 'west':
+        return { type: 'x', value: x } // 西向車頭在左側
+      case 'north':
+        return { type: 'y', value: y } // 北向車頭在上方
+      case 'south':
+        return { type: 'y', value: y + height } // 南向車頭在下方
+      default:
+        return null
+    }
+  }
+
+  /**
+   * 🔧 內部計算：直接計算距離停止線的距離
+   * 不依賴外部方法，完全控制精度
+   */
+  _calculateDistanceToStopLine() {
+    const stopLine = this._getStopLinePosition()
+    const vehicleHead = this._getVehicleHeadPosition()
+
+    if (!stopLine || !vehicleHead) return null
+
+    const directionOffset = COLLISION_CONFIG.STOP_LINE_OFFSET_BY_DIRECTION[this.vehicle.direction] || 0
+    const effectiveOffset = COLLISION_CONFIG.STOP_LINE_OFFSET + directionOffset
+
+    // 計算距離：停止線位置 - 車頭位置 - 偏移
+    let distance = null
+    if (stopLine.type === 'x' && vehicleHead.type === 'x') {
+      // 東西向
+      if (this.vehicle.direction === 'east') {
+        // 東向：距離 = 停止線 - 車頭 - 偏移
+        distance = stopLine.value - effectiveOffset - vehicleHead.value
+      } else {
+        // 西向：距離 = 車頭 - 停止線 - 偏移
+        distance = vehicleHead.value - (stopLine.value + effectiveOffset)
+      }
+    } else if (stopLine.type === 'y' && vehicleHead.type === 'y') {
+      // 南北向
+      if (this.vehicle.direction === 'south') {
+        // 南向：距離 = 停止線 - 車頭 - 偏移
+        distance = stopLine.value - effectiveOffset - vehicleHead.value
+      } else {
+        // 北向：距離 = 車頭 - 停止線 - 偏移
+        distance = vehicleHead.value - (stopLine.value + effectiveOffset)
+      }
+    }
+
+    return distance
+  }
+
+  /**
    * 簡化版碰撞檢查
    * 邏輯：
    * 1. 燈號停止（紅/黃/全紅）→ 停止
-   * 2. 距離 < TARGET_SPACING → 停止或蠕行
-   * 3. 距離 >= TARGET_SPACING → 自由加速
+   * 2. 距離停止線太近（< 停止線偏移）→ 停止（精準對齐）
+   * 3. 距離 < TARGET_SPACING → 停止（前車碰撞檢測）
+   * 4. 距離 >= TARGET_SPACING → 自由加速
    *
    * 返回值：{ targetSpeed, reason, distance, frontVehicle, ... } 或 null
    */
@@ -60,7 +171,28 @@ export class CollisionController {
       return trafficLightStop
     }
 
-    // 第二步：檢查前方碰撞
+    // 第二步：檢查距離停止線是否太近（精準對齁）
+    // 🔧 使用內部計算的距離，確保精度
+    const distanceToStopLine = this._calculateDistanceToStopLine()
+    if (distanceToStopLine !== null && distanceToStopLine !== undefined) {
+      // 🔧 激進的停止邏輯：只要接近停止線就停止
+      // STOP_LINE_OFFSET = 0 時：距離 <= 1px 就停止
+      const effectiveOffset =
+        COLLISION_CONFIG.STOP_LINE_OFFSET +
+        (COLLISION_CONFIG.STOP_LINE_OFFSET_BY_DIRECTION[this.vehicle.direction] || 0)
+
+      // 停止判斷：距離 <= 偏移量 + 容差 1px
+      if (distanceToStopLine <= effectiveOffset + 1) {
+        return {
+          targetSpeed: 0,
+          reason: `停止線對齁：距離${distanceToStopLine.toFixed(2)}px，目標${effectiveOffset}px`,
+          distance: distanceToStopLine,
+          action: 'align_to_stop_line',
+        }
+      }
+    }
+
+    // 第三步：檢查前方碰撞
     const frontVehicle = this._findClosestFrontVehicle(allVehicles)
     if (!frontVehicle) {
       return null // 沒有前車
@@ -106,9 +238,8 @@ export class CollisionController {
   /**
    * 檢查燈號停止規則
    * 規則：
-   * - 距離停止線 < 0（已越過）→ 不受燈號影響
-   * - 黃燈 → 允許繼續走（走到停止線停止）
-   * - 紅燈/全紅：距離 <= STOP_LINE_OFFSET 時停止
+   * - 紅燈/全紅且接近停止線時 → 停止
+   * - 黃燈 → 允許繼續走
    * - 綠燈、左轉綠燈 → 放行
    * 返回值：{ targetSpeed, reason, distance, action } 或 null
    */
@@ -117,41 +248,38 @@ export class CollisionController {
       return null
     }
 
-    // 🔧 修正：使用正確的方法獲取距離
-    const distanceToStopLine = this.vehicle.getDistanceToStopLine()
-
-    // 無法計算距離或已越過停止線，不受燈號限制
-    if (distanceToStopLine === null || distanceToStopLine === undefined || distanceToStopLine < 0) {
+    // 🔧 使用內部計算的距離
+    const distanceToStopLine = this._calculateDistanceToStopLine()
+    if (distanceToStopLine === null || distanceToStopLine === undefined) {
       return null
     }
 
     // 獲取當前燈號狀態
     const lightState = this.trafficController.getCurrentLightState(this.vehicle.direction)
 
-    // 黃燈：允許繼續走（不加速，但允許移動到停止線）
+    // 黃燈：允許繼續走
     if (lightState === 'yellow') {
-      // 黃燈不返回停止指令，改為允許繼續走（會由碰撞檢測控制速度）
       return null
     }
 
-    // 🔧 修正：使用 STOP_LINE_OFFSET + 方向特定調整
-    // 紅燈/全紅：只在接近停止線時停止
+    // 紅燈/全紅：接近停止線時停止
     const stopLightStates = ['red', 'allRed']
     if (stopLightStates.includes(lightState)) {
-      // 🔧 計算實際停止偏移 = 基礎偏移 + 方向特定調整
-      const directionOffset = COLLISION_CONFIG.STOP_LINE_OFFSET_BY_DIRECTION[this.vehicle.direction] || 0
-      const effectiveOffset = COLLISION_CONFIG.STOP_LINE_OFFSET + directionOffset
+      const effectiveOffset =
+        COLLISION_CONFIG.STOP_LINE_OFFSET +
+        (COLLISION_CONFIG.STOP_LINE_OFFSET_BY_DIRECTION[this.vehicle.direction] || 0)
 
-      if (distanceToStopLine <= effectiveOffset) {
+      // 🔧 激進的停止：距離 <= 偏移量 + 1px 時停止
+      if (distanceToStopLine <= effectiveOffset + 1) {
         return {
           targetSpeed: 0,
-          reason: `燈號停止：${lightState}，距離停止線${distanceToStopLine.toFixed(1)}px <= ${effectiveOffset}px (基礎:${COLLISION_CONFIG.STOP_LINE_OFFSET}+${directionOffset})`,
+          reason: `燈號停止（${lightState}）：距離${distanceToStopLine.toFixed(2)}px，目標${effectiveOffset}px`,
           distance: distanceToStopLine,
           lightState: lightState,
           action: 'traffic_light_stop',
         }
       }
-      // 紅燈但距離遠時，允許繼續走（讓車子自然滑行到停止線）
+
       return null
     }
 

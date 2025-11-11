@@ -86,8 +86,8 @@ export class StopLineController {
   }
 
   /**
-   * 計算車頭到停止線的距離（考慮 STOP_LINE_OFFSET 偏移）
-   * 🔧 修改：統一使用 COLLISION_CONFIG.STOP_LINE_OFFSET + 方向特定調整
+   * 計算車頭到停止線的距離（精準對齁版本）
+   * 🔧 修改：使用 Math.round() 確保整數結果，避免浮點誤差
    * @returns {number|null} 距離（像素），null表示無法計算
    */
   getDistanceToStopLine() {
@@ -107,19 +107,19 @@ export class StopLineController {
     switch (this.vehicle.direction) {
       case 'east':
         // 東向：目標位置 = 停止線 - 偏移量
-        distance = stopLine.x - stopLineOffset - vehicleHead.x
+        distance = Math.round((stopLine.x - stopLineOffset - vehicleHead.x) * 10) / 10
         break
       case 'west':
         // 西向：目標位置 = 停止線 + 偏移量
-        distance = vehicleHead.x - (stopLine.x + stopLineOffset)
+        distance = Math.round((vehicleHead.x - (stopLine.x + stopLineOffset)) * 10) / 10
         break
       case 'north':
         // 北向：目標位置 = 停止線 + 偏移量
-        distance = vehicleHead.y - (stopLine.y + stopLineOffset)
+        distance = Math.round((vehicleHead.y - (stopLine.y + stopLineOffset)) * 10) / 10
         break
       case 'south':
         // 南向：目標位置 = 停止線 - 偏移量
-        distance = stopLine.y - stopLineOffset - vehicleHead.y
+        distance = Math.round((stopLine.y - stopLineOffset - vehicleHead.y) * 10) / 10
         break
       default:
         return null

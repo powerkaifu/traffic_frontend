@@ -259,7 +259,8 @@
 
       <!-- 停止線 -->
       <!-- 中央參考矩形 - 用於統一計算停止線位置 -->
-      <div
+      <!-- ❌ 已移除顯示 -->
+      <!-- <div
         class="stop-line central-reference"
         :style="{
           width: stopLineConfig.centralReference.width + 'px',
@@ -267,11 +268,11 @@
           border: stopLineConfig.centralReference.borderStyle,
           opacity: stopLineConfig.centralReference.opacity,
         }"
-      ></div>
+      ></div> -->
 
-      <!-- 🛑 四個方向的停止線標記 -->
+      <!-- 🛑 四個方向的停止線標記 - 已移除顯示 -->
       <!-- 東向停止線（中央矩形左邊） -->
-      <div
+      <!-- <div
         class="stop-line-marker stop-line-east"
         :style="{
           position: 'absolute',
@@ -283,10 +284,10 @@
           zIndex: 101,
         }"
         title="東向停止線"
-      ></div>
+      ></div> -->
 
       <!-- 西向停止線（中央矩形右邊） -->
-      <div
+      <!-- <div
         class="stop-line-marker stop-line-west"
         :style="{
           position: 'absolute',
@@ -298,10 +299,10 @@
           zIndex: 101,
         }"
         title="西向停止線"
-      ></div>
+      ></div> -->
 
       <!-- 南向停止線（中央矩形上邊） -->
-      <div
+      <!-- <div
         class="stop-line-marker stop-line-south"
         :style="{
           position: 'absolute',
@@ -313,10 +314,10 @@
           zIndex: 101,
         }"
         title="南向停止線"
-      ></div>
+      ></div> -->
 
       <!-- 北向停止線（中央矩形下邊） -->
-      <div
+      <!-- <div
         class="stop-line-marker stop-line-north"
         :style="{
           position: 'absolute',
@@ -328,7 +329,7 @@
           zIndex: 101,
         }"
         title="北向停止線"
-      ></div>
+      ></div> -->
       <!-- 已移除中心紅色圓點 -->
 
       <!-- AI 交通預測面板 -->
@@ -432,7 +433,7 @@ import Vehicle from '../classes/Vehicle.js'
 import VehiclePool from '../classes/VehiclePool.js'
 import LumoAssistant from '../components/LumoAssistant.vue'
 import { createLanePathCalculator } from '../classes/draw_utils/lanePathCalculator.js'
-import { stopLineConfig, lightColorConfig } from '../classes/config/trafficConfig.js'
+import { lightColorConfig } from '../classes/config/trafficConfig.js'
 import WeatherController from '../classes/WeatherController.js'
 import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
 import { CollisionController } from '../classes/vehicle_utils/CollisionController.js'
