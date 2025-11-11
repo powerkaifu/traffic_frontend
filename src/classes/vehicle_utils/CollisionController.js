@@ -13,14 +13,14 @@ const COLLISION_CONFIG = {
   TARGET_SPACING_VERTICAL: 30, // 🎯 南北向目標間距（px）- 南北向車更短，需要稍大的間距來保持視覺一致
   STOP_LINE_OFFSET: 0, // 🎯 停止線距離（px）- 停止線對齁位置（0 = 精準停在停止線）
   // 🔧 方向特定的停止線精確調整（用於微調對齑精度）
-  // ⚠️ 每個方向可能有不同的誤差，這裡可以進行微調
-  // 正值 = 提前停止（停在停止線前）
-  // 負值 = 延遲停止（停在停止線後）
+  // ✅ 根據精準診斷工具自動生成的值（2025-11-11）
+  // 負值 = 停止線向後移動（首車停在停止線前時使用）
+  // 正值 = 停止線向前移動（首車停在停止線後時使用）
   STOP_LINE_OFFSET_BY_DIRECTION: {
-    east: 0, // 東向精確調整（px）- 修改此值校正東向誤差
-    west: 0, // 西向精確調整（px）- 修改此值校正西向誤差
-    north: 0, // 北向精確調整（px）- 修改此值校正北向誤差
-    south: 0, // 南向精確調整（px）- 修改此值校正南向誤差
+    east: -2, // 🔴 東向：首車誤差 2.43px → 調整 -2px
+    west: 2, // 🔵 西向：首車誤差 -1.59px → 調整 +2px（唯一停在後面的方向）
+    north: -4, // 🟡 北向：首車誤差 4.39px → 調整 -4px
+    south: -6, // 🟢 南向：首車誤差 6.47px → 調整 -6px
   },
   CRAWL_SPEED: 0.02, // 蠕行速度：當距離 < TARGET_SPACING 時的跟隨速度（降低至 0.02 以提高精度）
   DETECTION_RANGE: 300, // 碰撞檢測範圍：檢查前方最多 300px 內的車輛
@@ -116,6 +116,9 @@ export class CollisionController {
   /**
    * 🔧 內部計算：直接計算距離停止線的距離
    * 不依賴外部方法，完全控制精度
+   *
+   * ⚠️ 重要：此方法計算的是「原始距離」（不包含偏移調整）
+   * 偏移調整在 checkSimpleCollision() 和 _checkTrafficLightStop() 中進行
    */
   _calculateDistanceToStopLine() {
     const stopLine = this._getStopLinePosition()
@@ -123,28 +126,25 @@ export class CollisionController {
 
     if (!stopLine || !vehicleHead) return null
 
-    const directionOffset = COLLISION_CONFIG.STOP_LINE_OFFSET_BY_DIRECTION[this.vehicle.direction] || 0
-    const effectiveOffset = COLLISION_CONFIG.STOP_LINE_OFFSET + directionOffset
-
-    // 計算距離：停止線位置 - 車頭位置 - 偏移
+    // ✅ 計算原始距離：停止線位置 - 車頭位置（不含偏移）
     let distance = null
     if (stopLine.type === 'x' && vehicleHead.type === 'x') {
       // 東西向
       if (this.vehicle.direction === 'east') {
-        // 東向：距離 = 停止線 - 車頭 - 偏移
-        distance = stopLine.value - effectiveOffset - vehicleHead.value
+        // 東向：距離 = 停止線 - 車頭
+        distance = stopLine.value - vehicleHead.value
       } else {
-        // 西向：距離 = 車頭 - 停止線 - 偏移
-        distance = vehicleHead.value - (stopLine.value + effectiveOffset)
+        // 西向：距離 = 車頭 - 停止線
+        distance = vehicleHead.value - stopLine.value
       }
     } else if (stopLine.type === 'y' && vehicleHead.type === 'y') {
       // 南北向
       if (this.vehicle.direction === 'south') {
-        // 南向：距離 = 停止線 - 車頭 - 偏移
-        distance = stopLine.value - effectiveOffset - vehicleHead.value
+        // 南向：距離 = 停止線 - 車頭
+        distance = stopLine.value - vehicleHead.value
       } else {
-        // 北向：距離 = 車頭 - 停止線 - 偏移
-        distance = vehicleHead.value - (stopLine.value + effectiveOffset)
+        // 北向：距離 = 車頭 - 停止線
+        distance = vehicleHead.value - stopLine.value
       }
     }
 
