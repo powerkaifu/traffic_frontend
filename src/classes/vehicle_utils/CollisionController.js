@@ -12,12 +12,15 @@ const COLLISION_CONFIG = {
   TARGET_SPACING: 15, // 🎯 東西向目標間距（px）
   TARGET_SPACING_VERTICAL: 30, // 🎯 南北向目標間距（px）- 南北向車更短，需要稍大的間距來保持視覺一致
   STOP_LINE_OFFSET: 0, // 🎯 停止線距離（px）- 停止線對齁位置（0 = 精準停在停止線）
-  // 🔧 方向特定的停止線精確調整（用於微調對齐精度）
+  // 🔧 方向特定的停止線精確調整（用於微調對齑精度）
+  // ⚠️ 每個方向可能有不同的誤差，這裡可以進行微調
+  // 正值 = 提前停止（停在停止線前）
+  // 負值 = 延遲停止（停在停止線後）
   STOP_LINE_OFFSET_BY_DIRECTION: {
-    east: 0, // 東向精確調整（相對於基礎 STOP_LINE_OFFSET）
-    west: 0, // 西向精確調整
-    north: 0, // 北向精確調整
-    south: 0, // 南向精確調整
+    east: 0, // 東向精確調整（px）- 修改此值校正東向誤差
+    west: 0, // 西向精確調整（px）- 修改此值校正西向誤差
+    north: 0, // 北向精確調整（px）- 修改此值校正北向誤差
+    south: 0, // 南向精確調整（px）- 修改此值校正南向誤差
   },
   CRAWL_SPEED: 0.02, // 蠕行速度：當距離 < TARGET_SPACING 時的跟隨速度（降低至 0.02 以提高精度）
   DETECTION_RANGE: 300, // 碰撞檢測範圍：檢查前方最多 300px 內的車輛

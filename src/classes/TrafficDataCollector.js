@@ -222,11 +222,6 @@ export default class TrafficDataCollector {
     if (vehicleData.action === 'added') {
       this.currentPeriodData.totalCount[direction][type]++
       this.currentPeriodData.totalCount[direction].total++
-
-      // 🔍 調試日誌：記錄車輛添加
-      console.log(
-        `🔍 [車輛添加] ${direction}-${type}: 現在共 ${this.currentPeriodData.totalCount[direction].total} 輛 (${this.currentPeriodData.totalCount[direction].motor}機 + ${this.currentPeriodData.totalCount[direction].small}小 + ${this.currentPeriodData.totalCount[direction].large}大)`,
-      )
     }
   }
 
@@ -313,11 +308,6 @@ export default class TrafficDataCollector {
     // 使用 maxLiveVehiclesForBackend 作為占用率計算的基準容量
     const maxCapacity = VOLUME_LIMITS_CONFIG[timePeriod]?.maxLiveVehiclesForBackend || 25
 
-    // 🔍 調試日誌：記錄占用率計算過程
-    console.log(
-      `🔍 [占用率計算] 時段: ${timePeriod}, maxCapacity: ${maxCapacity} (來自 VOLUME_LIMITS_CONFIG.${timePeriod}.maxLiveVehiclesForBackend)`,
-    )
-
     directions.forEach((direction) => {
       const totalVehicles = this.currentPeriodData.totalCount[direction].total
 
@@ -326,11 +316,6 @@ export default class TrafficDataCollector {
       const occupancy = Math.min((totalVehicles / maxCapacity) * 100, 100)
 
       this.currentPeriodData.occupancy[direction] = Math.round(occupancy * 10) / 10
-
-      // 🔍 調試日誌：詳細記錄每個方向的計算
-      console.log(
-        `  ${direction}: ${totalVehicles} 輛 ÷ ${maxCapacity} = ${this.currentPeriodData.occupancy[direction]}%`,
-      )
     })
   }
 
