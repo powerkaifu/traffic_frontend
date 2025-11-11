@@ -509,7 +509,7 @@ export default class Vehicle {
         shouldStop = this.laneNumber === 1
         break
       case 'leftGreen':
-        shouldStop = this.laneNumber !== 1
+        shouldStop = this.laneNumber >= 2 && this.laneNumber <= 4
         break
       case 'yellow':
         shouldStop = true
