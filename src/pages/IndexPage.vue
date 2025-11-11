@@ -2067,18 +2067,6 @@ onMounted(async () => {
           if (runPeriodicCheck && vehicle.directTrafficLightResponse) {
             try {
               vehicle.directTrafficLightResponse(window.trafficController)
-
-              // 自動恢復移動邏輯
-              if (
-                vehicle.currentState === 'waitingForVehicle' ||
-                vehicle.currentState === 'autoFollowing' ||
-                vehicle.currentState === 'rejoiningQueue' ||
-                vehicle.currentState === 'gapRecovery'
-              ) {
-                if (vehicle.resumeMovement && typeof vehicle.resumeMovement === 'function') {
-                  vehicle.resumeMovement(window.liveVehicles)
-                }
-              }
             } catch (e) {
               console.error('❌ [RAF] Vehicle periodic check error:', e)
             }

@@ -36,7 +36,6 @@ import {
   StopMovementUtils,
   TrafficLightSlowDownUtils,
   TrafficLightDirectResponseUtils,
-  ResumeMovementUtils,
 } from './utils/VehicleUtilities.js' // 🚀 新增：車輛工具類
 
 // 註冊 GSAP 插件
@@ -814,12 +813,7 @@ export default class Vehicle {
 
   // 🚨 極簡化恢復移動方法
   // � DRY 優化：委託給恢復移動工具類
-  resumeMovement(allVehicles = []) {
-    ResumeMovementUtils.executeResume(this, allVehicles, {
-      duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH,
-      ease: 'power2.out',
-    })
-  }
+  // 🛣️ 移除：resumeMovement 已不再使用
 
   // Command Pattern + State Pattern: 強制恢復移動命令
   // � 移除 forceResumeMovement 方法 - 功能已被 directTrafficLightResponse 替代

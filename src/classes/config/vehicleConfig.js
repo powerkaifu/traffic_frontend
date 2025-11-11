@@ -144,7 +144,7 @@ export const LANE_SPAWN_CONFIG = {
 // ===== 車輛間距與安全距離設定 =====
 export const DISTANCE_CONFIG = {
   // 🚗 唯一需要調整的參數
-  MIN_GAP: 25, // 車輛停車時的間隔距離（像素）- 調整此值可改變排隊間距
+  MIN_GAP: 12, // 車輛停車時的間隔距離（像素）- 調整此值可改變排隊間距
 
   // 🔧 碰撞檢測內部使用（不建議修改，會影響碰撞檢測功能）
   SAFE_FOLLOWING: 35, // 跟車安全距離
@@ -194,34 +194,8 @@ export const FOLLOWING_CONFIG = {
     },
   },
 
-  /*
-   * �️ 已移除：RESUME_SPEED
-   * - 原始定義：恢復移動速度設定（resumeMovement）
-   * - 移除原因：未被任何文件使用
-   * - 搜尋結果：0 次使用（僅在定義處出現）
-   * - 備份日期：2025-11-11
-   *
-   * RESUME_SPEED: {
-   *   QUEUE_ZONE: { ... },
-   *   NON_QUEUE_ZONE: { ... },
-   *   DISTANCE_THRESHOLDS: { ... },
-   * },
-   */
-
   // ⏱️ 跟車檢測間隔 (毫秒)
   CHECK_INTERVAL: 100, // ✅ 改為 100ms，與碰撞檢測同步
-
-  /*
-   * �️ 已移除：PUSH_FORCE
-   * - 原始定義：跟車行為設定中的推力係數
-   * - 移除原因：未被任何文件使用
-   * - 搜尋結果：0 次使用（僅在定義處出現）
-   * - 備份日期：2025-11-11
-   *
-   * PUSH_FORCE: {
-   *   STOPPED_VEHICLE: 0.05,
-   * },
-   */
 
   // 🧠 智能減速預測設定
   PREDICTIVE_SLOWDOWN: {
@@ -235,10 +209,10 @@ export const FOLLOWING_CONFIG = {
   // 🚗 碰撞後自動跟隨設定
   AUTO_FOLLOW_AFTER_COLLISION: {
     ENABLED: true, // 啟用碰撞後自動跟隨
-    SAFE_DISTANCE: 25, // 碰撞後跟隨的安全距離 (px)
-    MIN_FOLLOW_DISTANCE: 15, // ✅ 改為 15px，防止重疊
-    TARGET_FOLLOW_DISTANCE: 25, // 目標跟隨距離（px）- 理想間距
-    MAX_FOLLOW_DISTANCE: 50, // 最大跟隨距離（px）- 超過此距離啟動跟隨
+    SAFE_DISTANCE: 10, // 碰撞後跟隨的安全距離 (px) - 中度調整
+    MIN_FOLLOW_DISTANCE: 8, // 最小跟隨距離（px），防止重疊
+    TARGET_FOLLOW_DISTANCE: 15, // 目標跟隨距離（px）- 理想間距（調小）
+    MAX_FOLLOW_DISTANCE: 30, // 最大跟隨距離（px）- 超過此距離啟動跟隨（調小）
 
     // 跟隨速度設定（根據距離動態調整）
     FOLLOW_SPEEDS: {
@@ -285,22 +259,6 @@ export const COLLISION_CONFIG = {
     NEARBY_VEHICLE_RANGE: 100, // 附近車輛檢查範圍
   },
 
-  /*
-   * 🗑️ 已移除：THREAT_LEVELS
-   * - 原始定義：威脅等級設定
-   * - 移除原因：未被任何文件使用
-   * - 搜尋結果：0 次使用（僅在定義處出現）
-   * - 備份日期：2025-11-11
-   *
-   * THREAT_LEVELS: {
-   *   NO_THREAT: 0,
-   *   SLOW_DOWN: 1,
-   *   STOP: 2,
-   *   EMERGENCY_STOP: 3,
-   *   OVERLAPPING: 4,
-   * },
-   */
-
   // ⏱️ 檢測間隔設定（毫秒）
   // 🆕 優化 1：120ms → 150ms → 175ms（Phase 2B 溫和方案，減少 14% CPU 計算）
   // 預期: FPS +2-3, CPU 使用率 -5-8%
@@ -346,16 +304,6 @@ export const GENERATION_CONFIG = {
   },
 }
 
-// ===== 車輛退出檢測設定 =====
-// ⚠️ 已移除 - 此配置未被任何檔案使用
-// 原定義已移至備註中以備參考
-/*
-export const VEHICLE_EXIT_CONFIG = {
-  BOUNDARY_MARGIN: 50,
-  CHECK_INTERVAL: 100,
-}
-*/
-
 // ===== 循環流量機制設定 =====
 export const VEHICLE_RECYCLING_CONFIG = {
   // 🔄 是否啟用循環流量機制（回收車輛而不是刪除）
@@ -381,16 +329,6 @@ export const VEHICLE_RECYCLING_CONFIG = {
   // ⚙️ 回收機制調整
   MAX_RECYCLES_PER_VEHICLE: null, // 單個車輛的最大循環次數 (null = 無限)
   RECYCLE_COOLDOWN: 500, // 回收後的冷卻時間（毫秒），防止立即再次超出邊界
-
-  /*
-   * 🗑️ 已移除：ENABLE_RECYCLE_LOGGING
-   * - 原始定義：是否記錄回收事件
-   * - 移除原因：未被任何文件使用
-   * - 搜尋結果：0 次使用（僅在定義處出現）
-   * - 備份日期：2025-11-11
-   *
-   * ENABLE_RECYCLE_LOGGING: true,
-   */
 }
 
 // ===== 車道變換設定 (改進 8) =====
@@ -480,36 +418,6 @@ export const VOLUME_LIMITS_CONFIG = {
     maxLiveVehiclesForBackend: 8,
     description: '凌晨時段 - 前端 100 輛 × 1.0 倍 = 視覺 100 輛 / 後端傳 8 輛',
   },
-
-  /*
-   * �️ 已移除：dayTypeAdjustment
-   * - 原始定義：工作日 vs 假日調整
-   * - 移除原因：未被任何文件使用
-   * - 搜尋結果：0 次使用（僅在定義處出現）
-   * - 備份日期：2025-11-11
-   *
-   * dayTypeAdjustment: {
-   *   weekday: 1.0,
-   *   weekend: 0.85,
-   *   holiday: 0.75,
-   * },
-   */
-
-  /*
-   * 🗑️ 已移除：weatherAdjustment
-   * - 原始定義：天氣影響調整
-   * - 移除原因：未被任何文件使用
-   * - 搜尋結果：0 次使用（僅在定義處出現）
-   * - 備份日期：2025-11-11
-   *
-   * weatherAdjustment: {
-   *   clear: 1.0,
-   *   cloudy: 0.95,
-   *   rainy: 0.75,
-   *   foggy: 0.6,
-   *   snowy: 0.5,
-   * },
-   */
 
   // 💡 使用說明
   usage: `
