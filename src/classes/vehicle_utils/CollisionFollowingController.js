@@ -48,10 +48,17 @@ export class CollisionFollowingController {
       return { isFollowing: false, distance: Infinity, action: 'none' }
     }
 
-    // 🚨 防守：等待綠燈時不進行碰撞跟隨檢測（由信號燈邏輯單獨控制）
-    // 注意：isAtStopLine 可以進行碰撞排隊，但 waitingForGreen 時跳過
+    // 🚨 防守：等待綠燈時需要檢查前車狀態
+    // 如果前車已經通過停止線，應該清除等待狀態
     if (this.vehicle.waitingForGreen) {
-      return { isFollowing: false, distance: Infinity, action: 'none' }
+      const frontVehicle = this._findFrontVehicle(allVehicles)
+      if (!frontVehicle || frontVehicle.hasPassedStopLine) {
+        // 前車已通過或沒有前車，允許這輛車嘗試通過
+        // 不返回，繼續執行碰撞檢測邏輯以確保可以安全移動
+      } else {
+        // 前車仍在停止線前排隊，保持等待
+        return { isFollowing: false, distance: Infinity, action: 'none' }
+      }
     }
 
     // 🟢 新增：根據信號燈類型決定哪些車道可以穿透
