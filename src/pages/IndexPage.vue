@@ -2012,51 +2012,47 @@ onMounted(async () => {
                 } else {
                   // 🎯 執行碰撞檢測 - 極其簡化版本
                   // 核心原則：碰撞控制器的決定是唯一的真理
-                  // 刪除所有舊的複雜邏輯（rejoin_queue, GREEN_LIGHT_FOLLOWING 等）
                   const shouldStop = vehicle.collisionController.checkSimpleCollision(allVehicles)
 
-                  // ✅ 唯一的邏輯：應用碰撞控制器的 targetSpeed
-                  if (shouldStop && shouldStop.targetSpeed !== undefined) {
-                    // 碰撞控制器返回了 targetSpeed
-                    // - targetSpeed = 0 → 停止
-                    // - targetSpeed > 0 → 蠕動跟隨
-                    // - targetSpeed = undefined → 自由加速（見下面）
-                    if (vehicle.movementTimeline) {
-                      vehicle.movementTimeline.timeScale(shouldStop.targetSpeed)
-                    }
-                    vehicle.currentState =
-                      shouldStop.action === 'collision_stop'
-                        ? 'stopped'
-                        : shouldStop.action === 'crawl_follow'
-                          ? 'crawl_following'
-                          : shouldStop.action === 'traffic_light_stop_locked'
-                            ? 'stopped'
-                            : shouldStop.action === 'align_to_stop_line_locked'
-                              ? 'stopped'
-                              : 'stopped'
-                  } else if (shouldStop && shouldStop.targetSpeed === undefined) {
-                    // 碰撞控制器說「自由加速」，恢復到正常速度
-                    if (vehicle.movementTimeline) {
-                      const currentLightState = trafficController.getCurrentLightState(vehicle.direction)
-                      // 檢查燈號是否允許通過
-                      const canProceed =
-                        vehicle.laneNumber === 1 ? currentLightState === 'leftGreen' : currentLightState === 'green'
+                  // ✅ 邏輯優化（Phase 20）：
+                  // shouldStop 永遠不會為 null（改進後的 CollisionController 總是返回值）
+                  // 只需根據 targetSpeed 決定：
+                  // - targetSpeed = 0 → 停止
+                  // - targetSpeed > 0 → 蠕動跟隨
+                  // - targetSpeed = undefined → 自由加速
 
-                      if (canProceed) {
-                        vehicle.movementTimeline.timeScale(1)
-                        vehicle.currentState = 'moving'
+                  if (shouldStop) {
+                    if (shouldStop.targetSpeed !== undefined) {
+                      // ✅ 情況 1：碰撞控制器返回了具體速度（0 或 0.01 等）
+                      if (vehicle.movementTimeline) {
+                        vehicle.movementTimeline.timeScale(shouldStop.targetSpeed)
                       }
-                    }
-                  } else {
-                    // shouldStop 為 null，表示沒有前車，可以自由運動
-                    const currentLightState = trafficController.getCurrentLightState(vehicle.direction)
-                    const canProceed =
-                      vehicle.laneNumber === 1 ? currentLightState === 'leftGreen' : currentLightState === 'green'
+                      vehicle.currentState =
+                        shouldStop.action === 'collision_stop'
+                          ? 'stopped'
+                          : shouldStop.action === 'crawl_follow'
+                            ? 'crawl_following'
+                            : shouldStop.action === 'traffic_light_stop_locked'
+                              ? 'stopped'
+                              : shouldStop.action === 'align_to_stop_line_locked'
+                                ? 'stopped'
+                                : 'stopped'
+                    } else {
+                      // ✅ 情況 2：碰撞控制器說「無碰撞」（targetSpeed = undefined）
+                      // 檢查燈號是否允許通過，如果允許就加速到 1
+                      if (vehicle.movementTimeline) {
+                        const currentLightState = trafficController.getCurrentLightState(vehicle.direction)
+                        const canProceed =
+                          vehicle.laneNumber === 1 ? currentLightState === 'leftGreen' : currentLightState === 'green'
 
-                    if (canProceed) {
-                      if (vehicle.movementTimeline && vehicle.movementTimeline.timeScale() < 1) {
-                        vehicle.movementTimeline.timeScale(1)
-                        vehicle.currentState = 'moving'
+                        if (canProceed) {
+                          vehicle.movementTimeline.timeScale(1)
+                          vehicle.currentState = 'moving'
+                        } else {
+                          // 燈號不允許，但也沒有前車碰撞
+                          // 這種情況通常不會發生，因為燈號停止在 _checkTrafficLightStop 中處理
+                          // 保持現狀即可
+                        }
                       }
                     }
                   }

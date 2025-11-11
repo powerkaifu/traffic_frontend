@@ -10,32 +10,11 @@
 // 📌 如何調整蠕動跟隨避免重疊？詳見 CRAWL_FOLLOW_ADJUSTMENT_GUIDE.md
 const COLLISION_CONFIG = {
   TRAFFIC_LIGHT_CHECK_DISTANCE: 100, // 燈號停止距離：當車距離停止線 < 此值時，檢查燈號是否需要停止
-
-  // 🐌 蠕動跟隨觸發距離（雙觸發點滯後機制）
-  // 📌 核心原則：使用「進入」和「退出」兩個不同的觸發點，防止狀態抖動和重疊
-  //
-  // 流程：
-  // 1. 距離 >= CRAWL_TRIGGER_DISTANCE → 自由加速
-  // 2. CRAWL_TRIGGER_DISTANCE > 距離 > STOP_TRIGGER_DISTANCE → 蠕動跟隨
-  // 3. 距離 <= STOP_TRIGGER_DISTANCE → 停止（不再跟隨，防止重疊）
-  //
-  CRAWL_TRIGGER_DISTANCE: 50, // 🎯 進入蠕動的距離（外層觸發）- 東西向，距離 > 此值時進入蠕動
-  CRAWL_TRIGGER_DISTANCE_VERTICAL: 60, // 🎯 進入蠕動的距離 - 南北向
-
-  // � 停止觸發距離（退出蠕動的距離）
-  // 📌 當距離 <= 此值時，停止跟隨，防止重疊
-  STOP_TRIGGER_DISTANCE: 20, // 🛑 退出蠕動、進入停止的距離 - 東西向
+  STOP_TRIGGER_DISTANCE: 15, // 🛑 退出蠕動、進入停止的距離 - 東西向
   STOP_TRIGGER_DISTANCE_VERTICAL: 30, // 🛑 退出蠕動、進入停止的距離 - 南北向
-
-  // 🐌 蠕動速度（影響隊伍緊湊度）
-  // 📌 蠕動速度不再需要與 CRAWL_TRIGGER_DISTANCE 協調，因為停止距離會主動防止重疊
-  //    使用相對較快的蠕動速度，讓隊伍更緊湊
+  CRAWL_TRIGGER_DISTANCE: 20, // 🎯 進入蠕動的距離（外層觸發）- 東西向，距離 > 此值時進入蠕動
+  CRAWL_TRIGGER_DISTANCE_VERTICAL: 35, // 🎯 進入蠕動的距離 - 南北向
   CRAWL_SPEED: 0.01, // 蠕動速度：在 CRAWL_TRIGGER_DISTANCE 和 STOP_TRIGGER_DISTANCE 之間的跟隨速度
-  // 可選值：
-  //   0.005 - 非常慢（隊伍疏鬆，反應慢）
-  //   0.01 - 慢（推薦，平衡安全性和隊伍緊湊度）
-  //   0.02 - 中等（隊伍較緊，反應快）
-  //   0.05 - 快（隊伍非常緊，反應很快）
 
   DETECTION_RANGE: 300, // 碰撞檢測範圍：檢查前方最多 300px 內的車輛
 
@@ -200,12 +179,81 @@ export class CollisionController {
     }
     this.lastCheckTime = now
 
-    // 第一步：檢查燈號停止
-    const trafficLightStop = this._checkTrafficLightStop()
-    if (trafficLightStop) {
-      return trafficLightStop
+    // 🎯 優先級調整（重要！）：
+    // 1️⃣ 前方碰撞檢查（優先級最高，因為直接關係安全）
+    // 2️⃣ 停止線對齁檢查（次優先級）
+    // 3️⃣ 燈號停止檢查（優先級最低，前車狀態更重要）
+
+    // 第一步：檢查前方碰撞（優先級最高）
+    // 🔴 重要：必須先檢查前方是否有車，有的話就返回前車相關指令
+    // 這樣才能實現蠕動跟隨功能
+    const frontVehicle = this._findClosestFrontVehicle(allVehicles)
+    if (frontVehicle) {
+      // 有前車，執行碰撞邏輯
+      const distance = this._getDistance(this.vehicle, frontVehicle)
+      const frontSpeed = frontVehicle.movementTimeline?.timeScale() || 0
+
+      // 🎯 根據方向選擇不同的觸發距離（雙觸發點滯後機制）
+      // 南北向車更短，需要稍大的間距保持視覺一致
+      const crawlTriggerDistance =
+        this.vehicle.direction === 'south' || this.vehicle.direction === 'north'
+          ? COLLISION_CONFIG.CRAWL_TRIGGER_DISTANCE_VERTICAL
+          : COLLISION_CONFIG.CRAWL_TRIGGER_DISTANCE
+
+      const stopTriggerDistance =
+        this.vehicle.direction === 'south' || this.vehicle.direction === 'north'
+          ? COLLISION_CONFIG.STOP_TRIGGER_DISTANCE_VERTICAL
+          : COLLISION_CONFIG.STOP_TRIGGER_DISTANCE
+
+      // 🎯 三段邏輯（滯後機制）：
+      // 1. 距離 >= CRAWL_TRIGGER_DISTANCE：自由加速
+      // 2. CRAWL_TRIGGER_DISTANCE > 距離 > STOP_TRIGGER_DISTANCE：蠕動跟隨
+      // 3. 距離 <= STOP_TRIGGER_DISTANCE：停止（防止重疊）
+
+      if (distance > crawlTriggerDistance) {
+        // 距離很遠：自由加速
+        return {
+          targetSpeed: undefined, // 允許自由加速
+          reason: `自由：距離${distance.toFixed(1)}px > 蠕動觸發${crawlTriggerDistance}px`,
+          distance: distance,
+          frontVehicle: frontVehicle,
+          frontVehicleIsMoving: frontSpeed > 0.01,
+          action: 'free',
+        }
+      } else if (distance > stopTriggerDistance) {
+        // 距離中等：蠕動跟隨
+        // 🐌 雙觸發滯後機制：
+        //   - 當距離 > CRAWL_TRIGGER_DISTANCE 時進入「自由」狀態
+        //   - 當距離 < STOP_TRIGGER_DISTANCE 時進入「停止」狀態
+        //   - 在中間區域進行蠕動跟隨
+        //   - 這樣防止狀態頻繁抖動，也防止重疊
+        //
+        return {
+          targetSpeed: COLLISION_CONFIG.CRAWL_SPEED,
+          reason: `蠕行跟隨：距離${distance.toFixed(1)}px 在蠕動區間[${stopTriggerDistance}, ${crawlTriggerDistance}]px，以${COLLISION_CONFIG.CRAWL_SPEED}速度跟隨`,
+          distance: distance,
+          frontVehicle: frontVehicle,
+          frontVehicleIsMoving: frontSpeed > 0.01,
+          action: 'crawl_follow',
+        }
+      } else {
+        // 距離很近：停止（防止重疊）
+        // 🛑 當距離 <= STOP_TRIGGER_DISTANCE 時，立即停止
+        //    不再進行蠕動跟隨，完全停止
+        //    這是防止重疊的最後一道防線
+        //
+        return {
+          targetSpeed: 0,
+          reason: `停止（防重疊）：距離${distance.toFixed(1)}px <= 停止觸發${stopTriggerDistance}px，停止跟隨以防重疊`,
+          distance: distance,
+          frontVehicle: frontVehicle,
+          frontVehicleIsMoving: frontSpeed > 0.01,
+          action: 'collision_stop',
+        }
+      }
     }
 
+    // 沒有前車時，檢查停止線對齁
     // 第二步：檢查距離停止線是否太近（精準對齁）
     // 🔧 使用內部計算的距離，確保精度
     const distanceToStopLine = this._calculateDistanceToStopLine()
@@ -236,72 +284,22 @@ export class CollisionController {
       this.lockedDistance = null
     }
 
-    // 第三步：檢查前方碰撞
-    const frontVehicle = this._findClosestFrontVehicle(allVehicles)
-    if (!frontVehicle) {
-      return null // 沒有前車
+    // 第三步：檢查燈號停止（優先級最低，只在沒有前車時檢查）
+    // 🔴 重要：只有在沒有前車時才檢查燈號
+    // 有前車時，已經在前面返回過了，不會執行到這裡
+    const trafficLightStop = this._checkTrafficLightStop()
+    if (trafficLightStop) {
+      return trafficLightStop
     }
 
-    const distance = this._getDistance(this.vehicle, frontVehicle)
-    const frontSpeed = frontVehicle.movementTimeline?.timeScale() || 0
-
-    // 🎯 根據方向選擇不同的觸發距離（雙觸發點滯後機制）
-    // 南北向車更短，需要稍大的間距保持視覺一致
-    const crawlTriggerDistance =
-      this.vehicle.direction === 'south' || this.vehicle.direction === 'north'
-        ? COLLISION_CONFIG.CRAWL_TRIGGER_DISTANCE_VERTICAL
-        : COLLISION_CONFIG.CRAWL_TRIGGER_DISTANCE
-
-    const stopTriggerDistance =
-      this.vehicle.direction === 'south' || this.vehicle.direction === 'north'
-        ? COLLISION_CONFIG.STOP_TRIGGER_DISTANCE_VERTICAL
-        : COLLISION_CONFIG.STOP_TRIGGER_DISTANCE
-
-    // 🎯 三段邏輯（滯後機制）：
-    // 1. 距離 >= CRAWL_TRIGGER_DISTANCE：自由加速
-    // 2. CRAWL_TRIGGER_DISTANCE > 距離 > STOP_TRIGGER_DISTANCE：蠕動跟隨
-    // 3. 距離 <= STOP_TRIGGER_DISTANCE：停止（防止重疊）
-
-    if (distance > crawlTriggerDistance) {
-      // 距離很遠：自由加速
-      return {
-        targetSpeed: undefined, // 允許自由加速
-        reason: `自由：距離${distance.toFixed(1)}px > 蠕動觸發${crawlTriggerDistance}px`,
-        distance: distance,
-        frontVehicle: frontVehicle,
-        frontVehicleIsMoving: frontSpeed > 0.01,
-        action: 'free',
-      }
-    } else if (distance > stopTriggerDistance) {
-      // 距離中等：蠕動跟隨
-      // 🐌 雙觸發滯後機制：
-      //   - 當距離 > CRAWL_TRIGGER_DISTANCE 時進入「自由」狀態
-      //   - 當距離 < STOP_TRIGGER_DISTANCE 時進入「停止」狀態
-      //   - 在中間區域進行蠕動跟隨
-      //   - 這樣防止狀態頻繁抖動，也防止重疊
-      //
-      return {
-        targetSpeed: COLLISION_CONFIG.CRAWL_SPEED,
-        reason: `蠕行跟隨：距離${distance.toFixed(1)}px 在蠕動區間[${stopTriggerDistance}, ${crawlTriggerDistance}]px，以${COLLISION_CONFIG.CRAWL_SPEED}速度跟隨`,
-        distance: distance,
-        frontVehicle: frontVehicle,
-        frontVehicleIsMoving: frontSpeed > 0.01,
-        action: 'crawl_follow',
-      }
-    } else {
-      // 距離很近：停止（防止重疊）
-      // 🛑 當距離 <= STOP_TRIGGER_DISTANCE 時，立即停止
-      //    不再進行蠕動跟隨，完全停止
-      //    這是防止重疊的最後一道防線
-      //
-      return {
-        targetSpeed: 0,
-        reason: `停止（防重疊）：距離${distance.toFixed(1)}px <= 停止觸發${stopTriggerDistance}px，停止跟隨以防重疊`,
-        distance: distance,
-        frontVehicle: frontVehicle,
-        frontVehicleIsMoving: frontSpeed > 0.01,
-        action: 'collision_stop',
-      }
+    // 沒有碰撞，沒有停止線限制，也沒有燈號限制
+    // 返回「無碰撞」狀態
+    return {
+      targetSpeed: undefined, // 允許自由加速
+      reason: `無碰撞：沒有前車，可以自由加速`,
+      distance: null,
+      frontVehicle: null,
+      action: 'free',
     }
   }
 
