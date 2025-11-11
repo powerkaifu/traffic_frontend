@@ -91,6 +91,7 @@ export default class Vehicle {
     this.containerPosition = null // 記錄容器位置，用於檢測佈局變化
     this.justCreated = true // 新增：標記車輛剛創建，避免立即檢測碰撞
     this.isJustReset = false // 🚨 標記是否剛從池中重置，防止位置被覆蓋
+    this.isInEntryPhase = true // 🆕 進場階段保護：防止同車道新生成車輛互相減速
 
     // 🚨 新增：防抖動機制
     this.lastPositionAdjustTime = 0 // 上次位置調整時間
@@ -507,6 +508,7 @@ export default class Vehicle {
     } else {
       this.isAtStopLine = false
       this.hasPassedStopLine = true
+      this.isInEntryPhase = false // 🆕 結束進場保護階段
       this.currentSpeed = this.initialSpeed
       this.maxSpeed = this.initialSpeed
 
@@ -824,8 +826,9 @@ export default class Vehicle {
     }
 
     // 【決策邏輯 1】碰撞跟隨控制 - 首先執行，優先級最高
-    // 必須在停止線檢查之前執行，以便了解前方是否有車
-    if (this.collisionFollowingController && !this.hasPassedStopLine) {
+    // 持續執行碰撞檢測：進場階段 + 十字路口通行中
+    // 🆕 移除 !hasPassedStopLine 限制，讓通過停止線後的車輛也進行碰撞檢測
+    if (this.collisionFollowingController) {
       this.collisionFollowingController.execute(allVehicles)
     }
 
@@ -939,6 +942,7 @@ export default class Vehicle {
           this.waitingForGreen = false
           this.isAtStopLine = false
           this.hasPassedStopLine = false
+          this.isInEntryPhase = true // 🆕 恢復進場保護階段（從停止線回溯時）
 
           // Observer Pattern: 確保只有一個定期檢查定時器運行
           if (this.periodicCheckTimer) {
@@ -1150,6 +1154,7 @@ export default class Vehicle {
     this.isAtStopLine = false
     this.waitingForGreen = false
     this.hasPassedStopLine = false
+    this.isInEntryPhase = true // 🆕 回收時重置進場保護階段
 
     // 更新回收計數和時間
     this.recycleCount += 1
@@ -1467,6 +1472,7 @@ export default class Vehicle {
     this.isAtStopLine = false
     this.hasPassedStopLine = false
     this.waitingForGreen = false
+    this.isInEntryPhase = true // 🆕 重置進場保護階段
     this.currentState = 'waiting'
 
     // 🔄 重置完成狀態

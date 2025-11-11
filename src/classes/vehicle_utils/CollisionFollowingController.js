@@ -19,7 +19,7 @@ export class CollisionFollowingController {
   constructor(vehicle) {
     this.vehicle = vehicle
     this.lastCheckTime = 0
-    this.checkInterval = 10 // 檢查間隔（毫秒）
+    this.checkInterval = 0 // 🆕 改為 0：每次 updateLogic 都執行碰撞檢測（已由 RAF 按 100ms 頻率調用）
     this.lastDistance = Infinity // 上次距離
   }
 
@@ -115,6 +115,13 @@ export class CollisionFollowingController {
       // 🚨 排除進場不超過 500ms 的車輛（讓它們有時間上路）
       const vehicleAge = Date.now() - new Date(other.createdAt).getTime()
       if (vehicleAge < 500) {
+        continue
+      }
+
+      // 🆕 進場階段保護：同車道新生成的車輛不應作為"前車"被檢測
+      // 防止進場車輛互相減速，但不排除檢測本身
+      if (this.vehicle.isInEntryPhase && other.isInEntryPhase) {
+        // 同為進場車輛，不互相檢測
         continue
       }
 
