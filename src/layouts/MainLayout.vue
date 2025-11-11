@@ -158,11 +158,8 @@
               <!-- 當前情境參數顯示 -->
               <div v-if="currentScenarioDetails && !isAutoMode" class="scenario-details">
                 <div class="detail-item">
-                  <span class="detail-label">頻率（秒）：</span>
-                  <span class="detail-value"
-                    >{{ currentScenarioDetails.interval.min / 1000 }} /
-                    {{ currentScenarioDetails.interval.max / 1000 }}</span
-                  >
+                  <span class="detail-label">時間範圍：</span>
+                  <span class="detail-value">{{ currentScenarioDetails.timeRange }}</span>
                 </div>
                 <div class="detail-item">
                   <span class="detail-label">機/小/大 出現機率（%）：</span>
@@ -560,18 +557,36 @@ const currentInterval = ref(2.0) // ✅ 初始化為 2 秒（與 manualInterval 
 // timeScenarios 已從 trafficScenarioConfig.js 匯入
 // 🔄 v2.6 更新：使用 VD_DISPLAY_CONFIG 中的配置
 const currentScenarioDetails = computed(() => {
+  // 輔助函數：將 timeRange 簡化為 HH-HH 格式
+  const formatTimeRange = (timeRangeStr) => {
+    if (!timeRangeStr) return '不詳'
+    // 例如：'07:00-09:00,17:00-19:00' → '07-09, 17-19'
+    return timeRangeStr
+      .split(',')
+      .map((range) => {
+        const [start, end] = range.split('-')
+        if (start && end) {
+          return `${start.split(':')[0]}-${end.split(':')[0]}`
+        }
+        return range
+      })
+      .join(', ')
+  }
+
   // 優先使用新配置 (vdDisplayConfig.js)
   const vdConfig = VD_DISPLAY_CONFIG[currentTimeScenario.value]
   if (vdConfig) {
-    // 從 timeScenarios 中找到對應的 ratios
+    // 從 timeScenarios 中找到對應的 ratios 和 timeRange
     const timeScenario = timeScenarios.find((s) => s.key === currentTimeScenario.value)
     const ratios = timeScenario ? timeScenario.config.vehicleTypes.map((v) => v.weight).join(' / ') : '(VD 特徵)'
+    const timeRange = timeScenario ? formatTimeRange(timeScenario.timeRange) : '不詳'
 
     return {
       interval: {
         min: vdConfig.generation_interval * 1000, // 轉換為 ms
         max: vdConfig.generation_interval * 1000,
       },
+      timeRange: timeRange,
       ratios: ratios,
       label: vdConfig.label,
       displayVolume: `${vdConfig.display_volume_min}-${vdConfig.display_volume_max}輛`,
@@ -584,6 +599,7 @@ const currentScenarioDetails = computed(() => {
   if (!s) return null
   return {
     interval: { min: s.config.interval.min, max: s.config.interval.max },
+    timeRange: formatTimeRange(s.timeRange),
     ratios: s.config.vehicleTypes.map((v) => v.weight).join(' / '),
   }
 })
@@ -1393,6 +1409,7 @@ onUnmounted(() => {
   margin-bottom: 4px;
   display: flex;
   align-items: center;
+  justify-content: space-around;
   font-size: 12px;
 }
 
