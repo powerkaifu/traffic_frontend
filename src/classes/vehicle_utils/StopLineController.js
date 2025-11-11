@@ -4,7 +4,6 @@
  */
 
 import { STOP_LINE_CONFIG, STOP_LINE_OFFSETS } from '../config/stopLineConfig.js'
-import { COLLISION_CONFIG } from './CollisionController.js'
 
 export class StopLineController {
   constructor(vehicle) {
@@ -99,8 +98,8 @@ export class StopLineController {
 
     const vehicleHead = this.getVehicleHeadPosition()
     // 🔧 計算實際停止偏移 = 基礎偏移 + 方向特定調整
-    const directionOffset = COLLISION_CONFIG.STOP_LINE_OFFSET_BY_DIRECTION[this.vehicle.direction] || 0
-    const stopLineOffset = COLLISION_CONFIG.STOP_LINE_OFFSET + directionOffset
+    const directionOffset = STOP_LINE_CONFIG.STOP_LINE_OFFSET_BY_DIRECTION[this.vehicle.direction] || 0
+    const stopLineOffset = STOP_LINE_CONFIG.STOP_LINE_OFFSET + directionOffset
     let distance = null
 
     // 四個方向統一邏輯：距離 = 目標位置 - 車頭位置

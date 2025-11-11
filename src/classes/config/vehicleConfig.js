@@ -28,8 +28,6 @@ export const ANIMATION_CONFIG = {
     TIMESCALE_DEBOUNCE: 50, // ✅ 改為 50ms，匹配 SPEED_CHANGE_DURATION.INSTANT
   },
 
-
-
   // ⏰ 初始化和時間限制設定
   INITIALIZATION_DELAY: 500, // 車輛初始化延遲時間（毫秒）
   MIN_ANIMATION_TIME: 1, // 最短動畫時間（秒）- 降低以支援更快速度

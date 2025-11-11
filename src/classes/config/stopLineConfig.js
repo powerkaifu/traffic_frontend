@@ -4,6 +4,15 @@
  */
 
 export const STOP_LINE_CONFIG = {
+  // 停止線偏移配置（方向特定的調整）
+  STOP_LINE_OFFSET: 0,
+  STOP_LINE_OFFSET_BY_DIRECTION: {
+    east: 7,
+    west: 3,
+    north: -2,
+    south: 2,
+  },
+
   // 檢測敏感度配置
   DETECTION: {
     SENSITIVITY: 10, // ✅ P3 修復: 從 10 提高到 15 - 給予系統更多反應時間以捕捉高速車輛

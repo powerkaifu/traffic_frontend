@@ -1303,77 +1303,23 @@ export class ResumeMovementUtils {
 
     const { duration = 0.5, ease = 'power2.out' } = animationConfig
 
-    // 進行碰撞檢查
-    const collision = vehicle.collisionController.checkSimpleCollision(allVehicles)
+    // 🚨 新架構：碰撞檢測已移至 CollisionFollowingController
+    // 此方法只負責簡單的排隊控制和基本恢復
 
-    // 🎯 新增：根據停止原因決定恢復邏輯
-    if (vehicle.stopReason) {
-      // 檢查是否可以根據停止原因恢復
-      if (!vehicle.canRecoverBasedOnStopReason(collision?.vehicle, collision)) {
-        // 無法恢復，保持當前速度
-        return
-      }
+    // 檢查是否在停止線處或等待綠燈
+    if (vehicle.isAtStopLine || vehicle.waitingForGreen) {
+      // 停止線處的車輛由 directTrafficLightResponse 控制，不在此恢復
+      return
     }
 
-    if (!collision) {
-      // 無碰撞：平滑恢復到正常速度
+    // 簡化邏輯：如果當前速度 < 1，嘗試恢復到 1
+    if (vehicle.movementTimeline && vehicle.movementTimeline.timeScale() < 0.95) {
       gsap.to(vehicle.movementTimeline, {
         timeScale: 1,
         duration,
         ease,
       })
       vehicle.currentState = 'moving'
-      vehicle.isAtStopLine = false
-      vehicle.updateStopReason(null) // 清除停止原因
-
-      if (vehicle.stopLineController) {
-        vehicle.stopLineController.state = 'approaching'
-      }
-
-      if (vehicle.showAccelerationEffect) {
-        vehicle.showAccelerationEffect(false)
-      }
-    } else {
-      // 💡 死鎖恢復：有碰撞時根據距離調整速度
-      // 關鍵：即使 targetSpeed = 0，也要嘗試以超慢速前進以逐漸恢復空間
-      let targetSpeed = this.calculateResumeSpeed({ collision })
-
-      // 💡 死鎖恢復機制：如果完全停止且距離極近，嘗試超慢速恢復
-      if (targetSpeed === 0 && collision.distance !== undefined && collision.distance < 5) {
-        // 碰撞停止但距離很近，嘗試以極超慢速 (0.05) 進行恢復移動
-        // 這允許車輛逐漸恢復空間而不是永久死鎖
-        targetSpeed = 0.05
-      }
-
-      gsap.to(vehicle.movementTimeline, {
-        timeScale: targetSpeed,
-        duration,
-        ease,
-      })
-
-      // 🔧 新增：更新狀態轉換邏輯
-      // 在 gapRecovery 狀態時，由車輛的 checkAndProgressGapRecovery 方法決定是否轉換
-      if (vehicle.currentState === 'gapRecovery') {
-        // 保持 gapRecovery 狀態，等待 checkAndProgressGapRecovery 判斷
-        // 這允許監控恢復進度和是否達到安全間距
-        vehicle.updateStopReason('collision', collision?.vehicle) // 標記為碰撞停止
-      } else if (collision.autoFollowing && collision.targetSpeed > 0) {
-        // 進入自動跟隨模式
-        vehicle.currentState = 'autoFollowing'
-        vehicle.updateStopReason('following', collision?.vehicle) // 標記為跟隨停止
-      } else if (collision.isEmergencyStop && targetSpeed > 0) {
-        // 💡 死鎖恢復：標記為間距恢復中
-        vehicle.currentState = 'gapRecovery'
-        vehicle.updateStopReason('collision', collision?.vehicle) // 標記為碰撞停止
-      } else if (targetSpeed === 0) {
-        // 排隊停止：前車已停止，我也停止
-        vehicle.updateStopReason('queue', collision?.vehicle) // 標記為排隊停止
-      }
-
-      // 顯示加速效果
-      if (targetSpeed >= 0.7 && vehicle.currentState !== 'moving' && vehicle.showAccelerationEffect) {
-        vehicle.showAccelerationEffect(false)
-      }
     }
   }
 }

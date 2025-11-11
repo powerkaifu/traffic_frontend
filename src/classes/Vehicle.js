@@ -6,7 +6,6 @@ import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { speedConfig } from './config/trafficConfig.js' // 引入統一的速度設定
 import { StopLineController } from './vehicle_utils/StopLineController.js' // 🚀 新增：停止線控制器
-import { CollisionController } from './vehicle_utils/CollisionController.js' // 🚀 新增：碰撞控制器（整合 SimpleCollisionDetector）
 import { CollisionFollowingController } from './vehicle_utils/CollisionFollowingController.js' // 🚀 新增：碰撞跟隨控制器
 import {
   ANIMATION_CONFIG,
@@ -188,10 +187,6 @@ export default class Vehicle {
 
     // 🚀 新增：停止線控制器
     this.stopLineController = new StopLineController(this)
-
-    // 🚀 新增：碰撞控制器（簡化版 v2）
-    // 注意：trafficController 稍後在 IndexPage 中注入
-    this.collisionController = new CollisionController(this)
 
     // 🚀 新增：碰撞跟隨控制器（專門處理安全距離）
     this.collisionFollowingController = new CollisionFollowingController(this)
@@ -540,6 +535,24 @@ export default class Vehicle {
       // 可以通過停止線
       this.isAtStopLine = false
       this.hasPassedStopLine = true
+
+      // 🚨 恢復原始速度：通過停止線後恢復到進場時的初始速度
+      // （動畫在停止線之前已經以天氣倍數的速度進行）
+      // （通過停止線後應該加速回到原始速度）
+      this.currentSpeed = this.initialSpeed
+      this.maxSpeed = this.initialSpeed
+
+      // 🚨 加速動畫到原始速度（增加 timeScale）
+      if (this.movementTimeline && this.movementTimeline.timeScale() > 0) {
+        // 目前速度已被降低（因為 effectiveSpeed = initialSpeed * weatherMultiplier）
+        // 需要通過提高 timeScale 來恢復
+        // timeScale = 原始速度 / 當前速度 = initialSpeed / (initialSpeed * weatherMultiplier) = 1 / weatherMultiplier
+        const weatherMultiplier = this.getWeatherSpeedMultiplier()
+        if (weatherMultiplier < 1.0) {
+          const newTimeScale = 1.0 / weatherMultiplier
+          this.movementTimeline.timeScale(newTimeScale)
+        }
+      }
     } else {
       // 不能通過，需要等待
       this._performStopAtLine(lightState)
@@ -1718,12 +1731,6 @@ export default class Vehicle {
     if (this.stopLineController) {
       this.stopLineController.dispose()
       this.stopLineController = null
-    }
-
-    // 🚀 清理碰撞控制器（整合 SimpleCollisionDetector 功能）
-    if (this.collisionController) {
-      this.collisionController.dispose()
-      this.collisionController = null
     }
 
     // 🚀 清理碰撞跟隨控制器
