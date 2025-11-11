@@ -1949,8 +1949,8 @@ onMounted(async () => {
                   const isFirstVehicle = vehicle.collisionController.isClosestToStopLine(allVehicles)
 
                   // 碰撞處理邏輯
-                  if (shouldStop && !shouldStop.frontVehicleIsMoving) {
-                    // 前方車輛停止了，就停止自己
+                  if (shouldStop && shouldStop.shouldStop && !shouldStop.frontVehicleIsMoving) {
+                    // 前方車輛停止了，就停止自己（只有當 shouldStop.shouldStop === true 時）
                     vehicle.movementTimeline.timeScale(0)
                     vehicle.currentState = 'stopped'
                   } else if (shouldStop && shouldStop.action === 'rejoin_queue') {

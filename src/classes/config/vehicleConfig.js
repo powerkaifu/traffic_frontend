@@ -8,7 +8,7 @@
 // ===== 動畫與時間設定 =====
 export const ANIMATION_CONFIG = {
   // 🎬 全域動畫控制
-  TIME_MULTIPLIER: 0.6, // 控制整體動畫速度：越小越快，越大越慢（0.6≈1.67x 速度）
+  TIME_MULTIPLIER: 0.5, // 控制整體動畫速度：越小越快，越大越慢
 
   // ⚡ 速度變化動畫時間 (秒)
   SPEED_CHANGE_DURATION: {
@@ -310,8 +310,8 @@ export const COLLISION_CONFIG = {
   // 🆕 Phase 6：燈號感知碰撞檢測設定
   YELLOW_LIGHT_CHECK_INTERVAL: 75, // 黃燈檢測間隔（75ms，每秒 13.3 次 - 2.3倍高頻）
   RED_LIGHT_CHECK_INTERVAL: 175, // 紅燈檢測間隔（與一般相同）
-  STOP_LINE_CHECK_DISTANCE: 80, // 紅燈停止線檢測距離（±80px）
-  YELLOW_LIGHT_CHECK_DISTANCE: 120, // 黃燈停止線檢測距離（±120px，更寬鬆）
+  STOP_LINE_CHECK_DISTANCE: 600, // 🔧 Phase 1：紅燈停止線檢測距離擴大至 600px（從 80px）
+  YELLOW_LIGHT_CHECK_DISTANCE: 600, // 🔧 Phase 1：黃燈停止線檢測距離擴大至 600px（從 120px）
 
   // 🆕 TIME_MULTIPLIER 補償設定 - 解決快速動畫時碰撞失效問題
   // 當 TIME_MULTIPLIER < 1（動畫加速）時，自動調整檢查間隔

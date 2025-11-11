@@ -369,6 +369,37 @@ export class StopLineController {
   }
 
   /**
+   * 🆕 判斷車輛是否在排隊區域內
+   * 排隊區域是停止線前 WIDTH 像素的距離範圍
+   *
+   * @returns {boolean} true 表示車輛在排隊區域內
+   *
+   * 邏輯：
+   * - 距停止線 >= WIDTH 時：區域外 → 允許以超慢速度前進
+   * - 距停止線 < WIDTH 時：區域內 → 完全停止
+   */
+  isInQueueArea() {
+    // 檢查排隊區域功能是否啟用
+    if (!STOP_LINE_CONFIG.QUEUE_AREA.ENABLED) {
+      return true // 如果禁用，視為在排隊區域內（採用停止邏輯）
+    }
+
+    // 🔑 使用距離而不是絕對座標判斷！這是修復的關鍵
+    const distanceToStopLine = this.getDistanceToStopLine()
+
+    if (distanceToStopLine === null) {
+      return true // 無停止線，視為在排隊區域內（採用停止邏輯）
+    }
+
+    const queueWidth = STOP_LINE_CONFIG.QUEUE_AREA.WIDTH
+
+    // 距離停止線 < WIDTH 時，判定為在排隊區域內
+    // 例如：距停止線 150px < 300px → 在區域內（停止）
+    //      距停止線 450px >= 300px → 在區域外（前進）
+    return distanceToStopLine < queueWidth
+  }
+
+  /**
    * 清理資源
    */
   dispose() {

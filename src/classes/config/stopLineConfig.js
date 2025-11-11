@@ -28,6 +28,18 @@ export const STOP_LINE_CONFIG = {
     APPROACH_DISTANCE: 5, // 接近停車判斷距離（靠近停止線多少px開始準備停車）
   },
 
+  // 🆕 排隊區域配置（用於區分「排隊區域內碰撞」和「排隊區域外碰撞」）
+  QUEUE_AREA: {
+    // 排隊區域的寬度（從停止線向後延伸）
+    // 例如：寬度 300px 表示排隊區域是停止線前後各 300px
+    WIDTH: 300,
+
+    // 排隊區域啟用標誌
+    // 當車輛在此區域內發生碰撞時，應該停止不動
+    // 當車輛在此區域外發生碰撞時，應該以超慢速度前進直到進入此區域
+    ENABLED: true,
+  },
+
   // 車輛配置相關（getVehicleConfig 使用）
   VEHICLE_CONFIG: {
     STOP_LINE_BUFFER: 5, // 停止線緩衝距離

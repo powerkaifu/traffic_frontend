@@ -827,7 +827,7 @@ export class CollisionController {
       }
     }
 
-    // 🚦 情況3：距離太近但前車已停止 - 改進邏輯：始終允許慢速前進以保持安全距離
+    // 🚦 情況3：距離太近但前車已停止 - 🆕 區分排隊區域內外的碰撞邏輯
     if (minDistance < MIN_FOLLOW_DISTANCE) {
       // 檢查前車是否已停止
       const frontIsStopped =
@@ -837,32 +837,50 @@ export class CollisionController {
         closestFrontVehicle.waitingForGreen ||
         (closestFrontVehicle.movementTimeline && closestFrontVehicle.movementTimeline.timeScale() <= 0.01)
 
-      // 🚦 改進邏輯：即使距離太近，也應該允許後車繼續緩慢前進
-      // 後車會自動調整速度以保持安全距離，而不是停止不動
+      // 🆕 區分排隊區域內外的碰撞邏輯
+      const isInQueueArea = this.vehicle.stopLineController?.isInQueueArea?.()
+
       if (frontIsStopped) {
-        // 🎯 根據距離動態計算目標速度
-        // 距離越小速度越慢，確保逐步靠近停止線而不是卡住
-        let targetSpeed = 0.08 // 基礎超慢速度 (8%)
+        // 🎯 區分邏輯：根據車輛位置決定停止還是繼續前進
+        if (isInQueueArea) {
+          // ✅ 排隊區域內碰撞：完全停止（這是正確的行為）
+          return {
+            shouldStop: true,
+            shouldFollow: false,
+            vehicle: closestFrontVehicle,
+            distance: minDistance,
+            requiredGap: QUEUE_GAP,
+            reason: `🚗 排隊區域內碰撞：距離${minDistance.toFixed(1)}px，完全停止等待`,
+            targetSpeed: 0,
+            frontVehicleIsMoving: false, // 🔧 Phase 2：確保前車已停止標誌設置
+          }
+        } else {
+          // � 排隊區域外碰撞：允許以超慢速度前進，直到進入排隊區域
+          // 根據距離動態計算目標速度
+          let targetSpeed = 0.05 // 基礎超慢速度 (5%)
 
-        // 如果有極少量空間，使用更慢的速度
-        if (minDistance <= 2) {
-          targetSpeed = 0.05 // 極慢速度 (5%) - 幾乎停止但仍然前進
-        } else if (minDistance <= 4) {
-          targetSpeed = 0.08 // 超慢速度 (8%)
-        } else if (minDistance <= QUEUE_GAP * 0.2) {
-          targetSpeed = 0.12 // 很慢速度 (12%)
-        } else if (minDistance <= QUEUE_GAP * 0.4) {
-          targetSpeed = 0.15 // 慢速度 (15%)
-        }
+          // 如果有極少量空間，使用更慢的速度
+          if (minDistance <= 2) {
+            targetSpeed = 0.03 // 極極慢速度 (3%) - 最小前進
+          } else if (minDistance <= 4) {
+            targetSpeed = 0.05 // 極慢速度 (5%)
+          } else if (minDistance <= QUEUE_GAP * 0.2) {
+            targetSpeed = 0.08 // 很慢速度 (8%)
+          } else if (minDistance <= QUEUE_GAP * 0.4) {
+            targetSpeed = 0.1 // 慢速度 (10%)
+          }
 
-        return {
-          shouldStop: false,
-          shouldFollow: true,
-          vehicle: closestFrontVehicle,
-          distance: minDistance,
-          requiredGap: QUEUE_GAP,
-          reason: `保持安全距離緩慢前進: 距離${minDistance.toFixed(1)}px, 目標速度${(targetSpeed * 100).toFixed(0)}%`,
-          targetSpeed: targetSpeed,
+          return {
+            shouldStop: false,
+            shouldFollow: true,
+            vehicle: closestFrontVehicle,
+            distance: minDistance,
+            requiredGap: QUEUE_GAP,
+            reason: `🚗 排隊區域外碰撞：距離${minDistance.toFixed(1)}px，以${(targetSpeed * 100).toFixed(0)}%速度前進進入排隊區域`,
+            targetSpeed: targetSpeed,
+            autoFollowing: true, // 🔧 Phase 2：觸發 IndexPage 的 autoFollowing 邏輯
+            frontVehicleIsMoving: false, // 🔧 Phase 2：前車已停止
+          }
         }
       }
 
@@ -1138,8 +1156,9 @@ export class CollisionController {
       const otherSpeed = other.movementTimeline ? other.movementTimeline.timeScale() : 0
 
       // 🚨 修復：確認前方車輛確實停止且在合理距離內
-      // 距離範圍：10-400px（至少 10px 安全距離，最多 400px）
-      if (distance > 10 && distance < 400 && otherSpeed <= 0.15) {
+      // 距離範圍：10-600px（至少 10px 安全距離，最多 600px）
+      // Phase 1 優化：將搜索距離從 400px 擴大到 600px
+      if (distance > 10 && distance < 600 && otherSpeed <= 0.15) {
         // 確保前方車輛確實在停止或等待狀態
         // 🚨 重要：包含所有可能導致車輛停止的狀態
         const isInQueue =
@@ -1197,8 +1216,9 @@ export class CollisionController {
       if (!vPos) continue
 
       const distance = this.calculateDirectionalDistance(myPos, vPos)
-      // 🔧 激進設置：擴大搜尋範圍從 200px 到 400px（從 200 改為 400）
-      if (distance >= 0 && distance > maxDistance && distance < 400) {
+      // 🔧 激進設置：擴大搜尋範圍從 200px 到 400px 再到 600px
+      // Phase 1 優化：將搜索距離從 400px 擴大到 600px
+      if (distance >= 0 && distance > maxDistance && distance < 600) {
         maxDistance = distance
         closestToMe = v
       }
