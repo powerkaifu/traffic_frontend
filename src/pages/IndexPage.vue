@@ -1852,7 +1852,6 @@ onMounted(async () => {
             }
           }
 
-          // 🚗 恢復排隊間距控制邏輯（MIN_GAP 參數）
           if (vehicle.resumeMovement && typeof vehicle.resumeMovement === 'function') {
             try {
               vehicle.resumeMovement(window.liveVehicles)

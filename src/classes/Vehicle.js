@@ -484,7 +484,7 @@ export default class Vehicle {
     // 🆕 關鍵修復：無論 waitingForGreen 狀態，在綠燈時需要恢復所有適合的車輛
     // 檢查是否在綠燈期間可以通行
     const canProceedGreen = this._canProceedThroughStopLine(lightState)
-    
+
     if (this.waitingForGreen) {
       if (canProceedGreen) {
         // 綠燈期間：檢查前車是否已通過
@@ -761,7 +761,6 @@ export default class Vehicle {
 
   // 🚨 極簡化恢復移動方法
   // � DRY 優化：委託給恢復移動工具類
-  // � 恢復排隊間距控制方法（使用 MIN_GAP 參數）
   resumeMovement(allVehicles = []) {
     ResumeMovementUtils.executeResume(this, allVehicles, {
       duration: ANIMATION_CONFIG.SPEED_CHANGE_DURATION.SMOOTH,
