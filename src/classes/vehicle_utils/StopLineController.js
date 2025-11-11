@@ -4,6 +4,7 @@
  */
 
 import { STOP_LINE_CONFIG, STOP_LINE_OFFSETS } from '../config/stopLineConfig.js'
+import { COLLISION_CONFIG } from './CollisionController.js'
 
 export class StopLineController {
   constructor(vehicle) {
@@ -85,48 +86,45 @@ export class StopLineController {
   }
 
   /**
-   * 計算車頭到停止線的距離（考慮 TARGET_POSITION 偏移）
+   * 計算車頭到停止線的距離（考慮 STOP_LINE_OFFSET 偏移）
+   * 🔧 修改：統一使用 COLLISION_CONFIG.STOP_LINE_OFFSET 參數，套用四個方向
    * @returns {number|null} 距離（像素），null表示無法計算
    */
   getDistanceToStopLine() {
     const stopLine = this.getStopLinePosition()
-    if (!stopLine.x && !stopLine.y) return null
+    // 🔧 修復：使用正確的檢查方式，避免 y=0 時被誤判
+    if ((stopLine.x === null && stopLine.y === null) || (stopLine.x === undefined && stopLine.y === undefined)) {
+      return null
+    }
 
     const vehicleHead = this.getVehicleHeadPosition()
-    const targetOffset = STOP_LINE_CONFIG.TARGET_POSITION
+    const stopLineOffset = COLLISION_CONFIG.STOP_LINE_OFFSET // 統一使用此參數
     let distance = null
-    let targetPosition
 
+    // 四個方向統一邏輯：距離 = 目標位置 - 車頭位置
     switch (this.vehicle.direction) {
       case 'east':
-        // 東向：計算到目標停止位置的距離
-        // 目標位置 = 停止線 - TARGET_POSITION
-        targetPosition = stopLine.x - targetOffset.EAST
-        distance = targetPosition - vehicleHead.x
+        // 東向：目標位置 = 停止線 - 偏移量
+        distance = stopLine.x - stopLineOffset - vehicleHead.x
         break
       case 'west':
-        // 西向：計算到目標停止位置的距離
-        targetPosition = stopLine.x + targetOffset.WEST
-        distance = vehicleHead.x - targetPosition
+        // 西向：目標位置 = 停止線 + 偏移量
+        distance = vehicleHead.x - (stopLine.x + stopLineOffset)
         break
       case 'north':
-        // 北向：計算到目標停止位置的距離
-        targetPosition = stopLine.y + targetOffset.NORTH
-        distance = vehicleHead.y - targetPosition
+        // 北向：目標位置 = 停止線 + 偏移量
+        distance = vehicleHead.y - (stopLine.y + stopLineOffset)
         break
       case 'south':
-        // 南向：計算到目標停止位置的距離
-        targetPosition = stopLine.y - targetOffset.SOUTH
-        distance = targetPosition - vehicleHead.y
+        // 南向：目標位置 = 停止線 - 偏移量
+        distance = stopLine.y - stopLineOffset - vehicleHead.y
         break
       default:
         return null
     }
 
     return distance
-  }
-
-  /**
+  } /**
    * 檢查是否應該在停止線停車（考慮 TARGET_POSITION 偏移）
    * @returns {boolean} true表示應該停車
    */

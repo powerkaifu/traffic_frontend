@@ -11,6 +11,7 @@ const COLLISION_CONFIG = {
   TRAFFIC_LIGHT_CHECK_DISTANCE: 100, // 燈號停止距離：當車距離停止線 < 此值時，檢查燈號是否需要停止
   TARGET_SPACING: 15, // 🎯 東西向目標間距（px）
   TARGET_SPACING_VERTICAL: 25, // 🎯 南北向目標間距（px）- 南北向車更短，需要稍大的間距來保持視覺一致
+  STOP_LINE_OFFSET: 50, // 🎯 停止線距離（px）- 四個方向統一使用此參數，距離停止線此距離時停止
   CRAWL_SPEED: 0.02, // 蠕行速度：當距離 < TARGET_SPACING 時的跟隨速度（降低至 0.02 以提高精度）
   DETECTION_RANGE: 300, // 碰撞檢測範圍：檢查前方最多 300px 內的車輛
 }
@@ -113,7 +114,7 @@ export class CollisionController {
    * 規則：
    * - 距離停止線 < 0（已越過）→ 不受燈號影響
    * - 黃燈 → 允許繼續走（走到停止線停止）
-   * - 紅燈/全紅：距離 < TRAFFIC_LIGHT_CHECK_DISTANCE 時停止
+   * - 紅燈/全紅：距離 <= STOP_LINE_OFFSET 時停止
    * - 綠燈、左轉綠燈 → 放行
    * 返回值：{ targetSpeed, reason, distance, action } 或 null
    */
@@ -122,11 +123,11 @@ export class CollisionController {
       return null
     }
 
-    // 計算距離停止線的距離
-    const distanceToStopLine = this.vehicle.position?.distance || Infinity
+    // 🔧 修正：使用正確的方法獲取距離
+    const distanceToStopLine = this.vehicle.getDistanceToStopLine()
 
-    // 已越過停止線，不受燈號限制
-    if (distanceToStopLine < 0) {
+    // 無法計算距離或已越過停止線，不受燈號限制
+    if (distanceToStopLine === null || distanceToStopLine === undefined || distanceToStopLine < 0) {
       return null
     }
 
@@ -139,13 +140,14 @@ export class CollisionController {
       return null
     }
 
+    // 🔧 修正：使用 STOP_LINE_OFFSET 替代 TRAFFIC_LIGHT_CHECK_DISTANCE
     // 紅燈/全紅：只在接近停止線時停止
     const stopLightStates = ['red', 'allRed']
     if (stopLightStates.includes(lightState)) {
-      if (distanceToStopLine < COLLISION_CONFIG.TRAFFIC_LIGHT_CHECK_DISTANCE) {
+      if (distanceToStopLine <= COLLISION_CONFIG.STOP_LINE_OFFSET) {
         return {
           targetSpeed: 0,
-          reason: `燈號停止：${lightState}，距離停止線${distanceToStopLine.toFixed(1)}px`,
+          reason: `燈號停止：${lightState}，距離停止線${distanceToStopLine.toFixed(1)}px <= ${COLLISION_CONFIG.STOP_LINE_OFFSET}px`,
           distance: distanceToStopLine,
           lightState: lightState,
           action: 'traffic_light_stop',
@@ -294,6 +296,9 @@ export class CollisionController {
     this.trafficController = null
   }
 }
+
+// 🔧 導出配置供其他模塊使用
+export { COLLISION_CONFIG }
 
 // ⚠️ 碰撞檢查簡單直覺：
 // 距離 < TARGET_SPACING → 停止或蠕行
