@@ -27,9 +27,10 @@ export class VehiclePool {
    * @param {string} vehicleType - 車輛類型 (small/truck/bus)
    * @param {number} x - 起始X座標
    * @param {number} y - 起始Y座標
+   * @param {number} speed - 車輛速度（來自 AutoTrafficGenerator）
    * @returns {Vehicle} - 車輛實例
    */
-  acquire(direction, laneNumber, vehicleType, x, y) {
+  acquire(direction, laneNumber, vehicleType, x, y, speed = null) {
     if (!this.poolMap.has(direction)) {
       this.poolMap.set(direction, [])
     }
@@ -51,6 +52,13 @@ export class VehiclePool {
       vehicle = directionPool.pop()
       // ✅ 重置車輛到新狀態
       vehicle.reset(direction, laneNumber, vehicleType, this.simulationStore)
+
+      // 🚨 【新增】如果提供了速度，設置到重置的車輛
+      if (speed !== null && speed !== undefined) {
+        vehicle.initialSpeed = speed
+        vehicle.currentSpeed = speed
+      }
+
       // ✅ 立即恢復可見性和位置
       // console.log(`♻️ [VehiclePool.acquire] 從池中取出 ${vehicle.id}，重置完成，現在恢復可見性和位置 (${x}, ${y})`)
 
@@ -74,7 +82,7 @@ export class VehiclePool {
       // console.log(`✅ [VehiclePool.acquire] ${vehicle.id} 可見性已恢復，位置設置為 (${x}, ${y})，autoAlpha=1`)
     } else {
       // ❌ 池空，建立新車輛
-      vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, this.simulationStore)
+      vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, this.simulationStore, speed)
       vehicle.addTo(this.container)
       // console.log(`🆕 [VehiclePool.acquire] 創建新車 ${vehicle.id}`)
     }

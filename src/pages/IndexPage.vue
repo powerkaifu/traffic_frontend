@@ -507,7 +507,7 @@ const selectOptimalLane = (direction) => {
 // 檢查車輛是否在起始區域的輔助函數
 // 自動產生車輛的事件處理函數（新版本 - 直接接收 detail 物件）
 const handleAutoGenerateFromStore = (detail) => {
-  const { direction, vehicleType, initialProgress } = detail
+  const { direction, vehicleType, initialProgress, speed } = detail
 
   const laneNumber = selectOptimalLane(direction)
 
@@ -528,6 +528,7 @@ const handleAutoGenerateFromStore = (detail) => {
     vehicleType,
     laneNumber,
     initialProgress,
+    speed,
   )
 }
 
@@ -537,7 +538,7 @@ const handleAutoGenerateFromStore = (detail) => {
 
 // 🎯 處理自動左轉車輛生成事件（新版本 - 直接接收 detail 物件）
 const handleAutoGenerateLeftTurnFromStore = (detail) => {
-  const { direction, type } = detail
+  const { direction, type, speed } = detail
 
   const MAX_VEHICLES_PER_LANE = GENERATION_CONFIG.MAX_VEHICLES_PER_LANE || 6
   const laneNumber = 1
@@ -553,7 +554,7 @@ const handleAutoGenerateLeftTurnFromStore = (detail) => {
   const pathStartPosition = Vehicle.getPathStartPosition(direction, laneNumber)
 
   if (pathStartPosition) {
-    createVehicleWithPosition(pathStartPosition.x, pathStartPosition.y, direction, type, laneNumber)
+    createVehicleWithPosition(pathStartPosition.x, pathStartPosition.y, direction, type, laneNumber, 0, speed)
   }
 }
 
@@ -562,7 +563,7 @@ const handleAutoGenerateLeftTurnFromStore = (detail) => {
 // 所有左轉派車邏輯現在通過 handleAutoGenerateLeftTurnFromStore 和 Store 訂閱完成
 
 // 通用車輛創建函數
-const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, initialProgress = 0) => {
+const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, initialProgress = 0, speed = null) => {
   // ✅ 【新增】檢查是否超過車輛限制
   const maxLiveVehicles = autoTrafficGenerator.config.maxLiveVehicles || 100
   const currentVehicleCount = activeCars.value.length
@@ -578,20 +579,26 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
   let isFromPool = false
   if (vehiclePool && vehiclePool.poolMap && vehiclePool.poolMap.has(direction)) {
     // ✅ 從池中取車
-    vehicle = vehiclePool.acquire(direction, laneNumber, vehicleType, x, y)
+    vehicle = vehiclePool.acquire(direction, laneNumber, vehicleType, x, y, speed)
     isFromPool = true
   } else if (vehiclePool) {
     // ✅ 池空，創建新車輛並添加到池的管理中
-    vehicle = vehiclePool.acquire(direction, laneNumber, vehicleType, x, y)
+    vehicle = vehiclePool.acquire(direction, laneNumber, vehicleType, x, y, speed)
     isFromPool = true
   } else {
     // 備用：池未初始化時，直接創建新車輛
-    vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, store) // ✅ Phase 6：傳入 store
+    vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, store, speed) // ✅ 傳入 speed 參數
     isFromPool = false
   }
 
   // 🚀 Vehicle 已經完全初始化，無需在此進行其他設置
   // （碰撞控制由 Vehicle.updateLogic 中的 CollisionFollowingController 管理）
+
+  // 🚨 【新增】如果提供了速度，直接設置到車輛（來自 AutoTrafficGenerator）
+  if (speed !== null && speed !== undefined) {
+    vehicle.initialSpeed = speed
+    vehicle.currentSpeed = speed
+  }
 
   // 🚨 設置初始 progress（如果提供的話）
   if (typeof initialProgress === 'number' && initialProgress !== 0) {

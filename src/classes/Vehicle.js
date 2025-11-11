@@ -64,7 +64,15 @@ export default class Vehicle {
     VehicleStaticManager.lastGlobalAdjustTime = value
   }
 
-  constructor(x, y, direction = 'east', vehicleType = 'large', laneNumber = 1, simulationStore = null) {
+  constructor(
+    x,
+    y,
+    direction = 'east',
+    vehicleType = 'large',
+    laneNumber = 1,
+    simulationStore = null,
+    externalSpeed = null,
+  ) {
     // ✅ Phase 6：保存 simulationStore 參數
     this.simulationStore = simulationStore
     // Factory Pattern: 根據不同參數創建不同類型的車輛實例
@@ -132,14 +140,19 @@ export default class Vehicle {
     this.yellowDecisionCacheInterval = 50 // 黃燈決策檢查間隔（毫秒，20 Hz）
     this.cachedYellowDecision = null // 緩存的黃燈決策結果
 
-    // 嘗試從 window.liveVehicles 或 vehicleAdded 事件取得 speed
-    let externalSpeed = null
-    if (window.liveVehicles && Array.isArray(window.liveVehicles)) {
-      // 依 id, direction, type 找 speed
-      const match = window.liveVehicles.find(
-        (v) => v.direction === direction && v.type === vehicleType && v.laneNumber === laneNumber && v.speed,
-      )
-      if (match) externalSpeed = match.speed
+    // 🚨 【改進】使用傳入的 externalSpeed 優先級：
+    // 1. 優先使用構造函數傳遞的 externalSpeed（來自 AutoTrafficGenerator）
+    // 2. 次要使用 window.liveVehicles 中匹配的速度
+    // 3. 最後才使用隨機生成的速度
+    if (!externalSpeed) {
+      // 如果沒有從構造函數傳遞，嘗試從 window.liveVehicles 或 vehicleAdded 事件取得 speed
+      if (window.liveVehicles && Array.isArray(window.liveVehicles)) {
+        // 依 id, direction, type 找 speed
+        const match = window.liveVehicles.find(
+          (v) => v.direction === direction && v.type === vehicleType && v.laneNumber === laneNumber && v.speed,
+        )
+        if (match) externalSpeed = match.speed
+      }
     }
     // 若外部有 speed，優先用；否則用原本隨機
     this.initialSpeed = externalSpeed || this.generateRandomSpeed()
