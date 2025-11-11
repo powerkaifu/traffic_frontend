@@ -481,12 +481,16 @@ export default class Vehicle {
 
     const lightState = trafficController.getCurrentLightState(this.direction)
 
-    // 🆕 如果正在等待綠燈，檢查是否可以恢復移動
+    // 🆕 關鍵修復：無論 waitingForGreen 狀態，在綠燈時需要恢復所有適合的車輛
+    // 檢查是否在綠燈期間可以通行
+    const canProceedGreen = this._canProceedThroughStopLine(lightState)
+    
     if (this.waitingForGreen) {
-      const canProceed = this._canProceedThroughStopLine(lightState)
-      if (canProceed) {
+      if (canProceedGreen) {
+        // 綠燈期間：檢查前車是否已通過
         const frontVehicle = this._findNearestFrontVehicle(allVehicles)
         if (!frontVehicle || frontVehicle.hasPassedStopLine) {
+          // 前車已通過或沒有前車，這輛車應該通過
           this.waitingForGreen = false
           this.isAtStopLine = false
           this.hasPassedStopLine = true

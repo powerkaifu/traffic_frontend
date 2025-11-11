@@ -65,6 +65,11 @@ export class CollisionFollowingController {
     // 直行綠燈：2-4 號自由通行，1 號排隊
     // 左轉綠燈：1 號自由通行，2-4 號排隊
     if (trafficController && this._canSkipCollision(trafficController)) {
+      // 🔑 關鍵修復：綠燈期間需要恢復車輛運動
+      if (this.vehicle.movementTimeline && this.vehicle.movementTimeline.timeScale() === 0) {
+        this.vehicle.movementTimeline.timeScale(1)
+        this.vehicle.isInCollisionStop = false
+      }
       return { isFollowing: false, distance: Infinity, action: 'green_light_bypass' }
     }
 
