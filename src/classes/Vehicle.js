@@ -548,10 +548,9 @@ export default class Vehicle {
     if (lightState === 'leftGreen' && this.laneNumber === 1) {
       return true
     }
-    // 黃燈根據決策邏輯
-    if (lightState === 'yellow') {
-      const decision = this.makeYellowLightDecision()
-      return decision.action === 'accelerate'
+    // 黃燈時不允許通過（應該停止）
+    if (lightState === 'yellow' || lightState === 'leftYellow') {
+      return false
     }
     return false
   }
