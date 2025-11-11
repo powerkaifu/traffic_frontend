@@ -1311,9 +1311,20 @@ export default class AutoTrafficGenerator {
 
     let speed = 30
 
-    // 🎯 【修復 2】從 API 數據讀取車速而不是隨機值
-    if (window.lastApiVDDataArray && Array.isArray(window.lastApiVDDataArray)) {
-      try {
+    // 🎯 【修復 2】從 Store API 數據讀取車速而不是隨機值
+    try {
+      let apiVDDataArray = null
+
+      // 優先從 Store 中獲取（新方式）
+      if (this.simulationStore && this.simulationStore.getLastApiVDDataArray) {
+        apiVDDataArray = this.simulationStore.getLastApiVDDataArray()
+      }
+      // 備用：從 window 中獲取（舊方式，已廢棄但保留相容性）
+      if (!apiVDDataArray || apiVDDataArray.length === 0) {
+        apiVDDataArray = window.lastApiVDDataArray
+      }
+
+      if (apiVDDataArray && Array.isArray(apiVDDataArray)) {
         // 找到對應方向的 API 數據
         const directionMap = {
           north: 0,
@@ -1323,8 +1334,8 @@ export default class AutoTrafficGenerator {
         }
         const dirIndex = directionMap[selectedDir]
 
-        if (dirIndex !== undefined && window.lastApiVDDataArray[dirIndex]) {
-          const apiData = window.lastApiVDDataArray[dirIndex]
+        if (dirIndex !== undefined && apiVDDataArray[dirIndex]) {
+          const apiData = apiVDDataArray[dirIndex]
 
           // 根據車型選擇對應的速度
           let apiSpeed = 30
@@ -1339,15 +1350,17 @@ export default class AutoTrafficGenerator {
           }
 
           speed = Math.round(apiSpeed)
+          console.log(`✅ [車速同步] ${selectedDir} ${type}: API速度=${apiSpeed} km/h`)
         }
-      } catch (error) {
-        console.warn(`⚠️ [車速同步] 讀取 API 車速失敗:`, error)
       }
+    } catch (error) {
+      console.warn(`⚠️ [車速同步] 讀取 API 車速失敗:`, error)
     }
 
     // 如果無法從 API 讀取，回退到控制器方法
     if (speed === 30 && this.trafficController && this.trafficController.getAverageSpeed) {
       speed = this.trafficController.getAverageSpeed(selectedDir, type)
+      console.log(`⚠️ [車速同步] 無法獲取 API 速度，使用默認速度=${speed} km/h`)
     }
 
     // 🚨 記錄車道生成時間

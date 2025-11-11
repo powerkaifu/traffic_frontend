@@ -533,9 +533,6 @@ const handleAutoGenerateFromStore = (detail) => {
 }
 
 // ⚠️ 【已棄用】原始的事件處理函數（用於 window 事件監聽）- 已移除 DOM 事件監聽
-// handleAutoGenerate 已不使用，保留此註解用於參考歷史
-// 所有派車邏輯現在通過 handleAutoGenerateFromStore 和 Store 訂閱完成
-
 // 🎯 處理自動左轉車輛生成事件（新版本 - 直接接收 detail 物件）
 const handleAutoGenerateLeftTurnFromStore = (detail) => {
   const { direction, type, speed } = detail
@@ -598,6 +595,9 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
   if (speed !== null && speed !== undefined) {
     vehicle.initialSpeed = speed
     vehicle.currentSpeed = speed
+    console.log(`✅ [${vehicle.id}] 設置速度: ${speed} km/h (isFromPool: ${isFromPool})`)
+  } else {
+    console.warn(`⚠️ [${vehicle.id}] 未收到速度參數 (isFromPool: ${isFromPool})`)
   }
 
   // 🚨 設置初始 progress（如果提供的話）
