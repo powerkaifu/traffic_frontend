@@ -8,7 +8,7 @@
 // ===== 動畫與時間設定 =====
 export const ANIMATION_CONFIG = {
   // 🎬 全域動畫控制
-  TIME_MULTIPLIER: 0.3, // 控制整體動畫速度：越小越快，越大越慢
+  TIME_MULTIPLIER: 0.6, // 控制整體動畫速度：越小越快，越大越慢
 
   // ⚡ 速度變化動畫時間 (秒)
   SPEED_CHANGE_DURATION: {
