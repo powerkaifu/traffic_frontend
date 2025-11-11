@@ -259,16 +259,15 @@
 
       <!-- 停止線 -->
       <!-- 中央參考矩形 - 用於統一計算停止線位置 -->
-      <!-- ❌ 已移除顯示 -->
-      <!-- <div
+      <div
         class="stop-line central-reference"
         :style="{
-          width: stopLineConfig.centralReference.width + 'px',
-          height: stopLineConfig.centralReference.height + 'px',
-          border: stopLineConfig.centralReference.borderStyle,
-          opacity: stopLineConfig.centralReference.opacity,
+          width: 225 + 'px',
+          height: 225 + 'px',
+          border: '1px dashed #cccccc',
+          opacity: 1,
         }"
-      ></div> -->
+      ></div>
 
       <!-- 🛑 四個方向的停止線標記 - 已移除顯示 -->
       <!-- 東向停止線（中央矩形左邊） -->
@@ -276,7 +275,7 @@
         class="stop-line-marker stop-line-east"
         :style="{
           position: 'absolute',
-          left: 'calc(50% - ' + stopLineConfig.centralReference.width / 2 + 'px)',
+          left: 'calc(50% - ' + 225 / 2 + 'px)',
           top: 'calc(50% - 30px)',
           width: '3px',
           height: '60px',
@@ -291,7 +290,7 @@
         class="stop-line-marker stop-line-west"
         :style="{
           position: 'absolute',
-          left: 'calc(50% + ' + stopLineConfig.centralReference.width / 2 + 'px)',
+          left: 'calc(50% + ' + 225 / 2 + 'px)',
           top: 'calc(50% - 30px)',
           width: '3px',
           height: '60px',
@@ -307,7 +306,7 @@
         :style="{
           position: 'absolute',
           left: 'calc(50% - 30px)',
-          top: 'calc(50% - ' + stopLineConfig.centralReference.height / 2 + 'px)',
+          top: 'calc(50% - ' + 225 / 2 + 'px)',
           width: '60px',
           height: '3px',
           backgroundColor: '#44FF44',
@@ -322,7 +321,7 @@
         :style="{
           position: 'absolute',
           left: 'calc(50% - 30px)',
-          top: 'calc(50% + ' + stopLineConfig.centralReference.height / 2 + 'px)',
+          top: 'calc(50% + ' + 225 / 2 + 'px)',
           width: '60px',
           height: '3px',
           backgroundColor: '#FFFF44',
@@ -433,7 +432,7 @@ import Vehicle from '../classes/Vehicle.js'
 import VehiclePool from '../classes/VehiclePool.js'
 import LumoAssistant from '../components/LumoAssistant.vue'
 import { createLanePathCalculator } from '../classes/draw_utils/lanePathCalculator.js'
-import { lightColorConfig } from '../classes/config/trafficConfig.js'
+import { stopLineConfig, lightColorConfig } from '../classes/config/trafficConfig.js'
 import WeatherController from '../classes/WeatherController.js'
 import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
 import { CollisionController } from '../classes/vehicle_utils/CollisionController.js'
