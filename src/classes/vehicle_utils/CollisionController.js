@@ -68,25 +68,27 @@ export class CollisionController {
         ? COLLISION_CONFIG.TARGET_SPACING_VERTICAL
         : COLLISION_CONFIG.TARGET_SPACING
 
-    // 簡單直覺邏輯：
-    // 如果距離 < TARGET_SPACING，則需要控制距離
+    // 🎯 兩段邏輯：
+    // 1. 距離 < TARGET_SPACING：停止或蠕行（最小安全間距）
+    // 2. 距離 >= TARGET_SPACING：自由加速
+
     if (distance < targetSpacing) {
-      // 前車停止了？
+      // 距離 < TARGET_SPACING：太近了，必須停止或蠕行
       if (frontSpeed <= 0.01) {
-        // 我也停止
+        // 前車停止了，我也停止
         return {
           targetSpeed: 0,
-          reason: `停止：前車停止，距離${distance.toFixed(1)}px < 目標間距${targetSpacing}px`,
+          reason: `停止：前車停止，距離${distance.toFixed(1)}px < 最小間距${targetSpacing}px`,
           distance: distance,
           frontVehicle: frontVehicle,
           frontVehicleIsMoving: false,
           action: 'stop',
         }
       } else {
-        // 前車在移動，蠕行跟隨以維持距離
+        // 前車在移動，蠕行跟隨
         return {
           targetSpeed: COLLISION_CONFIG.CRAWL_SPEED,
-          reason: `蠕行：前車移動，距離${distance.toFixed(1)}px，跟隨維持距離`,
+          reason: `蠕行：距離${distance.toFixed(1)}px < 最小間距${targetSpacing}px，跟隨維持距離`,
           distance: distance,
           frontVehicle: frontVehicle,
           frontVehicleIsMoving: true,
@@ -95,10 +97,10 @@ export class CollisionController {
       }
     }
 
-    // 距離 >= TARGET_SPACING，距離足夠
+    // 距離 >= TARGET_SPACING：自由加速
     return {
       targetSpeed: undefined, // 允許自由加速
-      reason: `自由：距離${distance.toFixed(1)}px >= 目標間距${targetSpacing}px`,
+      reason: `自由：距離${distance.toFixed(1)}px >= 最小間距${targetSpacing}px`,
       distance: distance,
       frontVehicle: frontVehicle,
       frontVehicleIsMoving: frontSpeed > 0.01,
@@ -312,8 +314,8 @@ export function getCollisionConfig() {
 export function resetCollisionConfig() {
   Object.assign(COLLISION_CONFIG, {
     TRAFFIC_LIGHT_CHECK_DISTANCE: 100,
-    TARGET_SPACING: 50,
-    TARGET_SPACING_VERTICAL: 50,
+    TARGET_SPACING: 25,
+    TARGET_SPACING_VERTICAL: 25,
     CRAWL_SPEED: 0.02,
     DETECTION_RANGE: 300,
   })
