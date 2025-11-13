@@ -403,7 +403,7 @@ import { VD_DISPLAY_CONFIG } from 'src/classes/config/vdDisplayConfig.js'
 import { numberAnimator } from 'src/classes/NumberAnimator.js' // 🎯 導入數字動畫類
 
 // 選項: 'peak_hours' | 'off_peak' | 'late_night'
-const INITIAL_VD_SCENARIO = 'peak_hours' // ← 改這裡快速切換預設情景
+const INITIAL_VD_SCENARIO = 'off_peak' // ← 改這裡快速切換預設情景
 
 const router = useRouter()
 const route = useRoute()
@@ -820,10 +820,11 @@ function toggleAutoMode() {
     if (process.env.DEV) console.log('🔄 [MainLayout] 切換到自動模式 - 清除情景選擇')
     selectedVDScenario.value = null
 
-    // ✅ 【新增】立即顯示初始狀態，避免一直卡在「正在初始化」
-    const now = new Date()
-    const timeStr = now.toLocaleTimeString('it-IT')
-    const hour = now.getHours()
+    // ✅ 【修復】每日自動模式應該從 00:00:00 開始
+    const midnightToday = new Date()
+    midnightToday.setHours(0, 0, 0, 0)
+    const timeStr = midnightToday.toLocaleTimeString('it-IT')
+    const hour = midnightToday.getHours()
     let scenarioDesc = ''
 
     if ((hour >= 7 && hour < 9) || (hour >= 17 && hour < 19)) {

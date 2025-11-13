@@ -338,6 +338,10 @@ export default class AutoTrafficGenerator {
 
     this.isAutoMode = true
 
+    // ✅ 【新增】每日自動模式從 00:00:00 開始
+    this.simulationTime = new Date()
+    this.simulationTime.setHours(0, 0, 0, 0) // 重置為午夜
+
     // ✅ 【新增】重置時間累積器
     this.autoModeTimeAccumulator = 0
 
