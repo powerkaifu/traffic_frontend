@@ -121,7 +121,7 @@ const config = {
     dialogOpenDuration: 0.6, // 對話框打開動畫時長（秒）
     dialogCloseDuration: 0.5, // 對話框關閉動畫時長（秒）
     typingCharDuration: 0.05, // 每個字符顯示時長（秒）
-    isOpenOnInit: false, // 初始化時是否打開對話框
+    isOpenOnInit: true, // 初始化時是否打開對話框
     autoRepeat: true, // 對話框是否自動循環播放
   },
   // 💬 Tooltip 訊息配置（滑鼠移過去時顯示）

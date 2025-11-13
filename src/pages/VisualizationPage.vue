@@ -358,13 +358,13 @@ const $q = useQuasar()
 const loading = ref(false)
 const activeTab = ref('timeseries')
 
-// 設定預設日期為最近一週
+// 設定預設日期為最近三天
 const today = new Date()
-const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+const threeDaysAgo = new Date(today.getTime() - 3 * 24 * 60 * 60 * 1000)
 
-const startYear = ref(oneWeekAgo.getFullYear())
-const startMonth = ref(oneWeekAgo.getMonth() + 1)
-const startDay = ref(oneWeekAgo.getDate())
+const startYear = ref(threeDaysAgo.getFullYear())
+const startMonth = ref(threeDaysAgo.getMonth() + 1)
+const startDay = ref(threeDaysAgo.getDate())
 const endYear = ref(today.getFullYear())
 const endMonth = ref(today.getMonth() + 1)
 const endDay = ref(today.getDate())
