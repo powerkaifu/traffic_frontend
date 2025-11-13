@@ -7,7 +7,7 @@ import axios from 'axios'
 // 建立 axios 實例
 const api = axios.create({
   baseURL: 'http://127.0.0.1:8000/api',
-  timeout: 10000,
+  timeout: 30000, // ⏱️ 增加超時時間從 10s 到 30s，應對大數據量查詢
   headers: {
     'Content-Type': 'application/json',
   },

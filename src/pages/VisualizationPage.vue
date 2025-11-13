@@ -559,6 +559,11 @@ const loadData = async () => {
   }
 
   loading.value = true
+
+  // ⏱️ 性能計時
+  const startTime = performance.now()
+  console.log('🚀 [性能追蹤] 開始載入數據...')
+
   try {
     // 添加調試信息
     console.log('=== 日期驗證調試 ===')
@@ -684,6 +689,11 @@ const loadData = async () => {
     alert(errorMessage + '。錯誤: ' + error.message)
   } finally {
     loading.value = false
+
+    // ⏱️ 計算載入時間
+    const endTime = performance.now()
+    const duration = ((endTime - startTime) / 1000).toFixed(2)
+    console.log(`✅ [性能追蹤] 數據載入完成 - 耗時 ${duration} 秒，共 ${trafficData.value.length} 筆數據`)
   }
 }
 
@@ -1700,14 +1710,59 @@ const drawHeatmapChart = () => {
 }
 
 // 監聽路由變化
+// 🎯 標籤頁切換優化 - 防止重複繪製
+let isChartsUpdating = false // 防止並發更新
+let pendingUpdate = null // 待處理的更新任務
+
 watch(
   () => route.name,
   (newName) => {
     if (newName && ['TimeSeries', 'Correlation', 'Summary'].includes(newName)) {
-      activeTab.value = newName.toLowerCase()
-      nextTick(() => {
-        if (trafficData.value.length > 0) {
-          updateCharts()
+      const newTab = newName.toLowerCase()
+
+      // 🔒 防止重複更新同一個標籤
+      if (activeTab.value === newTab && isChartsUpdating) {
+        console.log('⏭️ [優化] 跳過重複的圖表更新')
+        return
+      }
+
+      activeTab.value = newTab
+
+      // 🔒 防止並發繪製 - 如果已在繪製中，記錄待處理更新
+      if (isChartsUpdating) {
+        console.log('⏳ [優化] 已有圖表更新進行中，記錄待處理更新')
+        pendingUpdate = newTab
+        return
+      }
+
+      isChartsUpdating = true
+      console.log(`📊 [優化] 開始繪製 ${newTab} 圖表`)
+
+      nextTick(async () => {
+        try {
+          if (trafficData.value.length > 0) {
+            updateCharts()
+          }
+        } finally {
+          isChartsUpdating = false
+
+          // 如果有待處理的更新，執行它
+          if (pendingUpdate && pendingUpdate !== newTab) {
+            console.log('⏸️ [優化] 執行待處理的圖表更新')
+            const temp = pendingUpdate
+            pendingUpdate = null
+            activeTab.value = temp
+            isChartsUpdating = true
+            nextTick(() => {
+              try {
+                if (trafficData.value.length > 0) {
+                  updateCharts()
+                }
+              } finally {
+                isChartsUpdating = false
+              }
+            })
+          }
         }
       })
     }
