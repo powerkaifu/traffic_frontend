@@ -121,7 +121,7 @@ const config = {
     dialogOpenDuration: 0.6, // 對話框打開動畫時長（秒）
     dialogCloseDuration: 0.5, // 對話框關閉動畫時長（秒）
     typingCharDuration: 0.05, // 每個字符顯示時長（秒）
-    isOpenOnInit: true, // 初始化時是否打開對話框
+    isOpenOnInit: false, // 初始化時是否打開對話框
     autoRepeat: true, // 對話框是否自動循環播放
   },
   // 💬 Tooltip 訊息配置（滑鼠移過去時顯示）
@@ -204,6 +204,7 @@ const state = reactive({
   dialogMessages: config.dialog.messages,
   currentMessageIndex: 0,
   isDialogVisible: config.dialog.isOpenOnInit, // 根據配置決定初始狀態
+  isAnimating: false, // 🔒 防護標誌：防止動畫進行中時重複觸發
 })
 
 // 💬 對話框 Timeline（不放在 reactive 中，直接使用變量）
@@ -602,9 +603,17 @@ function setSpotlightStyles() {
 // 💬 開啟對話框
 function openDialog() {
   state.isDialogVisible = true
+
+  // 🔒 防護：防止重複打開
+  if (state.isAnimating) return
+  state.isAnimating = true
+
   state.currentMessageIndex = 0
 
-  if (!dialogBox.value) return
+  if (!dialogBox.value) {
+    state.isAnimating = false
+    return
+  }
 
   nextTick(() => {
     // ✨ 設置 Spotlight 的 CSS 變數
@@ -632,6 +641,9 @@ function openDialog() {
         opacity: 1,
         duration: config.dialog.dialogOpenDuration,
         ease: 'back.out',
+        onComplete: () => {
+          state.isAnimating = false // 🔒 動畫完成後解除鎖定
+        },
       },
     )
 
@@ -669,8 +681,13 @@ function openDialog() {
 function closeDialog() {
   if (!state.isDialogVisible) return
 
+  // 🔒 防護：動畫進行中不允許重複觸發
+  if (state.isAnimating) return
+  state.isAnimating = true
+
   if (!dialogBox.value) {
     state.isDialogVisible = false
+    state.isAnimating = false
     return
   }
 
@@ -690,6 +707,7 @@ function closeDialog() {
     ease: 'back.in',
     onComplete: () => {
       state.isDialogVisible = false
+      state.isAnimating = false // 🔒 動畫完成後解除鎖定
 
       if (dialogTimeline) {
         dialogTimeline.kill()
@@ -701,6 +719,9 @@ function closeDialog() {
 
 // 💬 切換對話框顯示/隱藏
 function toggleDialog() {
+  // 🔒 防護：動畫進行中不允許切換
+  if (state.isAnimating) return
+
   if (state.isDialogVisible) {
     closeDialog()
   } else {
