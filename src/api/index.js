@@ -20,6 +20,12 @@ const api = axios.create({
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
 const API_KEY = import.meta.env.VITE_OPENAI_API_KEY
 
+// 🚀 【重要】AI 分析模型選擇
+// 改變這個值來切換分析速度 vs 準確度
+// - 'gpt-3.5-turbo'：快速模式（2-5秒），適合 Demo
+// - 'gpt-4'：精準模式（5-30秒），適合正式分析
+const AI_ANALYSIS_MODEL = 'gpt-3.5-turbo' // ✨ 改這個可快速切換
+
 // 請求攔截器
 api.interceptors.request.use(
   (config) => {
@@ -166,6 +172,10 @@ export async function analyzeTrafficDataWithAI(question, dataSummary) {
     throw new Error('OpenAI API Key 未設定，請檢查 .env 檔案')
   }
 
+  // ⏱️ 性能計時
+  const startTime = performance.now()
+  console.log('🤖 [AI 分析] 開始準備數據...')
+
   const prompt = `你是一位專業的交通工程師和數據分析師。請根據以下交通數據，回答使用者的問題。
 
 ${dataSummary}
@@ -189,6 +199,14 @@ ${dataSummary}
 [簡潔的總結]
 `
 
+  const prepareTime = performance.now() - startTime
+  console.log(`⏱️ [AI 分析] 數據準備完成 - 耗時 ${(prepareTime / 1000).toFixed(2)} 秒`)
+  console.log(`📤 [AI 分析] 開始調用 OpenAI API...`)
+  console.log(
+    `🤖 [AI 分析] 使用模型: ${AI_ANALYSIS_MODEL} ${AI_ANALYSIS_MODEL === 'gpt-3.5-turbo' ? '(快速模式)' : '(精準模式)'}`,
+  )
+  const apiStartTime = performance.now()
+
   const response = await fetch(OPENAI_API_URL, {
     method: 'POST',
     headers: {
@@ -196,7 +214,7 @@ ${dataSummary}
       Authorization: `Bearer ${API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'gpt-4',
+      model: AI_ANALYSIS_MODEL, // 🚀 使用配置的模型
       messages: [
         {
           role: 'system',
@@ -212,12 +230,20 @@ ${dataSummary}
     }),
   })
 
+  const apiTime = performance.now() - apiStartTime
+  console.log(`📥 [AI 分析] OpenAI API 響應完成 - 耗時 ${(apiTime / 1000).toFixed(2)} 秒`)
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
     throw new Error(`OpenAI API 錯誤: ${response.status} - ${errorData.error?.message || '未知錯誤'}`)
   }
 
   const data = await response.json()
+
+  const totalTime = performance.now() - startTime
+  console.log(`✅ [AI 分析] 完成 - 總耗時 ${(totalTime / 1000).toFixed(2)} 秒`)
+  console.log(`⏰ [AI 分析] 詳細耗時: 準備=${(prepareTime / 1000).toFixed(2)}s, API=${(apiTime / 1000).toFixed(2)}s`)
+
   return data.choices[0]?.message?.content || '抱歉，無法生成分析結果'
 }
 

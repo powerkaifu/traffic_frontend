@@ -749,19 +749,41 @@ const analyzeWithAI = async () => {
     aiAnalysisError.value = ''
     aiAnalysisResult.value = ''
 
+    // ⏱️ 性能計時
+    const startTime = performance.now()
+    console.log('🤖 [AI 分析開始] 正在準備交通數據...')
+
     // 準備數據摘要
     const { startDate, endDate } = getFormattedDateRange()
     const dateRange = `${startDate} 至 ${endDate}`
+
+    const prepStartTime = performance.now()
     const dataSummary = prepareTrafficDataSummary(trafficData.value, summaryStats, [], dateRange)
+    const prepTime = performance.now() - prepStartTime
+    console.log(`✅ [AI 分析] 數據準備完成 - 耗時 ${(prepTime / 1000).toFixed(2)} 秒，即將發送至 OpenAI...`)
+
+    // 顯示準備中的通知
+    const loadingNotify = $q.notify({
+      type: 'ongoing',
+      message: '⏳ 正在向 OpenAI 發送分析請求，請耐心等候（通常需要 5-30 秒）...',
+      position: 'top',
+      timeout: 0, // 不自動關閉
+    })
 
     // 調用 OpenAI API 分析
     const questionText = selectedQuestion.value.label || selectedQuestion.value
     const result = await analyzeTrafficDataWithAI(questionText, dataSummary)
     aiAnalysisResult.value = result
 
+    // 關閉等待通知
+    loadingNotify()
+
+    const totalTime = performance.now() - startTime
+    console.log(`✅ [AI 分析完成] 總耗時 ${(totalTime / 1000).toFixed(2)} 秒`)
+
     $q.notify({
       type: 'positive',
-      message: 'AI 分析完成',
+      message: `✨ AI 分析完成（耗時 ${(totalTime / 1000).toFixed(1)} 秒）`,
       position: 'top',
     })
   } catch (error) {
@@ -770,7 +792,7 @@ const analyzeWithAI = async () => {
 
     $q.notify({
       type: 'negative',
-      message: 'AI 分析失敗',
+      message: 'AI 分析失敗：' + error.message,
       position: 'top',
     })
   } finally {
