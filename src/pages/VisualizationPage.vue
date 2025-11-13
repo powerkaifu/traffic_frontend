@@ -764,9 +764,10 @@ const analyzeWithAI = async () => {
     // 顯示準備中的通知
     const loadingNotify = $q.notify({
       type: 'ongoing',
-      message: '⏳ 正在向 OpenAI 發送分析請求，請耐心等候（通常需要 5-30 秒）...',
+      message: '⏳ 發送分析請求，請耐心等候（通常需要 5-15 秒）...',
       position: 'top',
       timeout: 0, // 不自動關閉
+      color: 'primary', // 🔵 藍色面板
     })
 
     // 調用 OpenAI API 分析
