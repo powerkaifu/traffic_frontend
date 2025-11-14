@@ -119,8 +119,8 @@ export const TRANSITION_CONFIG = {
 // ===== 性能優化設定 =====
 export const PERFORMANCE_CONFIG = {
   // 降低粒子數量（效能模式）
-  ENABLE_PERFORMANCE_MODE: false, // 是否啟用效能模式
-  PERFORMANCE_PARTICLE_RATIO: 0.5, // 效能模式下粒子數量比例
+  ENABLE_PERFORMANCE_MODE: true, // 是否啟用效能模式 ✅ 已啟用
+  PERFORMANCE_PARTICLE_RATIO: 0.6, // 效能模式下粒子數量比例（改為 0.6 保持視覺效果）
 
   // 更新頻率
   UPDATE_INTERVAL: 16, // 更新間隔（毫秒，約60fps）

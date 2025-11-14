@@ -28,6 +28,11 @@ export class WeatherController {
     this.lightningInterval = null // 閃電定時器
     this.lightningLayer = null // 閃電圖層
 
+    // 🆕 粒子池管理（優化記憶體）
+    this.particlePool = [] // 可回收粒子池
+    this.maxPoolSize = 500 // 最大池大小
+    this.poolStats = { getCount: 0, recycleCount: 0 } // 池統計
+
     this.init()
   }
 
@@ -55,6 +60,85 @@ export class WeatherController {
     }
 
     console.log('🌤️ 天氣系統已初始化')
+  }
+
+  /**
+   * 🆕 從粒子池獲取粒子或創建新粒子
+   * @returns {HTMLElement} 粒子元素
+   */
+  getOrCreateParticle() {
+    if (this.particlePool.length > 0) {
+      const particle = this.particlePool.pop()
+      this.poolStats.getCount++
+      return particle
+    }
+    return this.createNewParticleElement()
+  }
+
+  /**
+   * 🆕 創建新粒子元素
+   * @returns {HTMLElement} 粒子元素
+   */
+  createNewParticleElement() {
+    const particle = document.createElement('div')
+    particle.className = 'particle'
+    particle.style.cssText = `
+      position: absolute;
+      pointer-events: none;
+    `
+    return particle
+  }
+
+  /**
+   * 🆕 將粒子回收到池中
+   * @param {HTMLElement} particle - 粒子元素
+   */
+  recycleParticle(particle) {
+    if (this.particlePool.length < this.maxPoolSize) {
+      // 重置粒子狀態
+      particle.style.opacity = '1'
+      particle.style.transform = 'translate(0, 0)'
+      particle.textContent = ''
+
+      // 移除所有 GSAP 動畫
+      if (particle._gsapTimelineId) {
+        gsap.killTweensOf(particle)
+      }
+
+      // 從 DOM 中移除
+      if (particle.parentNode) {
+        particle.parentNode.removeChild(particle)
+      }
+
+      // 放入池中
+      this.particlePool.push(particle)
+      this.poolStats.recycleCount++
+    } else {
+      // 池滿，直接刪除
+      if (particle.parentNode) {
+        particle.parentNode.removeChild(particle)
+      }
+    }
+  }
+
+  /**
+   * 🆕 清空所有粒子並回收到池中
+   */
+  clearAllParticles() {
+    this.particles.forEach((particle) => {
+      this.recycleParticle(particle)
+    })
+    this.particles = []
+  }
+
+  /**
+   * 🆕 打印粒子池統計信息
+   */
+  printPoolStats() {
+    const usage = ((this.particlePool.length / this.maxPoolSize) * 100).toFixed(1)
+    console.log(
+      `📦 粒子池統計 - 池大小: ${this.particlePool.length}/${this.maxPoolSize} (${usage}%) | 獲取: ${this.poolStats.getCount} | 回收: ${this.poolStats.recycleCount}`,
+    )
   }
 
   /**
@@ -148,7 +232,8 @@ export class WeatherController {
 
     // 生成雨滴
     for (let i = 0; i < actualCount; i++) {
-      const raindrop = this.createRaindrop()
+      const raindrop = this.getOrCreateParticle() // 🔄 從池獲取或創建
+      this.styleRaindrop(raindrop) // 應用樣式
       rainContainer.appendChild(raindrop)
       this.particles.push(raindrop)
 
@@ -166,6 +251,36 @@ export class WeatherController {
       opacity: 0,
       duration: TRANSITION_CONFIG.FADE_DURATION,
     })
+  }
+
+  /**
+   * 🆕 為雨滴應用樣式
+   * @param {HTMLElement} raindrop - 雨滴元素
+   */
+  styleRaindrop(raindrop) {
+    const config = RAIN_CONFIG.APPEARANCE
+
+    // 隨機位置
+    const x = Math.random() * 100 // 百分比
+    const y = -20 // 從螢幕上方開始
+
+    // 隨機高度
+    const height = config.MIN_HEIGHT + Math.random() * (config.MAX_HEIGHT - config.MIN_HEIGHT)
+
+    // 隨機透明度
+    const opacity = config.OPACITY_RANGE[0] + Math.random() * (config.OPACITY_RANGE[1] - config.OPACITY_RANGE[0])
+
+    raindrop.style.cssText = `
+      position: absolute;
+      left: ${x}%;
+      top: ${y}%;
+      width: ${config.WIDTH}px;
+      height: ${height}px;
+      background: ${config.COLOR};
+      opacity: ${opacity};
+      border-radius: 50%;
+      transform: rotate(${RAIN_CONFIG.ANIMATION.ROTATION}deg);
+    `
   }
 
   /**
@@ -520,6 +635,9 @@ export class WeatherController {
         tween.kill()
       })
       this.animations = []
+
+      // 🆕 將粒子回收到池中（優化記憶體）
+      this.clearAllParticles()
 
       // 淡出並移除所有粒子
       gsap.to(this.weatherLayer, {
