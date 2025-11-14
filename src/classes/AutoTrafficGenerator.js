@@ -74,6 +74,10 @@ export default class AutoTrafficGenerator {
 
     // ⚠️ 【修復】同一RAF幀內生成車輛跟踪 - 防止重複生成
     this.currentFrameGeneratedVehicles = [] // 記錄當前幀已生成的車輛
+
+    // 🌤️ 天氣相關屬性（用於控制車輛生成倍數）
+    this.weatherGenerationMultiplier = 1.0 // 天氣生成倍數（晴天=1.0，下雨=0.75，下雪=0.6）
+    this.currentWeatherContext = 'clear' // 當前天氣類型（clear, rain, heavyRain, fog, snow）
   }
 
   // 🚗 新增：從配置文件更新生成間隔參數
@@ -101,6 +105,9 @@ export default class AutoTrafficGenerator {
 
     // 🎯【修復 1】監聽 API 數據更新，動態調整車流生成速率
     this._syncWithApiData()
+
+    // 🌤️ 監聽天氣變化事件，更新車輛生成倍數
+    this._listenWeatherChanges()
 
     // ❌ 移除：this._scheduleNext()
     // ✅ 改由：requestAnimationFrame 主循環驅動 update() 方法
@@ -174,6 +181,44 @@ export default class AutoTrafficGenerator {
     // ❌ 移除：clearTimeout(this.timer)
     // ✅ 改由：RAF 主循環檢查 isRunning 狀態，自動停止
     this._stopAutoModeLoop() // 停止時也要確保自動模式循環停止
+
+    // 🌤️ 移除天氣事件監聽
+    this._stopWeatherListening()
+  }
+
+  /**
+   * 🌤️ 監聽天氣變化事件
+   * 當 WeatherController 廣播 'weatherChanged' 事件時，更新車輛生成倍數
+   * @private
+   */
+  _listenWeatherChanges() {
+    // 移除舊的監聽器（如果存在）
+    if (window._autoTrafficWeatherListener) {
+      window.removeEventListener('weatherChanged', window._autoTrafficWeatherListener)
+    }
+
+    // 創建並保存新的監聽器
+    window._autoTrafficWeatherListener = (event) => {
+      const { weatherType, speedMultiplier } = event.detail
+      this.weatherGenerationMultiplier = speedMultiplier || 1.0
+      this.currentWeatherContext = weatherType || 'clear'
+      console.log(
+        `🌤️ [AutoTrafficGenerator] 天氣已更新: ${weatherType}, 生成倍數: ${this.weatherGenerationMultiplier.toFixed(2)}x`,
+      )
+    }
+
+    window.addEventListener('weatherChanged', window._autoTrafficWeatherListener)
+  }
+
+  /**
+   * 🌤️ 停止監聽天氣變化事件
+   * @private
+   */
+  _stopWeatherListening() {
+    if (window._autoTrafficWeatherListener) {
+      window.removeEventListener('weatherChanged', window._autoTrafficWeatherListener)
+      window._autoTrafficWeatherListener = null
+    }
   }
 
   // 🎯【新增】設置 VD 情景
@@ -416,6 +461,9 @@ export default class AutoTrafficGenerator {
         const max = vehiclesToGenerate.max || 1
         vehiclesToGenerate = Math.floor(Math.random() * (max - min + 1)) + min
       }
+
+      // 🌤️ 應用天氣倍數（下雨時減少車輛生成）
+      vehiclesToGenerate = Math.ceil(vehiclesToGenerate * this.weatherGenerationMultiplier)
 
       // 生成車輛
       for (let i = 0; i < vehiclesToGenerate; i++) {
