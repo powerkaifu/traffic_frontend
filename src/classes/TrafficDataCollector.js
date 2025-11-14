@@ -63,6 +63,9 @@ export default class TrafficDataCollector {
     this.greenLightActive = false
     this.greenLightListenerStart = null
     this.greenLightListenerEnd = null
+    // 🌤️ 天氣影響
+    this.weatherMultiplier = 1.0 // 天氣倍數（影響流量數據）
+    this.weatherChangedListener = null
     // API endpoint 統一由 controller 管理
     console.log('📊 交通數據收集器已初始化')
   }
@@ -96,6 +99,14 @@ export default class TrafficDataCollector {
     window.addEventListener('greenLightStarted', this.greenLightListenerStart)
     window.addEventListener('greenLightEnded', this.greenLightListenerEnd)
 
+    // 🌤️ 天氣事件監聽（接收來自 WeatherController 的天氣改變通知）
+    this.weatherChangedListener = (event) => {
+      const { weather, multiplier } = event.detail
+      this.weatherMultiplier = multiplier || 1.0
+      console.log(`🌤️ 數據收集器已更新天氣倍數: ${weather} (${this.weatherMultiplier.toFixed(2)}x)`)
+    }
+    window.addEventListener('weatherChanged', this.weatherChangedListener)
+
     // 若要保留原本定時收集，可選擇啟用
     // this.startPeriodicCollection()
 
@@ -127,6 +138,12 @@ export default class TrafficDataCollector {
     if (this.greenLightListenerEnd) {
       window.removeEventListener('greenLightEnded', this.greenLightListenerEnd)
       this.greenLightListenerEnd = null
+    }
+
+    // 🌤️ 移除天氣事件監聽
+    if (this.weatherChangedListener) {
+      window.removeEventListener('weatherChanged', this.weatherChangedListener)
+      this.weatherChangedListener = null
     }
 
     // 停止事件監聽
@@ -415,6 +432,9 @@ export default class TrafficDataCollector {
         data_normalized: this.config.volumeLimits.enableVolumeNormalization,
         volume_capped: this.config.volumeLimits.enableDataCapping,
         backend_compatibility: 'vd_data_range_0_20',
+        // 🌤️ 天氣影響元數據
+        weather_multiplier: this.weatherMultiplier,
+        weather_adjusted: this.weatherMultiplier !== 1.0,
       },
     }
   }

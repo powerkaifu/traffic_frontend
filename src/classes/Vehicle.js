@@ -98,12 +98,6 @@ export default class Vehicle {
     this.positionAdjustCooldown = ANIMATION_CONFIG.COOLDOWN_TIMES.POSITION_ADJUST // 使用配置的位置調整冷卻時間
     this.isAdjustingPosition = false // 是否正在調整位置
 
-    // 🚨 新增：防止時間縮放抖動
-    this.lastTimeScaleChange = 0 // 上次時間縮放變更時間
-    this.timeScaleDebounceDelay = ANIMATION_CONFIG.COOLDOWN_TIMES.TIMESCALE_DEBOUNCE // 使用配置的時間縮放防抖延遲
-    this.pendingTimeScale = null // 待應用的時間縮放值
-    this.timeScaleTimeout = null // 時間縮放更新定時器
-
     // 🚨 新增：停止線區域特殊防護
     this.stopLineStabilized = false // 是否在停止線區域已穩定
     this.stopLineStabilizeTime = 0 // 停止線穩定時間
