@@ -404,13 +404,6 @@
       </transition>
     </div>
 
-    <!-- 💡 十字路口下方 - 可愛的互動區域 -->
-    <div
-      class="crossroad-below-area"
-      @mouseenter="handleBelowAreaMouseEnter"
-      @mouseleave="handleBelowAreaMouseLeave"
-    ></div>
-
     <!-- Lumo 小機器人助手 -->
     <div class="robot-assistant">
       <LumoAssistant ref="lumoRef" />
@@ -790,38 +783,6 @@ const pathTooltip = ref({
 })
 
 // 🎯 下方區域互動防抖機制 - 防止 Tooltip 反覆彈進彈出
-let belowAreaDebounceTimer = null
-let isBelowAreaTooltipVisible = false
-
-const handleBelowAreaMouseEnter = () => {
-  // 清除之前的防抖計時器
-  if (belowAreaDebounceTimer) {
-    clearTimeout(belowAreaDebounceTimer)
-  }
-
-  // 如果 tooltip 已經顯示，不做任何操作
-  if (isBelowAreaTooltipVisible) return
-
-  // 立即顯示 tooltip
-  showLumoTooltip('crossroadBelow')
-  isBelowAreaTooltipVisible = true
-  console.log('✅ 下方區域 Tooltip 已顯示')
-}
-
-const handleBelowAreaMouseLeave = () => {
-  // 清除之前的防抖計時器
-  if (belowAreaDebounceTimer) {
-    clearTimeout(belowAreaDebounceTimer)
-  }
-
-  // 延遲 300ms 再隱藏，防止快速切換時誤隱藏
-  belowAreaDebounceTimer = setTimeout(() => {
-    hideLumoTooltip()
-    isBelowAreaTooltipVisible = false
-    console.log('✅ 下方區域 Tooltip 已隱藏')
-  }, 300)
-}
-
 // 路徑計算器實例
 let lanePathCalculator = null
 
@@ -2090,49 +2051,6 @@ onMounted(async () => {
 })
 
 // 💡 獲取 tooltip 訊息的輔助函數 - 支援配置鍵或直接訊息
-function getTooltipMessage(messageOrKey) {
-  // 如果是字符串且不含空格和特殊字符 (像是一個鍵)，嘗試從配置中獲取
-  if (typeof messageOrKey === 'string' && !messageOrKey.includes('：') && window.lumoConfig?.tooltips) {
-    const configValue = window.lumoConfig.tooltips[messageOrKey]
-    if (configValue) {
-      // console.log(`💬 [Tooltip] 使用配置: ${messageOrKey} => ${configValue.substring(0, 30)}...`)
-      return configValue
-    }
-  }
-
-  // 否則直接返回訊息
-  console.log(`💬 [Tooltip] 使用直接訊息: ${String(messageOrKey).substring(0, 30)}...`)
-  return messageOrKey
-}
-
-// 💡 顯示 Lumo Tooltip 的函數
-function showLumoTooltip(messageOrKey) {
-  // ✅ 【關鍵修復】檢查 Tooltip 是否啟用（從 window.lumoTooltipManager 取得狀態）
-  if (window.lumoTooltipManager && !window.lumoTooltipManager.isTooltipEnabled) {
-    return // 如果 Tooltip 關閉，直接返回，不顯示任何訊息
-  }
-
-  const message = getTooltipMessage(messageOrKey)
-
-  if (!message) {
-    console.warn('⚠️ [Tooltip] 訊息為空，跳過顯示')
-    return
-  }
-
-  if (window.lumoTooltipManager) {
-    window.lumoTooltipManager.show(message)
-  } else {
-    console.warn('⚠️ lumoTooltipManager 未初始化')
-  }
-}
-
-// 💡 隱藏 Lumo Tooltip 的函數
-function hideLumoTooltip() {
-  if (window.lumoTooltipManager) {
-    window.lumoTooltipManager.hide?.()
-  }
-}
-
 // 組件卸載時清理資源
 onUnmounted(() => {
   // 🧪 HMR 保護：保存關鍵狀態到全局
@@ -2766,19 +2684,4 @@ onUnmounted(() => {
 }
 
 /* 🤔 十字路口下方互動區域 ===== */
-.crossroad-below-area {
-  position: absolute;
-  /* 位置在十字路口 (450x450) 下方，寬度相同 */
-  width: 100%;
-  height: 50px;
-  bottom: 0%;
-  left: 50%;
-  transform: translateX(-50%);
-  /* background-color: rgba(0, 0, 0, 0.5); */
-  /* 🎯 互動效果 - 確保滑鼠事件正確傳遞 */
-  cursor: auto;
-  transition: all 0.3s ease;
-  pointer-events: auto; /* 確保可以接收滑鼠事件 */
-  z-index: 5; /* 設置適當的層級 */
-}
 </style>
