@@ -403,7 +403,7 @@ import { VD_DISPLAY_CONFIG } from 'src/classes/config/vdDisplayConfig.js'
 import { numberAnimator } from 'src/classes/NumberAnimator.js' // 🎯 導入數字動畫類
 
 // 選項: 'peak_hours' | 'off_peak' | 'late_night'
-const INITIAL_VD_SCENARIO = 'off_peak' // ← 改這裡快速切換預設情景
+const INITIAL_VD_SCENARIO = 'peak_hours' // ← 改這裡快速切換預設情景
 
 const router = useRouter()
 const route = useRoute()
