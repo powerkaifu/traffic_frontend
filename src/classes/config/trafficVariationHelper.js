@@ -127,20 +127,20 @@ export function applySmartVariation(baseConfig, timePeriod = 'off_peak') {
     case 'peak':
       // 尖峰時段：變化較小，流量相對穩定
       options = {
-        intervalVariation: 8, // ±8%
-        vehicleTypeVariation: 3, // ±3%
-        speedVariation: 3, // ±3 km/h
-        multiplierVariation: 0.05, // ±0.05
+        intervalVariation: 8, // ±8% -> 可改為 5-15
+        vehicleTypeVariation: 6, // ±6% -> 可改為 2-8
+        speedVariation: 3, // ±3 km/h -> 可改為 2-10
+        multiplierVariation: 0.05, // ±0.05 -> 可改為 0.02-0.15
       }
       break
 
     case 'late_night':
       // 凌晨時段：變化較大，流量很不穩定
       options = {
-        intervalVariation: 20, // ±20%
-        vehicleTypeVariation: 10, // ±10%
-        speedVariation: 8, // ±8 km/h
-        multiplierVariation: 0.15, // ±0.15
+        intervalVariation: 20, // ±20% -> 可改為 15-30
+        vehicleTypeVariation: 10, // ±10% -> 可改為 5-15
+        speedVariation: 10, // ±10 km/h -> 可改為 5-12
+        multiplierVariation: 0.15, // ±0.15 -> 可改為 0.1-0.2
       }
       break
 
@@ -148,10 +148,10 @@ export function applySmartVariation(baseConfig, timePeriod = 'off_peak') {
     default:
       // 離峰時段：中等變化
       options = {
-        intervalVariation: 12, // ±12%
-        vehicleTypeVariation: 6, // ±6%
-        speedVariation: 5, // ±5 km/h
-        multiplierVariation: 0.1, // ±0.1
+        intervalVariation: 12, // ±12% -> 可改為 8-18
+        vehicleTypeVariation: 6, // ±6% -> 可改為 4-10
+        speedVariation: 5, // ±5 km/h -> 可改為 3-8
+        multiplierVariation: 0.1, // ±0.1 -> 可改為 0.05-0.15
       }
       break
   }
