@@ -162,11 +162,11 @@
                   <span class="detail-value">{{ currentScenarioDetails.timeRange }}</span>
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">機/小/大 出現機率（%）：</span>
+                  <span class="detail-label">機/小/大 機率（%）：</span>
                   <span class="detail-value">{{ currentScenarioDetails.ratios }}</span>
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">實際生成間隔（秒）：</span>
+                  <span class="detail-label">生成間隔（秒）：</span>
                   <span class="detail-value">{{ (manualInterval / 1000).toFixed(1) }}</span>
                 </div>
               </div>
