@@ -9,11 +9,6 @@ import { VOLUME_LIMITS_CONFIG } from './vehicleConfig.js'
 // ============================================
 // 🛠️ 【全局車輛管理配置】
 // ============================================
-// 用途：全系統範圍內控制同時在場的車輛數量上限
-// 調用：AutoTrafficGenerator.checkVehicleLimit()、IndexPage.cleanupVehicles()
-// 作用：防止車輛生成過多導致記憶體溢出和卡頓
-// ✅ 統一分配方案：全域 100 → 每方向 25（100÷4） → 每車道 6（取整後 25÷4 ≈ 6.25）
-// 說明：使用 6 輛/車道可確保每方向不會超過 24 輛 (6 * 4 = 24)，低於 VOLUME_LIMITS_CONFIG 的上限
 // ============================================
 export const GLOBAL_MAX_LIVE_VEHICLES = VOLUME_LIMITS_CONFIG.peak_hours.maxLiveVehicles // ✅ 從配置獲取
 
@@ -369,7 +364,7 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 7 && currentHour < 9) {
     return {
       name: `早尖峰 ${currentHour}:00`,
-      interval: { min: 1800, max: 5000, normal: 2000 }, // 2.5 秒平均（最短）
+      interval: { min: 1000, max: 5000, normal: 1500 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier, // 尖峰設定
       vehiclesPerInterval: { min: 1, max: 3 }, // 允許一次生成 1-2 台
@@ -396,7 +391,7 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 9 && currentHour < 11) {
     return {
       name: `上午 ${currentHour}:00`,
-      interval: { min: 4500, max: 10000, normal: 4000 }, // 7 秒平均
+      interval: { min: 1000, max: 5000, normal: 2000 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // 切換到離峰
       vehiclesPerInterval: { min: 1, max: 3 },
@@ -423,7 +418,7 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 11 && currentHour < 14) {
     return {
       name: `午間 ${currentHour}:00`,
-      interval: { min: 2000, max: 8000, normal: 2500 },
+      interval: { min: 1000, max: 8000, normal: 1500 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // 離峰設定
       vehiclesPerInterval: { min: 1, max: 3 },
@@ -450,7 +445,7 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 14 && currentHour < 16) {
     return {
       name: `下午 ${currentHour}:00`,
-      interval: { min: 2000, max: 10000, normal: 2500 }, // 8 秒平均
+      interval: { min: 1000, max: 5000, normal: 1800 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // 離峰設定
       vehiclesPerInterval: { min: 1, max: 3 },
@@ -477,7 +472,7 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 16 && currentHour < 17) {
     return {
       name: '傍晚 16:00',
-      interval: { min: 1000, max: 8000, normal: 2500 }, // 6 秒平均
+      interval: { min: 1000, max: 8000, normal: 2000 }, // 6 秒平均
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // 過渡中
       vehiclesPerInterval: { min: 1, max: 3 },
@@ -504,10 +499,10 @@ export function getScenarioByTime(currentTime) {
   else if (currentHour >= 17 && currentHour < 19) {
     return {
       name: `晚尖峰 ${currentHour}:00`,
-      interval: { min: 1000, max: 5000, normal: 2000 }, // 2.5 秒平均（與早尖峰相同）
+      interval: { min: 1000, max: 5000, normal: 1500 }, // 2.5 秒平均（與早尖峰相同）
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier, // 尖峰設定
-      vehiclesPerInterval: { min: 1, max: 3 }, // 允許一次生成 1-2 台
+      vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
         { type: 'motor', weight: 45 },
         { type: 'small', weight: 45 },
@@ -558,7 +553,7 @@ export function getScenarioByTime(currentTime) {
   else {
     return {
       name: `夜間 ${currentHour}:00`,
-      interval: { min: 2000, max: 8000, normal: 3500 }, // 20 秒平均
+      interval: { min: 2000, max: 8000, normal: 3000 }, // 20 秒平均
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 3 },
@@ -572,13 +567,6 @@ export function getScenarioByTime(currentTime) {
   }
 }
 
-// ============================================
-// 🔄 根據 key 取得手動情景配置
-// ============================================
-// 用途：手動情景模式時從 timeScenarios 中查找配置
-// 調用：switchToScenarioMode(scenarioKey) → getScenarioByKey(scenarioKey)
-// 返回：匹配的情景對象或 null
-// ============================================
 /**
  * 根據 key 取得時段情境配置
  * @param {string} scenarioKey - 情景鍵值 ('peak_hours' | 'off_peak' | 'late_night')
