@@ -200,7 +200,11 @@ export function useVehicleManager(store, vehicleContainerRef, crossroadContainer
           if (pathElement && pathElement.getTotalLength && pathElement.getTotalLength() > 0) {
             return true
           }
-          await new Promise((resolve) => setTimeout(resolve, 50))
+          if (pathElement && pathElement.getTotalLength && pathElement.getTotalLength() > 0) {
+            return true
+          }
+          // 🚀 優化：使用 RAF 等待下一幀，而不是 setTimeout
+          await new Promise((resolve) => requestAnimationFrame(resolve))
         }
 
         console.warn(`⚠️ [${vehicle.id}] SVG 路徑元素未準備好，將使用回退方式: ${pathId}`)

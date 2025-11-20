@@ -191,18 +191,25 @@ export class WeatherController {
         break
     }
 
-    // 🌤️ 【新增】廣播天氣改變事件，讓已在路上的車輛受影響
-    const weatherMultiplier = this.getSpeedMultiplier()
-    window.dispatchEvent(
-      new CustomEvent('weatherChanged', {
-        detail: {
-          weather: weatherType,
-          multiplier: weatherMultiplier,
-          timestamp: Date.now(),
-        },
-      }),
-    )
-    console.log(`🌤️ 廣播天氣改變事件: ${weatherType} (倍數: ${weatherMultiplier.toFixed(2)}x)`)
+    // 🌤️ 【優化】延遲廣播天氣改變事件 (1.5秒)
+    // 原因：讓天氣動畫先初始化並穩定，錯開「天氣生成」與「車輛變速」的 CPU 負載高峰
+    // 這也符合真實世界邏輯：駕駛看到天氣變化後需要反應時間
+    // 🌤️ 【優化】延遲廣播天氣改變事件 (1.5秒)
+    // 🚀 優化：使用 gsap.delayedCall 替代 setTimeout，確保與 RAF 循環同步
+    // 這能避免在瀏覽器忙碌時 setTimeout 堆積導致的執行延遲或卡頓
+    gsap.delayedCall(1.5, () => {
+      const weatherMultiplier = this.getSpeedMultiplier()
+      window.dispatchEvent(
+        new CustomEvent('weatherChanged', {
+          detail: {
+            weather: weatherType,
+            multiplier: weatherMultiplier,
+            timestamp: Date.now(),
+          },
+        }),
+      )
+      console.log(`🌤️ 廣播天氣改變事件: ${weatherType} (倍數: ${weatherMultiplier.toFixed(2)}x)`)
+    })
   }
 
   /**

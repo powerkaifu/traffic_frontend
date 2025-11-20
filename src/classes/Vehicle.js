@@ -152,6 +152,14 @@ export default class Vehicle {
     // 若外部有 speed，優先用；否則用原本隨機
     this.initialSpeed = externalSpeed || this.generateRandomSpeed()
 
+    // 🌤️ 【修復】新生成的車輛也必須受到當前天氣的影響
+    // 獲取當前的天氣速度倍數並應用到初始速度
+    const weatherMultiplier = VehicleStaticManager.getWeatherSpeedMultiplier()
+    if (weatherMultiplier !== 1) {
+      this.initialSpeed *= weatherMultiplier
+      // console.log(`🚗 [${this.id}] 應用天氣速度倍數: ${weatherMultiplier}x, 調整後速度: ${this.initialSpeed.toFixed(2)}`)
+    }
+
     // Composite Pattern: 車輛由多個元件組成（主體元素）
     this.element = this.createElement()
 
@@ -181,9 +189,10 @@ export default class Vehicle {
     this.notifyTrafficController()
 
     // Strategy Pattern: 使用延遲策略避免剛生成就被卡住
-    setTimeout(() => {
+    // 🚀 優化：使用 gsap.delayedCall 替代 setTimeout
+    gsap.delayedCall(ANIMATION_CONFIG.INITIALIZATION_DELAY / 1000, () => {
       this.justCreated = false
-    }, ANIMATION_CONFIG.INITIALIZATION_DELAY) // 減少到500毫秒，讓車輛更快進入正常行駛狀態
+    })
 
     // 🚨 新增：防停滯機制
     this.lastMovementTime = Date.now()
@@ -214,14 +223,15 @@ export default class Vehicle {
       // 如果車輛在停止線等待且燈號變化，重新檢查是否可以通行
       if (this.waitingForGreen && this.isAtStopLine) {
         // 異步重新評估，避免在事件處理中進行複雜操作
-        setTimeout(() => {
+        // 🚀 優化：使用 gsap.delayedCall 替代 setTimeout (50ms = 0.05s)
+        gsap.delayedCall(0.05, () => {
           // 再次檢查活躍狀態（防止在 timeout 期間被回收）
           if (!this.isActive) return
 
           // 重置狀態以便重新檢查停止線邏輯
           this.isAtStopLine = false
           this.waitingForGreen = false
-        }, 50) // 短暫延遲確保燈號狀態已完全更新
+        })
       }
     }
     window.addEventListener('lightStateChanged', this.lightStateChangeHandler)
@@ -350,12 +360,11 @@ export default class Vehicle {
     SpeedLineUtils.showAccelerationEffect(this.speedLines, isIntense)
 
     // 延遲後標記為非加速狀態
-    setTimeout(
-      () => {
-        this.isAccelerating = false
-      },
-      isIntense ? 1100 : 800,
-    )
+    // 🚀 優化：使用 gsap.delayedCall 替代 setTimeout
+    const delay = isIntense ? 1.1 : 0.8
+    gsap.delayedCall(delay, () => {
+      this.isAccelerating = false
+    })
   }
 
   // 💨 新增：隱藏加速效果
