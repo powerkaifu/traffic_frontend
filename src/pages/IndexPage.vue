@@ -362,6 +362,7 @@ import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { MotionPathHelper } from 'gsap/MotionPathHelper'
 import Vehicle from '../classes/Vehicle.js'
+import { logger } from '../utils/logger.js' // 統一日誌工具
 import LumoAssistant from '../components/LumoAssistant.vue'
 import EmergencyOverlay from '../components/EmergencyOverlay.vue'
 import WeatherController from '../classes/WeatherController.js'
@@ -834,27 +835,27 @@ const getNorthLane3Path = () => pathFunctions.value.getNorthLane3Path()
 const getNorthLane4Path = () => pathFunctions.value.getNorthLane4Path()
 
 onMounted(async () => {
-  console.log('═══════════════════════════════════════════════════════════')
-  console.log('🚀 [IndexPage] onMounted 開始')
-  console.log('═══════════════════════════════════════════════════════════')
+  logger.log('═══════════════════════════════════════════════════════════')
+  logger.log('🚀 [IndexPage] onMounted 開始')
+  logger.log('═══════════════════════════════════════════════════════════')
 
   // ✅ HMR 檢測：確定是否在 HMR 恢復中
   const isHMRRecovery =
     typeof window !== 'undefined' && (window.lastCountdown !== undefined || window.lastPhase !== undefined)
   if (isHMRRecovery) {
-    console.log('🔄 [IndexPage] 偵測到 HMR 恢復，將強制重新初始化...')
+    logger.log('🔄 [IndexPage] 偵測到 HMR 恢復，將強制重新初始化...')
   }
 
   // ✅ 確保全局車輛列表初始化（供 AutoTrafficGenerator 使用）
   if (!window.liveVehicles) {
     window.liveVehicles = []
-    console.log('✅ [IndexPage] 全局車輛列表已初始化')
+    logger.log('✅ [IndexPage] 全局車輛列表已初始化')
   }
 
   // ✅ 確保側邊欄在任何情況下都顯示
   if (typeof window !== 'undefined') {
     window.drawerState = true
-    console.log('✅ [IndexPage] 強制設置 window.drawerState = true')
+    logger.log('✅ [IndexPage] 強制設置 window.drawerState = true')
   }
 
   // 等待 DOM 完全渲染
@@ -1344,8 +1345,19 @@ onMounted(async () => {
       const runPeriodicCheck = !isWeatherTransitioning && periodicCheckAccumulator >= 50 // 每 50ms 執行一次
       const runStuckCheck = !isWeatherTransitioning && stuckCheckAccumulator >= 5000 // 每 5 秒執行一次
 
-      if (window.liveVehicles && (runPeriodicCheck || runStuckCheck)) {
-        for (const vehicle of window.liveVehicles) {
+      // 🚀 【優化】快取車輛陣列並提前返回空陣列
+      const vehicles = window.liveVehicles
+      if (!vehicles || vehicles.length === 0) {
+        // 沒有車輛，跳過所有車輛相關邏輯
+        rafId = requestAnimationFrame(mainSimulationLoop)
+        return
+      }
+
+      if (runPeriodicCheck || runStuckCheck) {
+        const vehicleCount = vehicles.length
+        for (let i = 0; i < vehicleCount; i++) {
+          const vehicle = vehicles[i]
+          if (!vehicle) continue
           // 碰撞檢測邏輯已完全遷移至 Vehicle.updateLogic
           // 由 CollisionFollowingController.execute() 在 updateLogic 中執行
 
@@ -1421,9 +1433,9 @@ onMounted(async () => {
                   removeVehicleFromSimulationComposable(vehicle.id)
                 }
 
-                console.log(`✅ [${vehicle.id}] 已清理並放回物件池`)
+                logger.debug('Cleanup', `[${vehicle.id}] 已清理並放回物件池`)
               } catch (e) {
-                console.warn(`⚠️ [${vehicle.id}] 清理提交異常: ${e.message}`)
+                logger.warn(`⚠️ [${vehicle.id}] 清理提交異常: ${e.message}`)
               }
             }
 
@@ -1436,7 +1448,7 @@ onMounted(async () => {
             activeCars.value = activeCars.value.filter((vehicle) => {
               // 檢查車輛是否還在DOM中
               if (!vehicle.element || !vehicle.element.parentNode) {
-                console.log(`🗑️ 清理孤立車輛: ${vehicle.id}`)
+                logger.debug('Cleanup', `清理孤立車輛: ${vehicle.id}`)
 
                 // 🚨【POOL LEAK FIX】孤立車輛也要放回物件池
                 if (handleVehicleOutOfBoundsComposable) {
@@ -1445,7 +1457,7 @@ onMounted(async () => {
                   // 備用清理
                   if (vehicle.performCleanup && typeof vehicle.performCleanup === 'function') {
                     vehicle.performCleanup().catch((e) => {
-                      console.warn(`⚠️ [${vehicle.id}] 孤立車輛清理異常: ${e.message}`)
+                      logger.warn(`⚠️ [${vehicle.id}] 孤立車輛清理異常: ${e.message}`)
                     })
                   }
                 }

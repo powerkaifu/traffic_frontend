@@ -84,11 +84,11 @@ export default class AutoTrafficGenerator {
     this.speedTransitionState = { multiplier: 1.0 } // GSAP 會更新這個值
     this.speedTransitionTimeline = null // 過度動畫的 GSAP timeline
 
-    // 🚑 救護車隨機生成配置
+    // 🚑 119 救護車隨機生成配置
     this.emergencyVehicleConfig = {
       enabled: true, // 是否啟用隨機救護車生成
-      minInterval: 5000, // 最小生成間隔（毫秒）- 60秒
-      maxInterval: 10000, // 最大生成間隔（毫秒）- 120秒
+      minInterval: 60000 + Math.random() * 100000, // 最小生成間隔（毫秒）- 60秒
+      maxInterval: 500000, // 最大生成間隔（毫秒）- 120秒
       nextSpawnTime: 0, // 下次生成時間戳
     }
     this._scheduleNextEmergencyVehicle() // 計劃第一次生成
@@ -794,7 +794,7 @@ export default class AutoTrafficGenerator {
       volumeM = Math.round(volumeByType.motor * volumeVariance)
       volumeS = Math.round(volumeByType.small * volumeVariance)
       volumeL = Math.round(volumeByType.large * volumeVariance)
-      volumeT = 0 // ✅ 聯結車禁止進入，必定為 0
+      // 聯結車禁止進入市區交叉口，數量恆為 0（無需變數）
 
       // ✅ 正確計算各車型速度：支援速度範圍（物件）或固定值（數字）
       speedM = this._getRandomSpeed(speedByType.motor)

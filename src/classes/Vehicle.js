@@ -5,6 +5,7 @@
 import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { speedConfig } from './config/trafficConfig.js' // 引入統一的速度設定
+import { logger } from '../utils/logger.js' // 統一日誌工具
 import { StopLineController } from './vehicle_utils/StopLineController.js' // 🚀 新增：停止線控制器
 import { CollisionFollowingController } from './vehicle_utils/CollisionFollowingController.js' // 🚀 新增：碰撞跟隨控制器
 import {
@@ -253,7 +254,7 @@ export default class Vehicle {
       this.updateSpeed()
 
       if (process.env.DEV && Math.random() < 0.01) {
-        console.log(`🚗 [${this.id}] 天氣速度改變: ${targetMultiplier.toFixed(2)}x`)
+        logger.debug('Weather', `[${this.id}] 天氣速度改變: ${targetMultiplier.toFixed(2)}x`)
       }
     }
     window.addEventListener('weatherSpeedChange', this.weatherSpeedChangeHandler)
@@ -334,7 +335,7 @@ export default class Vehicle {
 
       // 僅在進入避讓模式時記錄日誌
       if (targetMultiplier < 1.0 && process.env.DEV && Math.random() < 0.05) {
-        console.log(`🚗 [${this.id}] 進入救護車避讓範圍 (${Math.round(minDistance)}px)，減速至 0.5x`)
+        logger.debug('Emergency', `[${this.id}] 進入救護車避讓範圍 (${Math.round(minDistance)}px)，減速至 0.5x`)
       }
     }
   }
@@ -756,7 +757,7 @@ export default class Vehicle {
     const isInTurnZone = progress > turnStartProgress && progress < turnEndProgress
 
     if (TURN_SPEED_CONFIG.DEBUG.ENABLED) {
-      console.log(`🔄 [${this.id}] 轉向檢測: progress=${progress.toFixed(3)}, inTurn=${isInTurnZone}`)
+      logger.debug('Turn', `[${this.id}] 轉向檢測: progress=${progress.toFixed(3)}, inTurn=${isInTurnZone}`)
     }
 
     return isInTurnZone
@@ -1014,7 +1015,10 @@ export default class Vehicle {
           if (currentTimeScale > maxTurnSpeedRatio + 0.05) {
             this.movementTimeline.timeScale(maxTurnSpeedRatio)
             if (TURN_SPEED_CONFIG.DEBUG.ENABLED) {
-              console.log(`🔄 [${this.id}] 轉向減速: radius=${turnRadius}, speedRatio=${maxTurnSpeedRatio.toFixed(2)}`)
+              logger.debug(
+                'Turn',
+                `[${this.id}] 轉向減速: radius=${turnRadius}, speedRatio=${maxTurnSpeedRatio.toFixed(2)}`,
+              )
             }
           }
         } else {
@@ -1070,7 +1074,7 @@ export default class Vehicle {
     const pathElement = document.querySelector(`#${pathId}`)
 
     if (!pathElement) {
-      console.warn(`⚠️ 找不到路徑元素: #${pathId}`)
+      logger.warn(`⚠️ 找不到路徑元素: #${pathId}`)
       return null
     }
 
@@ -1136,7 +1140,7 @@ export default class Vehicle {
 
           animationDuration = Math.max(1, Math.min(30, theoreticalTime)) // 擴大時間範圍
         } catch (error) {
-          console.warn(`⚠️ 無法計算路徑長度，使用預設動畫時間:`, error)
+          logger.warn(`⚠️ 無法計算路徑長度，使用預設動畫時間:`, error)
           animationDuration = this.calculateAnimationDuration()
         }
       }
@@ -1292,7 +1296,7 @@ export default class Vehicle {
     // 檢查回收次數限制
     const maxRecycles = VEHICLE_RECYCLING_CONFIG.MAX_RECYCLES_PER_VEHICLE
     if (maxRecycles !== null && this.recycleCount >= maxRecycles) {
-      console.log(`🚨 [${this.id}] 回收次數已達上限 (${this.recycleCount}/${maxRecycles})，進行正常移除`)
+      logger.debug('Pool', `[${this.id}] 回收次數已達上限 (${this.recycleCount}/${maxRecycles})，進行正常移除`)
       return false
     }
 
@@ -1547,7 +1551,10 @@ export default class Vehicle {
 
           // 記錄變道事件
           if (LANE_CHANGING_CONFIG.ENABLE_LANE_CHANGE_LOGGING) {
-            console.log(`🛣️ [${this.id}] 成功變道: ${originalLane} → ${targetLane} (第 ${this.laneChangeCount} 次變道)`)
+            logger.debug(
+              'Lane',
+              `[${this.id}] 成功變道: ${originalLane} → ${targetLane} (第 ${this.laneChangeCount} 次變道)`,
+            )
           }
 
           // 通知控制器
@@ -1578,7 +1585,7 @@ export default class Vehicle {
 
     // 🚨【POOL LEAK FIX】如果有儲存的回調，立即觸發以確保回收
     if (this.onVehicleOutOfBoundsCallback && typeof this.onVehicleOutOfBoundsCallback === 'function') {
-      console.log(`🔄 [${this.id}] remove() 正在觸發回收回調`)
+      logger.debug('Pool', `[${this.id}] remove() 正在觸發回收回調`)
       this.onVehicleOutOfBoundsCallback(this)
       this.onVehicleOutOfBoundsCallback = null // 清空以防多次執行
     }
@@ -1808,7 +1815,7 @@ export default class Vehicle {
         gsap.killTweensOf(this.path)
       }
     } catch (e) {
-      console.warn(`⚠️ [Vehicle.reset] GSAP 清理異常: ${e.message}`)
+      logger.warn(`⚠️ [Vehicle.reset] GSAP 清理異常: ${e.message}`) // Changed console.warn to logger.warn
     }
 
     // 🧹 清理定時器
@@ -1847,7 +1854,7 @@ export default class Vehicle {
         gsap.killTweensOf(this.path)
       }
     } catch (e) {
-      console.warn(`⚠️ GSAP 清理異常: ${e.message}`)
+      logger.warn(`⚠️ GSAP 清理異常: ${e.message}`)
     }
 
     // 清理定時器
@@ -1906,7 +1913,7 @@ export default class Vehicle {
     this.element = null
     this.laneLabel = null
 
-    console.log(`🗑️ [${this.id}] 已完成清理`)
+    logger.debug('Cleanup', `[${this.id}] 已完成清理`)
   }
 
   // 🚨 新增：綠燈跟車檢查
