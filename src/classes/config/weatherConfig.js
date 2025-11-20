@@ -110,7 +110,7 @@ export const SNOW_CONFIG = {
 // ===== 天氣轉換設定 =====
 export const TRANSITION_CONFIG = {
   // 淡入淡出時間
-  FADE_DURATION: 1.0, // 1秒
+  FADE_DURATION: 0.5, // 0.5秒
 
   // 粒子生成延遲
   PARTICLE_SPAWN_DELAY: 0.05, // 每個粒子延遲0.05秒生成

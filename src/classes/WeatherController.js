@@ -101,10 +101,9 @@ export class WeatherController {
       particle.style.transform = 'translate(0, 0)'
       particle.textContent = ''
 
-      // 移除所有 GSAP 動畫
-      if (particle._gsapTimelineId) {
-        gsap.killTweensOf(particle)
-      }
+      // 🚀 優化：移除 gsap.killTweensOf(particle)
+      // 因為 clearWeather 已經統一殺死了所有動畫 (this.animations)
+      // 而且個別殺死數百個粒子的動畫非常耗時
 
       // 從 DOM 中移除
       if (particle.parentNode) {
@@ -752,14 +751,18 @@ export class WeatherController {
       })
       this.animations = []
 
-      // 🆕 將粒子回收到池中（優化記憶體）
-      this.clearAllParticles()
+      // 🚀 優化：不要立即清除粒子，而是等待淡出動畫完成
+      // this.clearAllParticles() // ❌ 移除這行
 
       // 淡出並移除所有粒子
       gsap.to(this.weatherLayer, {
         opacity: 0,
         duration: TRANSITION_CONFIG.FADE_DURATION,
         onComplete: () => {
+          // 🚀 優化：在動畫完成後才清除粒子
+          // 這樣可以避免視覺上的閃爍，並將繁重的 DOM 操作延遲到動畫結束後
+          this.clearAllParticles()
+
           // 清空天氣圖層
           if (this.weatherLayer) {
             this.weatherLayer.innerHTML = ''
