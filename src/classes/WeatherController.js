@@ -6,6 +6,7 @@
  */
 
 import { gsap } from 'gsap'
+import { logger } from '../utils/logger.js' // 統一日誌工具
 import {
   WEATHER_TYPES,
   RAIN_CONFIG,
@@ -60,7 +61,7 @@ export class WeatherController {
       this.container.appendChild(this.weatherLayer)
     }
 
-    console.log('🌤️ 天氣系統已初始化')
+    logger.log('🌤️ 天氣系統已初始化')
   }
 
   /**
@@ -148,17 +149,17 @@ export class WeatherController {
   async changeWeather(weatherType) {
     // 如果點擊當前已啟用的天氣，則切換回晴天（關閉效果）
     if (this.currentWeather === weatherType && weatherType !== WEATHER_TYPES.CLEAR) {
-      console.log(`🌤️ 關閉天氣效果：${weatherType} -> ${WEATHER_TYPES.CLEAR}`)
+      logger.log(`🌤️ 關閉天氣效果：${weatherType} -> ${WEATHER_TYPES.CLEAR}`)
       weatherType = WEATHER_TYPES.CLEAR
     }
 
     // 如果已經是目標天氣，無需切換
     if (this.currentWeather === weatherType) {
-      console.log(`🌤️ 天氣已經是 ${weatherType}，無需切換`)
+      logger.log(`🌤️ 天氣已經是 ${weatherType}，無需切換`)
       return
     }
 
-    console.log(`🌤️ 切換天氣：${this.currentWeather} -> ${weatherType}`)
+    logger.log(`🌤️ 切換天氣：${this.currentWeather} -> ${weatherType}`)
 
     // 先清除當前天氣效果
     await this.clearWeather()
@@ -210,7 +211,7 @@ export class WeatherController {
         },
       }),
     )
-    console.log(`🌤️ 廣播天氣改變事件: ${weatherType} (倍數: ${weatherMultiplier.toFixed(2)}x)`)
+    logger.debug('Weather', `廣播天氣改變事件: ${weatherType} (倍數: ${weatherMultiplier.toFixed(2)}x)`)
   }
 
   /**
@@ -221,7 +222,7 @@ export class WeatherController {
     const config = RAIN_CONFIG
     const particleCount = config.PARTICLE_COUNT[intensity]
 
-    console.log(`🌧️ 創建雨天效果，強度：${intensity}，粒子數：${particleCount}`)
+    logger.log(`🌧️ 創建雨天效果，強度：${intensity}，粒子數：${particleCount}`)
 
     // 效能模式調整
     const actualCount = PERFORMANCE_CONFIG.ENABLE_PERFORMANCE_MODE
@@ -279,7 +280,7 @@ export class WeatherController {
       if (createdCount >= actualCount) {
         gsap.ticker.remove(generateBatch)
         this.generationTask = null
-        console.log(`✅ [粒子生成完成] 共生成 ${createdCount} 個粒子`)
+        logger.debug('Weather', `粒子生成完成 共生成 ${createdCount} 個粒子`)
 
         // 通知系統粒子生成已完成，可以恢復其他計算
         window.dispatchEvent(
@@ -401,7 +402,7 @@ export class WeatherController {
   createFog() {
     const config = FOG_CONFIG
 
-    console.log('🌫️ 創建霧天效果')
+    logger.log('🌫️ 創建霧天效果')
 
     // 🚀 優化：使用漸進式生成 (Progressive Generation)
     let createdLayerCount = 0
@@ -508,7 +509,7 @@ export class WeatherController {
   createSnow() {
     const config = SNOW_CONFIG
 
-    console.log('❄️ 創建雪天效果')
+    logger.log('❄️ 創建雪天效果')
 
     // 效能模式調整
     const particleCount = PERFORMANCE_CONFIG.ENABLE_PERFORMANCE_MODE
@@ -638,7 +639,7 @@ export class WeatherController {
       return
     }
 
-    console.log('⚡ 創建閃電效果')
+    logger.log('⚡ 創建閃電效果')
 
     // 創建閃電圖層
     this.lightningLayer = document.createElement('div')
@@ -743,7 +744,7 @@ export class WeatherController {
         return
       }
 
-      console.log('🧹 清除天氣效果')
+      logger.debug('Weather', '清除天氣效果')
 
       // 停止閃電定時器
       if (this.lightningInterval) {
@@ -852,7 +853,7 @@ export class WeatherController {
     this.lightningLayer = null
     this.container = null
 
-    console.log('🌤️ 天氣系統已銷毀')
+    logger.log('🌤️ 天氣系統已銷毀')
   }
 }
 

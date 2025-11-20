@@ -2,6 +2,7 @@
  * AutoTrafficGenerator.js - 自動車流分派系統
  */
 import gsap from 'gsap'
+import { logger } from '../utils/logger.js' // 統一日誌工具
 import {
   getScenarioByTime,
   getScenarioByKey,
