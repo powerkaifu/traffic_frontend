@@ -240,8 +240,8 @@ export class WeatherController {
     `
     this.weatherLayer.appendChild(rainContainer)
 
-    // 🚀 優化：使用漸進式生成 (Progressive Generation)
-    // 分批生成粒子，避免單幀負載過重
+    // 🚀 優化：使用 GSAP ticker 替代 requestAnimationFrame
+    // 這樣可以確保粒子生成與 GSAP 的更新循環同步，減少 CPU 爭用
     let createdCount = 0
     const batchSize = 50 // 每幀生成的粒子數
 
@@ -250,8 +250,11 @@ export class WeatherController {
       if (
         !this.isActive ||
         (this.currentWeather !== WEATHER_TYPES.RAIN && this.currentWeather !== WEATHER_TYPES.HEAVY_RAIN)
-      )
+      ) {
+        gsap.ticker.remove(generateBatch)
+        this.generationTask = null
         return
+      }
 
       const fragment = document.createDocumentFragment()
       const limit = Math.min(actualCount - createdCount, batchSize)
@@ -272,11 +275,9 @@ export class WeatherController {
       rainContainer.appendChild(fragment)
       createdCount += limit
 
-      // 如果還沒生成完，安排下一幀繼續
-      if (createdCount < actualCount) {
-        this.generationTask = requestAnimationFrame(generateBatch)
-      } else {
-        // 🚀【優化】粒子生成完成，通知系統
+      // 如果生成完成
+      if (createdCount >= actualCount) {
+        gsap.ticker.remove(generateBatch)
         this.generationTask = null
         console.log(`✅ [粒子生成完成] 共生成 ${createdCount} 個粒子`)
 
@@ -292,8 +293,9 @@ export class WeatherController {
       }
     }
 
-    // 啟動生成任務
-    generateBatch()
+    // 啟動生成任務 (添加到 GSAP ticker)
+    this.generationTask = generateBatch
+    gsap.ticker.add(generateBatch)
 
     // 淡入效果
     gsap.from(rainContainer, {
@@ -411,7 +413,11 @@ export class WeatherController {
     const batchSize = 2
 
     const generateBatch = () => {
-      if (!this.isActive || this.currentWeather !== WEATHER_TYPES.FOG) return
+      if (!this.isActive || this.currentWeather !== WEATHER_TYPES.FOG) {
+        gsap.ticker.remove(generateBatch)
+        this.generationTask = null
+        return
+      }
 
       const fragment = document.createDocumentFragment()
 
@@ -478,16 +484,16 @@ export class WeatherController {
 
       this.weatherLayer.appendChild(fragment)
 
-      if (createdLayerCount < totalLayers) {
-        this.generationTask = requestAnimationFrame(generateBatch)
-      } else {
+      if (createdLayerCount >= totalLayers) {
+        gsap.ticker.remove(generateBatch)
         this.generationTask = null
         this.hasAddedFogVisibility = false // 重置標記供下次使用
       }
     }
 
     this.hasAddedFogVisibility = false
-    generateBatch()
+    this.generationTask = generateBatch
+    gsap.ticker.add(generateBatch)
 
     // 淡入效果
     gsap.from(this.weatherLayer, {
@@ -526,7 +532,11 @@ export class WeatherController {
     const batchSize = 50 // 每幀生成的粒子數
 
     const generateBatch = () => {
-      if (!this.isActive || this.currentWeather !== WEATHER_TYPES.SNOW) return
+      if (!this.isActive || this.currentWeather !== WEATHER_TYPES.SNOW) {
+        gsap.ticker.remove(generateBatch)
+        this.generationTask = null
+        return
+      }
 
       const fragment = document.createDocumentFragment()
       const limit = Math.min(particleCount - createdCount, batchSize)
@@ -545,14 +555,14 @@ export class WeatherController {
       snowContainer.appendChild(fragment)
       createdCount += limit
 
-      if (createdCount < particleCount) {
-        this.generationTask = requestAnimationFrame(generateBatch)
-      } else {
+      if (createdCount >= particleCount) {
+        gsap.ticker.remove(generateBatch)
         this.generationTask = null
       }
     }
 
-    generateBatch()
+    this.generationTask = generateBatch
+    gsap.ticker.add(generateBatch)
 
     // 淡入效果
     gsap.from(snowContainer, {
@@ -723,7 +733,12 @@ export class WeatherController {
    */
   async clearWeather() {
     return new Promise((resolve) => {
-      if (this.particles.length === 0 && this.animations.length === 0 && !this.lightningInterval) {
+      if (
+        this.particles.length === 0 &&
+        this.animations.length === 0 &&
+        !this.lightningInterval &&
+        !this.generationTask
+      ) {
         resolve()
         return
       }
@@ -738,7 +753,8 @@ export class WeatherController {
 
       // 🆕 取消正在進行的生成任務
       if (this.generationTask) {
-        cancelAnimationFrame(this.generationTask)
+        // 🚀 優化：從 GSAP ticker 移除
+        gsap.ticker.remove(this.generationTask)
         this.generationTask = null
       }
 
@@ -751,18 +767,14 @@ export class WeatherController {
       })
       this.animations = []
 
-      // 🚀 優化：不要立即清除粒子，而是等待淡出動畫完成
-      // this.clearAllParticles() // ❌ 移除這行
+      // 🆕 將粒子回收到池中（優化記憶體）
+      this.clearAllParticles()
 
       // 淡出並移除所有粒子
       gsap.to(this.weatherLayer, {
         opacity: 0,
         duration: TRANSITION_CONFIG.FADE_DURATION,
         onComplete: () => {
-          // 🚀 優化：在動畫完成後才清除粒子
-          // 這樣可以避免視覺上的閃爍，並將繁重的 DOM 操作延遲到動畫結束後
-          this.clearAllParticles()
-
           // 清空天氣圖層
           if (this.weatherLayer) {
             this.weatherLayer.innerHTML = ''

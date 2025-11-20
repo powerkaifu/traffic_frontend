@@ -1211,7 +1211,7 @@ export default class Vehicle {
               }
 
               // ✅ 不再調用 this.remove()，改由 IndexPage 透過 pool.release() 來回收
-              // this.remove() // � 註解掉
+              // this.remove() //  註解掉
               resolve()
             },
           })
