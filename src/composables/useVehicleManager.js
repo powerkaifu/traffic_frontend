@@ -110,7 +110,56 @@ export function useVehicleManager(store, vehicleContainerRef, crossroadContainer
     if (!window.liveVehicles) window.liveVehicles = []
     window.liveVehicles.push(vehicle)
 
+    // 🚀 【關鍵修復】啟動車輛動畫
+    startVehicleAnimation(vehicle)
+
     return vehicle
+  }
+
+  // ========== 車輛動畫 ==========
+  /**
+   * 啟動車輛動畫
+   * @param {Vehicle} vehicle - 車輛實例
+   */
+  async function startVehicleAnimation(vehicle) {
+    if (!vehicle) return
+
+    try {
+      // 🚨【關鍵】確保從池中 acquire 的車輛可見性已生效
+      // 延遲 50ms 讓 GSAP 設置完成
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      // 確保 SVG 路徑元素已準備好
+      const waitForSvgPaths = async () => {
+        const maxWait = 3000 // 最多等待3秒
+        const startTime = Date.now()
+        const pathId = vehicle.getSvgPathId()
+
+        while (Date.now() - startTime < maxWait) {
+          const pathElement = document.querySelector(`#${pathId}`)
+          if (pathElement && pathElement.getTotalLength && pathElement.getTotalLength() > 0) {
+            return true
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50))
+        }
+
+        console.warn(`⚠️ [${vehicle.id}] SVG 路徑元素未準備好，將使用回退方式: ${pathId}`)
+        return false
+      }
+
+      // 等待 SVG 路徑準備好
+      await waitForSvgPaths()
+
+      // 使用 composable 提供的 handleVehicleOutOfBounds
+      await vehicle.moveAlongPath(window.trafficController, activeCars.value, handleVehicleOutOfBounds)
+
+      // ✅ 動畫完成後的清理（此時車輛已由 handleVehicleOutOfBounds 放回池中）
+      // 無需額外清理
+    } catch (error) {
+      console.error('❌ 自動生成車輛動畫錯誤:', error)
+      // 發生錯誤時使用 composable 處理
+      handleVehicleOutOfBounds(vehicle)
+    }
   }
 
   // ========== 車輛移除 ==========
