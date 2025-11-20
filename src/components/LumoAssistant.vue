@@ -924,6 +924,172 @@ onMounted(() => {
           }
         }
       },
+      // 🚑 新增：強制顯示緊急訊息（不受 isTooltipEnabled 限制）
+      showEmergency(message) {
+        // 取消舊的關閉延遲
+        if (this.currentTimeout) {
+          clearTimeout(this.currentTimeout)
+        }
+        if (this.showAnimationTimer) {
+          clearTimeout(this.showAnimationTimer)
+        }
+
+        // 需要重新顯示時，先確保狀態正確
+        const wasVisible = state.isDialogVisible
+
+        // 立即顯示對話框
+        state.isDialogVisible = true
+
+        // ✨ 設置 Spotlight 的 CSS 變數（確保統一配置）
+        setSpotlightStyles()
+
+        // 顯示自定義消息
+        if (dialogText.value) {
+          // 清除之前的文字動畫
+          gsap.killTweensOf(dialogText.value.querySelectorAll('.char'))
+
+          dialogText.value.innerHTML = ''
+          dialogText.value.textContent = message
+
+          // 使用 SplitText 分割文字為字符（打字效果）
+          const split = new SplitText(dialogText.value, {
+            type: 'chars',
+            charsClass: 'char',
+          })
+
+          const chars = split.chars
+          if (chars.length === 0) return
+
+          // 設置初始狀態 - 所有字符先隱藏
+          gsap.set(chars, {
+            opacity: 0,
+          })
+
+          // 創建打字效果 Timeline
+          const tl = gsap.timeline()
+
+          // 創建光標元素
+          const cursor = document.createElement('span')
+          cursor.className = 'typing-cursor'
+          cursor.textContent = '│'
+
+          // 計算 stagger 延遲
+          const charDuration = config.dialog.typingCharDuration
+          const staggerDelay = config.dialog.messageCharStagger
+
+          // 為每個字符創建出現和光標更新的時序
+          chars.forEach((char, index) => {
+            const time = index * staggerDelay
+
+            // 字符出現動畫
+            tl.to(
+              char,
+              {
+                opacity: 1,
+                duration: charDuration,
+                ease: 'steps(1)',
+              },
+              time,
+            )
+
+            // 字符出現後，將光標移到該字符後面
+            tl.call(
+              () => {
+                // 移除舊光標
+                if (cursor.parentNode) {
+                  cursor.remove()
+                }
+                // 在當前字符後面插入光標（HMR 安全檢查）
+                if (char.parentNode) {
+                  char.parentNode.insertBefore(cursor, char.nextSibling)
+                }
+              },
+              null,
+              time + charDuration * 0.5,
+            )
+          })
+
+          // 動畫完成後：光標留在文字尾巴繼續閃爍
+          tl.call(() => {
+            // 先 revert（合併所有字符）
+            split.revert()
+
+            // revert 後，重新添加光標到文字容器末尾
+            // 清除舊光標
+            const oldCursor = dialogText.value.querySelector('.typing-cursor')
+            if (oldCursor) {
+              oldCursor.remove()
+            }
+
+            // 使用 nextTick 確保 DOM 更新後再添加光標
+            nextTick(() => {
+              // 確保光標有正確的類名和內容
+              cursor.className = 'typing-cursor'
+              cursor.textContent = '│'
+              dialogText.value.appendChild(cursor)
+
+              // 使用 GSAP 直接控制光標閃爍動畫
+              const cursorBlink = gsap.timeline({ repeat: -1, repeatDelay: 0 })
+              cursorBlink.to(
+                cursor,
+                {
+                  opacity: 0,
+                  duration: 0.3,
+                  ease: 'none',
+                },
+                0,
+              )
+              cursorBlink.to(
+                cursor,
+                {
+                  opacity: 1,
+                  duration: 0.3,
+                  ease: 'none',
+                },
+                0.3,
+              )
+            })
+          })
+        }
+
+        // 打開對話框動畫
+        if (dialogBox.value) {
+          dialogBox.value.classList.add('active')
+
+          // 如果已經可見，跳過進場動畫，直接更新內容
+          if (!wasVisible) {
+            gsap.fromTo(
+              dialogBox.value,
+              { y: 20, opacity: 0 },
+              {
+                y: 0,
+                opacity: 1,
+                duration: 0.4,
+                ease: 'back.out',
+              },
+            )
+          }
+        }
+
+        // 打開 Spotlight 動畫
+        if (spotlight.value) {
+          spotlight.value.classList.add('active')
+
+          // 如果已經可見，跳過進場動畫
+          if (!wasVisible) {
+            gsap.fromTo(
+              spotlight.value,
+              { opacity: 0, scale: 0.5 },
+              {
+                opacity: 1,
+                scale: 1,
+                duration: 0.3,
+                ease: 'back.out',
+              },
+            )
+          }
+        }
+      },
       hide() {
         // 設置延遲隱藏以避免頻繁切換
         this.currentTimeout = setTimeout(() => {

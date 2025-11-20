@@ -405,6 +405,19 @@ export default class Vehicle {
         north: { width: 25, height: 15, image: '/images/car/mCar_east.webp', rotation: -90 },
         south: { width: 25, height: 15, image: '/images/car/mCar_east.webp', rotation: 90 },
       },
+      // 🚨 緊急車輛：使用大車圖示
+      ambulance: {
+        east: { width: 35, height: 20, image: '/images/car/lCar_east.webp', rotation: 0 },
+        west: { width: 35, height: 20, image: '/images/car/lCar_east.webp', rotation: 0, scaleX: -1 },
+        north: { width: 35, height: 20, image: '/images/car/lCar_east.webp', rotation: -90 },
+        south: { width: 35, height: 20, image: '/images/car/lCar_east.webp', rotation: 90 },
+      },
+      police: {
+        east: { width: 35, height: 20, image: '/images/car/lCar_east.webp', rotation: 0 },
+        west: { width: 35, height: 20, image: '/images/car/lCar_east.webp', rotation: 0, scaleX: -1 },
+        north: { width: 35, height: 20, image: '/images/car/lCar_east.webp', rotation: -90 },
+        south: { width: 35, height: 20, image: '/images/car/lCar_east.webp', rotation: 90 },
+      },
     }
     return vehicleConfigs[this.vehicleType]?.[this.direction] || vehicleConfigs.large.east
   }
@@ -457,6 +470,17 @@ export default class Vehicle {
   // 🨨 新增：統一停止線檢查和交通燈響應
   // Command Pattern: 將停止線檢查和交通燈響應邏輯封裝為一個命令
   checkStopLineAndRespond(trafficController, allVehicles = []) {
+    // 🚨 救護車特權：救護車可以無視紅燈直接通過
+    if (this.vehicleType === 'ambulance') {
+      // 救護車標記為已通過停止線（避免重複檢查）
+      if (!this.hasPassedStopLine) {
+        this.hasPassedStopLine = true
+        this.isAtStopLine = false
+        this.waitingForGreen = false
+      }
+      return // 直接返回，不進行任何紅燈檢查
+    }
+
     // 檢查四個前置條件
     if (this.hasPassedStopLine || !this.checkStopLine() || this.isAtStopLine) {
       return

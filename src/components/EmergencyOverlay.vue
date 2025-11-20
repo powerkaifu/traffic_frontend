@@ -24,24 +24,12 @@ const start = () => {
 
     flashTimeline = gsap.timeline({ repeat: -1 })
 
-    // 初始狀態：紅色
+    // 初始狀態：透明
     gsap.set(borderRef.value, {
-      boxShadow: 'inset 0 0 0px 0px rgba(255, 0, 0, 0)',
+      boxShadow: 'inset 0 0 0px 0px rgba(0, 0, 255, 0)',
     })
 
     flashTimeline
-      // 紅色淡入
-      .to(borderRef.value, {
-        boxShadow: 'inset 0 0 100px 20px rgba(255, 0, 0, 0.6)',
-        duration: 0.4,
-        ease: 'power2.out',
-      })
-      // 紅色淡出
-      .to(borderRef.value, {
-        boxShadow: 'inset 0 0 50px 10px rgba(255, 0, 0, 0)',
-        duration: 0.4,
-        ease: 'power2.in',
-      })
       // 藍色淡入
       .to(borderRef.value, {
         boxShadow: 'inset 0 0 100px 20px rgba(0, 0, 255, 0.6)',

@@ -728,6 +728,19 @@ const clearAllVehicles = () => {
 const spawnEmergencyVehicle = (type = 'ambulance') => {
   console.log(`🚨 呼叫緊急車輛: ${type}`)
 
+  // 0. 優先定義方向變量（避免 Lumo 提示時未定義）
+  const directions = ['east', 'west', 'south', 'north']
+  const randomDirection = directions[Math.floor(Math.random() * directions.length)]
+  const laneNumber = Math.random() > 0.5 ? 1 : 2 // 緊急車輛通常走內側車道
+
+  // 方向中文映射
+  const directionChinese = {
+    east: '東向',
+    west: '西向',
+    south: '南向',
+    north: '北向',
+  }
+
   // 1. 啟動視覺特效
   if (emergencyOverlayRef.value) {
     emergencyOverlayRef.value.start()
@@ -738,26 +751,24 @@ const spawnEmergencyVehicle = (type = 'ambulance') => {
     }, 10000)
   }
 
-  // 2. Lumo 語音提示
+  // 2. Lumo 語音提示（強制顯示在對話框）
   if (lumoRef.value) {
-    // 假設 Lumo 有一個 speak 或 showMessage 方法
-    // 這裡先嘗試直接調用，如果沒有則可能需要擴充 Lumo
-    // 暫時用 notify 模擬
-    $q.notify({
-      type: 'warning',
-      message: '🚑 注意！救護車接近中！請避讓！',
-      position: 'top',
-      timeout: 5000,
-    })
+    // 使用 Lumo 的 showEmergency 方法強制顯示緊急訊息
+    if (window.lumoTooltipManager && window.lumoTooltipManager.showEmergency) {
+      const message = `🚑 緊急通知！${directionChinese[randomDirection]}即將有救護車通過，請注意避讓！`
+      window.lumoTooltipManager.showEmergency(message)
+    }
   }
 
-  // 3. 生成車輛
-  // 隨機選擇一個方向生成
-  const directions = ['east', 'west', 'south', 'north']
-  const randomDirection = directions[Math.floor(Math.random() * directions.length)]
-  // 緊急車輛通常走內側車道 (Lane 1 或 2)
-  const laneNumber = Math.random() > 0.5 ? 1 : 2
+  // 3. 也顯示 Quasar 通知作為備援
+  $q.notify({
+    type: 'warning',
+    message: `🚑 注意！救護車從${directionChinese[randomDirection] || '某方向'}接近中！請避讓！`,
+    position: 'top',
+    timeout: 5000,
+  })
 
+  // 4. 生成車輛
   const pathStartPosition = Vehicle.getPathStartPosition(randomDirection, laneNumber)
 
   if (pathStartPosition) {

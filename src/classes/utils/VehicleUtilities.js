@@ -489,9 +489,6 @@ export class VehicleDOMUtils {
     div.style.position = 'absolute'
     div.style.width = `${vehicleConfig.width}px`
     div.style.height = `${vehicleConfig.height}px`
-    div.style.backgroundImage = `url('${vehicleConfig.image}')`
-    div.style.backgroundSize = 'contain'
-    div.style.backgroundRepeat = 'no-repeat'
     div.style.zIndex = '10'
     div.style.top = '0'
     div.style.left = '0'
@@ -510,14 +507,74 @@ export class VehicleDOMUtils {
       div.style.transform = transformValues.join(' ')
     }
 
-    // 🚨 緊急車輛視覺特效 (CSS Filter)
-    // 因為暫時沒有專用圖片，使用濾鏡來區分
+    // 🚨 救護車特殊處理：使用雙層結構避免 filter 影響紅十字
     if (options.vehicleType === 'ambulance') {
-      // 救護車：亮白色/紅色調 + 紅色光暈
-      div.style.filter = 'brightness(1.5) sepia(1) saturate(5) hue-rotate(-50deg) drop-shadow(0 0 5px red)'
-    } else if (options.vehicleType === 'police') {
-      // 警車：藍色調 + 藍色光暈
-      div.style.filter = 'brightness(1.2) sepia(1) saturate(5) hue-rotate(180deg) drop-shadow(0 0 5px blue)'
+      // 創建內層圖片容器（套用 filter）
+      const imageContainer = document.createElement('div')
+      imageContainer.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url('${vehicleConfig.image}');
+        background-size: contain;
+        background-repeat: no-repeat;
+        filter: grayscale(100%) brightness(2.5) contrast(1.2);
+      `
+      div.appendChild(imageContainer)
+
+      // 創建紅色十字標記（在外層，不受 filter 影響）
+      const crossMark = document.createElement('div')
+      crossMark.className = 'ambulance-cross'
+      // 十字尺寸為車體的 50%
+      const crossWidth = vehicleConfig.width * 0.5
+      const crossHeight = vehicleConfig.height * 0.5
+      crossMark.style.cssText = `
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: ${crossWidth}px;
+        height: ${crossHeight}px;
+        pointer-events: none;
+        z-index: 2;
+      `
+
+      // 創建十字的橫線（線條寬度 4px）
+      const horizontal = document.createElement('div')
+      horizontal.style.cssText = `
+        position: absolute;
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+        width: 100%;
+        height: 4px;
+        background: #ff0000;
+        box-shadow: 0 0 4px rgba(255, 0, 0, 0.8);
+      `
+
+      // 創建十字的豎線（線條寬度 4px）
+      const vertical = document.createElement('div')
+      vertical.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 4px;
+        height: 100%;
+        background: #ff0000;
+        box-shadow: 0 0 4px rgba(255, 0, 0, 0.8);
+      `
+
+      crossMark.appendChild(horizontal)
+      crossMark.appendChild(vertical)
+      div.appendChild(crossMark)
+    } else {
+      // 普通車輛：直接設置背景圖片
+      div.style.backgroundImage = `url('${vehicleConfig.image}')`
+      div.style.backgroundSize = 'contain'
+      div.style.backgroundRepeat = 'no-repeat'
     }
 
     return div

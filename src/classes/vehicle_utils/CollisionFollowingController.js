@@ -38,6 +38,11 @@ export class CollisionFollowingController {
       return { isFollowing: false, distance: Infinity, action: 'none' }
     }
 
+    // 🚑 救護車特權：救護車無需排隊，直接通行
+    if (this.vehicle.vehicleType === 'ambulance') {
+      return { isFollowing: false, distance: Infinity, action: 'emergency_bypass' }
+    }
+
     // 🚨 防守：新進場的車輛（justCreated=true）不進行碰撞檢測
     if (this.vehicle.justCreated) {
       return { isFollowing: false, distance: Infinity, action: 'none' }
