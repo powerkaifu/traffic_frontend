@@ -1210,52 +1210,98 @@ onMounted(async () => {
     isMonitoring: false,
     monitorInterval: null,
 
+    // 🚀 新增：FPS 追蹤
+    frameCount: 0,
+    lastFpsUpdate: 0,
+    currentFps: 0,
+    fpsHistory: [], // 最近 60 個 FPS 樣本
+
+    // 🚀 新增：記憶體追蹤
+    memoryHistory: [], // 最近 60 個記憶體樣本
+
+    // 🚀 新增：FPS 更新方法（在 RAF 循環中調用）
+    updateFPS(currentTime) {
+      this.frameCount++
+      if (currentTime - this.lastFpsUpdate >= 1000) {
+        this.currentFps = this.frameCount
+        this.fpsHistory.push(this.currentFps)
+        if (this.fpsHistory.length > 60) this.fpsHistory.shift()
+
+        this.frameCount = 0
+        this.lastFpsUpdate = currentTime
+      }
+    },
+
+    // 🚀 新增：記憶體快照
+    getMemorySnapshot() {
+      if (!performance.memory) return null
+
+      return {
+        used: performance.memory.usedJSHeapSize / 1048576, // MB
+        total: performance.memory.totalJSHeapSize / 1048576,
+        limit: performance.memory.jsHeapSizeLimit / 1048576,
+        timestamp: Date.now(),
+      }
+    },
+
+    // 🚀 新增：統計彙總
+    getStats() {
+      const avgFps =
+        this.fpsHistory.length > 0 ? Math.round(this.fpsHistory.reduce((a, b) => a + b) / this.fpsHistory.length) : 0
+
+      const minFps = this.fpsHistory.length > 0 ? Math.min(...this.fpsHistory) : 0
+
+      return {
+        fps: {
+          current: this.currentFps,
+          average: avgFps,
+          min: minFps,
+        },
+        memory: this.getMemorySnapshot(),
+        vehicles: window.liveVehicles?.length || 0,
+      }
+    },
+
     start() {
       if (this.isMonitoring) return
-      this.isMonitoring = true
 
-      console.log('🔴 性能監測已啟動...')
+      this.isMonitoring = true
+      this.frameCount = 0
+      this.lastFpsUpdate = performance.now()
+      this.fpsHistory = []
+      this.memoryHistory = []
+
+      logger.log('📊 性能監控已啟動')
 
       this.monitorInterval = setInterval(() => {
-        const liveVehicles = window.liveVehicles || []
-        const trafficGen = this.trafficGenerator
+        const vehicleCount = window.liveVehicles?.length || 0
+        const memory = this.getMemorySnapshot()
 
-        // 獲取 GSAP 動畫數量（安全）
-        let gsapCount = 0
-        try {
-          // 不使用 getTweensOf()，改為查看 globalTimeline
-          gsapCount = gsap._ticker.fps || 0
-        } catch {
-          gsapCount = '計算中'
+        if (memory) {
+          this.memoryHistory.push(memory)
+          if (this.memoryHistory.length > 60) this.memoryHistory.shift()
+
+          logger.perf(
+            'Monitor',
+            `FPS: ${this.currentFps} | 車輛: ${vehicleCount} | 記憶體: ${memory.used.toFixed(1)}MB / ${memory.total.toFixed(1)}MB`,
+          )
+        } else {
+          logger.perf('Monitor', `FPS: ${this.currentFps} | 車輛: ${vehicleCount} | 記憶體: 不可用`)
         }
-
-        // 獲取當前配置
-        const currentTimePeriod = trafficGen?.trafficController?.getCurrentTimePeriod?.() || 'unknown'
-        const displayMult = trafficGen?._getDisplayMultiplierAdjustment?.() || 0
-        const maxLiveVehicles = trafficGen?.config?.maxLiveVehicles || 0
-
-        console.group('📊 【實時性能監測】')
-        console.log(`⏰ 時間: ${new Date().toLocaleTimeString()}`)
-        console.log(`🚗 活躍車輛: ${liveVehicles.length}/${maxLiveVehicles}`)
-        console.log(`🎭 時段: ${currentTimePeriod} | displayMult: ${displayMult}`)
-        console.log(`🎬 GSAP 狀態: ${gsapCount === 'N/A' ? '⚠️ 無法計算' : '✅ 運行中'}`)
-        console.log(`📦 Vue 數據大小: ${JSON.stringify(this.$data).length} bytes`)
-
-        // 檢查是否達到上限
-        if (liveVehicles.length >= maxLiveVehicles * 0.9) {
-          console.warn(`⚠️ 接近車輛上限！(${liveVehicles.length}/${maxLiveVehicles})`)
-        }
-        console.groupEnd()
-      }, 10000) // 每 10 秒輸出一次
+      }, 1000)
     },
 
     stop() {
+      if (!this.isMonitoring) return
+
+      this.isMonitoring = false
+
       if (this.monitorInterval) {
         clearInterval(this.monitorInterval)
         this.monitorInterval = null
-        this.isMonitoring = false
-        console.log('⚫ 性能監測已停止')
       }
+
+      logger.log('📊 性能監控已停止')
     },
   }
 
@@ -1271,7 +1317,16 @@ onMounted(async () => {
     }
   })
 
-  console.log('✅ [性能監測工具已啟用] 按 Ctrl+Shift+P 開始/停止監測')
+  // 🚀 【新增】快捷鍵：Ctrl+Shift+S 顯示統計摘要
+  window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && e.code === 'KeyS') {
+      e.preventDefault()
+      const stats = window.performanceMonitor.getStats()
+      logger.log('📊 性能統計摘要:', stats)
+    }
+  })
+
+  logger.log('✅ [性能監控已啟用] 按 Ctrl+Shift+P 開始/停止, Ctrl+Shift+S 查看統計')
 
   // ═══════════════════════════════════════════════════════════════════════
   // 【Step 3】✨ 統一的 RAF 主循環 - 驅動所有模擬邏輯 ✨
@@ -1295,6 +1350,11 @@ onMounted(async () => {
 
   function mainSimulationLoop(currentTime) {
     try {
+      // 🚀 【新增】更新 FPS 計數器（如果性能監控啟用）
+      if (window.performanceMonitor?.isMonitoring) {
+        window.performanceMonitor.updateFPS(currentTime)
+      }
+
       // 計算 Delta Time（毫秒）
       const deltaTimeMs = currentTime - lastFrameTime
       lastFrameTime = currentTime
