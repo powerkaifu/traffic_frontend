@@ -2,7 +2,6 @@
  * AutoTrafficGenerator.js - 自動車流分派系統
  */
 import gsap from 'gsap'
-import Vehicle from './Vehicle.js'
 import {
   getScenarioByTime,
   getScenarioByKey,
@@ -93,9 +92,6 @@ export default class AutoTrafficGenerator {
       nextSpawnTime: 0, // 下次生成時間戳
     }
     this._scheduleNextEmergencyVehicle() // 計劃第一次生成
-
-    // 🚨 【新增】追蹤救護車狀態以觸發摩西分海效應
-    this.lastAmbulanceState = false
   }
 
   // 🚗 新增：從配置文件更新生成間隔參數
@@ -568,16 +564,6 @@ export default class AutoTrafficGenerator {
 
       // 6. 檢查並生成隨機救護車
       this._checkAndSpawnEmergencyVehicle(Date.now())
-
-      // 7. 🚨 【新增】檢查並更新緊急模式狀態（摩西分海效應）
-      // 檢測是否有活躍的救護車
-      const hasAmbulance = window.liveVehicles && window.liveVehicles.some((v) => v.vehicleType === 'ambulance')
-
-      if (hasAmbulance !== this.lastAmbulanceState) {
-        this.lastAmbulanceState = hasAmbulance
-        // 切換緊急模式：有救護車時開啟，無救護車時關閉
-        Vehicle.setEmergencyMode(hasAmbulance)
-      }
     }
   }
 

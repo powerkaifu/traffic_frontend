@@ -763,7 +763,7 @@ const spawnEmergencyVehicle = (type = 'ambulance') => {
       type,
       laneNumber,
       0,
-      80, // 緊急車輛速度較快
+      null, // 🚨 修復：移除硬編碼速度，使用配置的 15-20 km/h
     )
   }
 }
@@ -806,7 +806,8 @@ const spawnEmergencyVehicleWithDirection = (type = 'ambulance', direction = null
   // 4. 生成車輛
   const pathStartPosition = Vehicle.getPathStartPosition(randomDirection, laneNumber)
   if (pathStartPosition) {
-    createVehicleWithPosition(pathStartPosition.x, pathStartPosition.y, randomDirection, type, laneNumber, 0, 80)
+    // 🚨 修復：移除硬編碼的 80 速度，改為 null，讓 Vehicle 類別使用配置的隨機速度 (15-20 km/h)
+    createVehicleWithPosition(pathStartPosition.x, pathStartPosition.y, randomDirection, type, laneNumber, 0, null)
   }
 }
 
@@ -1551,15 +1552,21 @@ onMounted(async () => {
         const trafficController = window.trafficController
         const allVehicles = window.liveVehicles
 
+        // 🚨 【新增】預先篩選救護車，避免在每個車輛中重複篩選 (O(N) vs O(N^2))
+        const ambulances = allVehicles.filter((v) => v.vehicleType === 'ambulance')
+
         // 遍歷所有活動車輛，執行低頻決策邏輯
         for (const vehicle of allVehicles) {
           try {
             // 調用 Vehicle.updateLogic()：包含停止線檢查和紅綠燈控制
             if (vehicle && typeof vehicle.updateLogic === 'function') {
               vehicle.updateLogic(trafficController, allVehicles)
+
+              // 🚨 【新增】檢查與救護車的距離並調整速度（摩西分海效應 - 局部版）
+              vehicle.updateEmergencyProximity(ambulances)
             }
           } catch (e) {
-            console.error(`❌ [Vehicle.updateLogic] 車輛 ${vehicle?.id} 出現異常:`, e)
+            console.warn(`⚠️ Vehicle logic update error for ${vehicle.id}:`, e)
           }
         }
 

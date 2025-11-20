@@ -161,7 +161,7 @@ export default class Vehicle {
     }
 
     // 🚨 【新增】初始化緊急模式倍數
-    this.emergencyMultiplier = Vehicle.isEmergencyMode && this.vehicleType !== 'ambulance' ? 0.4 : 1.0
+    this.emergencyMultiplier = 1.0
 
     // Composite Pattern: 車輛由多個元件組成（主體元素）
     this.element = this.createElement()
@@ -270,27 +270,72 @@ export default class Vehicle {
     // 計算最終倍數：天氣 * 緊急模式
     const finalMultiplier = this.weatherMultiplier * this.emergencyMultiplier
 
+    // console.log(`🚗 [${this.id}] 更新速度: 天氣=${this.weatherMultiplier}x, 緊急=${this.emergencyMultiplier}x, 最終=${finalMultiplier}x`)
+
     this.movementTimeline.timeScale(finalMultiplier)
   }
 
-  // 🚨 【新增】靜態方法：設置緊急模式（摩西分海效應）
-  static setEmergencyMode(active) {
-    if (Vehicle.isEmergencyMode === active) return
+  // 🚨 【新增】檢查與救護車的距離並調整速度（局部避讓效應）
+  updateEmergencyProximity(ambulances) {
+    // 如果自己是救護車，不需要避讓
+    if (this.vehicleType === 'ambulance') {
+      if (this.emergencyMultiplier !== 1.0) {
+        this.emergencyMultiplier = 1.0
+        this.updateSpeed()
+      }
+      return
+    }
 
-    Vehicle.isEmergencyMode = active
-    console.log(`🚨 [Vehicle] 緊急模式已${active ? '啟動' : '結束'}，調整車輛速度...`)
+    // 如果沒有救護車，恢復正常速度
+    if (!ambulances || ambulances.length === 0) {
+      if (this.emergencyMultiplier !== 1.0) {
+        this.emergencyMultiplier = 1.0
+        this.updateSpeed()
+      }
+      return
+    }
 
-    if (window.liveVehicles) {
-      window.liveVehicles.forEach((vehicle) => {
-        // 救護車不受影響，其他車輛減速
-        if (vehicle.vehicleType === 'ambulance') {
-          vehicle.emergencyMultiplier = 1.0
-        } else {
-          // 緊急模式下減速至 0.4x，否則恢復 1.0x
-          vehicle.emergencyMultiplier = active ? 0.4 : 1.0
-        }
-        vehicle.updateSpeed()
-      })
+    // 尋找最近的救護車距離
+    let minDistance = Infinity
+
+    // 獲取自己的位置
+    const myPos = this.getCurrentPosition()
+    if (!myPos) return
+
+    for (const ambulance of ambulances) {
+      // 忽略自己（雖然前面已經檢查過 vehicleType）
+      if (ambulance.id === this.id) continue
+
+      // 🚨 【修改】只檢查同方向的救護車
+      // 不同方向的車輛不需要避讓，避免影響對向交通
+      if (ambulance.direction !== this.direction) continue
+
+      const ambPos = ambulance.getCurrentPosition()
+      if (!ambPos) continue
+
+      // 計算歐幾里得距離
+      const dx = myPos.x - ambPos.x
+      const dy = myPos.y - ambPos.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+
+      if (distance < minDistance) {
+        minDistance = distance
+      }
+    }
+
+    // 判斷是否在避讓範圍內 (150px)
+    const YIELD_RADIUS = 150
+    const targetMultiplier = minDistance < YIELD_RADIUS ? 0.5 : 1.0
+
+    // 只有當倍數改變時才更新
+    if (this.emergencyMultiplier !== targetMultiplier) {
+      this.emergencyMultiplier = targetMultiplier
+      this.updateSpeed()
+
+      // 僅在進入避讓模式時記錄日誌
+      if (targetMultiplier < 1.0 && process.env.DEV && Math.random() < 0.05) {
+        console.log(`🚗 [${this.id}] 進入救護車避讓範圍 (${Math.round(minDistance)}px)，減速至 0.5x`)
+      }
     }
   }
 
@@ -1724,8 +1769,8 @@ export default class Vehicle {
       this.initialSpeed *= this.weatherMultiplier
     }
 
-    // 🚨 【新增】重置時應用當前緊急模式倍數
-    this.emergencyMultiplier = Vehicle.isEmergencyMode && this.vehicleType !== 'ambulance' ? 0.4 : 1.0
+    // 🚨 【新增】重置時初始化緊急模式倍數
+    this.emergencyMultiplier = 1.0
 
     // 🚨【關鍵】標記為剛重置，防止 moveAlongPath 覆蓋位置
     this.isJustReset = true

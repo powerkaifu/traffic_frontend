@@ -250,7 +250,14 @@ export class RandomSpeedUtils {
 
     // 生成指定範圍內的隨機速度
     const randomSpeed = range.min + Math.random() * (range.max - range.min)
-    return Math.round(randomSpeed)
+    const finalSpeed = Math.round(randomSpeed)
+
+    // 🚑 調試：記錄救護車速度
+    if (vehicleType === 'ambulance') {
+      console.log(`🚑 [RandomSpeedUtils] 救護車速度: ${finalSpeed} km/h (範圍: ${range.min}-${range.max})`)
+    }
+
+    return finalSpeed
   }
 }
 
