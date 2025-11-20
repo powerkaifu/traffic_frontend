@@ -196,8 +196,14 @@ export default class Vehicle {
     // 🚀 新增：碰撞跟隨控制器（專門處理安全距離）
     this.collisionFollowingController = new CollisionFollowingController(this)
 
+    // 🚀 新增：效能優化 - 活躍狀態標誌
+    this.isActive = true
+
     // 🚦 【新增】監聽燈號變化事件，讓等待的車輛立即響應
     this.lightStateChangeHandler = (event) => {
+      // 🚀 效能優化：如果車輛不活躍（在物件池中），直接忽略事件
+      if (!this.isActive) return
+
       const { direction, state } = event.detail
 
       // 只關注本方向的燈號變化
@@ -209,6 +215,9 @@ export default class Vehicle {
       if (this.waitingForGreen && this.isAtStopLine) {
         // 異步重新評估，避免在事件處理中進行複雜操作
         setTimeout(() => {
+          // 再次檢查活躍狀態（防止在 timeout 期間被回收）
+          if (!this.isActive) return
+
           // 重置狀態以便重新檢查停止線邏輯
           this.isAtStopLine = false
           this.waitingForGreen = false
@@ -1530,6 +1539,7 @@ export default class Vehicle {
     this.isRemoved = false
     this.isCompleted = false
     this.isAnimationStarted = false
+    this.isActive = false // 🚀 效能優化：重置時設為不活躍（直到被 acquire 激活）
 
     // 🔄 重置隊列狀態
     this.isInQueue = false

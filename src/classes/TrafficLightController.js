@@ -368,21 +368,6 @@ export default class TrafficLightController {
                     lastReportedSecond = remaining
                     self.postMessage({
                       type: 'tick',
-                      remaining,
-                      elapsed,
-                    })
-                  }
-
-                  // ✅ 新增：檢查是否需要觸發 API
-                  if (apiTriggerSecond !== null && remaining === apiTriggerSecond && !apiTriggered) {
-                    apiTriggered = true
-                    self.postMessage({
-                      type: 'api_trigger',
-                      remaining,
-                      elapsed,
-                    })
-                  }
-
                   // ✅ 精確檢查完成條件：允許 ±50ms 的偏差
                   if (elapsed >= duration - 50) {
                     clearInterval(countdownInterval)
@@ -949,16 +934,16 @@ export default class TrafficLightController {
             this.onTimerUpdate(null, remainingSeconds)
           }
 
-          // Strategy Pattern: 在剩餘指定秒數時觸發API
-          if (remainingSeconds === actualTriggerSeconds && !apiTriggered) {
-            logInfo(`⏰ [API觸發] 剩餘 ${remainingSeconds} 秒，開始 AI 預測流程...`)
+          // Strategy Pattern:        // 檢查是否達到 API 觸發時間
+          // 🚨【修復】使用 <= 避免錯過
+          if (remainingSeconds <= actualTriggerSeconds && !apiTriggered) {
+            logInfo(`⏰ [API觸發] 倒數 ${remainingSeconds} 秒 (觸發點: ${actualTriggerSeconds})`)
+            apiTriggered = true // 標記已觸發
 
             // 收集數據並發送 API
             const currentCycleData = this.collectIntersectionData()
             this.sendDataToBackend(currentCycleData)
             this.updateFeatureSimulationDisplay(currentCycleData)
-
-            apiTriggered = true
           }
         }
 

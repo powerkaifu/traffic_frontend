@@ -79,6 +79,10 @@ export class VehiclePool {
       vehicle.currentY = y
       // 🚨 標記位置已設置，防止 moveAlongPath 中的路徑起始點邏輯覆蓋
       vehicle.isJustReset = true
+
+      // 🚀 效能優化：激活車輛，允許處理事件
+      vehicle.isActive = true
+
       // console.log(`✅ [VehiclePool.acquire] ${vehicle.id} 可見性已恢復，位置設置為 (${x}, ${y})，autoAlpha=1`)
     } else {
       // ❌ 池空，建立新車輛
