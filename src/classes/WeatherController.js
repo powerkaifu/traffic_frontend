@@ -191,25 +191,27 @@ export class WeatherController {
         break
     }
 
-    // 🌤️ 【優化】延遲廣播天氣改變事件 (1.5秒)
-    // 原因：讓天氣動畫先初始化並穩定，錯開「天氣生成」與「車輛變速」的 CPU 負載高峰
-    // 這也符合真實世界邏輯：駕駛看到天氣變化後需要反應時間
-    // 🌤️ 【優化】延遲廣播天氣改變事件 (1.5秒)
-    // 🚀 優化：使用 gsap.delayedCall 替代 setTimeout，確保與 RAF 循環同步
-    // 這能避免在瀏覽器忙碌時 setTimeout 堆積導致的執行延遲或卡頓
-    gsap.delayedCall(1.5, () => {
-      const weatherMultiplier = this.getSpeedMultiplier()
-      window.dispatchEvent(
-        new CustomEvent('weatherChanged', {
-          detail: {
-            weather: weatherType,
-            multiplier: weatherMultiplier,
-            timestamp: Date.now(),
-          },
-        }),
-      )
-      console.log(`🌤️ 廣播天氣改變事件: ${weatherType} (倍數: ${weatherMultiplier.toFixed(2)}x)`)
-    })
+    // 🌤️ 【最佳化】立即廣播天氣改變事件（不延遲）
+    // 原因：AutoTrafficGenerator 會在 _smoothSpeedTransition 中平滑改變速度
+    //      所有車輛會通過 weatherSpeedChange 事件立即收到通知
+    //      無需延遲，避免用戶感受到明顯的卡頓
+    // 時間軸：
+    // - 0ms: 廣播 weatherChanged 和 weatherSpeedChange 事件
+    // - 0-2s: 粒子漸進生成 + 速度平滑過度（同時進行）
+    // - 2s+: 完成過度，回到正常狀態
+    const weatherMultiplier = this.getSpeedMultiplier()
+
+    // 廣播天氣改變事件（用於 AutoTrafficGenerator 和其他系統）
+    window.dispatchEvent(
+      new CustomEvent('weatherChanged', {
+        detail: {
+          weather: weatherType,
+          multiplier: weatherMultiplier,
+          timestamp: Date.now(),
+        },
+      }),
+    )
+    console.log(`🌤️ 廣播天氣改變事件: ${weatherType} (倍數: ${weatherMultiplier.toFixed(2)}x)`)
   }
 
   /**
@@ -275,7 +277,19 @@ export class WeatherController {
       if (createdCount < actualCount) {
         this.generationTask = requestAnimationFrame(generateBatch)
       } else {
+        // 🚀【優化】粒子生成完成，通知系統
         this.generationTask = null
+        console.log(`✅ [粒子生成完成] 共生成 ${createdCount} 個粒子`)
+
+        // 通知系統粒子生成已完成，可以恢復其他計算
+        window.dispatchEvent(
+          new CustomEvent('particleGenerationComplete', {
+            detail: {
+              particleCount: createdCount,
+              timestamp: Date.now(),
+            },
+          }),
+        )
       }
     }
 
@@ -650,11 +664,10 @@ export class WeatherController {
     }
 
     // 隨機間隔時間
-    const interval = (config.MIN_INTERVAL + Math.random() * (config.MAX_INTERVAL - config.MIN_INTERVAL)) * 1000
+    const interval = config.MIN_INTERVAL + Math.random() * (config.MAX_INTERVAL - config.MIN_INTERVAL)
 
-    this.lightningInterval = setTimeout(() => {
-      this.triggerLightning()
-    }, interval)
+    // 🚀 優化：改用累積計時器而非 setTimeout，由主循環驅動
+    this.lightningNextScheduleTime = Date.now() + interval * 1000
   }
 
   /**
@@ -683,7 +696,8 @@ export class WeatherController {
 
     // 有機率觸發雙重閃電
     if (Math.random() < config.DOUBLE_FLASH_CHANCE) {
-      setTimeout(() => {
+      // 🚀 優化：使用 GSAP delayedCall 替代 setTimeout，確保與 RAF 同步
+      gsap.delayedCall(config.DOUBLE_FLASH_DELAY, () => {
         if (this.lightningLayer) {
           gsap.to(this.lightningLayer, {
             opacity: 0.8,
@@ -698,7 +712,7 @@ export class WeatherController {
             },
           })
         }
-      }, config.DOUBLE_FLASH_DELAY * 1000)
+      })
     }
 
     // 安排下一次閃電

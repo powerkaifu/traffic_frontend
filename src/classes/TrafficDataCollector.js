@@ -246,9 +246,9 @@ export default class TrafficDataCollector {
    * 開始定期數據收集
    */
   startPeriodicCollection() {
-    this.collectionTimer = setInterval(() => {
-      this.collectCurrentTrafficState()
-    }, this.config.collectionInterval)
+    // 🚀 優化：改用累積計時器而非 setInterval，由主循環驅動
+    this.collectionLastTime = Date.now()
+    this.collectionNextTime = Date.now() + this.config.collectionInterval
   }
 
   /**

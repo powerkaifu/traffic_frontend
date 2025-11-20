@@ -534,9 +534,6 @@ const {
   adaptiveFlowController,
   trafficDataCollector,
   getCountdownStyle,
-  setupTrafficLightListeners,
-  startTrafficSystem,
-  stopTrafficSystem,
 } = useTrafficLightSystem(store)
 
 // ✅ 使用 useVehicleManager composable 管理車輛邏輯
@@ -546,9 +543,7 @@ const {
   createVehicleWithPosition: createVehicleWithPositionComposable,
   removeVehicleFromSimulation: removeVehicleFromSimulationComposable,
   handleVehicleOutOfBounds: handleVehicleOutOfBoundsComposable,
-  clearAllVehicles: clearAllVehiclesComposable,
   disposeVehiclePool,
-  cleanupActiveVehicles,
 } = useVehicleManager(store, vehicleContainer, crossroadContainer)
 // AI 預測結果
 const aiPrediction = ref({
@@ -836,35 +831,6 @@ const getNorthLane1Path = () => pathFunctions.value.getNorthLane1Path()
 const getNorthLane2Path = () => pathFunctions.value.getNorthLane2Path()
 const getNorthLane3Path = () => pathFunctions.value.getNorthLane3Path()
 const getNorthLane4Path = () => pathFunctions.value.getNorthLane4Path()
-
-// ✅ Phase 5：【新增】統一的車輛移除方法 - 集中化車輛生命週期管理
-// 這個方法是唯一的車輛移除入口，確保所有移除邏輯一致
-function removeVehicleFromSimulation(vehicleId) {
-  try {
-    // 1. 從 activeCars.value 移除
-    const idx = activeCars.value.findIndex((v) => v.id === vehicleId)
-    if (idx !== -1) {
-      activeCars.value.splice(idx, 1)
-    }
-
-    // 2. 從 window.liveVehicles 移除
-    if (window.liveVehicles) {
-      const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicleId)
-      if (liveIdx !== -1) {
-        window.liveVehicles.splice(liveIdx, 1)
-      }
-    }
-
-    // 3. 從 Store 移除
-    if (store && store.removeVehicle && typeof store.removeVehicle === 'function') {
-      store.removeVehicle(vehicleId)
-    }
-
-    // console.log(`✅ [${vehicleId}] 已從模擬中完全移除`)
-  } catch (error) {
-    console.warn(`⚠️ [${vehicleId}] 移除失敗: ${error.message}`)
-  }
-}
 
 onMounted(async () => {
   console.log('═══════════════════════════════════════════════════════════')
@@ -1334,6 +1300,9 @@ onMounted(async () => {
       // ✅ 限制 deltaTime（防止瀏覽器標籤頁切換導致的巨大時間跳躍）
       const clampedDeltaTime = Math.min(deltaTimeMs, 100)
 
+      // 🌤️ 【新增】檢查天氣過度狀態
+      const isWeatherTransitioning = window.isWeatherTransitioning || false
+
       // ═══════════════════════════════════════════════════════════════════════
       // 1. 🎯 驅動車輛生成引擎 (AutoTrafficGenerator)
       // ═══════════════════════════════════════════════════════════════════════
@@ -1370,8 +1339,9 @@ onMounted(async () => {
       // ═══════════════════════════════════════════════════════════════════════
       // 3. 🎯 執行所有 Vehicle 的定期邏輯 (原來由 Vehicle.js 的 setInterval 驅動)
       // ═══════════════════════════════════════════════════════════════════════
-      const runPeriodicCheck = periodicCheckAccumulator >= 50 // 每 50ms 執行一次
-      const runStuckCheck = stuckCheckAccumulator >= 5000 // 每 5 秒執行一次
+      // 🌤️ 【優化】天氣過度時，跳過計算密集的操作，只做基本位置更新
+      const runPeriodicCheck = !isWeatherTransitioning && periodicCheckAccumulator >= 50 // 每 50ms 執行一次
+      const runStuckCheck = !isWeatherTransitioning && stuckCheckAccumulator >= 5000 // 每 5 秒執行一次
 
       if (window.liveVehicles && (runPeriodicCheck || runStuckCheck)) {
         for (const vehicle of window.liveVehicles) {
@@ -1572,8 +1542,10 @@ onMounted(async () => {
       // ═══════════════════════════════════════════════════════════════════════
       // 原因：checkStopLineAndRespond 不需要每幀執行，降頻到 100ms 即可
       // 效果：減少 85% 的決策調用（從 6000/秒 → 1000/秒）
+      // 🌤️ 【優化】天氣過度時，暫停決策邏輯以降低 CPU 負載
       // ═══════════════════════════════════════════════════════════════════════
-      const runVehicleLogicUpdate = vehicleLogicUpdateAccumulator >= VEHICLE_LOGIC_UPDATE_INTERVAL
+      const runVehicleLogicUpdate =
+        !isWeatherTransitioning && vehicleLogicUpdateAccumulator >= VEHICLE_LOGIC_UPDATE_INTERVAL
 
       if (window.liveVehicles && runVehicleLogicUpdate && window.trafficController) {
         const trafficController = window.trafficController

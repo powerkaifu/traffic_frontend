@@ -532,11 +532,11 @@ export class VehicleDOMUtils {
       const crossMark = document.createElement('div')
       crossMark.className = 'ambulance-cross'
       // 十字尺寸為車體的 50%
-      const crossWidth = vehicleConfig.width * 0.5
-      const crossHeight = vehicleConfig.height * 0.5
+      const crossWidth = vehicleConfig.width * 0.4
+      const crossHeight = vehicleConfig.height * 0.6
       crossMark.style.cssText = `
         position: absolute;
-        top: 50%;
+        top: calc(50% - 1px);
         left: 50%;
         transform: translate(-50%, -50%);
         width: ${crossWidth}px;

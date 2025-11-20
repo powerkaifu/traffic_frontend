@@ -1,6 +1,8 @@
 /**
  * AutoTrafficGenerator.js - 自動車流分派系統
  */
+import gsap from 'gsap'
+import Vehicle from './Vehicle.js'
 import {
   getScenarioByTime,
   getScenarioByKey,
@@ -79,14 +81,21 @@ export default class AutoTrafficGenerator {
     this.weatherGenerationMultiplier = 1.0 // 天氣生成倍數（晴天=1.0，下雨=0.75，下雪=0.6）
     this.currentWeatherContext = 'clear' // 當前天氣類型（clear, rain, heavyRain, fog, snow）
 
+    // 🚀 【新增】速度過度狀態 - 用於平滑改變所有車輛速度，避免 CPU 100%
+    this.speedTransitionState = { multiplier: 1.0 } // GSAP 會更新這個值
+    this.speedTransitionTimeline = null // 過度動畫的 GSAP timeline
+
     // 🚑 救護車隨機生成配置
     this.emergencyVehicleConfig = {
       enabled: true, // 是否啟用隨機救護車生成
-      minInterval: 60000, // 最小生成間隔（毫秒）- 60秒
-      maxInterval: 120000, // 最大生成間隔（毫秒）- 120秒
+      minInterval: 5000, // 最小生成間隔（毫秒）- 60秒
+      maxInterval: 10000, // 最大生成間隔（毫秒）- 120秒
       nextSpawnTime: 0, // 下次生成時間戳
     }
     this._scheduleNextEmergencyVehicle() // 計劃第一次生成
+
+    // 🚨 【新增】追蹤救護車狀態以觸發摩西分海效應
+    this.lastAmbulanceState = false
   }
 
   // 🚗 新增：從配置文件更新生成間隔參數
@@ -214,6 +223,10 @@ export default class AutoTrafficGenerator {
       console.log(
         `🌤️ [AutoTrafficGenerator] 天氣已更新: ${weatherType}, 生成倍數: ${this.weatherGenerationMultiplier.toFixed(2)}x`,
       )
+
+      // 🚀 【優化】使用平滑過度改變速度，而不是瞬間改變
+      // 避免所有車輛同時變速導致 CPU 100%
+      this._smoothSpeedTransition(speedMultiplier || 1.0, 2000) // 2 秒內平滑過度
     }
 
     window.addEventListener('weatherChanged', window._autoTrafficWeatherListener)
@@ -228,6 +241,71 @@ export default class AutoTrafficGenerator {
       window.removeEventListener('weatherChanged', window._autoTrafficWeatherListener)
       window._autoTrafficWeatherListener = null
     }
+  }
+
+  /**
+   * 🚀 【新增】平滑改變速度倍數，避免 CPU 100% 暴升
+   * @param {number} targetMultiplier - 目標速度倍數
+   * @param {number} duration - 過度持續時間（毫秒）
+   * @private
+   */
+  _smoothSpeedTransition(targetMultiplier, duration = 2000) {
+    // 終止舊的過度動畫
+    if (this.speedTransitionTimeline) {
+      this.speedTransitionTimeline.kill()
+    }
+
+    // 🚀【優化】標記開始天氣過度，暫停非關鍵計算
+    // 這避免了粒子生成、速度改變、碰撞檢測同時進行導致的 CPU 100%
+    window.isWeatherTransitioning = true
+    window.dispatchEvent(new CustomEvent('weatherTransitionStart', {}))
+    console.log(`⏸️ [天氣過度] 開始暫停非關鍵計算...`)
+
+    // 🚀【優化】第一次廣播時，立即更新所有現有車輛
+    // 避免每幀都遍歷，改用事件廣播方式
+    const liveVehicles = this.simulationStore ? this.simulationStore.getLiveVehicles() : []
+    console.log(
+      `🌤️ [速度過度] 開始更新 ${liveVehicles.length} 輛車的速度倍數: ${this.speedTransitionState.multiplier.toFixed(2)}x → ${targetMultiplier.toFixed(2)}x`,
+    )
+
+    // 廣播天氣速度改變事件，讓所有車輛立即做出反應
+    window.dispatchEvent(
+      new CustomEvent('weatherSpeedChange', {
+        detail: {
+          targetMultiplier,
+          duration,
+          timestamp: Date.now(),
+        },
+      }),
+    )
+
+    // 使用 GSAP 平滑改變倍數值
+    this.speedTransitionTimeline = gsap.to(this.speedTransitionState, {
+      multiplier: targetMultiplier,
+      duration: duration / 1000, // 轉為秒
+      ease: 'power2.inOut', // 平滑曲線
+      onUpdate: () => {
+        // 每幀更新新車生成時使用的倍數
+        this.weatherGenerationMultiplier = this.speedTransitionState.multiplier
+
+        if (process.env.DEV) {
+          // 只在開發模式偶爾輸出
+          if (Math.random() < 0.02) {
+            console.log(`🌤️ [速度過度] 當前倍數: ${this.speedTransitionState.multiplier.toFixed(2)}x`)
+          }
+        }
+      },
+      onComplete: () => {
+        console.log(`✅ [速度過度完成] 最終倍數: ${targetMultiplier.toFixed(2)}x`)
+
+        // 🚀【優化】過度完成後，恢復非關鍵計算
+        window.isWeatherTransitioning = false
+        window.dispatchEvent(new CustomEvent('weatherTransitionEnd', {}))
+        console.log(`▶️ [天氣過度] 恢復非關鍵計算...`)
+
+        this.speedTransitionTimeline = null
+      },
+    })
   }
 
   // 🎯【新增】設置 VD 情景
@@ -304,10 +382,13 @@ export default class AutoTrafficGenerator {
     }
 
     // 🔧 CRITICAL FIX：清除情景模式計時器，防止它覆蓋手動設定
+    // 🚀 優化：改為清除計時器標誌而非 setInterval
     if (this.scenarioModeTimer) {
       clearInterval(this.scenarioModeTimer)
       this.scenarioModeTimer = null
     }
+    this.scenarioModeLastApplyTime = null
+    this.scenarioModeApplyInterval = null
 
     // 🔧 CRITICAL FIX：清除 currentScenarioMode，防止 _getDisplayMultiplierAdjustment() 讀取舊配置
     if (this.currentScenarioMode) {
@@ -487,6 +568,16 @@ export default class AutoTrafficGenerator {
 
       // 6. 檢查並生成隨機救護車
       this._checkAndSpawnEmergencyVehicle(Date.now())
+
+      // 7. 🚨 【新增】檢查並更新緊急模式狀態（摩西分海效應）
+      // 檢測是否有活躍的救護車
+      const hasAmbulance = window.liveVehicles && window.liveVehicles.some((v) => v.vehicleType === 'ambulance')
+
+      if (hasAmbulance !== this.lastAmbulanceState) {
+        this.lastAmbulanceState = hasAmbulance
+        // 切換緊急模式：有救護車時開啟，無救護車時關閉
+        Vehicle.setEmergencyMode(hasAmbulance)
+      }
     }
   }
 
@@ -544,10 +635,11 @@ export default class AutoTrafficGenerator {
     // 立即套用一次該情景
     this._applyScenarioMode(scenarioKey)
 
-    // 持續應用該情景模式（每 2 秒更新一次配置）
-    this.scenarioModeTimer = setInterval(() => {
-      this._applyScenarioMode(scenarioKey)
-    }, 2000)
+    // 🚀 優化：改用累積計時器而非 setInterval，由主循環驅動
+    // 改為：this.scenarioModeLastApplyTime = Date.now()
+    // 在 mainSimulationLoop 中每 2000ms 檢查一次
+    this.scenarioModeLastApplyTime = Date.now()
+    this.scenarioModeApplyInterval = 2000
 
     const scenarioName = this._getScenarioModeName(scenarioKey)
     console.log(`✅ [情景模式] 已成功切換至：${scenarioName}`)

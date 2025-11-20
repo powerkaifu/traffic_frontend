@@ -154,11 +154,14 @@ export default class Vehicle {
 
     // 🌤️ 【修復】新生成的車輛也必須受到當前天氣的影響
     // 獲取當前的天氣速度倍數並應用到初始速度
-    const weatherMultiplier = VehicleStaticManager.getWeatherSpeedMultiplier()
-    if (weatherMultiplier !== 1) {
-      this.initialSpeed *= weatherMultiplier
-      // console.log(`🚗 [${this.id}] 應用天氣速度倍數: ${weatherMultiplier}x, 調整後速度: ${this.initialSpeed.toFixed(2)}`)
+    this.weatherMultiplier = VehicleStaticManager.getWeatherSpeedMultiplier() || 1.0
+    if (this.weatherMultiplier !== 1) {
+      this.initialSpeed *= this.weatherMultiplier
+      // console.log(`🚗 [${this.id}] 應用天氣速度倍數: ${this.weatherMultiplier}x, 調整後速度: ${this.initialSpeed.toFixed(2)}`)
     }
+
+    // 🚨 【新增】初始化緊急模式倍數
+    this.emergencyMultiplier = Vehicle.isEmergencyMode && this.vehicleType !== 'ambulance' ? 0.4 : 1.0
 
     // Composite Pattern: 車輛由多個元件組成（主體元素）
     this.element = this.createElement()
@@ -235,6 +238,60 @@ export default class Vehicle {
       }
     }
     window.addEventListener('lightStateChanged', this.lightStateChangeHandler)
+
+    // 🌤️ 【新增】監聽天氣速度改變事件
+    this.weatherSpeedChangeHandler = (event) => {
+      // 🚀 效能優化：如果車輛不活躍（在物件池中），直接忽略事件
+      if (!this.isActive) return
+
+      const { targetMultiplier } = event.detail
+
+      // 更新天氣倍數
+      this.weatherMultiplier = targetMultiplier
+
+      // 應用綜合速度
+      this.updateSpeed()
+
+      if (process.env.DEV && Math.random() < 0.01) {
+        console.log(`🚗 [${this.id}] 天氣速度改變: ${targetMultiplier.toFixed(2)}x`)
+      }
+    }
+    window.addEventListener('weatherSpeedChange', this.weatherSpeedChangeHandler)
+  }
+
+  // 🚀 【新增】綜合速度更新方法
+  // 結合天氣倍數和緊急模式倍數
+  updateSpeed() {
+    if (!this.movementTimeline) return
+
+    // 如果車輛已經停止（例如紅燈），不需要立即改變速度
+    if (this.movementTimeline.timeScale() === 0) return
+
+    // 計算最終倍數：天氣 * 緊急模式
+    const finalMultiplier = this.weatherMultiplier * this.emergencyMultiplier
+
+    this.movementTimeline.timeScale(finalMultiplier)
+  }
+
+  // 🚨 【新增】靜態方法：設置緊急模式（摩西分海效應）
+  static setEmergencyMode(active) {
+    if (Vehicle.isEmergencyMode === active) return
+
+    Vehicle.isEmergencyMode = active
+    console.log(`🚨 [Vehicle] 緊急模式已${active ? '啟動' : '結束'}，調整車輛速度...`)
+
+    if (window.liveVehicles) {
+      window.liveVehicles.forEach((vehicle) => {
+        // 救護車不受影響，其他車輛減速
+        if (vehicle.vehicleType === 'ambulance') {
+          vehicle.emergencyMultiplier = 1.0
+        } else {
+          // 緊急模式下減速至 0.4x，否則恢復 1.0x
+          vehicle.emergencyMultiplier = active ? 0.4 : 1.0
+        }
+        vehicle.updateSpeed()
+      })
+    }
   }
 
   // 🚨 新增：防停滯機制
@@ -1661,6 +1718,15 @@ export default class Vehicle {
     this.maxSpeed = 0
     this.initialSpeed = this.generateRandomSpeed()
 
+    // 🌤️ 【修復】重置時也要應用當前天氣倍數
+    this.weatherMultiplier = VehicleStaticManager.getWeatherSpeedMultiplier() || 1.0
+    if (this.weatherMultiplier !== 1) {
+      this.initialSpeed *= this.weatherMultiplier
+    }
+
+    // 🚨 【新增】重置時應用當前緊急模式倍數
+    this.emergencyMultiplier = Vehicle.isEmergencyMode && this.vehicleType !== 'ambulance' ? 0.4 : 1.0
+
     // 🚨【關鍵】標記為剛重置，防止 moveAlongPath 覆蓋位置
     this.isJustReset = true
 
@@ -1779,6 +1845,12 @@ export default class Vehicle {
     if (this.lightStateChangeHandler) {
       window.removeEventListener('lightStateChanged', this.lightStateChangeHandler)
       this.lightStateChangeHandler = null
+    }
+
+    // 🌤️ 【新增】移除天氣速度改變事件監聽器
+    if (this.weatherSpeedChangeHandler) {
+      window.removeEventListener('weatherSpeedChange', this.weatherSpeedChangeHandler)
+      this.weatherSpeedChangeHandler = null
     }
 
     // 移除DOM元素
