@@ -167,6 +167,9 @@ export class WeatherController {
     // 設定新天氣
     this.currentWeather = weatherType
 
+    // 🚨 修復：在創建天氣效果之前設置 isActive，否則漸進式生成會立即返回
+    this.isActive = weatherType !== WEATHER_TYPES.CLEAR
+
     // 根據天氣類型啟用對應效果
     switch (weatherType) {
       case WEATHER_TYPES.RAIN:
@@ -187,8 +190,6 @@ export class WeatherController {
         // 晴天不需要額外效果
         break
     }
-
-    this.isActive = weatherType !== WEATHER_TYPES.CLEAR
 
     // 🌤️ 【新增】廣播天氣改變事件，讓已在路上的車輛受影響
     const weatherMultiplier = this.getSpeedMultiplier()
@@ -254,13 +255,9 @@ export class WeatherController {
         this.particles.push(raindrop)
 
         // 延遲啟動動畫，創造更自然的效果
-        // 注意：這裡的延遲是基於總數的索引
-        setTimeout(
-          () => {
-            this.animateRaindrop(raindrop)
-          },
-          (createdCount + i) * TRANSITION_CONFIG.PARTICLE_SPAWN_DELAY * 1000,
-        )
+        // 🚀 優化：移除 setTimeout，改用 GSAP delay
+        const delay = (createdCount + i) * TRANSITION_CONFIG.PARTICLE_SPAWN_DELAY
+        this.animateRaindrop(raindrop, delay)
       }
 
       // 將這一批次添加到容器
@@ -349,8 +346,10 @@ export class WeatherController {
 
   /**
    * 雨滴動畫
+   * @param {HTMLElement} raindrop - 雨滴元素
+   * @param {number} delay - 動畫延遲時間（秒）
    */
-  animateRaindrop(raindrop) {
+  animateRaindrop(raindrop, delay = 0) {
     const config = RAIN_CONFIG.ANIMATION
     const duration = config.MIN_DURATION + Math.random() * (config.MAX_DURATION - config.MIN_DURATION)
 
@@ -359,6 +358,7 @@ export class WeatherController {
       y: '120vh', // 落到螢幕下方
       x: `+=${config.WIND_OFFSET}`, // 風向偏移
       duration: duration,
+      delay: delay, // 🚀 使用 GSAP delay
       ease: 'none',
       repeat: -1, // 無限循環
       onRepeat: () => {
@@ -517,12 +517,9 @@ export class WeatherController {
         this.particles.push(snowflake)
 
         // 延遲啟動動畫
-        setTimeout(
-          () => {
-            this.animateSnowflake(snowflake)
-          },
-          (createdCount + i) * TRANSITION_CONFIG.PARTICLE_SPAWN_DELAY * 1000,
-        )
+        // 🚀 優化：移除 setTimeout，改用 GSAP delay
+        const delay = (createdCount + i) * TRANSITION_CONFIG.PARTICLE_SPAWN_DELAY
+        this.animateSnowflake(snowflake, delay)
       }
 
       snowContainer.appendChild(fragment)
@@ -574,8 +571,10 @@ export class WeatherController {
 
   /**
    * 雪花動畫
+   * @param {HTMLElement} snowflake - 雪花元素
+   * @param {number} delay - 動畫延遲時間（秒）
    */
-  animateSnowflake(snowflake) {
+  animateSnowflake(snowflake, delay = 0) {
     const config = SNOW_CONFIG.ANIMATION
     const duration = config.MIN_DURATION + Math.random() * (config.MAX_DURATION - config.MIN_DURATION)
 
@@ -584,6 +583,7 @@ export class WeatherController {
       y: '110vh',
       x: `+=${Math.random() * config.SWING_AMOUNT - config.SWING_AMOUNT / 2}`,
       duration: duration,
+      delay: delay, // 🚀 使用 GSAP delay
       ease: 'none',
       repeat: -1,
       onRepeat: () => {
