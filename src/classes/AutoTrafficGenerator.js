@@ -82,8 +82,8 @@ export default class AutoTrafficGenerator {
     // 🚑 救護車隨機生成配置
     this.emergencyVehicleConfig = {
       enabled: true, // 是否啟用隨機救護車生成
-      minInterval: 2000, // 最小生成間隔（毫秒）- 15秒（測試模式）
-      maxInterval: 4000, // 最大生成間隔（毫秒）- 30秒（測試模式）
+      minInterval: 10000, // 最小生成間隔（毫秒）- 10秒
+      maxInterval: 15000, // 最大生成間隔（毫秒）- 15秒
       nextSpawnTime: 0, // 下次生成時間戳
     }
     this._scheduleNextEmergencyVehicle() // 計劃第一次生成

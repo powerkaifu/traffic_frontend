@@ -22,7 +22,7 @@ const start = () => {
     // 確保先清除舊動畫
     if (flashTimeline) flashTimeline.kill()
 
-    flashTimeline = gsap.timeline({ repeat: -1 })
+    flashTimeline = gsap.timeline({ repeat: 2 })
 
     // 初始狀態：透明
     gsap.set(borderRef.value, {
@@ -39,7 +39,7 @@ const start = () => {
       // 藍色淡出
       .to(borderRef.value, {
         boxShadow: 'inset 0 0 50px 10px rgba(0, 0, 255, 0)',
-        duration: 0.4,
+        duration: 1,
         ease: 'power2.in',
       })
   }

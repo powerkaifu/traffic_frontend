@@ -162,11 +162,11 @@
                   <span class="detail-value">{{ currentScenarioDetails.timeRange }}</span>
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">機/小/大 機率（%）：</span>
+                  <span class="detail-label">機/小/大 比例（%）：</span>
                   <span class="detail-value">{{ currentScenarioDetails.ratios }}</span>
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">生成間隔（秒）：</span>
+                  <span class="detail-label">間隔（秒）：</span>
                   <span class="detail-value">{{ (manualInterval / 1000).toFixed(1) }}</span>
                 </div>
               </div>
@@ -1885,12 +1885,12 @@ onUnmounted(() => {
 
   /* 優化各個方向區域的位置 - 進一步微調 */
   .east-zone {
-    top: -40px; /* 從 -10px 進一步上移到 -20px */
+    top: 20px; /* 向下掉 */
     left: -5px;
   }
 
   .west-zone {
-    top: -40px; /* 從 -10px 進一步上移到 -20px */
+    top: 20px; /* 向下掉 */
     left: 18px;
   }
 

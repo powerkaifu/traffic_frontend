@@ -1089,6 +1089,13 @@ onMounted(() => {
             )
           }
         }
+
+        // 🚑 救護車警告訊息：5 秒後自動關閉
+        if (message && message.includes('🚑')) {
+          this.currentTimeout = setTimeout(() => {
+            this.hide()
+          }, 5000) // 5000ms = 5 秒
+        }
       },
       hide() {
         // 設置延遲隱藏以避免頻繁切換
