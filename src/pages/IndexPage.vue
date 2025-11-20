@@ -355,14 +355,8 @@ import { useQuasar } from 'quasar'
 import { gsap } from 'gsap'
 import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { MotionPathHelper } from 'gsap/MotionPathHelper'
-import TrafficLightController from '../classes/TrafficLightController.js'
-import AutoTrafficGenerator from '../classes/AutoTrafficGenerator.js'
-import AdaptiveFlowController from '../classes/AdaptiveFlowController.js'
-import TrafficDataCollector from '../classes/TrafficDataCollector.js'
 import Vehicle from '../classes/Vehicle.js'
-import VehiclePool from '../classes/VehiclePool.js'
 import LumoAssistant from '../components/LumoAssistant.vue'
-import { lightColorConfig } from '../classes/config/trafficConfig.js'
 import WeatherController from '../classes/WeatherController.js'
 import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
 import { GENERATION_CONFIG } from '../classes/config/vehicleConfig.js'
@@ -370,6 +364,7 @@ import { useSimulationStore } from '../stores/simulationStore.js'
 import { numberAnimator } from '../classes/NumberAnimator.js'
 import { useLanePaths } from '../composables/useLanePaths.js'
 import { useVehicleManager } from '../composables/useVehicleManager.js'
+import { useTrafficLightSystem } from '../composables/useTrafficLightSystem.js'
 
 // 註冊 GSAP MotionPathPlugin 和 MotionPathHelper
 gsap.registerPlugin(MotionPathPlugin, MotionPathHelper)
@@ -521,16 +516,20 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
 const crossroadContainer = ref(null)
 const vehicleContainer = ref(null) // 車輛專用容器
 const lumoRef = ref(null) // Lumo 助手組件
-const trafficController = new TrafficLightController(store) // ✅ Phase 5：傳入 Store
-const autoTrafficGenerator = new AutoTrafficGenerator(trafficController, store) // ✅ 傳入 Store
-const adaptiveFlowController = new AdaptiveFlowController(trafficController)
 
-// 🚨 設置車道級別生成控制，防止碰撞
-autoTrafficGenerator.setMinLaneInterval(2000) // 同一車道2秒內不重複生成
-
-const trafficDataCollector = new TrafficDataCollector()
-const currentPhase = ref('南北向 綠燈')
-const countdown = ref(15)
+// ✅ 使用 useTrafficLightSystem composable 管理交通燈邏輯
+const {
+  currentPhase,
+  countdown,
+  trafficController,
+  autoTrafficGenerator,
+  adaptiveFlowController,
+  trafficDataCollector,
+  getCountdownStyle,
+  setupTrafficLightListeners,
+  startTrafficSystem,
+  stopTrafficSystem,
+} = useTrafficLightSystem(store)
 
 // ✅ 使用 useVehicleManager composable 管理車輛邏輯
 const {
@@ -543,34 +542,6 @@ const {
   disposeVehiclePool,
   cleanupActiveVehicles,
 } = useVehicleManager(store, vehicleContainer, crossroadContainer)
-const getCountdownStyle = () => {
-  const phaseText = currentPhase.value
-
-  // 根據燈號文字判斷顏色
-  if (phaseText.includes('綠燈') || phaseText.includes('左轉綠')) {
-    return {
-      color: lightColorConfig.green,
-      textShadow: lightColorConfig.textShadow.green,
-    }
-  } else if (phaseText.includes('黃燈')) {
-    return {
-      color: lightColorConfig.yellow,
-      textShadow: lightColorConfig.textShadow.yellow,
-    }
-  } else if (phaseText.includes('紅燈') || phaseText.includes('全紅')) {
-    return {
-      color: lightColorConfig.red,
-      textShadow: lightColorConfig.textShadow.red,
-    }
-  }
-
-  // 預設為綠色（保持原有樣式）
-  return {
-    color: lightColorConfig.green,
-    textShadow: lightColorConfig.textShadow.green,
-  }
-}
-
 // AI 預測結果
 const aiPrediction = ref({
   eastWest: 0,
