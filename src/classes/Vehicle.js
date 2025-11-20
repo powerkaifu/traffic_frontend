@@ -469,7 +469,8 @@ export default class Vehicle {
           this.isAtStopLine = false
           this.hasPassedStopLine = true
           if (this.movementTimeline && this.movementTimeline.timeScale() === 0) {
-            this.movementTimeline.timeScale(1)
+            // 🌤️ 使用天氣倍數而不是硬編碼的 1
+            this.movementTimeline.timeScale(VehicleStaticManager.getWeatherSpeedMultiplier())
           }
         }
       }
@@ -507,7 +508,8 @@ export default class Vehicle {
       this.maxSpeed = this.initialSpeed
 
       if (this.movementTimeline && this.movementTimeline.timeScale() > 0) {
-        this.movementTimeline.timeScale(1)
+        // 🌤️ 使用天氣倍數而不是硬編碼的 1
+        this.movementTimeline.timeScale(VehicleStaticManager.getWeatherSpeedMultiplier())
       }
     }
   }
@@ -781,6 +783,23 @@ export default class Vehicle {
   getSvgPathId() {
     // SVG 元素的ID格式
     return `${this.direction}Lane${this.laneNumber}Straight`
+  }
+
+  // 🌤️ 新增：更新天氣速度倍數
+  updateWeatherSpeed(multiplier) {
+    // 如果沒有動畫時間軸，直接返回
+    if (!this.movementTimeline) return
+
+    // 如果車輛已經停止（例如紅燈），不需要做任何事
+    // 當它恢復移動時，會讀取最新的 VehicleStaticManager.getWeatherSpeedMultiplier()
+    if (this.movementTimeline.timeScale() === 0) return
+
+    // 平滑過渡到新的速度倍數
+    gsap.to(this.movementTimeline, {
+      timeScale: multiplier,
+      duration: 2.0, // 2秒平滑過渡，模擬真實慣性
+      ease: 'power1.inOut',
+    })
   }
 
   // Static Method: 獲取距離配置

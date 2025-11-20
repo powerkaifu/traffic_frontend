@@ -230,11 +230,14 @@ export class WeatherController {
     `
     this.weatherLayer.appendChild(rainContainer)
 
+    // 🚀 優化：使用 DocumentFragment 批量添加粒子
+    const fragment = document.createDocumentFragment()
+
     // 生成雨滴
     for (let i = 0; i < actualCount; i++) {
       const raindrop = this.getOrCreateParticle() // 🔄 從池獲取或創建
       this.styleRaindrop(raindrop) // 應用樣式
-      rainContainer.appendChild(raindrop)
+      fragment.appendChild(raindrop) // 添加到片段中
       this.particles.push(raindrop)
 
       // 延遲啟動動畫，創造更自然的效果
@@ -245,6 +248,9 @@ export class WeatherController {
         i * TRANSITION_CONFIG.PARTICLE_SPAWN_DELAY * 1000,
       )
     }
+
+    // 一次性添加到容器
+    rainContainer.appendChild(fragment)
 
     // 淡入效果
     gsap.from(rainContainer, {
@@ -349,6 +355,9 @@ export class WeatherController {
 
     console.log('🌫️ 創建霧天效果')
 
+    // 🚀 優化：使用 DocumentFragment 批量添加霧氣層
+    const fragment = document.createDocumentFragment()
+
     // 創建多層霧氣
     for (let i = 0; i < config.APPEARANCE.LAYERS; i++) {
       const fogLayer = document.createElement('div')
@@ -369,7 +378,7 @@ export class WeatherController {
         filter: blur(${config.APPEARANCE.BLUR_AMOUNT});
       `
 
-      this.weatherLayer.appendChild(fogLayer)
+      fragment.appendChild(fogLayer)
       this.particles.push(fogLayer)
 
       // 飄移動畫
@@ -398,8 +407,11 @@ export class WeatherController {
       opacity: ${config.VISIBILITY.OPACITY};
     `
 
-    this.weatherLayer.appendChild(visibilityOverlay)
+    fragment.appendChild(visibilityOverlay)
     this.particles.push(visibilityOverlay)
+
+    // 一次性添加到天氣層
+    this.weatherLayer.appendChild(fragment)
 
     // 淡入效果
     gsap.from(this.weatherLayer, {
@@ -433,10 +445,13 @@ export class WeatherController {
     `
     this.weatherLayer.appendChild(snowContainer)
 
+    // 🚀 優化：使用 DocumentFragment 批量添加粒子
+    const fragment = document.createDocumentFragment()
+
     // 生成雪花
     for (let i = 0; i < particleCount; i++) {
       const snowflake = this.createSnowflake()
-      snowContainer.appendChild(snowflake)
+      fragment.appendChild(snowflake)
       this.particles.push(snowflake)
 
       // 延遲啟動動畫
@@ -447,6 +462,9 @@ export class WeatherController {
         i * TRANSITION_CONFIG.PARTICLE_SPAWN_DELAY * 1000,
       )
     }
+
+    // 一次性添加到容器
+    snowContainer.appendChild(fragment)
 
     // 淡入效果
     gsap.from(snowContainer, {

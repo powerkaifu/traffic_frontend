@@ -26,6 +26,9 @@ export class VehicleStaticManager {
   static antiShakeGlobalCooldown = ANIMATION_CONFIG.COOLDOWN_TIMES.GLOBAL_ANTI_SHAKE
   static lastGlobalAdjustTime = 0
 
+  // 🌤️ 天氣速度倍數（影響所有車輛的移動速度）
+  static weatherSpeedMultiplier = 1.0
+
   /**
    * 設置時間倍數（用於全域速度調整）
    * @param {number} multiplier - 時間倍數
@@ -40,6 +43,22 @@ export class VehicleStaticManager {
    */
   static getTimeMultiplier() {
     return this.timeMultiplier
+  }
+
+  /**
+   * 設置天氣速度倍數
+   * @param {number} multiplier - 天氣速度倍數
+   */
+  static setWeatherSpeedMultiplier(multiplier) {
+    this.weatherSpeedMultiplier = multiplier
+  }
+
+  /**
+   * 獲取天氣速度倍數
+   * @returns {number} 當前天氣速度倍數
+   */
+  static getWeatherSpeedMultiplier() {
+    return this.weatherSpeedMultiplier
   }
 
   /**
@@ -1049,7 +1068,8 @@ export class TrafficLightDirectResponseUtils {
     // 已通過停止線的車輛保持移動狀態
     if (movementTimeline && (currentState !== 'moving' || movementTimeline.timeScale() === 0)) {
       if (typeof movementTimeline.timeScale === 'function') {
-        movementTimeline.timeScale(1)
+        // 🌤️ 使用天氣倍數而不是硬編碼的 1
+        movementTimeline.timeScale(VehicleStaticManager.getWeatherSpeedMultiplier())
       }
       if (typeof movementTimeline.resume === 'function') {
         movementTimeline.resume()
@@ -1122,7 +1142,8 @@ export class TrafficLightDirectResponseUtils {
 
     try {
       if (typeof movementTimeline.timeScale === 'function') {
-        movementTimeline.timeScale(1)
+        // 🌤️ 使用天氣倍數而不是硬編碼的 1
+        movementTimeline.timeScale(VehicleStaticManager.getWeatherSpeedMultiplier())
       }
       if (typeof movementTimeline.resume === 'function') {
         movementTimeline.resume()
@@ -1219,7 +1240,8 @@ export class ResumeMovementUtils {
     // 如果已通過停止線，確保速度恢復到 1
     if (vehicle.hasPassedStopLine && vehicle.movementTimeline.timeScale() < 0.95) {
       gsap.to(vehicle.movementTimeline, {
-        timeScale: 1,
+        // 🌤️ 使用天氣倍數而不是硬編碼的 1
+        timeScale: VehicleStaticManager.getWeatherSpeedMultiplier(),
         duration,
         ease,
       })
