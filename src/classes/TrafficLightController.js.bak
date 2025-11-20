@@ -2,14 +2,27 @@
  * TrafficLightController.js - 交通燈控制系統
  */
 import TrafficLight from './TrafficLight.js'
-import TrafficLightService from './TrafficLightService.js' // 🚀 Level 4: 引入新服務
 import { speedConfig } from './config/trafficConfig.js' // 引入統一的速度設定
 import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
 import { VOLUME_LIMITS_CONFIG } from './config/vehicleConfig.js'
 import { getTimeConfigForScenario } from './config/vdPatternConfig.js' // 新增：情景時間配置
 import { STOP_LINE_VEHICLE_LIMITS } from './config/trafficScenarioConfig.js' // 🚦 引入停止線車輛限制配置
+import {
+  getVDMappingForTimeSlot,
+  getRandomHourForTimeSlot,
+  getRandomVehicleCountForTimeSlot,
+} from './config/vdMapping.js' // 版本 2.5：VD 時段特徵映射
+import {
+  validateAndRectifyDataArray,
+  // generateValidationSummary,
+  // generateValidationReport,
+} from './utils/DataQualityValidator.js' // 【版本 2.5 新增】數據品質驗證與修正系統
 import { edgeCaseHandling, vdBased24HourProfiles, vdBasedTimeScenarios } from './config/vdBasedTrafficConfig.js' // 【Priority 3】引入 Priority 1-2 配置
-import { GREEN_LIGHT_PREDICTION_CONFIG, applyGreenLightAdjustment } from './config/greenLightPredictionConfig.js' // 🚦 綠燈時間預測配置
+import {
+  GREEN_LIGHT_PREDICTION_CONFIG,
+  getAdjustmentCoefficient,
+  applyGreenLightAdjustment,
+} from './config/greenLightPredictionConfig.js' // 🚦 綠燈時間預測配置
 
 // 🎯 【優化】全局日誌系統 - 區分開發和生產環境
 const isDev = process.env.DEV || process.env.NODE_ENV !== 'production'
@@ -47,6 +60,59 @@ const logError = createLogger(LOG_LEVELS.ERROR)
 const logWarn = createLogger(LOG_LEVELS.WARN)
 const logInfo = createLogger(LOG_LEVELS.INFO)
 // const logDebug = createLogger(LOG_LEVELS.DEBUG)
+
+// 🎯 【API 重試機制】指數退避配置
+const API_RETRY_CONFIG = {
+  MAX_RETRIES: 3, // 最多重試 3 次
+  BASE_DELAY: 1000, // 基礎延遲 1000ms
+  TIMEOUT: 5000, // 單次請求超時 5000ms
+}
+
+/**
+ * 帶重試機制的 fetch 函數 - 指數退避
+ * @param {string} url - API 端點
+ * @param {object} options - fetch 選項
+ * @returns {Promise} 響應物件
+ */
+const fetchWithRetry = async (url, options = {}) => {
+  let lastError = null
+
+  for (let attempt = 1; attempt <= API_RETRY_CONFIG.MAX_RETRIES; attempt++) {
+    let timeoutId = null
+    try {
+      // 為每次請求添加超時控制
+      const controller = new AbortController()
+      timeoutId = setTimeout(() => controller.abort(), API_RETRY_CONFIG.TIMEOUT)
+
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      })
+
+      clearTimeout(timeoutId)
+      return response
+    } catch (error) {
+      if (timeoutId) clearTimeout(timeoutId)
+      lastError = error
+
+      // 如果是最後一次嘗試，直接拋出錯誤
+      if (attempt === API_RETRY_CONFIG.MAX_RETRIES) {
+        logError(`❌ [API 重試] 第 ${attempt} 次嘗試失敗，已達最大重試次數`)
+        throw lastError
+      }
+
+      // 計算延遲時間：1000ms * 2^(attempt-1) = 1s, 2s, 4s
+      const delayMs = API_RETRY_CONFIG.BASE_DELAY * Math.pow(2, attempt - 1)
+
+      logWarn(`⚠️ [API 重試] 第 ${attempt} 次嘗試失敗: ${error.message}，${delayMs}ms 後重試...`)
+
+      // 等待指定時間後重試
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+    }
+  }
+
+  throw lastError
+}
 
 export default class TrafficLightController {
   constructor(simulationStore = null) {
@@ -177,7 +243,6 @@ export default class TrafficLightController {
 
     // API 相關設定
     this.apiEndpoint = 'http://localhost:8000/api/traffic/predict/'
-    this.trafficLightService = new TrafficLightService(this.apiEndpoint) // 🚀 Level 4: 初始化服務
     this.onPredictionUpdate = null // AI 預測更新回調函數
     this.dataScalingFactor = 1.5 // 調整縮放因子，增加車流量數據以獲得約60秒的綠燈時間
 
@@ -303,17 +368,6 @@ export default class TrafficLightController {
                     lastReportedSecond = remaining
                     self.postMessage({
                       type: 'tick',
-                      remaining: remaining,
-                      elapsed: elapsed
-                    })
-
-                    // 🎯 API 觸發檢查 (Level 1 Fix: <=)
-                    if (apiTriggerSecond !== null && remaining <= apiTriggerSecond && !apiTriggered) {
-                      apiTriggered = true
-                      self.postMessage({ type: 'api_trigger', remaining })
-                    }
-                  }
-
                   // ✅ 精確檢查完成條件：允許 ±50ms 的偏差
                   if (elapsed >= duration - 50) {
                     clearInterval(countdownInterval)
@@ -1388,32 +1442,444 @@ export default class TrafficLightController {
         return null
       }
 
-      // 🎯【新增】增加 API 呼叫計數
+      // 🎯【新增】增加 API 呼叫計數，只在實際發送時遞增（不在收集時）
       this.apiCallCount = (this.apiCallCount || 0) + 1
       this.apiAlreadySentInCycle = true
       logInfo(`📞 [API 計數] 第 ${this.apiCallCount} 次呼叫`)
 
-      // 🎯 準備數據 (與舊邏輯相同，優先從 Store 取)
+      // 🎯【重要】優先使用 AutoTrafficGenerator 生成的 4-方向 API 數據陣列
       let dataToSend = null
       if (vdData) {
         dataToSend = vdData
+        logInfo('⏳ 已取得傳入的 VD 原始數據，準備進行正規化轉換...')
       } else if (this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArray) {
+        // ✅ Phase 6：優先使用 Store 中的數據
         dataToSend = this.simulationStore.getCurrentGeneratedVDData().apiDataArray
+        logInfo('✅ 已取得 Store 中的 4-方向 API 數據陣列，將直接發送到後端...')
       } else if (this.simulationStore?.getCurrentGeneratedVDData()?.apiVDData) {
+        // ✅ Phase 6：使用 Store 中的舊版本數據
         dataToSend = this.simulationStore.getCurrentGeneratedVDData().apiVDData
+        logInfo('⏳ 已取得 Store 中的生成 VD 原始數據（舊版本），準備進行正規化轉換...')
       } else {
+        // ✅ Phase 6：最後備用方案 - 使用本地收集
         dataToSend = this.collectIntersectionData()
+        logInfo('⏳ 已使用本地收集的數據（備用方案），準備進行正規化轉換...')
       }
 
-      // 🚀 Level 4: 使用 TrafficLightService 發送數據
-      const result = await this.trafficLightService.sendData(dataToSend, this.simulationStore)
+      // 🎯【關鍵步驟 1】確保 dataToSend 是陣列格式（後端期望 4 筆路口特徵資料）
+      let allIntersectionData = []
+      if (Array.isArray(dataToSend)) {
+        // 已經是陣列格式（來自 collectIntersectionData()）
+        allIntersectionData = dataToSend
+        logInfo('✅ 數據已是陣列格式，包含 ' + allIntersectionData.length + ' 筆交叉路口數據')
+      } else if (dataToSend && typeof dataToSend === 'object') {
+        // 單個物件（來自 AutoTrafficGenerator），需要複製為 4 筆（東、西、南、北）
+        logInfo('📋 檢測到單筆 AutoTrafficGenerator 數據，準備擴展為 4 筆交叉路口...')
+
+        // 東、西、南、北的 VD_ID 和方向信息
+        const directions = [
+          { id: 'VLRJX20', name: '東向' },
+          { id: 'VLRJM60', name: '西向' },
+          { id: 'VLRJX00', name: '南向' },
+          { id: 'VLRJX00', name: '北向' },
+        ]
+
+        // 將單筆數據複製為 4 筆（每個方向一筆），保持相同的流量/速度數據
+        allIntersectionData = directions.map((direction, index) => ({
+          ...dataToSend,
+          VD_ID: direction.id,
+          LaneID: index,
+          Direction: direction.name,
+          // ✅ 保持原始的 Volume_M, Volume_S, Volume_L, Speed 等數據
+        }))
+
+        logInfo('✅ 已將單筆數據擴展為 4 筆交叉路口數據（東、西、南、北）')
+      } else {
+        logError('❌ 數據格式錯誤，無法發送到後端')
+        throw new Error('Invalid data format: expected array or object with intersection data')
+      }
+
+      // ✅ 進行正規化轉換：前端顯示數據 → API 發送數據
+      let normalizedDataArray = allIntersectionData.map((singleData) => {
+        // 🎯【新】檢查數據是否已經是完整的 API 格式（來自 AutoTrafficGenerator）
+        // AutoTrafficGenerator 的 API 數據包含所有必需的欄位（VD_ID, Volume_M, Volume_S, Volume_L, Speed, Speed_M, Speed_S, Speed_L, Volume_T=0, Speed_T=0）
+        if (
+          singleData.Volume_M !== undefined &&
+          singleData.Volume_S !== undefined &&
+          singleData.Volume_L !== undefined &&
+          singleData.Speed_M !== undefined &&
+          singleData.Speed_S !== undefined &&
+          singleData.Speed_L !== undefined &&
+          singleData.Volume_T === 0 &&
+          singleData.Speed_T === 0
+        ) {
+          // ✅【新】數據已經是完整的 API 格式，直接返回
+          logInfo(
+            `✅ 偵測到完整的 AutoTrafficGenerator API 數據，直接使用（VD_ID: ${singleData.VD_ID}, LaneID: ${singleData.LaneID}）`,
+          )
+          return {
+            VD_ID: singleData.VD_ID,
+            DayOfWeek: singleData.DayOfWeek,
+            Hour: singleData.Hour,
+            Minute: singleData.Minute,
+            Second: singleData.Second,
+            IsPeakHour: singleData.IsPeakHour,
+            LaneID: singleData.LaneID,
+            LaneType: singleData.LaneType,
+            Speed: singleData.Speed,
+            Occupancy: singleData.Occupancy,
+            Volume_M: singleData.Volume_M,
+            Speed_M: singleData.Speed_M,
+            Volume_S: singleData.Volume_S,
+            Speed_S: singleData.Speed_S,
+            Volume_L: singleData.Volume_L,
+            Speed_L: singleData.Speed_L,
+            Volume_T: 0,
+            Speed_T: 0,
+          }
+        }
+
+        // 【舊邏輯】如果不是完整的 API 數據，進行時段特徵對齐
+        // 提取路口 ID 和時段
+        let intersectionId = singleData?.VD_ID || 'VLRJM60'
+        const timePeriod = getCurrentTimePeriod()
+
+        // 容錯：檢查時段轉換
+        if (timePeriod !== this.lastTimePeriod) {
+          logWarn(`⚠️ [時段轉換] ${this.lastTimePeriod} → ${timePeriod} 於 ${new Date().toLocaleTimeString()}`)
+          this.timePeriodChangeCount++
+          this.lastTimePeriod = timePeriod
+        }
+
+        // 容錯：驗證路口 ID
+        const validIds = ['VLRJM60', 'VLRJX00', 'VLRJX20']
+        if (!validIds.includes(intersectionId)) {
+          logWarn(`⚠️ [路口容錯] 無效的路口 ID: ${intersectionId}，使用 VLRJM60`)
+          intersectionId = 'VLRJM60'
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // 【版本 2.5 - 核心改進】VD 時段特徵對齐
+        // ═══════════════════════════════════════════════════════════════════════
+        // 根據時段從 VD 映射表獲取真實特徵，而非只依賴 vdPatternConfig 生成的數據
+        // 這確保：
+        //  ✅ 時段標籤與真實 VD 特徵對齐
+        //  ✅ 前端顯示（車輛數多少）與模型輸入特徵一致
+        //  ✅ 模型接收到與訓練時相符的特徵範圍
+
+        // 獲取時段的 VD 特徵映射
+        const vdMapping = getVDMappingForTimeSlot(timePeriod)
+
+        // 從映射中獲取真實的小時和車輛數
+        const mappedHour = getRandomHourForTimeSlot(timePeriod)
+        const mappedVehicleCount = getRandomVehicleCountForTimeSlot(timePeriod)
+
+        // 🆕 【關鍵改進】根據時段的 Volume_T 總數，按比例生成各車型的數量
+        // 這確保三個時段的車流特徵明顯不同
+        const vehicleTypeRatios = {
+          peak_hours: { M: 0.35, S: 0.45, L: 0.2 }, // 尖峰：混合車型
+          off_peak: { M: 0.3, S: 0.5, L: 0.2 }, // 離峰：較多小型車
+          late_night: { M: 0.25, S: 0.55, L: 0.2 }, // 凌晨：最多小型車
+        }
+
+        const ratios = vehicleTypeRatios[timePeriod] || vehicleTypeRatios.off_peak
+
+        // 根據 mappedVehicleCount 和比例計算各車型數量
+        const mappedVolumeM = Math.round(mappedVehicleCount * ratios.M)
+        const mappedVolumeS = Math.round(mappedVehicleCount * ratios.S)
+        const mappedVolumeL = Math.round(mappedVehicleCount * ratios.L)
+
+        logInfo(`📊 【版本 2.5】VD 特徵對齊 - 時段: ${timePeriod}`)
+        logInfo(
+          `   - 映射時段: ${timePeriod} (${vdMapping.vehicleCountRange[0]}-${vdMapping.vehicleCountRange[1]} 輛範圍)`,
+        )
+        logInfo(`   - 小時映射: ${singleData.Hour || 'N/A'} → ${mappedHour}`)
+        logInfo(`   - 流量映射: ${singleData.Volume_T || 0} → ${mappedVehicleCount} 輛總計`)
+        logInfo(
+          `   - 車型分布: M=${mappedVolumeM} + S=${mappedVolumeS} + L=${mappedVolumeL} = ${mappedVolumeM + mappedVolumeS + mappedVolumeL}`,
+        )
+
+        // ✅ 【移除正規化】直接使用生成的 VD Pattern 數據，無需轉換
+        // 理由：vdPatternConfig 已經基於真實 VD 數據統計，符合 API 期望的範圍
+
+        // 🎯 計算加權平均速度（基於各車型的數量和速度）
+        const totalVolume = mappedVolumeM + mappedVolumeS + mappedVolumeL
+        const weightedSpeed =
+          totalVolume > 0
+            ? Math.round(
+                ((singleData.Speed_M || 0) * mappedVolumeM +
+                  (singleData.Speed_S || 0) * mappedVolumeS +
+                  (singleData.Speed_L || 0) * mappedVolumeL) /
+                  totalVolume,
+              )
+            : singleData.Speed || 30 // ✅【v7.2 改進】當無車輛時回退到原始 Speed 或預設值
+
+        // ✅ 返回交叉路口數據（18個欄位給後端）
+        // 【版本 2.5】：使用 VD 映射的 hour 和 vehicle_count，而非原始值
+        const apiData = {
+          VD_ID: singleData.VD_ID,
+          DayOfWeek: singleData.DayOfWeek,
+          Hour: mappedHour, // 【版本 2.5】：使用 VD 映射的小時
+          Minute: singleData.Minute,
+          Second: singleData.Second,
+          IsPeakHour: singleData.IsPeakHour,
+          LaneID: singleData.LaneID,
+          LaneType: singleData.LaneType,
+          Speed: weightedSpeed, // 🎯 使用加權平均速度
+          Occupancy: singleData.Occupancy || 0,
+          Volume_M: Math.round(mappedVolumeM), // 【確保整數】機車數
+          Speed_M: singleData.Speed_M || 0,
+          Volume_S: Math.round(mappedVolumeS), // 【確保整數】小型車數
+          Speed_S: singleData.Speed_S || 0,
+          Volume_L: Math.round(mappedVolumeL), // 【確保整數】大型車數
+          Speed_L: singleData.Speed_L || 0,
+          Volume_T: 0, // ✅ 聯結車禁止進入，必定為 0（不使用 mappedVehicleCount）
+          Speed_T: 0, // ✅ 聯結車禁止進入，必定為 0
+        }
+
+        // 🔧 為了方便日誌打印，暫時添加元數據到物件中（不會發送給後端）
+        Object.defineProperty(apiData, 'data_source', {
+          value: 'vdPatternConfig (direct)',
+          enumerable: false,
+        })
+        Object.defineProperty(apiData, 'scenario', {
+          value: timePeriod,
+          enumerable: false,
+        })
+        Object.defineProperty(apiData, 'weather', {
+          value: 'CLEAR',
+          enumerable: false,
+        })
+        Object.defineProperty(apiData, 'weather_multiplier', {
+          value: 1.0,
+          enumerable: false,
+        })
+
+        return apiData
+      })
+
+      // 🎯【重要】最終要發送給後端的格式：直接發送陣列（後端期望的格式）
+      const finalDataToSend = normalizedDataArray
+
+      // ✅ 先處理第一筆數據用於日誌（如果有多筆）
+      const firstData = normalizedDataArray[0] || {}
+
+      // 🔍 調試：檢查 finalDataToSend 的 Volume_L
+      // logInfo('🔍 [TrafficLightController] finalDataToSend 中各方向的 Volume_L：')
+      // finalDataToSend.forEach((data, index) => {
+      //   logInfo(`  方向 ${index} (${data.VD_ID}, LaneID: ${data.LaneID}): Volume_L = ${data.Volume_L}`)
+      // })
+
+      // ✅ 【版本 2.5】VD 數據已生成並應用時段特徵對齐
+      // console.log('✅ 【版本 2.5 - VD 時段特徵對齊已應用】')
+      // console.log(`  - 交叉路口數量: ${normalizedDataArray.length}`)
+      // console.log(`  - 數據源: vdPatternConfig (direct) + VD 時段映射對齊`)
+      // console.log(`  - 時段: ${firstData.scenario}`)
+      // console.log(`  - 映射到真實小時: Hour = ${firstData.Hour}`)
+      // console.log(`  - 映射到 VD 特徵: Volume_T = ${firstData.Volume_T} 輛`)
+
+      // 【新增】打印完整的數據陣列（物件形式，可用 Copy object 複製）
+      // logInfo('📦 【完整的數據陣列 - 右鍵 Copy object 複製】:')
+      // logInfo(normalizedDataArray)
+
+      // 【新增】打印格式化的 JSON 字符串（便於閱讀和檢查）
+      // logInfo('📋 【格式化的 JSON 字符串 - 便於閱讀】:')
+      // logInfo(JSON.stringify(normalizedDataArray, null, 2))
+
+      // logInfo('🚦 發送 VD 數據到後端 AI 系統:')
+      // logInfo(`  - 交叉路口數量: ${normalizedDataArray.length}`)
+      // logInfo(`  - 第一筆流量 (版本 2.5): Volume_T=${firstData.Volume_T} (VD 映射值)`)
+      // logInfo(`  - 第一筆車型: M=${firstData.Volume_M}, S=${firstData.Volume_S}, L=${firstData.Volume_L}`)
+      // logInfo(`  - 時段信息: ${firstData.scenario}`)
+
+      // ✅ 【新增】打印完整的數據
+      // logInfo('📊 【VD 數據詳情】以下是要發送給後端的 4 筆交叉路口數據 (版本 2.5):')
+      // normalizedDataArray.forEach((data, index) => {
+      //   logInfo(`  [交叉路口 ${index + 1}] ${data.VD_ID} (${data.scenario}):`)
+      //   logInfo(
+      //     `    - 流量 (VD映射): Volume_T=${data.Volume_T}, Volume_M=${data.Volume_M}, Volume_S=${data.Volume_S}, Volume_L=${data.Volume_L}`,
+      //   )
+      //   logInfo(
+      //     `    - 速度: Speed_T=${data.Speed_T}, Speed_M=${data.Speed_M}, Speed_S=${data.Speed_S}, Speed_L=${data.Speed_L}`,
+      //   )
+      //   logInfo(`    - 佔有率: ${data.Occupancy}%`)
+      //   console.log(`    - 時段: ${data.scenario}`)
+      //   console.log(`    - 小時 (VD映射): ${data.Hour}`)
+      //   // 🌤️ 【新增】顯示天氣信息
+      //   console.log(`    - 天氣: ${data.weather} (倍數: ${data.weather_multiplier?.toFixed(2)}x)`)
+      // })
+      // console.log('✅ VD 數據已準備完畢，即將發送到後端...')
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 【Priority 3 Integration】數據一致性驗證和異常恢復
+      // ═══════════════════════════════════════════════════════════════════════
+      logInfo(`\n🔍 【Priority 3】開始數據品質檢查...`)
+
+      // 步驟 1: 數據一致性驗證
+      const consistencyCheck = this.validateDataConsistency(finalDataToSend)
+      if (consistencyCheck.hasIssues) {
+        logWarn(`⚠️ [數據一致性檢查] 發現 ${consistencyCheck.issueCount} 個問題`)
+        logInfo(`   問題詳情: ${consistencyCheck.issues.join(', ')}`)
+
+        // 步驟 2: 嘗試異常恢復
+        const recoveryAttempted = this.handleAnomalyRecovery('dataConsistencyError')
+        if (recoveryAttempted) {
+          logInfo(`✅ [異常恢復] 已執行恢復措施`)
+        } else {
+          logWarn(`⚠️ [異常恢復] 無法自動恢復`)
+        }
+      } else {
+        logInfo(`✅ [數據一致性檢查] 所有數據都符合預期`)
+      }
+
+      // 步驟 3: 跨方向 API 同步檢查
+      const shouldSync = this.shouldSyncDirectionalAPI(finalDataToSend)
+      if (shouldSync) {
+        logInfo(`📡 [跨方向同步] 需要同步 API 發送`)
+        // 將數據按方向拆分為南北向（南向+北向）和東西向（東向+西向）
+        const snData = finalDataToSend.filter(
+          (data) =>
+            data.Direction === '南向' ||
+            data.Direction === '北向' ||
+            data.VD_ID === 'VLRJX00' ||
+            (data.LaneID >= 2 && data.LaneID <= 3),
+        )
+        const ewData = finalDataToSend.filter(
+          (data) =>
+            data.Direction === '東向' ||
+            data.Direction === '西向' ||
+            data.VD_ID === 'VLRJX20' ||
+            data.VD_ID === 'VLRJM60' ||
+            data.LaneID === 0 ||
+            data.LaneID === 1,
+        )
+        // 嘗試同步發送（非阻塞）
+        this.sendDirectionalAPIs(snData, ewData).catch((err) => {
+          logError(`❌ [同步發送錯誤] ${err.message}`)
+        })
+      } else {
+        logInfo(`✅ [跨方向同步] 暫不需要同步`)
+      }
+
+      // 步驟 4: 收集性能統計
+      const perfStats = this.getPerformanceStats()
+      logInfo(`📊 [性能統計] API調用: ${perfStats.totalApiCalls}, 同步率: ${perfStats.syncStats.syncRate}`)
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // 🔍【版本 2.5 新增】數據品質驗證與修正 - 三層防線
+      // ═══════════════════════════════════════════════════════════════════════
+      const timePeriod = firstData.scenario || getCurrentTimePeriod()
+
+      // logInfo(`\n🔍 【步驟 1】驗證數據品質 - 檢查是否符合 "${timePeriod}" 時段的特徵範圍...`)
+
+      // 執行驗證與自動修正
+      const validationResult = validateAndRectifyDataArray(finalDataToSend, timePeriod)
+
+      // 生成簡潔的驗證報告
+      // const summaryReport = generateValidationSummary(validationResult)
+      // logInfo(summaryReport)
+
+      // 如果有修正，生成詳細報告
+      if (validationResult.rectifiedRecords > 0) {
+        // logInfo(`\n⚠️ 發現 ${validationResult.rectifiedRecords} 筆數據超出範圍，已自動修正：`)
+        // const detailedReport = generateValidationReport(validationResult)
+        // logInfo(detailedReport)
+      } else {
+        // logInfo(`\n✅ 全部 ${validationResult.totalRecords} 筆數據都符合時段特徵範圍，無需修正。`)
+      }
+
+      // 修正後的數據已直接寫入 finalDataToSend，可以安全地發送
+      // logInfo(`\n✅ 【步驟 2】數據品質確認 - 準備發送修正後的數據到後端...`)
+
+      // 🎯 【修正】先保存數據快照,再發送事件和 API
+      window.lastNormalizedDataArray = normalizedDataArray // 正規化後的數據（品質檢查後）
+
+      // 🎯 【修復 2】在發送前應用流量調整（基於配置文件）
+      let adjustedDataToSend = finalDataToSend
+      if (GREEN_LIGHT_PREDICTION_CONFIG.ENABLE_VOLUME_ADJUSTMENT) {
+        const currentHour = new Date().getHours()
+        const volumeAdjustment = getAdjustmentCoefficient('volume', currentHour)
+
+        adjustedDataToSend = finalDataToSend.map((data) => ({
+          ...data,
+          Volume_M: Math.max(1, Math.round((data.Volume_M || 0) * volumeAdjustment)),
+          Volume_S: Math.max(1, Math.round((data.Volume_S || 0) * volumeAdjustment)),
+          Volume_L: Math.max(1, Math.round((data.Volume_L || 0) * volumeAdjustment)),
+        }))
+
+        if (GREEN_LIGHT_PREDICTION_CONFIG.ENABLE_DEBUG_LOG) {
+          console.log(`📊 [統一數據線 - 第 1 層調整] 尖峰時段流量 × ${volumeAdjustment}`)
+          console.log(
+            `   原始流量: M=${finalDataToSend[0]?.Volume_M} S=${finalDataToSend[0]?.Volume_S} L=${finalDataToSend[0]?.Volume_L}`,
+          )
+          console.log(
+            `   調整後: M=${adjustedDataToSend[0]?.Volume_M} S=${adjustedDataToSend[0]?.Volume_S} L=${adjustedDataToSend[0]?.Volume_L}`,
+          )
+        }
+      }
+
+      // 🎯 【重要】保存實際發送給後端的數據（已調整）
+      // ✅ Phase 6：統一使用 Store 保存（完全遷移）
+      if (this.simulationStore) {
+        this.simulationStore.setLastApiVDDataArray(adjustedDataToSend)
+      }
+
+      // 保留向後相容性（但不再主動寫入新數據）
+      // ⚠️ window.lastApiVDDataArray 已廢棄，請使用 simulationStore.getLastApiVDDataArray()
+
+      // 🎯 【調試】輸出四個方向的 Object 陣列到 Console，方便複製測試
+      console.log('📋 [發送 API - 四個路口數據] 複製以下陣列進行測試:')
+      console.log(adjustedDataToSend)
+
+      // 發送 API 開始事件 (數據已保存,前端可以讀取)
+      window.dispatchEvent(new CustomEvent('trafficApiSending', { detail: { timestamp: new Date().toISOString() } }))
+
+      // ✅ 【統一數據線 - 【第 3 層】發送調整後的數據】
+      // 🎯【重試機制】使用帶重試的 fetch 函數
+      const response = await fetchWithRetry(this.apiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adjustedDataToSend),
+      })
+
+      // ✅ 【新增】發送成功確認訊息
+      logInfo('✅ 【VD 數據已成功發送到後端】')
+      logInfo(`✅ 已發送 ${normalizedDataArray.length} 筆交叉路口數據`)
+      // logInfo(`✅ 時段: ${firstData.scenario}`) // scenario 是非可列舉屬性，logInfo 無法讀取
+
+      if (!response.ok) {
+        // 嘗試獲取錯誤信息
+        let errorBody = '無法解析錯誤信息'
+        try {
+          const errorData = await response.clone().json()
+          errorBody = JSON.stringify(errorData)
+        } catch {
+          try {
+            errorBody = await response.clone().text()
+          } catch {
+            errorBody = '無法讀取響應體'
+          }
+        }
+        logError(`❌ [API 錯誤詳情]`)
+        logError(`  - 狀態碼: ${response.status}`)
+        logError(`  - 錯誤信息: ${errorBody}`)
+        throw new Error(`HTTP error! status: ${response.status}, body: ${errorBody}`)
+      }
+
+      const result = await response.json()
+      logInfo('🤖 收到真實 AI 預測結果:', result)
 
       // 清空特徵模擬數據
       if (window.trafficDataCollector && typeof window.trafficDataCollector.reset === 'function') {
         window.trafficDataCollector.reset()
       }
 
-      // ✅ 更新下一輪的綠燈時間
+      // 發送 API 完成事件
+      window.dispatchEvent(
+        new CustomEvent('trafficApiComplete', { detail: { timestamp: new Date().toISOString(), response: result } }),
+      )
+
+      // ✅ 更新下一輪的綠燈時間（使用提取的公共方法）
       this.updatePredictionResult(result, '正式')
       return result
     } catch (error) {
@@ -1421,14 +1887,18 @@ export default class TrafficLightController {
       logInfo('🔄 啟用本地模擬 AI 作為備援方案...')
 
       // *** 備援方案：呼叫本地模擬 AI ***
+      // 🎯 優先使用生成的 VD 數據，備用方案才用本地收集數據
       let dataToSend = null
       if (vdData) {
         dataToSend = vdData
       } else if (this.simulationStore?.getCurrentGeneratedVDData()?.apiDataArray) {
+        // ✅ Phase 6：優先使用 Store 中的新版本數據
         dataToSend = this.simulationStore.getCurrentGeneratedVDData().apiDataArray
       } else if (this.simulationStore?.getCurrentGeneratedVDData()?.apiVDData) {
+        // ✅ Phase 6：使用 Store 中的舊版本數據
         dataToSend = this.simulationStore.getCurrentGeneratedVDData().apiVDData
       } else {
+        // ✅ Phase 6：最後備用 - 使用本地收集
         dataToSend = this.collectIntersectionData()
       }
       const result = this.getAISuggestion(dataToSend)
@@ -1438,7 +1908,7 @@ export default class TrafficLightController {
         new CustomEvent('trafficApiError', { detail: { timestamp: new Date().toISOString(), error: error.message } }),
       )
 
-      // ✅ 更新下一輪的綠燈時間
+      // ✅ 更新下一輪的綠燈時間（使用提取的公共方法）
       this.updatePredictionResult(result, '備援')
       return null
     }
