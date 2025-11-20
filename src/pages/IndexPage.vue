@@ -321,6 +321,14 @@
         <button @click="clearAllVehicles" class="toolbar-btn clear-btn" title="清空車輛">
           <span class="btn-icon">🧹</span>
         </button>
+
+        <!-- 分隔線 -->
+        <div class="toolbar-divider"></div>
+
+        <!-- 🚨 緊急車輛按鈕 -->
+        <button @click="spawnEmergencyVehicle('ambulance')" class="toolbar-btn emergency-btn" title="呼叫救護車">
+          <span class="btn-icon">🚑</span>
+        </button>
       </div>
 
       <!-- 天氣選單 -->
@@ -346,6 +354,9 @@
     <div class="robot-assistant">
       <LumoAssistant ref="lumoRef" />
     </div>
+
+    <!-- 🚨 緊急模式覆蓋層 -->
+    <EmergencyOverlay ref="emergencyOverlayRef" />
   </q-page>
 </template>
 
@@ -357,6 +368,7 @@ import { MotionPathPlugin } from 'gsap/MotionPathPlugin'
 import { MotionPathHelper } from 'gsap/MotionPathHelper'
 import Vehicle from '../classes/Vehicle.js'
 import LumoAssistant from '../components/LumoAssistant.vue'
+import EmergencyOverlay from '../components/EmergencyOverlay.vue'
 import WeatherController from '../classes/WeatherController.js'
 import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
 import { GENERATION_CONFIG } from '../classes/config/vehicleConfig.js'
@@ -516,6 +528,7 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
 const crossroadContainer = ref(null)
 const vehicleContainer = ref(null) // 車輛專用容器
 const lumoRef = ref(null) // Lumo 助手組件
+const emergencyOverlayRef = ref(null) // 緊急模式覆蓋層
 
 // ✅ 使用 useTrafficLightSystem composable 管理交通燈邏輯
 const {
@@ -708,6 +721,55 @@ const clearAllVehicles = () => {
       position: 'top',
       timeout: 3000,
     })
+  }
+}
+
+// 🚨 生成緊急車輛
+const spawnEmergencyVehicle = (type = 'ambulance') => {
+  console.log(`🚨 呼叫緊急車輛: ${type}`)
+
+  // 1. 啟動視覺特效
+  if (emergencyOverlayRef.value) {
+    emergencyOverlayRef.value.start()
+
+    // 10秒後自動停止特效 (模擬車輛通過)
+    setTimeout(() => {
+      if (emergencyOverlayRef.value) emergencyOverlayRef.value.stop()
+    }, 10000)
+  }
+
+  // 2. Lumo 語音提示
+  if (lumoRef.value) {
+    // 假設 Lumo 有一個 speak 或 showMessage 方法
+    // 這裡先嘗試直接調用，如果沒有則可能需要擴充 Lumo
+    // 暫時用 notify 模擬
+    $q.notify({
+      type: 'warning',
+      message: '🚑 注意！救護車接近中！請避讓！',
+      position: 'top',
+      timeout: 5000,
+    })
+  }
+
+  // 3. 生成車輛
+  // 隨機選擇一個方向生成
+  const directions = ['east', 'west', 'south', 'north']
+  const randomDirection = directions[Math.floor(Math.random() * directions.length)]
+  // 緊急車輛通常走內側車道 (Lane 1 或 2)
+  const laneNumber = Math.random() > 0.5 ? 1 : 2
+
+  const pathStartPosition = Vehicle.getPathStartPosition(randomDirection, laneNumber)
+
+  if (pathStartPosition) {
+    createVehicleWithPosition(
+      pathStartPosition.x,
+      pathStartPosition.y,
+      randomDirection,
+      type,
+      laneNumber,
+      0,
+      80, // 緊急車輛速度較快
+    )
   }
 }
 

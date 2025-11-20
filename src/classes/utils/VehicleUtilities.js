@@ -510,6 +510,16 @@ export class VehicleDOMUtils {
       div.style.transform = transformValues.join(' ')
     }
 
+    // 🚨 緊急車輛視覺特效 (CSS Filter)
+    // 因為暫時沒有專用圖片，使用濾鏡來區分
+    if (options.vehicleType === 'ambulance') {
+      // 救護車：亮白色/紅色調 + 紅色光暈
+      div.style.filter = 'brightness(1.5) sepia(1) saturate(5) hue-rotate(-50deg) drop-shadow(0 0 5px red)'
+    } else if (options.vehicleType === 'police') {
+      // 警車：藍色調 + 藍色光暈
+      div.style.filter = 'brightness(1.2) sepia(1) saturate(5) hue-rotate(180deg) drop-shadow(0 0 5px blue)'
+    }
+
     return div
   }
 }

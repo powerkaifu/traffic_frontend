@@ -206,6 +206,8 @@ export const VEHICLE_DIMENSIONS = {
   motorcycle: { length: 25, width: 10 }, // 機車
   car: { length: 60, width: 20 }, // 小汽車
   truck: { length: 120, width: 25 }, // 卡車
+  ambulance: { length: 70, width: 22 }, // 救護車 (比轎車稍大)
+  police: { length: 65, width: 21 }, // 警車
 }
 
 // ===== 車道生成設定 (改進：解決重疊問題) =====
