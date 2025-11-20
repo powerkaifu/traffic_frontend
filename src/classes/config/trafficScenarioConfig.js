@@ -5,6 +5,8 @@
 
 // 🚨 導入 displayMultiplier 配置
 import { VOLUME_LIMITS_CONFIG } from './vehicleConfig.js'
+// ✨ 導入真實變化系統
+import { applyFullRealisticVariation } from './trafficVariationHelper.js'
 
 // ============================================
 // 🛠️ 【全局車輛管理配置】
@@ -308,7 +310,7 @@ export function getScenarioByTime(currentTime) {
   // ==========================================
   // 特點：極低流量，以機車為主，生成間隔最長
   if (currentHour >= 0 && currentHour < 6) {
-    return {
+    const baseConfig = {
       name: `凌晨 ${currentHour}:00`,
       interval: { min: 10000, max: 20000, normal: 15000 }, // 15 秒平均
       peakMultiplier: 1.0,
@@ -328,6 +330,13 @@ export function getScenarioByTime(currentTime) {
       },
       description: '🌙 凌晨時段 - 極低流量 (0-6 點)',
     }
+
+    // ✨ 應用真實變化（凌晨時段使用較大變化幅度）
+    return applyFullRealisticVariation(baseConfig, {
+      timePeriod: 'late_night',
+      elapsedMinutes: currentTime.getMinutes() + currentHour * 60,
+      enableCyclicVariation: true,
+    })
   }
 
   // ==========================================
@@ -335,9 +344,9 @@ export function getScenarioByTime(currentTime) {
   // ==========================================
   // 特點：流量開始增加，準備進入上班時間
   else if (currentHour >= 6 && currentHour < 7) {
-    return {
+    const baseConfig = {
       name: '清晨 06:00',
-      interval: { min: 2000, max: 10000, normal: 4000 }, // 6 秒平均
+      interval: { min: 2000, max: 10000, normal: 4000 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 2 },
@@ -355,6 +364,11 @@ export function getScenarioByTime(currentTime) {
       },
       description: '🌄 清晨時段 - 低流量 (6-7 點)',
     }
+    return applyFullRealisticVariation(baseConfig, {
+      timePeriod: 'off_peak',
+      elapsedMinutes: currentTime.getMinutes() + currentHour * 60,
+      enableCyclicVariation: true,
+    })
   }
 
   // ==========================================
@@ -362,12 +376,12 @@ export function getScenarioByTime(currentTime) {
   // ==========================================
   // 特點：最高峰期之一，上班時間，流量密集
   else if (currentHour >= 7 && currentHour < 9) {
-    return {
+    const baseConfig = {
       name: `早尖峰 ${currentHour}:00`,
       interval: { min: 1000, max: 5000, normal: 1500 },
       peakMultiplier: 1.0,
-      displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier, // 尖峰設定
-      vehiclesPerInterval: { min: 1, max: 3 }, // 允許一次生成 1-2 台
+      displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
+      vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
         { type: 'motor', weight: 45 },
         { type: 'small', weight: 45 },
@@ -382,6 +396,11 @@ export function getScenarioByTime(currentTime) {
       },
       description: '🚀 早尖峰時段 - 極高流量 (7-9 點)',
     }
+    return applyFullRealisticVariation(baseConfig, {
+      timePeriod: 'peak',
+      elapsedMinutes: currentTime.getMinutes() + currentHour * 60,
+      enableCyclicVariation: true,
+    })
   }
 
   // ==========================================
@@ -389,11 +408,11 @@ export function getScenarioByTime(currentTime) {
   // ==========================================
   // 特點：流量開始下降，但仍保持中等以上
   else if (currentHour >= 9 && currentHour < 11) {
-    return {
+    const baseConfig = {
       name: `上午 ${currentHour}:00`,
       interval: { min: 1000, max: 5000, normal: 2000 },
       peakMultiplier: 1.0,
-      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // 切換到離峰
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
         { type: 'motor', weight: 38 },
@@ -409,6 +428,11 @@ export function getScenarioByTime(currentTime) {
       },
       description: '🌤️ 上午時段 - 中等流量 (9-11 點)',
     }
+    return applyFullRealisticVariation(baseConfig, {
+      timePeriod: 'off_peak',
+      elapsedMinutes: currentTime.getMinutes() + currentHour * 60,
+      enableCyclicVariation: true,
+    })
   }
 
   // ==========================================
@@ -416,11 +440,11 @@ export function getScenarioByTime(currentTime) {
   // ==========================================
   // 特點：離峰時段，流量穩定較低
   else if (currentHour >= 11 && currentHour < 14) {
-    return {
+    const baseConfig = {
       name: `午間 ${currentHour}:00`,
       interval: { min: 1000, max: 8000, normal: 1500 },
       peakMultiplier: 1.0,
-      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // 離峰設定
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
         { type: 'motor', weight: 35 },
@@ -436,6 +460,11 @@ export function getScenarioByTime(currentTime) {
       },
       description: '☀️ 午間時段 - 中等流量 (11-14 點)',
     }
+    return applyFullRealisticVariation(baseConfig, {
+      timePeriod: 'off_peak',
+      elapsedMinutes: currentTime.getMinutes() + currentHour * 60,
+      enableCyclicVariation: true,
+    })
   }
 
   // ==========================================
@@ -443,11 +472,11 @@ export function getScenarioByTime(currentTime) {
   // ==========================================
   // 特點：離峰但略升，開始準備傍晚
   else if (currentHour >= 14 && currentHour < 16) {
-    return {
+    const baseConfig = {
       name: `下午 ${currentHour}:00`,
       interval: { min: 1000, max: 5000, normal: 1800 },
       peakMultiplier: 1.0,
-      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // 離峰設定
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
         { type: 'motor', weight: 36 },
@@ -463,6 +492,11 @@ export function getScenarioByTime(currentTime) {
       },
       description: '🌝 下午時段 - 中等流量 (14-16 點)',
     }
+    return applyFullRealisticVariation(baseConfig, {
+      timePeriod: 'off_peak',
+      elapsedMinutes: currentTime.getMinutes() + currentHour * 60,
+      enableCyclicVariation: true,
+    })
   }
 
   // ==========================================
@@ -470,11 +504,11 @@ export function getScenarioByTime(currentTime) {
   // ==========================================
   // 特點：逐漸升高，準備進入晚尖峰
   else if (currentHour >= 16 && currentHour < 17) {
-    return {
+    const baseConfig = {
       name: '傍晚 16:00',
-      interval: { min: 1000, max: 8000, normal: 2000 }, // 6 秒平均
+      interval: { min: 1000, max: 8000, normal: 2000 },
       peakMultiplier: 1.0,
-      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // 過渡中
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
         { type: 'motor', weight: 42 },
@@ -490,6 +524,11 @@ export function getScenarioByTime(currentTime) {
       },
       description: '🌆 傍晚過渡 - 高流量 (16-17 點)',
     }
+    return applyFullRealisticVariation(baseConfig, {
+      timePeriod: 'off_peak',
+      elapsedMinutes: currentTime.getMinutes() + currentHour * 60,
+      enableCyclicVariation: true,
+    })
   }
 
   // ==========================================
@@ -497,11 +536,11 @@ export function getScenarioByTime(currentTime) {
   // ==========================================
   // 特點：最高峰期之二，下班時間，流量密集
   else if (currentHour >= 17 && currentHour < 19) {
-    return {
+    const baseConfig = {
       name: `晚尖峰 ${currentHour}:00`,
-      interval: { min: 1000, max: 5000, normal: 1500 }, // 2.5 秒平均（與早尖峰相同）
+      interval: { min: 1000, max: 5000, normal: 1500 },
       peakMultiplier: 1.0,
-      displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier, // 尖峰設定
+      displayMultiplier: VOLUME_LIMITS_CONFIG['peak_hours'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
         { type: 'motor', weight: 45 },
@@ -517,6 +556,11 @@ export function getScenarioByTime(currentTime) {
       },
       description: '🌇 晚尖峰時段 - 極高流量 (17-19 點)',
     }
+    return applyFullRealisticVariation(baseConfig, {
+      timePeriod: 'peak',
+      elapsedMinutes: currentTime.getMinutes() + currentHour * 60,
+      enableCyclicVariation: true,
+    })
   }
 
   // ==========================================
@@ -524,11 +568,11 @@ export function getScenarioByTime(currentTime) {
   // ==========================================
   // 特點：逐漸下降，從尖峰回到離峰
   else if (currentHour >= 19 && currentHour < 21) {
-    return {
+    const baseConfig = {
       name: `晚間 ${currentHour}:00`,
-      interval: { min: 1000, max: 11000, normal: 2500 }, // 8 秒平均
+      interval: { min: 1000, max: 11000, normal: 2500 },
       peakMultiplier: 1.0,
-      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier, // 切換回離峰
+      displayMultiplier: VOLUME_LIMITS_CONFIG['off_peak'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 3 },
       vehicleTypes: [
         { type: 'motor', weight: 40 },
@@ -544,16 +588,21 @@ export function getScenarioByTime(currentTime) {
       },
       description: '🌃 晚間時段 - 中等流量 (19-21 點)',
     }
+    return applyFullRealisticVariation(baseConfig, {
+      timePeriod: 'off_peak',
+      elapsedMinutes: currentTime.getMinutes() + currentHour * 60,
+      enableCyclicVariation: true,
+    })
   }
 
   // ==========================================
-  // � 夜間時段 (21:00-24:00)
+  // 🌌 夜間時段 (21:00-24:00)
   // ==========================================
   // 特點：回到極低流量，接近凌晨
   else {
-    return {
+    const baseConfig = {
       name: `夜間 ${currentHour}:00`,
-      interval: { min: 2000, max: 8000, normal: 3000 }, // 20 秒平均
+      interval: { min: 2000, max: 8000, normal: 3000 },
       peakMultiplier: 1.0,
       displayMultiplier: VOLUME_LIMITS_CONFIG['late_night'].displayMultiplier,
       vehiclesPerInterval: { min: 1, max: 3 },
@@ -564,6 +613,11 @@ export function getScenarioByTime(currentTime) {
       ],
       description: '🌌 夜間時段 - 低流量 (21-24 點)',
     }
+    return applyFullRealisticVariation(baseConfig, {
+      timePeriod: 'late_night',
+      elapsedMinutes: currentTime.getMinutes() + currentHour * 60,
+      enableCyclicVariation: true,
+    })
   }
 }
 
