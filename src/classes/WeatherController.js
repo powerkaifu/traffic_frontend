@@ -27,6 +27,7 @@ export class WeatherController {
     this.isActive = false // 是否啟用天氣效果
     this.lightningInterval = null // 閃電定時器
     this.lightningLayer = null // 閃電圖層
+    this.generationTask = null // 🆕 生成任務 ID (requestAnimationFrame)
 
     // 🆕 粒子池管理（優化記憶體）
     this.particlePool = [] // 可回收粒子池
@@ -230,27 +231,52 @@ export class WeatherController {
     `
     this.weatherLayer.appendChild(rainContainer)
 
-    // 🚀 優化：使用 DocumentFragment 批量添加粒子
-    const fragment = document.createDocumentFragment()
+    // 🚀 優化：使用漸進式生成 (Progressive Generation)
+    // 分批生成粒子，避免單幀負載過重
+    let createdCount = 0
+    const batchSize = 50 // 每幀生成的粒子數
 
-    // 生成雨滴
-    for (let i = 0; i < actualCount; i++) {
-      const raindrop = this.getOrCreateParticle() // 🔄 從池獲取或創建
-      this.styleRaindrop(raindrop) // 應用樣式
-      fragment.appendChild(raindrop) // 添加到片段中
-      this.particles.push(raindrop)
-
-      // 延遲啟動動畫，創造更自然的效果
-      setTimeout(
-        () => {
-          this.animateRaindrop(raindrop)
-        },
-        i * TRANSITION_CONFIG.PARTICLE_SPAWN_DELAY * 1000,
+    const generateBatch = () => {
+      // 如果天氣已改變或系統已停用，停止生成
+      if (
+        !this.isActive ||
+        (this.currentWeather !== WEATHER_TYPES.RAIN && this.currentWeather !== WEATHER_TYPES.HEAVY_RAIN)
       )
+        return
+
+      const fragment = document.createDocumentFragment()
+      const limit = Math.min(actualCount - createdCount, batchSize)
+
+      for (let i = 0; i < limit; i++) {
+        const raindrop = this.getOrCreateParticle() // 🔄 從池獲取或創建
+        this.styleRaindrop(raindrop) // 應用樣式
+        fragment.appendChild(raindrop) // 添加到片段中
+        this.particles.push(raindrop)
+
+        // 延遲啟動動畫，創造更自然的效果
+        // 注意：這裡的延遲是基於總數的索引
+        setTimeout(
+          () => {
+            this.animateRaindrop(raindrop)
+          },
+          (createdCount + i) * TRANSITION_CONFIG.PARTICLE_SPAWN_DELAY * 1000,
+        )
+      }
+
+      // 將這一批次添加到容器
+      rainContainer.appendChild(fragment)
+      createdCount += limit
+
+      // 如果還沒生成完，安排下一幀繼續
+      if (createdCount < actualCount) {
+        this.generationTask = requestAnimationFrame(generateBatch)
+      } else {
+        this.generationTask = null
+      }
     }
 
-    // 一次性添加到容器
-    rainContainer.appendChild(fragment)
+    // 啟動生成任務
+    generateBatch()
 
     // 淡入效果
     gsap.from(rainContainer, {
@@ -355,63 +381,93 @@ export class WeatherController {
 
     console.log('🌫️ 創建霧天效果')
 
-    // 🚀 優化：使用 DocumentFragment 批量添加霧氣層
-    const fragment = document.createDocumentFragment()
+    // 🚀 優化：使用漸進式生成 (Progressive Generation)
+    let createdLayerCount = 0
+    const totalLayers = config.APPEARANCE.LAYERS
+    // 霧氣層數較少，可以一次生成一層，或者分批
+    // 由於層數通常很少 (例如 3-5 層)，我們可以每幀生成一層，或者一次生成所有 (如果數量少)
+    // 為了保持一致性，我們使用分批邏輯，但 batchSize 設為 1 或 2
 
-    // 創建多層霧氣
-    for (let i = 0; i < config.APPEARANCE.LAYERS; i++) {
-      const fogLayer = document.createElement('div')
-      fogLayer.className = 'fog-layer'
+    const batchSize = 2
 
-      const opacity =
-        config.ANIMATION.OPACITY_RANGE[0] +
-        Math.random() * (config.ANIMATION.OPACITY_RANGE[1] - config.ANIMATION.OPACITY_RANGE[0])
+    const generateBatch = () => {
+      if (!this.isActive || this.currentWeather !== WEATHER_TYPES.FOG) return
 
-      fogLayer.style.cssText = `
-        position: absolute;
-        top: ${i * 30}%;
-        left: -10%;
-        width: 120%;
-        height: 100%;
-        background: ${config.APPEARANCE.COLOR};
-        opacity: ${opacity};
-        filter: blur(${config.APPEARANCE.BLUR_AMOUNT});
-      `
+      const fragment = document.createDocumentFragment()
 
-      fragment.appendChild(fogLayer)
-      this.particles.push(fogLayer)
+      // 1. 處理霧氣層
+      const limit = Math.min(totalLayers - createdLayerCount, batchSize)
 
-      // 飄移動畫
-      const tween = gsap.to(fogLayer, {
-        x: '10%',
-        duration: config.ANIMATION.DRIFT_SPEED,
-        ease: 'none',
-        repeat: -1,
-        yoyo: true,
-      })
+      for (let i = 0; i < limit; i++) {
+        const layerIndex = createdLayerCount + i
+        const fogLayer = document.createElement('div')
+        fogLayer.className = 'fog-layer'
 
-      this.animations.push(tween)
+        const opacity =
+          config.ANIMATION.OPACITY_RANGE[0] +
+          Math.random() * (config.ANIMATION.OPACITY_RANGE[1] - config.ANIMATION.OPACITY_RANGE[0])
+
+        fogLayer.style.cssText = `
+          position: absolute;
+          top: ${layerIndex * 30}%;
+          left: -10%;
+          width: 120%;
+          height: 100%;
+          background: ${config.APPEARANCE.COLOR};
+          opacity: ${opacity};
+          filter: blur(${config.APPEARANCE.BLUR_AMOUNT});
+        `
+
+        fragment.appendChild(fogLayer)
+        this.particles.push(fogLayer)
+
+        // 飄移動畫
+        const tween = gsap.to(fogLayer, {
+          x: '10%',
+          duration: config.ANIMATION.DRIFT_SPEED,
+          ease: 'none',
+          repeat: -1,
+          yoyo: true,
+        })
+
+        this.animations.push(tween)
+      }
+
+      createdLayerCount += limit
+
+      // 2. 如果霧氣層生成完畢，且還沒添加能見度層，則添加
+      // 這裡簡化邏輯：最後一批次時添加能見度層
+      if (createdLayerCount >= totalLayers && !this.hasAddedFogVisibility) {
+        // 添加能見度效果
+        const visibilityOverlay = document.createElement('div')
+        visibilityOverlay.className = 'fog-visibility'
+        visibilityOverlay.style.cssText = `
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(255, 255, 255, 0.1);
+          filter: ${config.VISIBILITY.FILTER};
+          opacity: ${config.VISIBILITY.OPACITY};
+        `
+        fragment.appendChild(visibilityOverlay)
+        this.particles.push(visibilityOverlay)
+        this.hasAddedFogVisibility = true
+      }
+
+      this.weatherLayer.appendChild(fragment)
+
+      if (createdLayerCount < totalLayers) {
+        this.generationTask = requestAnimationFrame(generateBatch)
+      } else {
+        this.generationTask = null
+        this.hasAddedFogVisibility = false // 重置標記供下次使用
+      }
     }
 
-    // 添加能見度效果
-    const visibilityOverlay = document.createElement('div')
-    visibilityOverlay.className = 'fog-visibility'
-    visibilityOverlay.style.cssText = `
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(255, 255, 255, 0.1);
-      filter: ${config.VISIBILITY.FILTER};
-      opacity: ${config.VISIBILITY.OPACITY};
-    `
-
-    fragment.appendChild(visibilityOverlay)
-    this.particles.push(visibilityOverlay)
-
-    // 一次性添加到天氣層
-    this.weatherLayer.appendChild(fragment)
+    this.hasAddedFogVisibility = false
+    generateBatch()
 
     // 淡入效果
     gsap.from(this.weatherLayer, {
@@ -445,26 +501,41 @@ export class WeatherController {
     `
     this.weatherLayer.appendChild(snowContainer)
 
-    // 🚀 優化：使用 DocumentFragment 批量添加粒子
-    const fragment = document.createDocumentFragment()
+    // 🚀 優化：使用漸進式生成 (Progressive Generation)
+    let createdCount = 0
+    const batchSize = 50 // 每幀生成的粒子數
 
-    // 生成雪花
-    for (let i = 0; i < particleCount; i++) {
-      const snowflake = this.createSnowflake()
-      fragment.appendChild(snowflake)
-      this.particles.push(snowflake)
+    const generateBatch = () => {
+      if (!this.isActive || this.currentWeather !== WEATHER_TYPES.SNOW) return
 
-      // 延遲啟動動畫
-      setTimeout(
-        () => {
-          this.animateSnowflake(snowflake)
-        },
-        i * TRANSITION_CONFIG.PARTICLE_SPAWN_DELAY * 1000,
-      )
+      const fragment = document.createDocumentFragment()
+      const limit = Math.min(particleCount - createdCount, batchSize)
+
+      for (let i = 0; i < limit; i++) {
+        const snowflake = this.createSnowflake()
+        fragment.appendChild(snowflake)
+        this.particles.push(snowflake)
+
+        // 延遲啟動動畫
+        setTimeout(
+          () => {
+            this.animateSnowflake(snowflake)
+          },
+          (createdCount + i) * TRANSITION_CONFIG.PARTICLE_SPAWN_DELAY * 1000,
+        )
+      }
+
+      snowContainer.appendChild(fragment)
+      createdCount += limit
+
+      if (createdCount < particleCount) {
+        this.generationTask = requestAnimationFrame(generateBatch)
+      } else {
+        this.generationTask = null
+      }
     }
 
-    // 一次性添加到容器
-    snowContainer.appendChild(fragment)
+    generateBatch()
 
     // 淡入效果
     gsap.from(snowContainer, {
@@ -643,6 +714,12 @@ export class WeatherController {
       if (this.lightningInterval) {
         clearTimeout(this.lightningInterval)
         this.lightningInterval = null
+      }
+
+      // 🆕 取消正在進行的生成任務
+      if (this.generationTask) {
+        cancelAnimationFrame(this.generationTask)
+        this.generationTask = null
       }
 
       // 清除閃電圖層引用
