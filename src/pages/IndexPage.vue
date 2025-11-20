@@ -369,6 +369,7 @@ import { GENERATION_CONFIG } from '../classes/config/vehicleConfig.js'
 import { useSimulationStore } from '../stores/simulationStore.js'
 import { numberAnimator } from '../classes/NumberAnimator.js'
 import { useLanePaths } from '../composables/useLanePaths.js'
+import { useVehicleManager } from '../composables/useVehicleManager.js'
 
 // 註冊 GSAP MotionPathPlugin 和 MotionPathHelper
 gsap.registerPlugin(MotionPathPlugin, MotionPathHelper)
@@ -490,64 +491,20 @@ const handleAutoGenerateLeftTurnFromStore = (detail) => {
 // handleAutoGenerateLeftTurn 已不使用，保留此註解用於參考歷史
 // 所有左轉派車邏輯現在通過 handleAutoGenerateLeftTurnFromStore 和 Store 訂閱完成
 
-// 通用車輛創建函數
+// 通用車輛創建函數 - 現在使用 composable
 const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, initialProgress = 0, speed = null) => {
-  // ✅ 【新增】檢查是否超過車輛限制
-  const maxLiveVehicles = autoTrafficGenerator.config.maxLiveVehicles || 100
-  const currentVehicleCount = activeCars.value.length
+  const vehicle = createVehicleWithPositionComposable(
+    x,
+    y,
+    direction,
+    vehicleType,
+    laneNumber,
+    initialProgress,
+    speed,
+    autoTrafficGenerator,
+  )
 
-  if (currentVehicleCount >= maxLiveVehicles) {
-    console.warn(`⚠️ [車輛限制] 當前車輛數 (${currentVehicleCount}) 已達上限 (${maxLiveVehicles})，暫停生成新車輛`)
-    return null // 返回 null，不生成新車輛
-  }
-
-  // 使用指定位置創建車輛
-  // 🚀 改進：優先從物件池中獲取，只在池空時才創建新車輛
-  let vehicle
-  let isFromPool = false
-  if (vehiclePool && vehiclePool.poolMap && vehiclePool.poolMap.has(direction)) {
-    // ✅ 從池中取車
-    vehicle = vehiclePool.acquire(direction, laneNumber, vehicleType, x, y, speed)
-    isFromPool = true
-  } else if (vehiclePool) {
-    // ✅ 池空，創建新車輛並添加到池的管理中
-    vehicle = vehiclePool.acquire(direction, laneNumber, vehicleType, x, y, speed)
-    isFromPool = true
-  } else {
-    // 備用：池未初始化時，直接創建新車輛
-    vehicle = new Vehicle(x, y, direction, vehicleType, laneNumber, store, speed) // ✅ 傳入 speed 參數
-    isFromPool = false
-  }
-
-  // 🚀 Vehicle 已經完全初始化，無需在此進行其他設置
-  // （碰撞控制由 Vehicle.updateLogic 中的 CollisionFollowingController 管理）
-
-  // 🚨 【新增】如果提供了速度，直接設置到車輛（來自 AutoTrafficGenerator）
-  if (speed !== null && speed !== undefined) {
-    vehicle.initialSpeed = speed
-    vehicle.currentSpeed = speed
-  } else {
-    console.warn(`⚠️ [${vehicle.id}] 未收到速度參數 (isFromPool: ${isFromPool})`)
-  }
-
-  // 🚨 設置初始 progress（如果提供的話）
-  if (typeof initialProgress === 'number' && initialProgress !== 0) {
-    vehicle.progress = initialProgress
-    console.log(`🚗 [${vehicle.id}] 設置初始 progress: ${initialProgress.toFixed(3)}`)
-  }
-
-  // ✅ 【關鍵】只有新建的車輛才需要 addTo（池中的車輛已在 DOM 中）
-  if (!isFromPool) {
-    vehicle.addTo(vehicleContainer.value || crossroadContainer.value)
-  }
-  activeCars.value.push(vehicle)
-
-  // ✅ 將車輛添加到 Store（用於自動生成系統計算 progress）
-  store.addVehicle(vehicle)
-
-  // ✅ 同步到 window.liveVehicles（供 AutoTrafficGenerator 使用）
-  if (!window.liveVehicles) window.liveVehicles = []
-  window.liveVehicles.push(vehicle)
+  if (!vehicle) return null
 
   // ✅ 派發事件（通過 Store）
   store.emit('vehicleAdded', {
@@ -557,97 +514,8 @@ const createVehicleWithPosition = (x, y, direction, vehicleType, laneNumber, ini
     speed: vehicle.currentSpeed || 0,
     timestamp: new Date().toISOString(),
   })
-  const startVehicleAnimation = async () => {
-    try {
-      // 🚨【關鍵】確保從池中 acquire 的車輛可見性已生效
-      // 延遲 50ms 讓 GSAP 設置完成
-      await new Promise((resolve) => setTimeout(resolve, 50))
 
-      // 確保 SVG 路徑元素已準備好
-      const waitForSvgPaths = async () => {
-        const maxWait = 3000 // 最多等待3秒
-        const startTime = Date.now()
-        const pathId = vehicle.getSvgPathId()
-
-        while (Date.now() - startTime < maxWait) {
-          const pathElement = document.querySelector(`#${pathId}`)
-          if (pathElement && pathElement.getTotalLength && pathElement.getTotalLength() > 0) {
-            return true
-          }
-          await new Promise((resolve) => setTimeout(resolve, 50))
-        }
-
-        console.warn(`⚠️ [${vehicle.id}] SVG 路徑元素未準備好，將使用回退方式: ${pathId}`)
-        return false
-      }
-
-      // 等待 SVG 路徑準備好
-      await waitForSvgPaths()
-
-      // 🚀 改進：改用物件池回收機制 - 接收 vehicle 實例而不是 vehicleId
-      const handleVehicleOutOfBounds = (vehicle) => {
-        if (!vehicle) return
-
-        const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
-        if (vehicleIndex > -1) {
-          // ✅ 從活躍車輛列表中移除
-          activeCars.value.splice(vehicleIndex, 1)
-
-          // ✅ 從 window.liveVehicles 移除（使循環計數正確）
-          if (window.liveVehicles) {
-            const liveIdx = window.liveVehicles.findIndex((v) => v.id === vehicle.id)
-            if (liveIdx > -1) {
-              window.liveVehicles.splice(liveIdx, 1)
-            }
-          }
-
-          // console.log(`♻️ [${vehicle.id}] 車輛動畫完成，放回物件池`)
-
-          // 🚨【確保隱藏】無論如何都要隱藏車輛元素
-          if (vehicle.element) {
-            gsap.set(vehicle.element, {
-              autoAlpha: 0,
-              pointerEvents: 'none',
-            })
-          }
-
-          // ✅ 放回物件池（隱藏元素但保留在 DOM 中）
-          if (vehiclePool) {
-            vehiclePool.release(vehicle)
-          } else {
-            // 備用：如果池未初始化，直接調用 reset
-            vehicle.reset(vehicle.direction, vehicle.laneNumber, vehicle.vehicleType, store)
-          }
-        } else {
-          // ⚠️ 車輛已被移除，但仍收到回調，確保隱藏
-          console.warn(`⚠️ [${vehicle?.id}] 收到 handleVehicleOutOfBounds 但車輛已不在 activeCars 中`)
-          if (vehicle?.element) {
-            gsap.set(vehicle.element, {
-              autoAlpha: 0,
-              pointerEvents: 'none',
-            })
-          }
-        }
-      }
-
-      // 使用新的 MotionPath 動畫方法，傳入邊界檢測回調
-      await vehicle.moveAlongPath(trafficController, activeCars.value, handleVehicleOutOfBounds)
-
-      // ✅ 動畫完成後的清理（此時車輛已由 handleVehicleOutOfBounds 放回池中）
-      // 無需額外清理
-    } catch (error) {
-      console.error('❌ 自動生成車輛動畫錯誤:', error)
-      const vehicleIndex = activeCars.value.findIndex((c) => c.id === vehicle.id)
-      if (vehicleIndex > -1) {
-        activeCars.value.splice(vehicleIndex, 1)
-      }
-      // 發生錯誤時也放回池中
-      if (vehiclePool) {
-        vehiclePool.release(vehicle)
-      }
-    }
-  }
-  startVehicleAnimation()
+  return vehicle
 }
 
 const crossroadContainer = ref(null)
@@ -663,10 +531,18 @@ autoTrafficGenerator.setMinLaneInterval(2000) // 同一車道2秒內不重複生
 const trafficDataCollector = new TrafficDataCollector()
 const currentPhase = ref('南北向 綠燈')
 const countdown = ref(15)
-const activeCars = ref([]) // 維護活躍車輛列表
 
-// 🚀 物件池：用於回收車輛，避免 DOM 堆積
-let vehiclePool = null // 會在 onMounted 時初始化
+// ✅ 使用 useVehicleManager composable 管理車輛邏輯
+const {
+  activeCars,
+  initVehiclePool,
+  createVehicleWithPosition: createVehicleWithPositionComposable,
+  removeVehicleFromSimulation: removeVehicleFromSimulationComposable,
+  handleVehicleOutOfBounds: handleVehicleOutOfBoundsComposable,
+  clearAllVehicles: clearAllVehiclesComposable,
+  disposeVehiclePool,
+  cleanupActiveVehicles,
+} = useVehicleManager(store, vehicleContainer, crossroadContainer)
 const getCountdownStyle = () => {
   const phaseText = currentPhase.value
 
@@ -947,9 +823,8 @@ onMounted(async () => {
   if (crossroadContainer.value) {
     initPathCalculator()
 
-    // 🚀 初始化物件池
-    vehiclePool = new VehiclePool(vehicleContainer.value, store)
-    console.log('🚀 VehiclePool 已初始化')
+    // 🚀 初始化物件池（使用 composable）
+    initVehiclePool()
   }
 
   if (crossroadContainer.value) {
@@ -1733,12 +1608,8 @@ onUnmounted(() => {
   })
   activeCars.value = []
 
-  // 🚀 清理物件池
-  if (vehiclePool) {
-    console.log('🚀 清理 VehiclePool...')
-    vehiclePool.dispose()
-    vehiclePool = null
-  }
+  // 🚀 清理物件池（使用 composable）
+  disposeVehiclePool()
 
   // 🌤️ 完全清理天氣控制器
   if (weatherController) {
