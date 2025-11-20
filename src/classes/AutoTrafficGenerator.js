@@ -1861,7 +1861,7 @@ export default class AutoTrafficGenerator {
           direction: randomDirection,
           laneNumber: laneNumber,
         })
-        console.log(`🚑 [AutoTrafficGenerator] 自動生成救護車: ${randomDirection} 方向`)
+        // ✅ 移除重複日誌：IndexPage.vue 已經會記錄此事件
       }
 
       // 計劃下一次生成
@@ -1879,7 +1879,6 @@ export default class AutoTrafficGenerator {
     const randomInterval = min + Math.random() * (max - min)
 
     this.emergencyVehicleConfig.nextSpawnTime = Date.now() + randomInterval
-
-    console.log(`🚑 [AutoTrafficGenerator] 下次救護車生成時間: ${Math.round(randomInterval / 1000)}秒後`)
+    // ✅ 移除重複日誌：減少控制台噪音
   }
 }

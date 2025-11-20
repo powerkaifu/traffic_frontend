@@ -147,9 +147,8 @@ export function useVehicleManager(store, vehicleContainerRef, crossroadContainer
     if (speed !== null && speed !== undefined) {
       vehicle.initialSpeed = speed
       vehicle.currentSpeed = speed
-    } else {
-      console.warn(`⚠️ [${vehicle.id}] 未收到速度參數 (isFromPool: ${isFromPool})`)
     }
+    // ✅ 如果 speed 為 null，Vehicle 構造函數會自動生成隨機速度，無需警告
 
     // 🚨 設置初始 progress（如果提供的話）
     if (typeof initialProgress === 'number' && initialProgress !== 0) {
