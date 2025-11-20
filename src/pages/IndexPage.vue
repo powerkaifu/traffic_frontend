@@ -308,21 +308,16 @@
           <span class="btn-icon">📋</span>
         </button>
 
-        <!-- 分隔線 -->
+        <button @click="clearAllVehicles" class="toolbar-btn clear-btn" title="清空車輛">
+          <span class="btn-icon">🧹</span>
+        </button>
+
         <div class="toolbar-divider"></div>
 
         <button @click="toggleWeatherMenu" :class="['toolbar-btn', { active: showWeatherMenu }]" title="天氣效果">
           <span class="btn-icon">{{ getWeatherIcon() }}</span>
         </button>
 
-        <!-- 分隔線 -->
-        <div class="toolbar-divider"></div>
-
-        <button @click="clearAllVehicles" class="toolbar-btn clear-btn" title="清空車輛">
-          <span class="btn-icon">🧹</span>
-        </button>
-
-        <!-- 分隔線 -->
         <div class="toolbar-divider"></div>
 
         <!-- 🚨 緊急車輛按鈕 -->
