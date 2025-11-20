@@ -398,43 +398,14 @@ export default class Vehicle {
   }
 
   // Observer Pattern: 檢測容器位置變化的觀察者方法
+  // 🚀【優化】移除此方法，因為它會導致嚴重的 Layout Thrashing (強制重排)
+  // 且 containerPosition 屬性實際上並未被其他邏輯使用
+  /*
   checkLayoutChange() {
-    // Observer Pattern: 監控容器位置變化（抽屜開關等）
-    const container = document.querySelector('.crossroad-area')
-    if (!container) return false
-
-    const currentRect = container.getBoundingClientRect()
-
-    if (!this.containerPosition) {
-      // 第一次記錄位置
-      this.containerPosition = {
-        left: currentRect.left,
-        top: currentRect.top,
-        width: currentRect.width,
-        height: currentRect.height,
-      }
-      return false
-    }
-
-    // 檢查位置是否發生明顯變化（容忍2px的誤差）
-    const tolerance = 2
-    const changed =
-      Math.abs(currentRect.left - this.containerPosition.left) > tolerance ||
-      Math.abs(currentRect.top - this.containerPosition.top) > tolerance ||
-      Math.abs(currentRect.width - this.containerPosition.width) > tolerance ||
-      Math.abs(currentRect.height - this.containerPosition.height) > tolerance
-
-    if (changed) {
-      this.containerPosition = {
-        left: currentRect.left,
-        top: currentRect.top,
-        width: currentRect.width,
-        height: currentRect.height,
-      }
-    }
-
-    return changed
+    // ... 移除代碼 ...
+    return false
   }
+  */
 
   // Strategy Pattern: 檢查車輛是否已離開畫面邊界
   checkOutOfBounds(position) {
@@ -787,7 +758,8 @@ export default class Vehicle {
     // Composite Pattern: 將車輛元素添加到容器中，形成組合結構
     container.appendChild(this.element)
     // 初始化時記錄容器位置
-    this.checkLayoutChange()
+    // 初始化時記錄容器位置
+    // this.checkLayoutChange() // ❌ 移除：方法已棄用且被註釋掉，導致運行時錯誤
   }
 
   // Helper Method: 獲取車輛對應的路徑ID
@@ -1055,7 +1027,7 @@ export default class Vehicle {
               }
 
               this.lastMovementTime = Date.now()
-              this.checkLayoutChange()
+              // this.checkLayoutChange() // 🚀 移除：避免每幀強制重排 (Layout Thrashing)
             },
             onComplete: () => {
               // 清理定期檢查定時器

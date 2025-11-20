@@ -1564,14 +1564,16 @@ onMounted(async () => {
     showMemoryDiagnostics() {
       try {
         const liveVehicles = store.getLiveVehicles()
-        const gsapTweens = gsap.getTweensOf() // ← 可能出現異常，需要保護
+        // 🚀 優化：使用 globalTimeline 獲取動畫數量，避免 getTweensOf() 的潛在問題
+        // getTweensOf() 如果沒有參數會報錯或行為不一致
+        const gsapTweensCount = gsap.globalTimeline ? gsap.globalTimeline.getChildren(true, true, true).length : 0
 
         const diagnostics = {
           '📊 活躍車輛數': liveVehicles.length,
-          '🎬 GSAP 動畫堆': gsapTweens?.length || 0,
+          '🎬 GSAP 動畫堆': gsapTweensCount,
           '🚨 洩漏指標':
-            gsapTweens?.length > liveVehicles.length
-              ? `⚠️ 異常高 (${gsapTweens.length - liveVehicles.length} 多餘)`
+            gsapTweensCount > liveVehicles.length * 3 // 每個車輛可能有 2-3 個動畫 (move, fade, scale)
+              ? `⚠️ 異常高 (${gsapTweensCount - liveVehicles.length * 3} 多餘)`
               : '✅ 正常',
           '💾 預估內存': `~${Math.round(liveVehicles.length * 0.4)} MB`,
           '⏰ 時間戳': new Date().toLocaleTimeString(),
