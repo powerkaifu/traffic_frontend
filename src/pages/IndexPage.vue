@@ -264,72 +264,10 @@
         :style="{
           width: 225 + 'px',
           height: 225 + 'px',
-          border: '1px dashed #cccccc',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
           opacity: 1,
         }"
       ></div>
-
-      <!-- 🛑 四個方向的停止線標記 - 已移除顯示 -->
-      <!-- 東向停止線（中央矩形左邊） -->
-      <!-- <div
-        class="stop-line-marker stop-line-east"
-        :style="{
-          position: 'absolute',
-          left: 'calc(50% - ' + 225 / 2 + 'px)',
-          top: 'calc(50% - 30px)',
-          width: '3px',
-          height: '60px',
-          backgroundColor: '#FF4444',
-          zIndex: 101,
-        }"
-        title="東向停止線"
-      ></div> -->
-
-      <!-- 西向停止線（中央矩形右邊） -->
-      <!-- <div
-        class="stop-line-marker stop-line-west"
-        :style="{
-          position: 'absolute',
-          left: 'calc(50% + ' + 225 / 2 + 'px)',
-          top: 'calc(50% - 30px)',
-          width: '3px',
-          height: '60px',
-          backgroundColor: '#4444FF',
-          zIndex: 101,
-        }"
-        title="西向停止線"
-      ></div> -->
-
-      <!-- 南向停止線（中央矩形上邊） -->
-      <!-- <div
-        class="stop-line-marker stop-line-south"
-        :style="{
-          position: 'absolute',
-          left: 'calc(50% - 30px)',
-          top: 'calc(50% - ' + 225 / 2 + 'px)',
-          width: '60px',
-          height: '3px',
-          backgroundColor: '#44FF44',
-          zIndex: 101,
-        }"
-        title="南向停止線"
-      ></div> -->
-
-      <!-- 北向停止線（中央矩形下邊） -->
-      <!-- <div
-        class="stop-line-marker stop-line-north"
-        :style="{
-          position: 'absolute',
-          left: 'calc(50% - 30px)',
-          top: 'calc(50% + ' + 225 / 2 + 'px)',
-          width: '60px',
-          height: '3px',
-          backgroundColor: '#FFFF44',
-          zIndex: 101,
-        }"
-        title="北向停止線"
-      ></div> -->
-      <!-- 已移除中心紅色圓點 -->
 
       <!-- AI 交通預測面板 -->
       <div class="ai-prediction-panel">
