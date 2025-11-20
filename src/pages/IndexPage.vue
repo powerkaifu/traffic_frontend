@@ -362,13 +362,13 @@ import TrafficDataCollector from '../classes/TrafficDataCollector.js'
 import Vehicle from '../classes/Vehicle.js'
 import VehiclePool from '../classes/VehiclePool.js'
 import LumoAssistant from '../components/LumoAssistant.vue'
-import { createLanePathCalculator } from '../classes/draw_utils/lanePathCalculator.js'
 import { lightColorConfig } from '../classes/config/trafficConfig.js'
 import WeatherController from '../classes/WeatherController.js'
 import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
 import { GENERATION_CONFIG } from '../classes/config/vehicleConfig.js'
 import { useSimulationStore } from '../stores/simulationStore.js'
 import { numberAnimator } from '../classes/NumberAnimator.js'
+import { useLanePaths } from '../composables/useLanePaths.js'
 
 // 註冊 GSAP MotionPathPlugin 和 MotionPathHelper
 gsap.registerPlugin(MotionPathPlugin, MotionPathHelper)
@@ -705,24 +705,20 @@ const aiPrediction = ref({
 const ewLightRef = ref(null)
 const snLightRef = ref(null)
 
-// MotionPathHelper 控制
-const isPathEditMode = ref(false)
-const isPathVisible = ref(false) // 路徑預設隱藏，需要按按鈕才顯示
-const pathHelpers = ref([])
-const pathObservers = ref([]) // 路徑變化觀察器
-const tempEditedPaths = ref({}) // 暫存編輯中的路徑數據
-
-// Tooltip 狀態
-const pathTooltip = ref({
-  show: false,
-  text: '',
-  x: 0,
-  y: 0,
-})
-
-// 🎯 下方區域互動防抖機制 - 防止 Tooltip 反覆彈進彈出
-// 路徑計算器實例
-let lanePathCalculator = null
+// ✅ 使用 useLanePaths composable 管理路徑邏輯
+const {
+  isPathVisible,
+  isPathEditMode,
+  pathTooltip,
+  pathFunctions,
+  initPathCalculator,
+  togglePathVisibility: togglePathVisibilityComposable,
+  enablePathEditing: enablePathEditingComposable,
+  disablePathEditing: disablePathEditingComposable,
+  showPathTooltip,
+  hidePathTooltip,
+  updateTooltipPosition,
+} = useLanePaths()
 
 // ===== 天氣效果相關 =====
 let weatherController = null // 天氣控制器實例
@@ -789,15 +785,15 @@ const togglePathEditMode = () => {
   isPathEditMode.value = !isPathEditMode.value
 
   if (isPathEditMode.value) {
-    enablePathEditing()
+    enablePathEditingComposable()
   } else {
-    disablePathEditing()
+    disablePathEditingComposable()
   }
 }
 
 // 切換路徑顯示/隱藏
 const togglePathVisibility = () => {
-  isPathVisible.value = !isPathVisible.value
+  togglePathVisibilityComposable()
 }
 
 // 清空所有車輛
@@ -868,327 +864,27 @@ const clearAllVehicles = () => {
   }
 }
 
-// 啟用路徑編輯功能
-const enablePathEditing = () => {
-  console.log('🎯 啟用路徑編輯模式')
-  // 清空暫存的編輯結果
-  tempEditedPaths.value = {}
+// 路徑計算函數現在由 useLanePaths composable 提供
+// 為了向後兼容，創建引用
+const getEastLane1Path = () => pathFunctions.value.getEastLane1Path()
+const getEastLane2Path = () => pathFunctions.value.getEastLane2Path()
+const getEastLane3Path = () => pathFunctions.value.getEastLane3Path()
+const getEastLane4Path = () => pathFunctions.value.getEastLane4Path()
 
-  // 只允許編輯每個方向的車道 1 和車道 4
-  const editablePathIds = [
-    'eastLane1Straight', // 東向車道1 - 可編輯
-    'eastLane4Straight', // 東向車道4 - 可編輯
-    'westLane1Straight', // 西向車道1 - 可編輯
-    'westLane4Straight', // 西向車道4 - 可編輯
-    'southLane1Straight', // 南向車道1 - 可編輯
-    'southLane4Straight', // 南向車道4 - 可編輯
-    'northLane1Straight', // 北向車道1 - 可編輯
-    'northLane4Straight', // 北向車道4 - 可編輯
-  ]
+const getWestLane1Path = () => pathFunctions.value.getWestLane1Path()
+const getWestLane2Path = () => pathFunctions.value.getWestLane2Path()
+const getWestLane3Path = () => pathFunctions.value.getWestLane3Path()
+const getWestLane4Path = () => pathFunctions.value.getWestLane4Path()
 
-  console.log('🔧 開始為可編輯路徑啟用 MotionPathHelper...')
+const getSouthLane1Path = () => pathFunctions.value.getSouthLane1Path()
+const getSouthLane2Path = () => pathFunctions.value.getSouthLane2Path()
+const getSouthLane3Path = () => pathFunctions.value.getSouthLane3Path()
+const getSouthLane4Path = () => pathFunctions.value.getSouthLane4Path()
 
-  // 為每個可編輯路徑啟用 MotionPathHelper
-  editablePathIds.forEach((pathId) => {
-    try {
-      const pathElement = document.getElementById(pathId)
-      if (!pathElement) {
-        console.error(`❌ 找不到路徑元素: ${pathId}`)
-        return
-      }
-
-      const pathData = pathElement.getAttribute('d')
-      console.log(`🔍 路徑 ${pathId} 數據:`, pathData)
-
-      // 檢查路徑格式
-      if (!pathData || (!pathData.includes('C') && !pathData.includes('c'))) {
-        console.warn(`⚠️ 路徑 ${pathId} 不是貝茲曲線格式，可能影響編輯功能`)
-      }
-
-      console.log(`🔧 為路徑 ${pathId} 創建 MotionPathHelper`)
-
-      // 嘗試方法1: 使用 editPath
-      try {
-        console.log(`🔧 為 ${pathId} 初始化 MotionPathHelper...`)
-        const pathEditor = MotionPathHelper.editPath(pathElement, {
-          selected: false,
-          createPoints: false, // 禁止自動創建錨點
-          handleSize: 8,
-        })
-
-        if (pathEditor) {
-          console.log(`📏 ${pathId} 路徑數據:`, pathElement.getAttribute('d'))
-          console.log(`⚙️ ${pathId} MotionPathHelper 配置:`, { selected: false, createPoints: false, handleSize: 8 })
-
-          pathHelpers.value.push(pathEditor)
-          console.log(`✅ ${pathId} 路徑編輯器已啟用 (使用 editPath)`)
-          return
-        }
-      } catch (editPathError) {
-        console.warn(`⚠️ editPath 方法失敗，嘗試其他方法:`, editPathError.message)
-      }
-
-      // 嘗試方法2: 創建一個 tween 然後傳遞給 create
-      try {
-        // 創建一個隱藏的測試元素
-        const testDiv = document.createElement('div')
-        testDiv.style.position = 'absolute'
-        testDiv.style.left = '-9999px'
-        testDiv.style.opacity = '0'
-        testDiv.style.pointerEvents = 'none'
-        document.body.appendChild(testDiv)
-
-        // 創建 motionPath tween
-        const tween = gsap.to(testDiv, {
-          duration: 1,
-          motionPath: {
-            path: pathElement,
-            autoRotate: false,
-          },
-          paused: true,
-        })
-
-        // 使用 tween 創建 MotionPathHelper
-        const helper = MotionPathHelper.create(tween)
-
-        if (helper) {
-          pathHelpers.value.push({ helper, testDiv, tween })
-          console.log(`✅ ${pathId} 路徑編輯器已啟用 (使用 create + tween)`)
-          return
-        }
-      } catch (tweenError) {
-        console.warn(`⚠️ tween 方法失敗，嘗試最後方法:`, tweenError.message)
-      }
-
-      // 嘗試方法3: 直接傳遞元素
-      try {
-        const helper = MotionPathHelper.create(pathElement)
-
-        if (helper) {
-          pathHelpers.value.push(helper)
-          console.log(`✅ ${pathId} 路徑編輯器已啟用 (直接傳遞元素)`)
-        } else {
-          console.error(`❌ ${pathId} 所有方法都失敗了`)
-        }
-      } catch (elementError) {
-        console.error(`❌ 直接傳遞元素方法也失敗:`, elementError.message)
-      }
-    } catch (error) {
-      console.error(`❌ 無法啟用 ${pathId} 路徑編輯器:`, error)
-      console.error('Error details:', error.message)
-      console.error('Stack trace:', error.stack)
-    }
-  })
-
-  console.log(`🎯 MotionPathHelper 啟用完成，共啟用 ${pathHelpers.value.length} 個路徑編輯器`)
-
-  // 設置路徑變化監聽器
-  setupPathChangeListeners(editablePathIds)
-
-  // 添加鍵盤事件監聽器
-  // 只在編輯模式下啟用鍵盤事件監聽，但優先級設為低
-  if (isPathEditMode.value) {
-    // 使用較低的優先級，讓 MotionPathHelper 先處理事件
-    document.addEventListener('keydown', handleKeyDown, { capture: false, passive: true })
-  }
-}
-
-// 設置路徑變化監聽器
-const setupPathChangeListeners = (pathIds) => {
-  console.log('🔄 設置路徑變化監聽器...')
-
-  pathIds.forEach((pathId) => {
-    const pathElement = document.getElementById(pathId)
-    if (!pathElement) return
-
-    // 使用 MutationObserver 監聽路徑 'd' 屬性變化
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'd') {
-          const newPathData = pathElement.getAttribute('d')
-          console.log(`🔄 檢測到路徑 ${pathId} 變化:`, newPathData)
-
-          // 暫存編輯結果，不立即保存
-          tempEditedPaths.value[pathId] = newPathData
-          console.log(`📝 暫存路徑 ${pathId} 編輯結果`)
-        }
-      })
-    })
-
-    observer.observe(pathElement, {
-      attributes: true,
-      attributeFilter: ['d'],
-    })
-
-    // 保存觀察器引用以便後續清理
-    pathObservers.value.push(observer)
-  })
-}
-
-// 鍵盤事件處理
-const handleKeyDown = (e) => {
-  // 在編輯模式下，完全讓 MotionPathHelper 處理所有鍵盤事件
-  if (isPathEditMode.value) {
-    // 只記錄日誌，不做任何處理，確保不干擾 MotionPathHelper
-    if (e.ctrlKey && e.key === 'z') {
-      console.log('↶ Ctrl+Z - 由 MotionPathHelper 處理撤銷')
-    } else if (e.key === 'Delete' || e.key === 'Backspace') {
-      console.log('🗑️ Delete/Backspace - 由 MotionPathHelper 處理刪除')
-    }
-    // 不阻止事件，不調用 preventDefault 或 stopPropagation
-  }
-}
-
-// Tooltip 處理函數
-const showPathTooltip = (event, text) => {
-  if (!isPathEditMode.value) return
-
-  const rect = event.target.closest('svg').getBoundingClientRect()
-
-  // 🎯 只在 tooltip 還未顯示時才顯示，避免重複觸發
-  if (!pathTooltip.value.show) {
-    pathTooltip.value = {
-      show: true,
-      text: text,
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    }
-    console.log(`✅ Tooltip 已顯示: ${text}`)
-  }
-}
-
-const hidePathTooltip = () => {
-  if (pathTooltip.value.show) {
-    pathTooltip.value.show = false
-    console.log('✅ Tooltip 已隱藏')
-  }
-}
-
-const updateTooltipPosition = (event) => {
-  // 🎯 只在 tooltip 已顯示時才更新位置
-  if (!pathTooltip.value.show) return
-
-  const rect = event.target.closest('svg').getBoundingClientRect()
-  pathTooltip.value.x = event.clientX - rect.left
-  pathTooltip.value.y = event.clientY - rect.top
-}
-
-// 點擊路徑處理函數
-// 停用路徑編輯功能
-const disablePathEditing = () => {
-  console.log('🔒 停用路徑編輯模式')
-
-  // 清理所有編輯器
-  pathHelpers.value.forEach((item) => {
-    try {
-      if (item && typeof item === 'object') {
-        // 處理複合對象 { helper, testDiv, tween }
-        if (item.helper && typeof item.helper.kill === 'function') {
-          item.helper.kill()
-        }
-        if (item.tween && typeof item.tween.kill === 'function') {
-          item.tween.kill()
-        }
-        if (item.testDiv && item.testDiv.parentNode) {
-          item.testDiv.parentNode.removeChild(item.testDiv)
-        }
-      } else if (item && typeof item.kill === 'function') {
-        // 處理直接的編輯器對象
-        item.kill()
-      } else if (item && typeof item.destroy === 'function') {
-        // 處理可能有 destroy 方法的對象
-        item.destroy()
-      }
-    } catch (cleanupError) {
-      console.warn('清理編輯器時出現錯誤:', cleanupError.message)
-    }
-  })
-  pathHelpers.value = []
-
-  // 清理路徑變化觀察器
-  pathObservers.value.forEach((observer) => {
-    try {
-      observer.disconnect()
-    } catch (error) {
-      console.warn('清理路徑觀察器時出現錯誤:', error.message)
-    }
-  })
-  pathObservers.value = []
-
-  // 移除鍵盤事件監聽器（使用與添加時相同的選項）
-  document.removeEventListener('keydown', handleKeyDown, { capture: false })
-}
-
-// 導出所有路徑資料（編輯後）
-const exportPathData = () => {
-  console.log('📋 導出路徑資料:')
-
-  const pathIds = [
-    'eastLane1Straight',
-    'eastLane2Straight',
-    'eastLane3Straight',
-    'eastLane4Straight',
-    'westLane1Straight',
-    'westLane2Straight',
-    'westLane3Straight',
-    'westLane4Straight',
-    'southLane1Straight',
-    'southLane2Straight',
-    'southLane3Straight',
-    'southLane4Straight',
-    'northLane1Straight',
-    'northLane2Straight',
-    'northLane3Straight',
-    'northLane4Straight',
-  ]
-
-  const pathData = {}
-
-  pathIds.forEach((pathId) => {
-    const pathElement = document.getElementById(pathId)
-    if (pathElement) {
-      const pathValue = pathElement.getAttribute('d')
-      pathData[pathId] = pathValue
-      console.log(`${pathId}: ${pathValue}`)
-    }
-  })
-
-  // 將資料複製到剪貼板
-  const jsonData = JSON.stringify(pathData, null, 2)
-  navigator.clipboard
-    .writeText(jsonData)
-    .then(() => {
-      console.log('✅ 路徑資料已複製到剪貼板')
-      alert('路徑資料已複製到剪貼板！')
-    })
-    .catch((err) => {
-      console.error('❌ 複製失敗:', err)
-    })
-
-  return pathData
-}
-
-// 路徑計算函數（會在 onMounted 後被初始化）
-// 提供預設值以防在初始化前被呼叫
-let getEastLane1Path = () => 'M-200,600 L1400,600'
-let getEastLane2Path = () => 'M-200,570 L1400,570'
-let getEastLane3Path = () => 'M-200,540 L1400,540'
-let getEastLane4Path = () => 'M-200,510 L1400,510'
-
-let getWestLane1Path = () => 'M-200,400 L1400,400'
-let getWestLane2Path = () => 'M-200,430 L1400,430'
-let getWestLane3Path = () => 'M-200,460 L1400,460'
-let getWestLane4Path = () => 'M-200,490 L1400,490'
-
-let getSouthLane1Path = () => 'M500,-600 L500,1400'
-let getSouthLane2Path = () => 'M470,-600 L470,1400'
-let getSouthLane3Path = () => 'M440,-600 L440,1400'
-let getSouthLane4Path = () => 'M410,-600 L410,1400'
-
-let getNorthLane1Path = () => 'M530,-600 L530,1400'
-let getNorthLane2Path = () => 'M560,-600 L560,1400'
-let getNorthLane3Path = () => 'M590,-600 L590,1400'
-let getNorthLane4Path = () => 'M620,-600 L620,1400'
+const getNorthLane1Path = () => pathFunctions.value.getNorthLane1Path()
+const getNorthLane2Path = () => pathFunctions.value.getNorthLane2Path()
+const getNorthLane3Path = () => pathFunctions.value.getNorthLane3Path()
+const getNorthLane4Path = () => pathFunctions.value.getNorthLane4Path()
 
 // ✅ Phase 5：【新增】統一的車輛移除方法 - 集中化車輛生命週期管理
 // 這個方法是唯一的車輛移除入口，確保所有移除邏輯一致
@@ -1247,30 +943,9 @@ onMounted(async () => {
   await nextTick()
   console.log('✅ [IndexPage] DOM 已準備好')
 
-  // 初始化路徑計算器並設定所有路徑函數
+  // 初始化路徑計算器（現在使用 composable）
   if (crossroadContainer.value) {
-    lanePathCalculator = createLanePathCalculator()
-
-    // 指派所有路徑計算函數
-    getEastLane1Path = lanePathCalculator.getEastLane1Path
-    getEastLane2Path = lanePathCalculator.getEastLane2Path
-    getEastLane3Path = lanePathCalculator.getEastLane3Path
-    getEastLane4Path = lanePathCalculator.getEastLane4Path
-
-    getWestLane1Path = lanePathCalculator.getWestLane1Path
-    getWestLane2Path = lanePathCalculator.getWestLane2Path
-    getWestLane3Path = lanePathCalculator.getWestLane3Path
-    getWestLane4Path = lanePathCalculator.getWestLane4Path
-
-    getSouthLane1Path = lanePathCalculator.getSouthLane1Path
-    getSouthLane2Path = lanePathCalculator.getSouthLane2Path
-    getSouthLane3Path = lanePathCalculator.getSouthLane3Path
-    getSouthLane4Path = lanePathCalculator.getSouthLane4Path
-
-    getNorthLane1Path = lanePathCalculator.getNorthLane1Path
-    getNorthLane2Path = lanePathCalculator.getNorthLane2Path
-    getNorthLane3Path = lanePathCalculator.getNorthLane3Path
-    getNorthLane4Path = lanePathCalculator.getNorthLane4Path
+    initPathCalculator()
 
     // 🚀 初始化物件池
     vehiclePool = new VehiclePool(vehicleContainer.value, store)
@@ -2002,7 +1677,7 @@ onUnmounted(() => {
   }
 
   // 清理 MotionPathHelper
-  disablePathEditing()
+  disablePathEditingComposable()
 
   // ✅ 取消訂閱 Store 事件
   if (window.storeUnsubscribers) {
@@ -2072,11 +1747,6 @@ onUnmounted(() => {
       weatherController.destroy()
     }
     weatherController = null
-  }
-
-  // 移除鍵盤事件監聽
-  if (typeof document !== 'undefined') {
-    document.removeEventListener('keydown', handleKeyDown, { capture: false })
   }
 
   // ═══════════════════════════════════════════════════════════════════════
