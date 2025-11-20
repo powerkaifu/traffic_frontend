@@ -509,6 +509,10 @@ export class VehicleDOMUtils {
 
     // 🚨 救護車特殊處理：使用雙層結構避免 filter 影響紅十字
     if (options.vehicleType === 'ambulance') {
+      // 🏷️ 添加特殊 class 標記救護車
+      div.classList.add('ambulance-vehicle')
+
+      // ❌ 救護車不在外層設置背景圖片，只在內層設置
       // 創建內層圖片容器（套用 filter）
       const imageContainer = document.createElement('div')
       imageContainer.style.cssText = `
@@ -571,7 +575,7 @@ export class VehicleDOMUtils {
       crossMark.appendChild(vertical)
       div.appendChild(crossMark)
     } else {
-      // 普通車輛：直接設置背景圖片
+      // 普通車輛：直接在外層設置背景圖片
       div.style.backgroundImage = `url('${vehicleConfig.image}')`
       div.style.backgroundSize = 'contain'
       div.style.backgroundRepeat = 'no-repeat'

@@ -760,13 +760,7 @@ const spawnEmergencyVehicle = (type = 'ambulance') => {
     }
   }
 
-  // 3. 也顯示 Quasar 通知作為備援
-  $q.notify({
-    type: 'warning',
-    message: `🚑 注意！救護車從${directionChinese[randomDirection] || '某方向'}接近中！請避讓！`,
-    position: 'top',
-    timeout: 5000,
-  })
+  // 3. Quasar 通知已移除（只保留 Lumo 對話框）
 
   // 4. 生成車輛
   const pathStartPosition = Vehicle.getPathStartPosition(randomDirection, laneNumber)
@@ -781,6 +775,48 @@ const spawnEmergencyVehicle = (type = 'ambulance') => {
       0,
       80, // 緊急車輛速度較快
     )
+  }
+}
+
+// 🚑 處理自動生成的救護車（帶指定方向和車道）
+const spawnEmergencyVehicleWithDirection = (type = 'ambulance', direction = null, lane = null) => {
+  console.log(`🚨 自動生成緊急車輛: ${type}, 方向: ${direction}`)
+
+  // 使用傳入的方向和車道，或隨機選擇
+  const directions = ['east', 'west', 'south', 'north']
+  const randomDirection = direction || directions[Math.floor(Math.random() * directions.length)]
+  const laneNumber = lane || (Math.random() > 0.5 ? 1 : 2)
+
+  // 方向中文映射
+  const directionChinese = {
+    east: '東向',
+    west: '西向',
+    south: '南向',
+    north: '北向',
+  }
+
+  // 1. 啟動視覺特效
+  if (emergencyOverlayRef.value) {
+    emergencyOverlayRef.value.start()
+    setTimeout(() => {
+      if (emergencyOverlayRef.value) emergencyOverlayRef.value.stop()
+    }, 10000)
+  }
+
+  // 2. Lumo 語音提示（強制顯示在對話框）
+  if (lumoRef.value) {
+    if (window.lumoTooltipManager && window.lumoTooltipManager.showEmergency) {
+      const message = `🚑 緊急通知！${directionChinese[randomDirection]}即將有救護車通過，請注意避讓！`
+      window.lumoTooltipManager.showEmergency(message)
+    }
+  }
+
+  // 3. Quasar 通知已移除（只保留 Lumo 對話框）
+
+  // 4. 生成車輛
+  const pathStartPosition = Vehicle.getPathStartPosition(randomDirection, laneNumber)
+  if (pathStartPosition) {
+    createVehicleWithPosition(pathStartPosition.x, pathStartPosition.y, randomDirection, type, laneNumber, 0, 80)
   }
 }
 
@@ -1120,6 +1156,15 @@ onMounted(async () => {
     // ✅ 設置天氣控制器到 Store
     store.setWeatherController(weatherController)
     console.log('✅ 天氣系統已初始化')
+
+    // 🚑 監聽救護車隨機生成事件
+    if (store) {
+      store.subscribe('spawnEmergencyVehicle', (detail) => {
+        const { type, direction, laneNumber } = detail
+        console.log(`🚑 [IndexPage] 收到救護車生成事件: ${direction} 方向`)
+        spawnEmergencyVehicleWithDirection(type, direction, laneNumber)
+      })
+    }
 
     console.log('✅ 所有系統已初始化完成')
 

@@ -419,6 +419,7 @@ export default class Vehicle {
         south: { width: 35, height: 20, image: '/images/car/lCar_east.webp', rotation: 90 },
       },
     }
+
     return vehicleConfigs[this.vehicleType]?.[this.direction] || vehicleConfigs.large.east
   }
 
@@ -1552,13 +1553,96 @@ export default class Vehicle {
       this.vehicleType = vehicleType
       const vehicleConfig = this.getVehicleConfig()
 
-      // ✅ 總是設置圖片和樣式（即使車型未變）
-      this.element.style.backgroundImage = `url('${vehicleConfig.image}')`
+      // 🚨🚨🚨 【關鍵BUG修復】清理救護車的特殊DOM結構
+      // 如果元素有子元素（救護車的內層div或紅十字），需要清理
+      if (this.element.children.length > 0) {
+        // 清空所有子元素
+        this.element.innerHTML = ''
+      }
+
+      // 移除 ambulance-vehicle class
+      this.element.classList.remove('ambulance-vehicle')
+
+      // 清理可能残留的 filter 和背景图片
+      this.element.style.filter = 'none'
+      this.element.style.backgroundImage = 'none'
+
+      // 🚨🚨🚨 【关键】根据新的 vehicleType 重建 DOM 结构
+      if (vehicleType === 'ambulance') {
+        // 重建救护车的特殊 DOM 结构
+        this.element.classList.add('ambulance-vehicle')
+
+        // 创建内层图片容器（套用 filter）
+        const imageContainer = document.createElement('div')
+        imageContainer.style.cssText = `
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-image: url('${vehicleConfig.image}');
+          background-size: contain;
+          background-repeat: no-repeat;
+          filter: grayscale(100%) brightness(2.5) contrast(1.2);
+        `
+        this.element.appendChild(imageContainer)
+
+        // 创建红色十字标记
+        const crossMark = document.createElement('div')
+        crossMark.className = 'ambulance-cross'
+        const crossWidth = vehicleConfig.width * 0.5
+        const crossHeight = vehicleConfig.height * 0.5
+        crossMark.style.cssText = `
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: ${crossWidth}px;
+          height: ${crossHeight}px;
+          pointer-events: none;
+          z-index: 2;
+        `
+
+        // 创建十字的横线
+        const horizontal = document.createElement('div')
+        horizontal.style.cssText = `
+          position: absolute;
+          top: 50%;
+          left: 0;
+          transform: translateY(-50%);
+          width: 100%;
+          height: 4px;
+          background: #ff0000;
+          box-shadow: 0 0 4px rgba(255, 0, 0, 0.8);
+        `
+
+        // 创建十字的竖线
+        const vertical = document.createElement('div')
+        vertical.style.cssText = `
+          position: absolute;
+          top: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 4px;
+          height: 100%;
+          background: #ff0000;
+          box-shadow: 0 0 4px rgba(255, 0, 0, 0.8);
+        `
+
+        crossMark.appendChild(horizontal)
+        crossMark.appendChild(vertical)
+        this.element.appendChild(crossMark)
+      } else {
+        // 普通车辆：直接在外层设置背景图片
+        this.element.style.backgroundImage = `url('${vehicleConfig.image}')`
+        this.element.style.backgroundSize = 'contain'
+        this.element.style.backgroundPosition = 'center'
+        this.element.style.backgroundRepeat = 'no-repeat'
+      }
+
+      // ✅ 设置尺寸
       this.element.style.width = vehicleConfig.width + 'px'
       this.element.style.height = vehicleConfig.height + 'px'
-      this.element.style.backgroundSize = 'contain'
-      this.element.style.backgroundPosition = 'center'
-      this.element.style.backgroundRepeat = 'no-repeat'
 
       if (vehicleConfig.scaleX) {
         this.element.style.transform = `scaleX(${vehicleConfig.scaleX})`

@@ -78,6 +78,15 @@ export default class AutoTrafficGenerator {
     // 🌤️ 天氣相關屬性（用於控制車輛生成倍數）
     this.weatherGenerationMultiplier = 1.0 // 天氣生成倍數（晴天=1.0，下雨=0.75，下雪=0.6）
     this.currentWeatherContext = 'clear' // 當前天氣類型（clear, rain, heavyRain, fog, snow）
+
+    // 🚑 救護車隨機生成配置
+    this.emergencyVehicleConfig = {
+      enabled: true, // 是否啟用隨機救護車生成
+      minInterval: 2000, // 最小生成間隔（毫秒）- 15秒（測試模式）
+      maxInterval: 4000, // 最大生成間隔（毫秒）- 30秒（測試模式）
+      nextSpawnTime: 0, // 下次生成時間戳
+    }
+    this._scheduleNextEmergencyVehicle() // 計劃第一次生成
   }
 
   // 🚗 新增：從配置文件更新生成間隔參數
@@ -475,6 +484,9 @@ export default class AutoTrafficGenerator {
 
       // 5. 重新計算下一次生成間隔
       this.currentInterval = this._calcInterval()
+
+      // 6. 檢查並生成隨機救護車
+      this._checkAndSpawnEmergencyVehicle(Date.now())
     }
   }
 
@@ -1748,5 +1760,48 @@ export default class AutoTrafficGenerator {
     }
 
     return true
+  }
+
+  /**
+   * 🚑 檢查並生成隨機救護車
+   * @param {number} currentTime - 當前時間戳
+   * @private
+   */
+  _checkAndSpawnEmergencyVehicle(currentTime) {
+    if (!this.emergencyVehicleConfig.enabled) return
+
+    if (currentTime >= this.emergencyVehicleConfig.nextSpawnTime) {
+      // 隨機選擇方向生成救護車
+      const directions = ['east', 'west', 'south', 'north']
+      const randomDirection = directions[Math.floor(Math.random() * directions.length)]
+      const laneNumber = Math.random() > 0.5 ? 1 : 2 // 緊急車輛走內側車道
+
+      // 透過 simulationStore 發送事件給 IndexPage
+      if (this.simulationStore) {
+        this.simulationStore.emit('spawnEmergencyVehicle', {
+          type: 'ambulance',
+          direction: randomDirection,
+          laneNumber: laneNumber,
+        })
+        console.log(`🚑 [AutoTrafficGenerator] 自動生成救護車: ${randomDirection} 方向`)
+      }
+
+      // 計劃下一次生成
+      this._scheduleNextEmergencyVehicle()
+    }
+  }
+
+  /**
+   * 🚑 計劃下一次救護車生成
+   * @private
+   */
+  _scheduleNextEmergencyVehicle() {
+    const min = this.emergencyVehicleConfig.minInterval
+    const max = this.emergencyVehicleConfig.maxInterval
+    const randomInterval = min + Math.random() * (max - min)
+
+    this.emergencyVehicleConfig.nextSpawnTime = Date.now() + randomInterval
+
+    console.log(`🚑 [AutoTrafficGenerator] 下次救護車生成時間: ${Math.round(randomInterval / 1000)}秒後`)
   }
 }
