@@ -929,8 +929,35 @@ export default class Vehicle {
     // 根據用戶要求：天氣切換時，要立即影響場上車子
     this.weatherMultiplier = multiplier
 
-    // 立即調用 updateSpeed 應用新的 timeScale
-    this.updateSpeed()
+    // 🚨 【新增】Panic Stop 功能：當天氣變差時，部分車輛會緊急煞車
+    // 模擬駕駛員對突然天氣變化的反應
+    const isPanicStop = multiplier < 1.0 && Math.random() < 0.2 // 20% 機率
+
+    if (isPanicStop && this.movementTimeline.timeScale() > 0) {
+      // 立即停止
+      this.movementTimeline.timeScale(0)
+
+      // 1-2 秒後恢復到天氣速度
+      const resumeDelay = 1.0 + Math.random() * 1.0 // 1-2秒
+      gsap.delayedCall(resumeDelay, () => {
+        if (this.movementTimeline) {
+          // 恢復到天氣調整後的速度
+          const finalMultiplier = this.weatherMultiplier * this.emergencyMultiplier
+          this.movementTimeline.timeScale(finalMultiplier)
+
+          if (process.env.DEV && Math.random() < 0.1) {
+            logger.debug('Weather', `[${this.id}] Panic Stop 恢復移動，速度: ${finalMultiplier.toFixed(2)}x`)
+          }
+        }
+      })
+
+      if (process.env.DEV && Math.random() < 0.1) {
+        logger.debug('Weather', `[${this.id}] Panic Stop 觸發！將在 ${resumeDelay.toFixed(1)}s 後恢復`)
+      }
+    } else {
+      // 立即調用 updateSpeed 應用新的 timeScale
+      this.updateSpeed()
+    }
   }
 
   // Static Method: 獲取距離配置

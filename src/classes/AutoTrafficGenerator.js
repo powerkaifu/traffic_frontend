@@ -214,16 +214,20 @@ export default class AutoTrafficGenerator {
 
     // 創建並保存新的監聽器
     window._autoTrafficWeatherListener = (event) => {
-      const { weatherType, speedMultiplier } = event.detail
-      this.weatherGenerationMultiplier = speedMultiplier || 1.0
-      this.currentWeatherContext = weatherType || 'clear'
+      // 🚨 【修復】正確提取 WeatherController 發送的事件數據
+      const { weather, multiplier } = event.detail
+      const weatherType = weather || 'clear'
+      const speedMultiplier = multiplier || 1.0
+
+      this.weatherGenerationMultiplier = speedMultiplier
+      this.currentWeatherContext = weatherType
       console.log(
         `🌤️ [AutoTrafficGenerator] 天氣已更新: ${weatherType}, 生成倍數: ${this.weatherGenerationMultiplier.toFixed(2)}x`,
       )
 
       // 🚀 【優化】使用平滑過度改變速度，而不是瞬間改變
       // 避免所有車輛同時變速導致 CPU 100%
-      this._smoothSpeedTransition(speedMultiplier || 1.0, 2000) // 2 秒內平滑過度
+      this._smoothSpeedTransition(speedMultiplier, 2000) // 2 秒內平滑過度
     }
 
     window.addEventListener('weatherChanged', window._autoTrafficWeatherListener)
