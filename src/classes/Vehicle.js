@@ -251,10 +251,15 @@ export default class Vehicle {
       this.weatherMultiplier = targetMultiplier
 
       // 應用綜合速度
-      this.updateSpeed()
+      // 🚨 【修復】天氣改變時不立即更新現有車輛速度，避免動畫異常
+      // 新生成的車輛會自動應用新的 weatherMultiplier
+      // this.updateSpeed()
 
       if (process.env.DEV && Math.random() < 0.01) {
-        logger.debug('Weather', `[${this.id}] 天氣速度改變: ${targetMultiplier.toFixed(2)}x`)
+        logger.debug(
+          'Weather',
+          `[${this.id}] 天氣速度改變: ${targetMultiplier.toFixed(2)}x (僅更新狀態，不改變當前速度)`,
+        )
       }
     }
     window.addEventListener('weatherSpeedChange', this.weatherSpeedChangeHandler)
@@ -927,6 +932,11 @@ export default class Vehicle {
     // 如果沒有動畫時間軸，直接返回
     if (!this.movementTimeline) return
 
+    // 🚨 【修復】只更新狀態，不執行變速動畫
+    // 這是為了防止現有車輛在天氣變化時突然變速導致的視覺問題
+    this.weatherMultiplier = multiplier
+
+    /*
     // 如果車輛已經停止（例如紅燈），不需要做任何事
     // 當它恢復移動時，會讀取最新的 VehicleStaticManager.getWeatherSpeedMultiplier()
     if (this.movementTimeline.timeScale() === 0) return
@@ -937,6 +947,7 @@ export default class Vehicle {
       duration: 2.0, // 2秒平滑過渡，模擬真實慣性
       ease: 'power1.inOut',
     })
+    */
   }
 
   // Static Method: 獲取距離配置
