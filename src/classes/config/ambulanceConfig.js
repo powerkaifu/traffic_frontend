@@ -110,9 +110,9 @@ export const INFLUENCE_RANGE = {
 
   // 🔴 路口中央階段（C: 通過停止線後）
   IN_INTERSECTION: {
-    OPPOSING: 500, // 對向車輛：500px 半徑範圍
-    PERPENDICULAR: 500, // 垂直車輛：500px 半徑範圍
-    SAME_DIRECTION: 500, // 同向車輛：500px 半徑範圍（統一）
+    OPPOSING: 400, // 對向車輛：500px 半徑範圍
+    PERPENDICULAR: 400, // 垂直車輛：500px 半徑範圍
+    SAME_DIRECTION: 400, // 同向車輛：500px 半徑範圍（統一）
   },
 
   // 🎯 路口範圍判定閾值
@@ -140,7 +140,7 @@ export const RECOVERY_TIMING = {
 export const DEBUG_CONFIG = {
   // 控制台日誌開關
   LOG_STAGE_CHANGES: true, // 記錄階段變化
-  LOG_SPEED_ADJUSTMENTS: true, // 🚨 臨時啟用：調試恢復問題
+  LOG_SPEED_ADJUSTMENTS: false, // 記錄速度調整（會產生大量日誌）
   LOG_AFFECTED_VEHICLES: true, // 記錄受影響的車輛
 
   // 視覺調試
