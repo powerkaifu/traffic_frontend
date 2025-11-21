@@ -7,13 +7,11 @@ import { ref } from 'vue'
 import { gsap } from 'gsap'
 import Vehicle from '../classes/Vehicle.js'
 import VehiclePool from '../classes/VehiclePool.js'
-import { VehicleStaticManager } from '../classes/utils/VehicleUtilities.js'
 
 export function useVehicleManager(store, vehicleContainerRef, crossroadContainerRef) {
   // ========== 狀態管理 ==========
   const activeCars = ref([]) // 維護活躍車輛列表
   let vehiclePool = null // 會在初始化時設置
-  let weatherListener = null // 天氣事件監聽器
 
   // ========== 物件池初始化 ==========
   /**
@@ -29,63 +27,12 @@ export function useVehicleManager(store, vehicleContainerRef, crossroadContainer
     vehiclePool = new VehiclePool(vehicleContainerRef.value, store)
     console.log('🚀 [useVehicleManager] VehiclePool 已初始化')
 
-    // ✅ 初始化天氣監聽
-    setupWeatherListener()
+    // 🚨 【移除】天氣監聽已移至 Vehicle.js，避免重複更新
   }
 
-  // ========== 天氣監聽 ==========
-  /**
-   * 設置天氣變化監聽器
-   */
-  function setupWeatherListener() {
-    if (weatherListener) return // 防止重複設置
-
-    weatherListener = (event) => {
-      const { multiplier } = event.detail
-      if (multiplier !== undefined) {
-        // console.log(`🌤️ [VehicleManager] 收到天氣變化事件: ${multiplier}x`)
-
-        // 1. 更新靜態管理器
-        VehicleStaticManager.setWeatherSpeedMultiplier(multiplier)
-
-        // 2. 更新所有活躍車輛
-        // 2. 更新所有活躍車輛 (分批處理以避免卡頓)
-        const vehicles = [...activeCars.value]
-        const chunkSize = 20 // 每幀更新的車輛數
-        let index = 0
-
-        function updateNextChunk() {
-          const chunk = vehicles.slice(index, index + chunkSize)
-          chunk.forEach((vehicle) => {
-            if (vehicle && typeof vehicle.updateWeatherSpeed === 'function') {
-              vehicle.updateWeatherSpeed(multiplier)
-            }
-          })
-
-          index += chunkSize
-          if (index < vehicles.length) {
-            requestAnimationFrame(updateNextChunk)
-          }
-        }
-
-        updateNextChunk()
-      }
-    }
-
-    window.addEventListener('weatherChanged', weatherListener)
-    console.log('🌤️ [VehicleManager] 天氣監聽器已設置')
-  }
-
-  /**
-   * 移除天氣變化監聽器
-   */
-  function removeWeatherListener() {
-    if (weatherListener) {
-      window.removeEventListener('weatherChanged', weatherListener)
-      weatherListener = null
-      console.log('🌤️ [VehicleManager] 天氣監聽器已移除')
-    }
-  }
+  // 🚨 【移除】天氣監聽邏輯已移至 Vehicle.js
+  // 原因：避免重複更新車輛速度，造成卡頓
+  // Vehicle.js 透過 weatherSpeedChange 事件直接處理
 
   // ========== 車輛創建 ==========
   /**
@@ -351,8 +298,7 @@ export function useVehicleManager(store, vehicleContainerRef, crossroadContainer
       vehiclePool.dispose()
       vehiclePool = null
     }
-    // ✅ 移除天氣監聽
-    removeWeatherListener()
+    // 🚨 【移除】天氣監聽已移至 Vehicle.js
   }
 
   /**

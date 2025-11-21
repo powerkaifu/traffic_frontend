@@ -245,68 +245,28 @@ export default class AutoTrafficGenerator {
   }
 
   /**
-   * 🚀 【新增】平滑改變速度倍數，避免 CPU 100% 暴升
+   * 🚀 【簡化】立即廣播天氣速度改變事件
    * @param {number} targetMultiplier - 目標速度倍數
-   * @param {number} duration - 過度持續時間（毫秒）
+   * @param {number} duration - 保留參數以維持相容性（不再使用）
    * @private
    */
   _smoothSpeedTransition(targetMultiplier, duration = 2000) {
-    // 終止舊的過度動畫
-    if (this.speedTransitionTimeline) {
-      this.speedTransitionTimeline.kill()
-    }
+    // 🚨 【修復】移除 GSAP 動畫，避免與 Vehicle.js 的立即更新衝突
+    // 直接更新倍數，不再使用平滑過渡
+    this.weatherGenerationMultiplier = targetMultiplier
 
-    // 🚀【優化】標記開始天氣過度，暫停非關鍵計算
-    // 這避免了粒子生成、速度改變、碰撞檢測同時進行導致的 CPU 100%
-    window.isWeatherTransitioning = true
-    window.dispatchEvent(new CustomEvent('weatherTransitionStart', {}))
-    console.log(`⏸️ [天氣過度] 開始暫停非關鍵計算...`)
-
-    // 🚀【優化】第一次廣播時，立即更新所有現有車輛
-    // 避免每幀都遍歷，改用事件廣播方式
-    const liveVehicles = this.simulationStore ? this.simulationStore.getLiveVehicles() : []
-    console.log(
-      `🌤️ [速度過度] 開始更新 ${liveVehicles.length} 輛車的速度倍數: ${this.speedTransitionState.multiplier.toFixed(2)}x → ${targetMultiplier.toFixed(2)}x`,
-    )
+    console.log(`🌤️ [速度更新] 立即更新速度倍數: ${targetMultiplier.toFixed(2)}x`)
 
     // 廣播天氣速度改變事件，讓所有車輛立即做出反應
     window.dispatchEvent(
       new CustomEvent('weatherSpeedChange', {
         detail: {
           targetMultiplier,
-          duration,
+          duration: 0, // 立即生效
           timestamp: Date.now(),
         },
       }),
     )
-
-    // 使用 GSAP 平滑改變倍數值
-    this.speedTransitionTimeline = gsap.to(this.speedTransitionState, {
-      multiplier: targetMultiplier,
-      duration: duration / 1000, // 轉為秒
-      ease: 'power2.inOut', // 平滑曲線
-      onUpdate: () => {
-        // 每幀更新新車生成時使用的倍數
-        this.weatherGenerationMultiplier = this.speedTransitionState.multiplier
-
-        if (process.env.DEV) {
-          // 只在開發模式偶爾輸出
-          if (Math.random() < 0.02) {
-            console.log(`🌤️ [速度過度] 當前倍數: ${this.speedTransitionState.multiplier.toFixed(2)}x`)
-          }
-        }
-      },
-      onComplete: () => {
-        console.log(`✅ [速度過度完成] 最終倍數: ${targetMultiplier.toFixed(2)}x`)
-
-        // 🚀【優化】過度完成後，恢復非關鍵計算
-        window.isWeatherTransitioning = false
-        window.dispatchEvent(new CustomEvent('weatherTransitionEnd', {}))
-        console.log(`▶️ [天氣過度] 恢復非關鍵計算...`)
-
-        this.speedTransitionTimeline = null
-      },
-    })
   }
 
   // 🎯【新增】設置 VD 情景
