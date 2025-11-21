@@ -61,6 +61,8 @@ function pauseAllAnimations() {
     gsap.globalTimeline.pause()
 
     // 2️⃣ 暫停所有活動的 GSAP 動畫（包括車輛、天氣等）
+    // ✅ 【修復】清空之前的 pausedTimelines 以防止累積引用
+    pausedTimelines.length = 0
     const allTweens = gsap.getTweensOf()
     allTweens.forEach((tween) => {
       if (tween && !tween.paused()) {
@@ -70,8 +72,10 @@ function pauseAllAnimations() {
     })
 
     // 3️⃣ 暫停車輛的移動時間軸（通過全局變量存取）
-    if (window.allVehicles && window.allVehicles.length > 0) {
-      window.allVehicles.forEach((vehicle) => {
+    // ✅ 【修復】檢查 window.liveVehicles（更可靠）而不是 window.allVehicles
+    const liveVehicles = window.liveVehicles || window.allVehicles || []
+    if (liveVehicles && liveVehicles.length > 0) {
+      liveVehicles.forEach((vehicle) => {
         if (vehicle && vehicle.movementTimeline && !vehicle.movementTimeline.paused()) {
           pausedTimelines.push(vehicle.movementTimeline)
           vehicle.movementTimeline.pause()
@@ -91,11 +95,19 @@ function resumeAllAnimations() {
     gsap.globalTimeline.play()
 
     // 2️⃣ 恢復所有被暫停的動畫
-    pausedTimelines.forEach((timeline) => {
-      if (timeline && timeline.paused()) {
-        timeline.play()
+    // ✅ 【修復】使用 for 迴圈並驗證 timeline 有效性，防止懸空引用
+    for (let i = pausedTimelines.length - 1; i >= 0; i--) {
+      const timeline = pausedTimelines[i]
+      if (timeline && typeof timeline.play === 'function') {
+        try {
+          if (timeline.paused?.()) {
+            timeline.play()
+          }
+        } catch (e) {
+          console.warn(`[Lumo] 恢復動畫失敗: ${e.message}`)
+        }
       }
-    })
+    }
     pausedTimelines.length = 0 // 清空列表
 
     isAnimationsPaused = false

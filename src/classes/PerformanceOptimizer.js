@@ -461,6 +461,28 @@ export class PerformanceOptimizer {
     this.performanceState.isOptimizing = false
     this.performanceState.optimizationCount = 0
   }
+
+  /**
+   * ✅ 新增：完整清理方法（銷毀時調用）
+   * 確保記憶體正確釋放，防止洩漏
+   */
+  destroy() {
+    // 停止監控
+    this.stopMonitoring()
+
+    // 清空所有引用
+    this.trafficGenerator = null
+    this.trafficController = null
+
+    // 清空所有狀態和配置
+    this.metrics = null
+    this.performanceState = null
+    this.optimizationConfig = null
+    this.monitoring = null
+    this.viewportManager = null
+
+    console.log('🧹 PerformanceOptimizer 已完全清理')
+  }
 }
 
 export default PerformanceOptimizer

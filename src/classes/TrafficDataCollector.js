@@ -200,6 +200,21 @@ export default class TrafficDataCollector {
         timestamp: new Date().toISOString(),
         action: 'removed',
       })
+
+      // ✅ 新增：車輛移除後也要更新數據（與 vehicleAdded 保持一致）
+      this.calculateAverageSpeeds()
+      this.calculateOccupancy()
+
+      // ✅ 新增：分發 UI 更新事件（原代碼缺失）
+      window.dispatchEvent(
+        new CustomEvent('trafficDataUpdated', {
+          detail: {
+            currentData: this.getCurrentPeriodSummary(),
+            timestamp: new Date().toISOString(),
+            source: 'vehicle_removed',
+          },
+        }),
+      )
     }
 
     window.addEventListener('vehicleAdded', this.vehicleAddedListener)

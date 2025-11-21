@@ -1196,12 +1196,15 @@ onMounted(async () => {
   }
 
   // 🚨 【新增】快捷鍵：Ctrl+Shift+M 查看內存診斷
-  window.addEventListener('keydown', (e) => {
+  // ✅ 【修復】保存 keydown 事件處理器引用，以便在 onUnmounted 時移除
+  const diagnosticKeydownHandler = (e) => {
     if (e.ctrlKey && e.shiftKey && e.code === 'KeyM') {
       e.preventDefault()
       window.diagnostics?.showMemoryDiagnostics()
     }
-  })
+  }
+  window.addEventListener('keydown', diagnosticKeydownHandler)
+  window.diagnosticKeydownHandler = diagnosticKeydownHandler // 保存引用用於清理
 
   console.log('✅ [診斷工具已啟用] 按 Ctrl+Shift+M 查看內存診斷')
 
@@ -1758,6 +1761,13 @@ onUnmounted(() => {
       weatherController.destroy()
     }
     weatherController = null
+  }
+
+  // ✅ 【修復】移除 keydown 事件監聽器（防止記憶體洩漏）
+  if (window.diagnosticKeydownHandler) {
+    window.removeEventListener('keydown', window.diagnosticKeydownHandler)
+    window.diagnosticKeydownHandler = null
+    console.log('🛑 [診斷工具] 事件監聽器已移除')
   }
 
   // ═══════════════════════════════════════════════════════════════════════
