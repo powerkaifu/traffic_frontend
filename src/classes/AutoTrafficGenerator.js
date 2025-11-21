@@ -1,7 +1,7 @@
 /**
  * AutoTrafficGenerator.js - 自動車流分派系統
  */
-import gsap from 'gsap'
+
 import {
   getScenarioByTime,
   getScenarioByKey,
@@ -88,7 +88,7 @@ export default class AutoTrafficGenerator {
     // 🚑 119 救護車隨機生成配置
     this.emergencyVehicleConfig = {
       enabled: true, // 是否啟用隨機救護車生成
-      minInterval: 60000 + Math.random() * 100000, // 最小生成間隔（毫秒）- 60秒
+      minInterval: 60000 + Math.random() * 100000, // 最小生成間隔（毫秒）- 60秒 + 隨機 100秒
       maxInterval: 500000, // 最大生成間隔（毫秒）- 120秒
       nextSpawnTime: 0, // 下次生成時間戳
     }
@@ -247,10 +247,9 @@ export default class AutoTrafficGenerator {
   /**
    * 🚀 【簡化】立即廣播天氣速度改變事件
    * @param {number} targetMultiplier - 目標速度倍數
-   * @param {number} duration - 保留參數以維持相容性（不再使用）
    * @private
    */
-  _smoothSpeedTransition(targetMultiplier, duration = 2000) {
+  _smoothSpeedTransition(targetMultiplier) {
     // 🚨 【修復】移除 GSAP 動畫，避免與 Vehicle.js 的立即更新衝突
     // 直接更新倍數，不再使用平滑過渡
     this.weatherGenerationMultiplier = targetMultiplier
