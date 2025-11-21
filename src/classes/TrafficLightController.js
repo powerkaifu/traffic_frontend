@@ -580,6 +580,12 @@ export default class TrafficLightController {
   extendAllRedTime(durationMs) {
     if (!durationMs || durationMs <= 0) return
 
+    // 🚨 安全檢查：確保 timing 對象存在
+    if (!this.timing || !this.timing.allRed) {
+      logWarn('⚠️ [救護車] timing 對象未初始化，無法延長紅燈')
+      return
+    }
+
     // 記錄原始配置（首次調用時）
     if (!this.originalAllRedDuration) {
       this.originalAllRedDuration = this.timing.allRed.duration
@@ -597,7 +603,7 @@ export default class TrafficLightController {
     }
 
     this.allRedRestoreTimer = setTimeout(() => {
-      if (this.originalAllRedDuration !== undefined) {
+      if (this.originalAllRedDuration !== undefined && this.timing && this.timing.allRed) {
         this.timing.allRed.duration = this.originalAllRedDuration
         logInfo(`🚑 [救護車] 恢復全紅燈時間至原始值: ${this.originalAllRedDuration}秒`)
         this.originalAllRedDuration = undefined

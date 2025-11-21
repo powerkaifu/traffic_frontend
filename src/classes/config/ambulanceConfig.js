@@ -110,9 +110,9 @@ export const INFLUENCE_RANGE = {
 
   // 🔴 路口中央階段（C: 通過停止線後）
   IN_INTERSECTION: {
-    OPPOSING: 200, // 對向車輛：500px 半徑範圍
-    PERPENDICULAR: 200, // 垂直車輛：500px 半徑範圍
-    SAME_DIRECTION: 200, // 同向車輛：500px 半徑範圍（統一）
+    OPPOSING: 500, // 對向車輛：500px 半徑範圍
+    PERPENDICULAR: 500, // 垂直車輛：500px 半徑範圍
+    SAME_DIRECTION: 500, // 同向車輛：500px 半徑範圍（統一）
   },
 
   // 🎯 路口範圍判定閾值

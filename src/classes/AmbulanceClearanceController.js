@@ -259,13 +259,12 @@ export class AmbulanceClearanceController {
   _handleOpposingVehicles(ambulance, allVehicles, ambulanceState, vehicleSpeedRequirements) {
     const oppositeDirection = getOppositeDirection(ambulance.direction)
 
-    // 🚨 三階段判定：車道上 (A/B) vs 路口中央 (C)
-    const distanceToStopLine = this._getDistanceToIntersection(ambulance)
-    const isInIntersection =
-      distanceToStopLine <= INFLUENCE_RANGE.INTERSECTION_BOUNDS.ENTRY_THRESHOLD &&
-      distanceToStopLine > INFLUENCE_RANGE.INTERSECTION_BOUNDS.EXIT_THRESHOLD
+    // 🚨 【安全優化】基於階段判定，而非距離
+    // TRANSIT/RECOVERY 階段 = 路口中央，使用大範圍提前清空路口
+    const currentStage = ambulanceState.stage
+    const isInIntersection = currentStage === 'TRANSIT' || currentStage === 'RECOVERY'
     const influenceRange = isInIntersection
-      ? INFLUENCE_RANGE.IN_INTERSECTION.OPPOSING // C: 路口中央 - 大範圍
+      ? INFLUENCE_RANGE.IN_INTERSECTION.OPPOSING // C: 路口中央 - 500px 大範圍
       : INFLUENCE_RANGE.ON_LANE.OPPOSING // A/B: 車道上 - 小範圍
 
     allVehicles.forEach((vehicle) => {
@@ -312,13 +311,12 @@ export class AmbulanceClearanceController {
   _handlePerpendicularVehicles(ambulance, allVehicles, ambulanceState, vehicleSpeedRequirements) {
     const perpendicularDirections = getPerpendicularDirections(ambulance.direction)
 
-    // 🚨 三階段判定：車道上 (A/B) vs 路口中央 (C)
-    const distanceToStopLine = this._getDistanceToIntersection(ambulance)
-    const isInIntersection =
-      distanceToStopLine <= INFLUENCE_RANGE.INTERSECTION_BOUNDS.ENTRY_THRESHOLD &&
-      distanceToStopLine > INFLUENCE_RANGE.INTERSECTION_BOUNDS.EXIT_THRESHOLD
+    // 🚨 【安全優化】基於階段判定，而非距離
+    // TRANSIT/RECOVERY 階段 = 路口中央，使用大範圍提前清空路口
+    const currentStage = ambulanceState.stage
+    const isInIntersection = currentStage === 'TRANSIT' || currentStage === 'RECOVERY'
     const influenceRange = isInIntersection
-      ? INFLUENCE_RANGE.IN_INTERSECTION.PERPENDICULAR // C: 路口中央 - 大範圍
+      ? INFLUENCE_RANGE.IN_INTERSECTION.PERPENDICULAR // C: 路口中央 - 500px 大範圍
       : INFLUENCE_RANGE.ON_LANE.PERPENDICULAR // A/B: 車道上 - 小範圍
 
     allVehicles.forEach((vehicle) => {
@@ -370,13 +368,12 @@ export class AmbulanceClearanceController {
    * @param {Object} vehicleSpeedRequirements - 車輛速度要求收集器
    */
   _handleSameDirectionVehicles(ambulance, allVehicles, ambulanceState, vehicleSpeedRequirements) {
-    // 🚨 三階段判定：車道上 (A/B) vs 路口中央 (C)
-    const distanceToStopLine = this._getDistanceToIntersection(ambulance)
-    const isInIntersection =
-      distanceToStopLine <= INFLUENCE_RANGE.INTERSECTION_BOUNDS.ENTRY_THRESHOLD &&
-      distanceToStopLine > INFLUENCE_RANGE.INTERSECTION_BOUNDS.EXIT_THRESHOLD
+    // 🚨 【安全優化】基於階段判定，而非距離
+    // TRANSIT/RECOVERY 階段 = 路口中央，使用大範圍提前清空路口
+    const currentStage = ambulanceState.stage
+    const isInIntersection = currentStage === 'TRANSIT' || currentStage === 'RECOVERY'
     const influenceRange = isInIntersection
-      ? INFLUENCE_RANGE.IN_INTERSECTION.SAME_DIRECTION // C: 路口中央 - 大範圍
+      ? INFLUENCE_RANGE.IN_INTERSECTION.SAME_DIRECTION // C: 路口中央 - 500px 大範圍
       : INFLUENCE_RANGE.ON_LANE.SAME_DIRECTION // A/B: 車道上 - 小範圍
 
     allVehicles.forEach((vehicle) => {
