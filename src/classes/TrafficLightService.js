@@ -41,14 +41,21 @@ const fetchWithRetry = async (url, options = {}) => {
   let lastError = null
   for (let attempt = 1; attempt <= API_RETRY_CONFIG.MAX_RETRIES; attempt++) {
     let timeoutId = null
+    let controller = null
     try {
-      const controller = new AbortController()
+      controller = new AbortController()
       timeoutId = setTimeout(() => controller.abort(), API_RETRY_CONFIG.TIMEOUT)
       const response = await fetch(url, { ...options, signal: controller.signal })
       clearTimeout(timeoutId)
+      // ✅ 立即清理 AbortController
+      controller = null
       return response
     } catch (error) {
       if (timeoutId) clearTimeout(timeoutId)
+      // ✅ 清理 AbortController
+      if (controller) {
+        controller = null
+      }
       lastError = error
       if (attempt === API_RETRY_CONFIG.MAX_RETRIES) {
         logError(`❌ [API 重試] 第 ${attempt} 次嘗試失敗，已達最大重試次數`)
@@ -98,10 +105,11 @@ export default class TrafficLightService {
         simulationStore.setLastApiVDDataArray(finalDataToSend)
       }
 
-      // 為了相容性，也更新全局變數 (雖然已廢棄)
-      if (typeof window !== 'undefined') {
-        window.lastNormalizedDataArray = normalizedDataArray
-      }
+      // ⚠️ 【已廢棄】不再使用全局變數 window.lastNormalizedDataArray
+      // 原因：污染全局命名空間，應改用 Store 管理
+      // if (typeof window !== 'undefined') {
+      //   window.lastNormalizedDataArray = normalizedDataArray
+      // }
 
       // 6. 發送 API
       logInfo('🚦 [Service] 發送 VD 數據到後端 AI 系統...')

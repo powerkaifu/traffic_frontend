@@ -359,6 +359,56 @@ export function useLanePaths() {
     pathTooltip.value.y = event.clientY - rect.top
   }
 
+  /**
+   * 完整清理（組件卸載時調用）
+   * ✅ 清理所有資源、監聽器和引用
+   */
+  function cleanup() {
+    console.log('🧹 [useLanePaths] 開始清理資源...')
+
+    try {
+      // 1. 停用路徑編輯模式（自動清理編輯器和監聽器）
+      if (isPathEditMode.value) {
+        disablePathEditing()
+      }
+
+      // 2. 清理所有路徑幫助器
+      pathHelpers.value.forEach((item) => {
+        try {
+          if (item?.helper?.kill) item.helper.kill()
+          if (item?.tween?.kill) item.tween.kill()
+          if (item?.testDiv?.parentNode) item.testDiv.parentNode.removeChild(item.testDiv)
+        } catch (error) {
+          console.warn('清理路徑幫助器時出現錯誤:', error.message)
+        }
+      })
+      pathHelpers.value = []
+
+      // 3. 清理所有觀察器
+      pathObservers.value.forEach((observer) => {
+        try {
+          observer.disconnect()
+        } catch (error) {
+          console.warn('清理觀察器時出現錯誤:', error.message)
+        }
+      })
+      pathObservers.value = []
+
+      // 4. 清理臨時編輯的路徑
+      tempEditedPaths.value = {}
+
+      // 5. 隱藏 Tooltip
+      pathTooltip.value = { show: false, text: '', x: 0, y: 0 }
+
+      // 6. 清理路徑計算器
+      lanePathCalculator = null
+
+      console.log('✅ [useLanePaths] 資源清理完成')
+    } catch (error) {
+      console.error('❌ [useLanePaths] 清理過程中發生錯誤:', error)
+    }
+  }
+
   // ========== 返回值 ==========
   return {
     // 狀態
@@ -382,6 +432,9 @@ export function useLanePaths() {
     showPathTooltip,
     hidePathTooltip,
     updateTooltipPosition,
+
+    // 清理
+    cleanup,
 
     // 內部狀態（供調試）
     pathHelpers,
