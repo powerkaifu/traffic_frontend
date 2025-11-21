@@ -29,7 +29,7 @@ export const AMBULANCE_STAGES = {
   TRANSIT_DISTANCE: 100, // 100px：進入路口，維持清空狀態
 
   // 階段 4️⃣：恢復階段 - 救護車已通過，恢復正常交通
-  RECOVERY_DISTANCE: -150, // -150px：已完全通過路口，開始恢復
+  RECOVERY_DISTANCE: -100, // 🚨 -100px：提早恢復（從-150改為-100），避免救護車在路口消失
 }
 
 // ===== 速度調整倍數配置 =====
@@ -92,28 +92,30 @@ export const DISTANCE_THRESHOLDS = {
  * 階段C: 路口中央 - 救護車在路口核心區域
  *
  * 邏輯：
- * - A/B 階段（車道上）：小範圍偵測，避免影響遠處車輛
- * - C 階段（路口中央）：大範圍偵測，整個路口矩形區域
+ * - A/B 階段（車道上）：只影響同向前方車輛
+ * - C 階段（路口中央）：500px 半徑影響所有車輛
+ *
+ * 🎯 左轉車自動處理：
+ * - 左轉前：只影響原車道同向車
+ * - 左轉中：進入路口中央，500px 全影響
+ * - 左轉後：只影響新車道同向車
  */
 export const INFLUENCE_RANGE = {
   // 🔵 車道階段（A: 進場, B: 離開）
-  // 救護車在車道上時，只影響附近車輛
   ON_LANE: {
-    OPPOSING: 150, // 對向車輛：只影響距救護車 < 300px 的車
-    PERPENDICULAR: 200, // 垂直車輛：只影響距救護車 < 350px 的車
-    SAME_DIRECTION: 200, // 同向車輛：只影響距救護車 < 200px 的車
+    OPPOSING: 0, // 🚨 車道上不影響對向車輛
+    PERPENDICULAR: 0, // 🚨 車道上不影響垂直車輛
+    SAME_DIRECTION: 200, // 同向車輛：影響前方 200px 內的車
   },
 
   // 🔴 路口中央階段（C: 通過停止線後）
-  // 救護車在路口中央時，擴大到整個路口矩形區域
   IN_INTERSECTION: {
-    OPPOSING: 500, // 對向車輛：整個路口區域
-    PERPENDICULAR: 500, // 垂直車輛：整個路口區域
-    SAME_DIRECTION: 200, // 同向車輛：擴大範圍
+    OPPOSING: 200, // 對向車輛：500px 半徑範圍
+    PERPENDICULAR: 200, // 垂直車輛：500px 半徑範圍
+    SAME_DIRECTION: 200, // 同向車輛：500px 半徑範圍（統一）
   },
 
   // 🎯 路口範圍判定閾值
-  // 用於判斷救護車是否在路口中央
   INTERSECTION_BOUNDS: {
     ENTRY_THRESHOLD: 0, // 進入路口：通過停止線（距路口 <= 0px）
     EXIT_THRESHOLD: -200, // 離開路口：距路口 < -200px 時視為已離開
@@ -138,7 +140,7 @@ export const RECOVERY_TIMING = {
 export const DEBUG_CONFIG = {
   // 控制台日誌開關
   LOG_STAGE_CHANGES: true, // 記錄階段變化
-  LOG_SPEED_ADJUSTMENTS: false, // 記錄速度調整（會產生大量日誌）
+  LOG_SPEED_ADJUSTMENTS: true, // 🚨 臨時啟用：調試恢復問題
   LOG_AFFECTED_VEHICLES: true, // 記錄受影響的車輛
 
   // 視覺調試
