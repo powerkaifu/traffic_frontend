@@ -125,8 +125,9 @@ export class PerformanceOptimizer {
     // 計數 GSAP 動畫
     this.metrics.animationCount = gsap.getTweens().length
 
-    // 計數活躍車輛
-    this.metrics.vehicleCount = window.liveVehicles ? window.liveVehicles.length : 0
+    // 計數活躍車輛（添加安全檢查）
+    this.metrics.vehicleCount =
+      window.liveVehicles && Array.isArray(window.liveVehicles) ? window.liveVehicles.length : 0
 
     // 估算記憶體使用
     if (performance.memory) {
@@ -299,32 +300,36 @@ export class PerformanceOptimizer {
 
   /**
    * 視口基礎優化：減速或移除視口外的車輛
+   * ⚡ 優化：提前計算 viewport 尺寸，減少重複查詢
    */
   _applyViewportBasedOptimization() {
-    if (!window.liveVehicles) return
+    if (!window.liveVehicles || window.liveVehicles.length === 0) return
 
     const viewportBuffer = this.viewportManager.viewportBuffer
     const slowDownBuffer = this.viewportManager.slowDownBuffer
     const slowDownTimeScale = this.viewportManager.slowDownTimeScale
+    const innerHeight = window.innerHeight
+    const innerWidth = window.innerWidth
 
     window.liveVehicles.forEach((vehicle) => {
       if (!vehicle.element) return
 
+      // ⚡ getBoundingClientRect 是必要操作，但將 viewport 尺寸提前計算
       const rect = vehicle.element.getBoundingClientRect()
 
       // 檢查是否在視口外
       const isOffscreen =
         rect.bottom < -viewportBuffer ||
-        rect.top > window.innerHeight + viewportBuffer ||
+        rect.top > innerHeight + viewportBuffer ||
         rect.right < -viewportBuffer ||
-        rect.left > window.innerWidth + viewportBuffer
+        rect.left > innerWidth + viewportBuffer
 
       // 檢查是否在減速區域
       const isInSlowDownZone =
         rect.bottom < -slowDownBuffer ||
-        rect.top > window.innerHeight + slowDownBuffer ||
+        rect.top > innerHeight + slowDownBuffer ||
         rect.right < -slowDownBuffer ||
-        rect.left > window.innerWidth + slowDownBuffer
+        rect.left > innerWidth + slowDownBuffer
 
       if (isOffscreen) {
         // 移除視口外的車輛
@@ -356,10 +361,10 @@ export class PerformanceOptimizer {
    * 移除所有視口外的車輛
    */
   _removeOffscreenVehicles() {
-    if (!window.liveVehicles) return
+    if (!window.liveVehicles || window.liveVehicles.length === 0) return
 
     const vehiclesToRemove = window.liveVehicles.filter((vehicle) => {
-      if (!vehicle.element) return true
+      if (!vehicle || !vehicle.element) return true
 
       const rect = vehicle.element.getBoundingClientRect()
       return (
@@ -385,43 +390,43 @@ export class PerformanceOptimizer {
    * 增加碰撞檢測間隔
    */
   _increaseCollisionCheckInterval(multiplier = 1.5) {
-    if (window.liveVehicles) {
-      window.liveVehicles.forEach((vehicle) => {
-        if (vehicle.collisionController) {
-          const originalInterval = vehicle.collisionController.collisionCheckInterval
-          vehicle.collisionController.checkInterval = Math.round(originalInterval * multiplier)
-        }
-      })
-      console.log(`⏱️ 已增加碰撞檢測間隔 ${multiplier}x`)
-    }
+    if (!window.liveVehicles || window.liveVehicles.length === 0) return
+
+    window.liveVehicles.forEach((vehicle) => {
+      if (vehicle && vehicle.collisionController) {
+        const originalInterval = vehicle.collisionController.collisionCheckInterval
+        vehicle.collisionController.checkInterval = Math.round(originalInterval * multiplier)
+      }
+    })
+    console.log(`⏱️ 已增加碰撞檢測間隔 ${multiplier}x`)
   }
 
   /**
    * 禁用碰撞檢測
    */
   _disableCollisionDetection() {
-    if (window.liveVehicles) {
-      window.liveVehicles.forEach((vehicle) => {
-        if (vehicle.collisionController) {
-          vehicle.collisionController.enabled = false
-        }
-      })
-      console.log('🚫 已禁用碰撞檢測')
-    }
+    if (!window.liveVehicles || window.liveVehicles.length === 0) return
+
+    window.liveVehicles.forEach((vehicle) => {
+      if (vehicle && vehicle.collisionController) {
+        vehicle.collisionController.enabled = false
+      }
+    })
+    console.log('🚫 已禁用碰撞檢測')
   }
 
   /**
    * 啟用碰撞檢測
    */
   _enableCollisionDetection() {
-    if (window.liveVehicles) {
-      window.liveVehicles.forEach((vehicle) => {
-        if (vehicle.collisionController) {
-          vehicle.collisionController.enabled = true
-        }
-      })
-      console.log('✅ 已啟用碰撞檢測')
-    }
+    if (!window.liveVehicles || window.liveVehicles.length === 0) return
+
+    window.liveVehicles.forEach((vehicle) => {
+      if (vehicle && vehicle.collisionController) {
+        vehicle.collisionController.enabled = true
+      }
+    })
+    console.log('✅ 已啟用碰撞檢測')
   }
 
   // ==================== 診斷和日誌 ====================

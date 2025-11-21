@@ -1888,8 +1888,8 @@ export default class Vehicle {
     }
 
     // 🆕 重新創建組件
-    // 1. 速度線
-    this.speedLines = SpeedLineUtils.createSpeedLines(this.element, vehicleConfig, this.direction)
+    // 1. 速度線 (使用導入的 ANIMATION_CONFIG 替代 vehicleConfig)
+    this.speedLines = SpeedLineUtils.createSpeedLines(this.element, ANIMATION_CONFIG, this.direction)
 
     // 2. 車道標籤
     this.createLaneLabel()

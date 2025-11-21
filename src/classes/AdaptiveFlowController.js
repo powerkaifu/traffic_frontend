@@ -109,7 +109,9 @@ export default class AdaptiveFlowController {
   stop() {
     this.isRunning = false
     clearInterval(this.checkTimer)
+    this.checkTimer = null
     clearInterval(this.calculationTimer)
+    this.calculationTimer = null
     console.log('⛔ AdaptiveFlowController stopped')
   }
 
@@ -280,13 +282,18 @@ export default class AdaptiveFlowController {
 
   /**
    * 獲取指定方向的停止線位置
+   * 從配置獲取，支持動態更新
    * @param {string} direction - 方向
    * @returns {number|null} 停止線位置（像素）
    * @private
    */
   _getStopLinePosition(direction) {
-    // 這些值應該與停止線實際位置匹配
-    // 根據你的交通場景配置調整
+    // 優先從交通控制器配置取得（支持動態更新）
+    if (this.trafficController && this.trafficController.trafficConfig?.stopLinePositions) {
+      return this.trafficController.trafficConfig.stopLinePositions[direction] || null
+    }
+
+    // 備用預設值（應該移到 trafficConfig）
     const stopLinePositions = {
       east: 650, // 東方停止線 X 座標
       west: 180, // 西方停止線 X 座標
