@@ -812,6 +812,10 @@ function updateGenerationConfig() {
 }
 
 // 新增：自動模式切換功能
+// ✅ 【修復】在最高作用域定義 timeoutIds 和 unsubscribers，以便 onMounted 和 onUnmounted 訪問
+const timeoutIds = []
+const unsubscribers = []
+
 function toggleAutoMode() {
   isAutoMode.value = !isAutoMode.value
 
@@ -867,6 +871,10 @@ function animateDataKey(key, value, options = {}, staggerIndex = 0) {
 }
 
 onMounted(() => {
+  // ✅ 【修復】清空陣列確保沒有殘留的引用
+  timeoutIds.length = 0
+  unsubscribers.length = 0
+
   const cleanup = setupListeners()
 
   // 🧪 【測試】初始化：預設設定為 INITIAL_VD_SCENARIO
@@ -888,73 +896,80 @@ onMounted(() => {
         if (process.env.DEV) console.log(`🎯 [MainLayout] 套用預設情景配置: ${INITIAL_VD_SCENARIO}`)
         selectVDScenario(INITIAL_VD_SCENARIO)
 
-        // 🎯 【新增】綁定動畫監聽器 - 監聽四個方向資料變化（交錯播放）
-        watch(
-          () => eastData.value,
-          (nv) => {
-            if (!nv) return
-            animateDataKey('east-averageSpeed', nv.averageSpeed, { suffix: ' km/h' }, 0)
-            animateDataKey('east-occupancy', nv.occupancy, { suffix: '%' }, 1)
-            animateDataKey('east-motorFlow', nv.motorFlow, { suffix: ' 輛' }, 2)
-            animateDataKey('east-smallCarFlow', nv.smallCarFlow, { suffix: ' 輛' }, 3)
-            animateDataKey('east-largeCarFlow', nv.largeCarFlow, { suffix: ' 輛' }, 4)
-            animateDataKey('east-motorSpeed', nv.motorSpeed, { suffix: ' km/h' }, 5)
-            animateDataKey('east-smallCarSpeed', nv.smallCarSpeed, { suffix: ' km/h' }, 6)
-            animateDataKey('east-largeCarSpeed', nv.largeCarSpeed, { suffix: ' km/h' }, 7)
-          },
-          { deep: true },
+        // 🎯 【修復】綁定動畫監聽器 - 監聽四個方向資料變化（交錯播放）
+        // ✅ 移除 deep: true，使用淺層監視以減少記憶體消耗
+        unsubscribers.push(
+          watch(
+            () => eastData.value,
+            (nv) => {
+              if (!nv) return
+              animateDataKey('east-averageSpeed', nv.averageSpeed, { suffix: ' km/h' }, 0)
+              animateDataKey('east-occupancy', nv.occupancy, { suffix: '%' }, 1)
+              animateDataKey('east-motorFlow', nv.motorFlow, { suffix: ' 輛' }, 2)
+              animateDataKey('east-smallCarFlow', nv.smallCarFlow, { suffix: ' 輛' }, 3)
+              animateDataKey('east-largeCarFlow', nv.largeCarFlow, { suffix: ' 輛' }, 4)
+              animateDataKey('east-motorSpeed', nv.motorSpeed, { suffix: ' km/h' }, 5)
+              animateDataKey('east-smallCarSpeed', nv.smallCarSpeed, { suffix: ' km/h' }, 6)
+              animateDataKey('east-largeCarSpeed', nv.largeCarSpeed, { suffix: ' km/h' }, 7)
+            },
+          ),
         )
 
-        watch(
-          () => westData.value,
-          (nv) => {
-            if (!nv) return
-            animateDataKey('west-averageSpeed', nv.averageSpeed, { suffix: ' km/h' }, 0)
-            animateDataKey('west-occupancy', nv.occupancy, { suffix: '%' }, 1)
-            animateDataKey('west-motorFlow', nv.motorFlow, { suffix: ' 輛' }, 2)
-            animateDataKey('west-smallCarFlow', nv.smallCarFlow, { suffix: ' 輛' }, 3)
-            animateDataKey('west-largeCarFlow', nv.largeCarFlow, { suffix: ' 輛' }, 4)
-            animateDataKey('west-motorSpeed', nv.motorSpeed, { suffix: ' km/h' }, 5)
-            animateDataKey('west-smallCarSpeed', nv.smallCarSpeed, { suffix: ' km/h' }, 6)
-            animateDataKey('west-largeCarSpeed', nv.largeCarSpeed, { suffix: ' km/h' }, 7)
-          },
-          { deep: true },
+        unsubscribers.push(
+          watch(
+            () => westData.value,
+            (nv) => {
+              if (!nv) return
+              animateDataKey('west-averageSpeed', nv.averageSpeed, { suffix: ' km/h' }, 0)
+              animateDataKey('west-occupancy', nv.occupancy, { suffix: '%' }, 1)
+              animateDataKey('west-motorFlow', nv.motorFlow, { suffix: ' 輛' }, 2)
+              animateDataKey('west-smallCarFlow', nv.smallCarFlow, { suffix: ' 輛' }, 3)
+              animateDataKey('west-largeCarFlow', nv.largeCarFlow, { suffix: ' 輛' }, 4)
+              animateDataKey('west-motorSpeed', nv.motorSpeed, { suffix: ' km/h' }, 5)
+              animateDataKey('west-smallCarSpeed', nv.smallCarSpeed, { suffix: ' km/h' }, 6)
+              animateDataKey('west-largeCarSpeed', nv.largeCarSpeed, { suffix: ' km/h' }, 7)
+            },
+          ),
         )
 
-        watch(
-          () => southData.value,
-          (nv) => {
-            if (!nv) return
-            animateDataKey('south-averageSpeed', nv.averageSpeed, { suffix: ' km/h' }, 0)
-            animateDataKey('south-occupancy', nv.occupancy, { suffix: '%' }, 1)
-            animateDataKey('south-motorFlow', nv.motorFlow, { suffix: ' 輛' }, 2)
-            animateDataKey('south-smallCarFlow', nv.smallCarFlow, { suffix: ' 輛' }, 3)
-            animateDataKey('south-largeCarFlow', nv.largeCarFlow, { suffix: ' 輛' }, 4)
-            animateDataKey('south-motorSpeed', nv.motorSpeed, { suffix: ' km/h' }, 5)
-            animateDataKey('south-smallCarSpeed', nv.smallCarSpeed, { suffix: ' km/h' }, 6)
-            animateDataKey('south-largeCarSpeed', nv.largeCarSpeed, { suffix: ' km/h' }, 7)
-          },
-          { deep: true },
+        unsubscribers.push(
+          watch(
+            () => southData.value,
+            (nv) => {
+              if (!nv) return
+              animateDataKey('south-averageSpeed', nv.averageSpeed, { suffix: ' km/h' }, 0)
+              animateDataKey('south-occupancy', nv.occupancy, { suffix: '%' }, 1)
+              animateDataKey('south-motorFlow', nv.motorFlow, { suffix: ' 輛' }, 2)
+              animateDataKey('south-smallCarFlow', nv.smallCarFlow, { suffix: ' 輛' }, 3)
+              animateDataKey('south-largeCarFlow', nv.largeCarFlow, { suffix: ' 輛' }, 4)
+              animateDataKey('south-motorSpeed', nv.motorSpeed, { suffix: ' km/h' }, 5)
+              animateDataKey('south-smallCarSpeed', nv.smallCarSpeed, { suffix: ' km/h' }, 6)
+              animateDataKey('south-largeCarSpeed', nv.largeCarSpeed, { suffix: ' km/h' }, 7)
+            },
+          ),
         )
 
-        watch(
-          () => northData.value,
-          (nv) => {
-            if (!nv) return
-            animateDataKey('north-averageSpeed', nv.averageSpeed, { suffix: ' km/h' }, 0)
-            animateDataKey('north-occupancy', nv.occupancy, { suffix: '%' }, 1)
-            animateDataKey('north-motorFlow', nv.motorFlow, { suffix: ' 輛' }, 2)
-            animateDataKey('north-smallCarFlow', nv.smallCarFlow, { suffix: ' 輛' }, 3)
-            animateDataKey('north-largeCarFlow', nv.largeCarFlow, { suffix: ' 輛' }, 4)
-            animateDataKey('north-motorSpeed', nv.motorSpeed, { suffix: ' km/h' }, 5)
-            animateDataKey('north-smallCarSpeed', nv.smallCarSpeed, { suffix: ' km/h' }, 6)
-            animateDataKey('north-largeCarSpeed', nv.largeCarSpeed, { suffix: ' km/h' }, 7)
-          },
-          { deep: true },
+        unsubscribers.push(
+          watch(
+            () => northData.value,
+            (nv) => {
+              if (!nv) return
+              animateDataKey('north-averageSpeed', nv.averageSpeed, { suffix: ' km/h' }, 0)
+              animateDataKey('north-occupancy', nv.occupancy, { suffix: '%' }, 1)
+              animateDataKey('north-motorFlow', nv.motorFlow, { suffix: ' 輛' }, 2)
+              animateDataKey('north-smallCarFlow', nv.smallCarFlow, { suffix: ' 輛' }, 3)
+              animateDataKey('north-largeCarFlow', nv.largeCarFlow, { suffix: ' 輛' }, 4)
+              animateDataKey('north-motorSpeed', nv.motorSpeed, { suffix: ' km/h' }, 5)
+              animateDataKey('north-smallCarSpeed', nv.smallCarSpeed, { suffix: ' km/h' }, 6)
+              animateDataKey('north-largeCarSpeed', nv.largeCarSpeed, { suffix: ' km/h' }, 7)
+            },
+          ),
         )
 
-        // 初始化完成後，設定自動模式的回調
-        window.autoTrafficGenerator.setOnTimeUpdate((status) => {
+        // 初始化完成後，改用事件監聽替代 setOnTimeUpdate 回調（便於清理）
+        // ✅ 【修復】使用事件監聽而非回調函數，以便在卸載時移除
+        window.timeUpdateHandler = (event) => {
+          const status = event.detail || event
           if (status) {
             // ✅ 【新增】取得生成間隔
             let intervalMs =
@@ -993,10 +1008,13 @@ onMounted(() => {
             // 清空保存的 VD 數據
             window.currentGeneratedVDData = null
           }
-        })
+        }
+        window.addEventListener('autoTrafficTimeUpdate', window.timeUpdateHandler)
       } else if (tries++ < 50) {
         // 等待直到 autoTrafficGenerator 初始化完成（最多 5 秒）
-        setTimeout(tryInit, 100)
+        // ✅ 【修復】保存 setTimeout 引用以便卸載時清理
+        const timeoutId = setTimeout(tryInit, 100)
+        timeoutIds.push(timeoutId)
       } else {
         if (process.env.DEV) console.warn('⚠️ [MainLayout] 超時：未能找到 autoTrafficGenerator')
       }
@@ -1007,7 +1025,9 @@ onMounted(() => {
 
       // 降級方案：使用預設配置
       if (tries++ < 50) {
-        setTimeout(tryInit, 100)
+        // ✅ 【修復】保存 setTimeout 引用以便卸載時清理
+        const timeoutId = setTimeout(tryInit, 100)
+        timeoutIds.push(timeoutId)
       } else {
         console.error('❌ [MainLayout] 多次重試失敗，無法初始化交通系統')
         $q.notify({
@@ -1039,6 +1059,29 @@ watch(manualInterval, (newValue) => {
 })
 
 onUnmounted(() => {
+  // ✅ 【修復】完整的清理邏輯：定時器、watch、事件監聽、全局引用
+
+  // 1️⃣ 清理所有保存的 setTimeout 定時器
+  timeoutIds.forEach((id) => {
+    clearTimeout(id)
+  })
+  timeoutIds.length = 0
+
+  // 2️⃣ 清理所有 watch 訂閱
+  unsubscribers.forEach((unsub) => {
+    if (typeof unsub === 'function') {
+      unsub()
+    }
+  })
+  unsubscribers.length = 0
+
+  // 3️⃣ 移除事件監聽器回調
+  if (window.timeUpdateHandler) {
+    window.removeEventListener('autoTrafficTimeUpdate', window.timeUpdateHandler)
+    window.timeUpdateHandler = null
+  }
+
+  // 4️⃣ 原有的清理邏輯
   window.mainLayoutCleanup?.()
   numberAnimator.stopAll() // 🎯 卸載時停止所有動畫
 })

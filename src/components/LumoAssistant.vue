@@ -53,37 +53,48 @@ const props = defineProps({
 let isAnimationsPaused = false
 const pausedTimelines = [] // 記錄所有被暫停的時間軸
 
+// ✅ 【修復】保存事件監聽器引用，以便後續清理
+const eventHandlers = {
+  pointerMove: null,
+  mouseLeave: null,
+  canvasClick: null,
+}
+
 function pauseAllAnimations() {
   if (!isAnimationsPaused) {
     console.log('📍 [Lumo] 標籤頁隱藏 - 暫停所有動畫')
 
-    // 1️⃣ 暫停全局時間軸
-    gsap.globalTimeline.pause()
+    try {
+      // 1️⃣ 暫停全局時間軸
+      gsap.globalTimeline.pause()
 
-    // 2️⃣ 暫停所有活動的 GSAP 動畫（包括車輛、天氣等）
-    // ✅ 【修復】清空之前的 pausedTimelines 以防止累積引用
-    pausedTimelines.length = 0
-    const allTweens = gsap.getTweensOf()
-    allTweens.forEach((tween) => {
-      if (tween && !tween.paused()) {
-        pausedTimelines.push(tween)
-        tween.pause()
-      }
-    })
-
-    // 3️⃣ 暫停車輛的移動時間軸（通過全局變量存取）
-    // ✅ 【修復】檢查 window.liveVehicles（更可靠）而不是 window.allVehicles
-    const liveVehicles = window.liveVehicles || window.allVehicles || []
-    if (liveVehicles && liveVehicles.length > 0) {
-      liveVehicles.forEach((vehicle) => {
-        if (vehicle && vehicle.movementTimeline && !vehicle.movementTimeline.paused()) {
-          pausedTimelines.push(vehicle.movementTimeline)
-          vehicle.movementTimeline.pause()
+      // 2️⃣ 暫停所有活動的 GSAP 動畫（包括車輛、天氣等）
+      // ✅ 【修復】清空之前的 pausedTimelines 以防止累積引用
+      pausedTimelines.length = 0
+      const allTweens = gsap.getTweensOf()
+      allTweens.forEach((tween) => {
+        if (tween && !tween.paused()) {
+          pausedTimelines.push(tween)
+          tween.pause()
         }
       })
-    }
 
-    isAnimationsPaused = true
+      // 3️⃣ 暫停車輛的移動時間軸（通過全局變量存取）
+      // ✅ 【修復】檢查 window.liveVehicles（更可靠）而不是 window.allVehicles
+      const liveVehicles = window.liveVehicles || window.allVehicles || []
+      if (liveVehicles && liveVehicles.length > 0) {
+        liveVehicles.forEach((vehicle) => {
+          if (vehicle && vehicle.movementTimeline && !vehicle.movementTimeline.paused()) {
+            pausedTimelines.push(vehicle.movementTimeline)
+            vehicle.movementTimeline.pause()
+          }
+        })
+      }
+
+      isAnimationsPaused = true
+    } catch (error) {
+      console.error('🔴 [Lumo] pauseAllAnimations 出現錯誤:', error)
+    }
   }
 }
 
@@ -377,11 +388,12 @@ async function initialize() {
       state.app.ticker.stop()
     }
 
-    // 🖱️ Canvas 點擊事件監聽
-    canvas.value.addEventListener('click', () => {
+    // 🖱️ Canvas 點擊事件監聽 - ✅ 保存引用以便清理
+    eventHandlers.canvasClick = () => {
       // 切換對話框
       toggleDialog()
-    })
+    }
+    canvas.value.addEventListener('click', eventHandlers.canvasClick)
   } catch (error) {
     console.error('❌ Lumo 初始化失敗:', error)
     console.error('詳細信息:', error.stack)
@@ -434,15 +446,19 @@ function onResize() {
 function setupMouseTracking() {
   if (!state.model || !state.app) return
 
-  window.addEventListener('pointermove', (e) => {
+  // ✅ 【修復】保存事件監聽器引用，以便卸載時清理
+  eventHandlers.pointerMove = (e) => {
     state.targetParamX = (e.clientX / window.innerWidth - 0.5) * config.mouseTracking.paramRangeX
     state.targetParamY = (e.clientY / window.innerHeight - 0.5) * -config.mouseTracking.paramRangeY
-  })
+  }
 
-  document.addEventListener('mouseleave', () => {
+  eventHandlers.mouseLeave = () => {
     state.targetParamX = 0
     state.targetParamY = 0
-  })
+  }
+
+  window.addEventListener('pointermove', eventHandlers.pointerMove)
+  document.addEventListener('mouseleave', eventHandlers.mouseLeave)
 
   state.app.ticker.add(() => {
     state.currentParamX += (state.targetParamX - state.currentParamX) * state.easingFactor
@@ -1127,6 +1143,22 @@ onMounted(() => {
 onBeforeUnmount(() => {
   console.log('🧹 [LumoAssistant] 開始清理資源...')
 
+  // ✅ 【修復】移除所有事件監聽器
+  if (eventHandlers.pointerMove) {
+    window.removeEventListener('pointermove', eventHandlers.pointerMove)
+    eventHandlers.pointerMove = null
+  }
+
+  if (eventHandlers.mouseLeave) {
+    document.removeEventListener('mouseleave', eventHandlers.mouseLeave)
+    eventHandlers.mouseLeave = null
+  }
+
+  if (eventHandlers.canvasClick && canvas.value) {
+    canvas.value.removeEventListener('click', eventHandlers.canvasClick)
+    eventHandlers.canvasClick = null
+  }
+
   // 🎬 移除標籤頁可見性監聽
   document.removeEventListener('visibilitychange', handleVisibilityChange)
 
@@ -1178,6 +1210,14 @@ onBeforeUnmount(() => {
     } catch (error) {
       console.warn('⚠️ [LumoAssistant] Live2D 模型銷毀時出現錯誤（已忽略）:', error)
     }
+  }
+
+  // ✅ 【修復】清理全局引用
+  if (window.lumoTooltipManager) {
+    delete window.lumoTooltipManager
+  }
+  if (window.lumoConfig) {
+    delete window.lumoConfig
   }
 
   clearTimeout(state.resizeTimer)
