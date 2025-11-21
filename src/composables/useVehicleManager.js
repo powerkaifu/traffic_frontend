@@ -243,7 +243,7 @@ export function useVehicleManager(store, vehicleContainerRef, crossroadContainer
       }
     } else {
       // ⚠️ 車輛已被移除，但仍收到回調，確保隱藏
-      console.warn(`⚠️ [${vehicle?.id}] 收到 handleVehicleOutOfBounds 但車輛已不在 activeCars 中`)
+      // console.warn(`⚠️ [${vehicle?.id}] 收到 handleVehicleOutOfBounds 但車輛已不在 activeCars 中`)
       if (vehicle?.element) {
         gsap.set(vehicle.element, {
           autoAlpha: 0,

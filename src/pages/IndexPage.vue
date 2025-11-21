@@ -746,7 +746,7 @@ const spawnEmergencyVehicle = (type = 'ambulance') => {
   if (lumoRef.value) {
     // 使用 Lumo 的 showEmergency 方法強制顯示緊急訊息
     if (window.lumoTooltipManager && window.lumoTooltipManager.showEmergency) {
-      const message = `🚑 緊急通知！${directionChinese[randomDirection]}即將有救護車通過，請注意避讓！`
+      const message = `🚑 緊急通知！往${directionChinese[randomDirection]}即將有救護車通過，請注意避讓！`
       window.lumoTooltipManager.showEmergency(message)
     }
   }
@@ -797,7 +797,7 @@ const spawnEmergencyVehicleWithDirection = (type = 'ambulance', direction = null
   // 2. Lumo 語音提示（強制顯示在對話框）
   if (lumoRef.value) {
     if (window.lumoTooltipManager && window.lumoTooltipManager.showEmergency) {
-      const message = `🚑 緊急通知！${directionChinese[randomDirection]}即將有救護車通過，請注意避讓！`
+      const message = `🚑 緊急通知！往${directionChinese[randomDirection]}即將有救護車通過，請注意避讓！`
       window.lumoTooltipManager.showEmergency(message)
     }
   }
