@@ -1692,6 +1692,28 @@ export default class Vehicle {
       this.vehicleType = vehicleType
       const vehicleConfig = this.getVehicleConfig()
 
+      // 🧹 清理舊的組件
+      if (this.speedLines) {
+        SpeedLineUtils.removeSpeedLines(this.speedLines)
+        this.speedLines = null
+      }
+
+      if (this.laneLabel) {
+        LaneLabelUtils.removeLaneLabel(this.laneLabel)
+        this.laneLabel = null
+      }
+
+      // 🚀 清理舊的控制器
+      if (this.stopLineController) {
+        this.stopLineController.dispose()
+        this.stopLineController = null
+      }
+
+      if (this.collisionFollowingController) {
+        this.collisionFollowingController.dispose()
+        this.collisionFollowingController = null
+      }
+
       // 🚨🚨🚨 【關鍵BUG修復】清理救護車的特殊DOM結構
       // 如果元素有子元素（救護車的內層div或紅十字），需要清理
       if (this.element.children.length > 0) {
@@ -1845,7 +1867,7 @@ export default class Vehicle {
         gsap.killTweensOf(this.path)
       }
     } catch (e) {
-      logger.warn(`⚠️ [Vehicle.reset] GSAP 清理異常: ${e.message}`) // Changed console.warn to logger.warn
+      logger.warn(`⚠️ [Vehicle.reset] GSAP 清理異常: ${e.message}`)
     }
 
     // 🧹 清理定時器
@@ -1864,6 +1886,21 @@ export default class Vehicle {
       this.movementTimeline.kill()
       this.movementTimeline = null
     }
+
+    // 🆕 重新創建組件
+    // 1. 速度線
+    this.speedLines = SpeedLineUtils.createSpeedLines(this.element, vehicleConfig, this.direction)
+
+    // 2. 車道標籤
+    this.createLaneLabel()
+    // 🚨 確保標籤被添加到 DOM (如果 createLaneLabel 沒有自動添加)
+    if (this.laneLabel && !this.laneLabel.parentNode) {
+      this.element.appendChild(this.laneLabel)
+    }
+
+    // 3. 控制器
+    this.stopLineController = new StopLineController(this)
+    this.collisionFollowingController = new CollisionFollowingController(this)
   }
 
   // ✅ Phase 4 新增：集中清理方法（由 IndexPage RAF 迴圈調用）
@@ -1903,6 +1940,12 @@ export default class Vehicle {
     if (this.movementTimeline) {
       this.movementTimeline.kill()
       this.movementTimeline = null
+    }
+
+    // 🧹 清理速度線
+    if (this.speedLines) {
+      SpeedLineUtils.removeSpeedLines(this.speedLines)
+      this.speedLines = null
     }
 
     // 清理車道標籤

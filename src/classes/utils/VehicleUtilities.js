@@ -473,6 +473,16 @@ export class SpeedLineUtils {
       ease: 'power2.in',
     })
   }
+
+  /**
+   * 移除速度線元素
+   * @param {HTMLElement} speedLines - 速度線元素
+   */
+  static removeSpeedLines(speedLines) {
+    if (speedLines && speedLines.parentNode) {
+      speedLines.parentNode.removeChild(speedLines)
+    }
+  }
 }
 
 /**
