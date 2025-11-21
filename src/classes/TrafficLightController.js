@@ -572,6 +572,39 @@ export default class TrafficLightController {
     })
   }
 
+  /**
+   * 🚑【救護車支持】延長全紅燈時間
+   * 當救護車進入路口時調用，延長當前全紅燈階段的時間
+   * @param {number} durationMs - 延長的時間（毫秒）
+   */
+  extendAllRedTime(durationMs) {
+    if (!durationMs || durationMs <= 0) return
+
+    // 記錄原始配置（首次調用時）
+    if (!this.originalAllRedDuration) {
+      this.originalAllRedDuration = this.timing.allRed.duration
+    }
+
+    // 延長全紅燈時間
+    const extensionSeconds = Math.ceil(durationMs / 1000)
+    this.timing.allRed.duration += extensionSeconds
+
+    logInfo(`🚑 [救護車] 延長全紅燈時間 +${extensionSeconds}秒 (總時間: ${this.timing.allRed.duration}秒)`)
+
+    // 可選：設置一個恢復計時器，在救護車離開後恢復原始時間
+    if (this.allRedRestoreTimer) {
+      clearTimeout(this.allRedRestoreTimer)
+    }
+
+    this.allRedRestoreTimer = setTimeout(() => {
+      if (this.originalAllRedDuration !== undefined) {
+        this.timing.allRed.duration = this.originalAllRedDuration
+        logInfo(`🚑 [救護車] 恢復全紅燈時間至原始值: ${this.originalAllRedDuration}秒`)
+        this.originalAllRedDuration = undefined
+      }
+    }, durationMs + 5000) // 延長時間 + 5秒緩衝後恢復
+  }
+
   // ==========================================
   // 📋 Template Method Pattern (模板方法模式) 方法群組
   // ==========================================

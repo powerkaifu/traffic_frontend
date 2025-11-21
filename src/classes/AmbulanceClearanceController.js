@@ -89,6 +89,7 @@ export class AmbulanceClearanceController {
         lastStage: null,
         affectedVehicles: new Set(),
         hasRecovered: false, // 🚨 【新增】標記是否已執行過恢復
+        hasExtendedRedLight: false, // 🚑 【新增】標記是否已延長紅燈
       }
       this.activeAmbulances.set(ambulanceId, ambulanceState)
     }
@@ -113,7 +114,18 @@ export class AmbulanceClearanceController {
       return
     }
 
-    // 根據階段執行相應處理（改為收集速度要求，不直接應用）
+    // 🚑 【紅燈延長】當救護車進入路口時，延長紅燈時間
+    if (currentStage === 'TRANSIT' && !ambulanceState.hasExtendedRedLight) {
+      if (this.trafficController && this.trafficController.extendAllRedTime) {
+        this.trafficController.extendAllRedTime(5000) // 延長5秒
+        ambulanceState.hasExtendedRedLight = true // 標記已延長，避免重複
+        if (DEBUG_CONFIG.LOG_STAGE_CHANGES) {
+          logger.log(`🚑 [${ambulanceId}] 進入路口，延長紅燈 5 秒`)
+        }
+      }
+    }
+
+    // 根據階段執行相應處理（改為收集速度要求，不立即應用）
     switch (currentStage) {
       case 'WARNING':
         this._handleWarningStage(ambulance, allVehicles, ambulanceState)
