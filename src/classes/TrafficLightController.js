@@ -68,7 +68,11 @@ export default class TrafficLightController {
 
     // 🎯 【Web Worker 倒數計時】獨立線程，不受主線程阻塞影響
     this.countdownWorker = null
+    this.countdownWorkerUrl = null // ✅ 新增: 保存 Worker URL 以便後續釋放
     this.initCountdownWorker()
+
+    // ✅ 修復: vehicleRemoved 監聽器引用 (後續在 init() 中添加)
+    this.vehicleRemovedBuiltInHandler = null
 
     // Observer Pattern: 觀察者模式相關
     this.observers = [] // 觀察者列表
@@ -226,10 +230,8 @@ export default class TrafficLightController {
       window.liveVehicles = []
     }
 
-    // 註冊 vehicleRemoved 事件監聽
-    window.addEventListener('vehicleRemoved', (e) => {
-      this.handleVehicleRemoved(e.detail)
-    })
+    // ✅ 修復: vehicleRemoved 監聽器已移至 init() 方法中進行管理
+    // 這樣在 stop() 中可以正確清理，避免記憶體洩漏
   }
 
   // ==========================================
@@ -349,6 +351,7 @@ export default class TrafficLightController {
           // 使用 Blob + URL.createObjectURL 創建 Worker（更可靠）
           const blob = new Blob([workerCode], { type: 'application/javascript' })
           const workerUrl = URL.createObjectURL(blob)
+          this.countdownWorkerUrl = workerUrl // ✅ 修復: 保存 URL 以便後續釋放
           this.countdownWorker = new Worker(workerUrl)
 
           // ❌ 不再使用全局 onmessage，改為在 countdownDelay() 中使用 addEventListener
@@ -496,8 +499,14 @@ export default class TrafficLightController {
       this.decrementVehicleData(direction, type)
     }
 
+    // ✅ 修復: 添加 vehicleRemoved 內建監聽器 (可以在 stop() 中清理)
+    this.vehicleRemovedBuiltInHandler = (e) => {
+      this.handleVehicleRemoved(e.detail)
+    }
+
     window.addEventListener('vehicleAdded', this.vehicleAddedHandler)
     window.addEventListener('vehicleRemoved', this.vehicleRemovedHandler)
+    window.addEventListener('vehicleRemoved', this.vehicleRemovedBuiltInHandler)
   }
 
   // ==========================================
@@ -1510,11 +1519,54 @@ export default class TrafficLightController {
     this.isRunning = false
     window.removeEventListener('vehicleAdded', this.vehicleAddedHandler)
     window.removeEventListener('vehicleRemoved', this.vehicleRemovedHandler)
+
+    // ✅ 修復: 移除內建的 vehicleRemoved 監聽器
+    if (this.vehicleRemovedBuiltInHandler) {
+      window.removeEventListener('vehicleRemoved', this.vehicleRemovedBuiltInHandler)
+      this.vehicleRemovedBuiltInHandler = null
+    }
+
+    // ✅ 修復: 完全清理 Web Worker
+    if (this.countdownWorker) {
+      this.countdownWorker.terminate() // 終止 Worker 線程
+      if (this.countdownWorkerUrl) {
+        URL.revokeObjectURL(this.countdownWorkerUrl) // 釋放 Blob URL
+      }
+      this.countdownWorker = null
+      this.countdownWorkerUrl = null
+    }
   }
 
   // 設置倒數更新回調
   setTimerUpdateCallback(callback) {
     this.onTimerUpdate = callback
+  }
+
+  // ✅ 新增: 完整的清理方法 (應用關閉或不再需要時調用)
+  destroy() {
+    // 停止運行
+    this.stop()
+
+    // 清理所有燈號物件
+    if (this.lights) {
+      Object.keys(this.lights).forEach((direction) => {
+        if (this.lights[direction]) {
+          this.lights[direction] = null
+        }
+      })
+    }
+
+    // 清理觀察者列表
+    this.observers = []
+
+    // 清理車輛數據
+    this.vehicleData = {}
+
+    // 清理回調
+    this.onTimerUpdate = null
+    this.onPredictionUpdate = null
+
+    logInfo('✅ TrafficLightController 已完全清理')
   }
 
   // 設置 AI 預測更新回調
