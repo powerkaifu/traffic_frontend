@@ -1736,6 +1736,11 @@ const drawHeatmapChart = () => {
 let isChartsUpdating = false // 防止並發更新
 let pendingUpdate = null // 待處理的更新任務
 
+// 清理資源引用
+let resizeObserver = null
+let resizeTimeoutId = null
+let handleResize = null
+
 watch(
   () => route.name,
   (newName) => {
@@ -1801,7 +1806,7 @@ onMounted(() => {
   }
 
   // 監聽視窗大小變化，重新繪製圖表
-  const handleResize = () => {
+  handleResize = () => {
     if (trafficData.value.length > 0) {
       nextTick(() => {
         updateCharts()
@@ -1810,12 +1815,13 @@ onMounted(() => {
   }
 
   // 使用 ResizeObserver 監聽圖表容器大小變化
-  let resizeObserver = null
   if (window.ResizeObserver) {
     resizeObserver = new ResizeObserver(() => {
       // 延遲執行，避免頻繁重繪
-      clearTimeout(window.chartResizeTimeout)
-      window.chartResizeTimeout = setTimeout(() => {
+      if (resizeTimeoutId !== null) {
+        clearTimeout(resizeTimeoutId)
+      }
+      resizeTimeoutId = setTimeout(() => {
         if (trafficData.value.length > 0) {
           updateCharts()
         }
@@ -1840,17 +1846,19 @@ onMounted(() => {
 
   // 載入初始數據
   loadData()
+})
 
-  // 清理事件監聽器
-  onUnmounted(() => {
+// ✅ 清理事件監聽器 (正確放在頂層)
+onUnmounted(() => {
+  if (handleResize) {
     window.removeEventListener('resize', handleResize)
-    if (resizeObserver) {
-      resizeObserver.disconnect()
-    }
-    if (window.chartResizeTimeout) {
-      clearTimeout(window.chartResizeTimeout)
-    }
-  })
+  }
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+  }
+  if (resizeTimeoutId !== null) {
+    clearTimeout(resizeTimeoutId)
+  }
 })
 </script>
 
