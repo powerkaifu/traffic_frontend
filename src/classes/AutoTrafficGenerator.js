@@ -923,29 +923,6 @@ export default class AutoTrafficGenerator {
     return returnData
   }
 
-  // 🎯 獲取情景對應的小時
-  _getScenarioHour(scenarioKey) {
-    const scenario = getScenarioByKey(scenarioKey)
-    if (!scenario || !scenario.hourRanges || scenario.hourRanges.length === 0) {
-      return new Date().getHours()
-    }
-
-    // 隨機選擇一個時間範圍
-    const range = scenario.hourRanges[Math.floor(Math.random() * scenario.hourRanges.length)]
-
-    // 在該範圍內隨機選擇一個小時
-    if (range.start <= range.end) {
-      return this._randomInt(range.start, range.end - 1)
-    } else {
-      // 跨越午夜的情況（例如 23 to 24, 0 to 7）
-      if (Math.random() < 0.5) {
-        return this._randomInt(range.start, 23)
-      } else {
-        return this._randomInt(0, range.end - 1)
-      }
-    }
-  }
-
   // 🎯 獲取情景模式名稱
   _getScenarioModeName(scenarioKey) {
     const scenario = getScenarioByKey(scenarioKey)
@@ -972,11 +949,6 @@ export default class AutoTrafficGenerator {
       // 預設速度
       return 30
     }
-  }
-
-  // 🎯 輔助：隨機浮點數
-  _randomFloat(min, max) {
-    return Math.random() * (max - min) + min
   }
 
   // 根據模擬時間套用交通設定檔，使用於自動模式
