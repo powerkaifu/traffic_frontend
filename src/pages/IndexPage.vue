@@ -366,6 +366,7 @@ import { logger } from '../utils/logger.js' // 統一日誌工具
 import LumoAssistant from '../components/LumoAssistant.vue'
 import EmergencyOverlay from '../components/EmergencyOverlay.vue'
 import WeatherController from '../classes/WeatherController.js'
+import { AmbulanceClearanceController } from '../classes/AmbulanceClearanceController.js'
 import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
 import { GENERATION_CONFIG } from '../classes/config/vehicleConfig.js'
 import { useSimulationStore } from '../stores/simulationStore.js'
@@ -573,6 +574,7 @@ const {
 
 // ===== 天氣效果相關 =====
 let weatherController = null // 天氣控制器實例
+let ambulanceClearanceController = null // 🚑 救護車路權清除控制器實例
 const currentWeather = ref(WEATHER_TYPES.CLEAR) // 當前天氣
 const showWeatherMenu = ref(false) // 是否顯示天氣選單
 
@@ -834,6 +836,75 @@ const getNorthLane2Path = () => pathFunctions.value.getNorthLane2Path()
 const getNorthLane3Path = () => pathFunctions.value.getNorthLane3Path()
 const getNorthLane4Path = () => pathFunctions.value.getNorthLane4Path()
 
+// ═══════════════════════════════════════════════════════════════════════
+// ✅ 【修復】事件處理器定義 - 移到頂層以便 onUnmounted 時清理
+// ═══════════════════════════════════════════════════════════════════════
+
+// 🎯 佈局變化處理器
+const handleLayoutChange = async () => {
+  // 等待下一幀以確保DOM更新
+  await new Promise((resolve) => requestAnimationFrame(resolve))
+
+  if (!crossroadContainer.value || !trafficController) return
+
+  // 1. 重新計算車道位置
+  trafficController.updateLanePositions(crossroadContainer.value)
+
+  // 3. 通知所有活躍車輛佈局發生了變化
+  activeCars.value.forEach((car) => {
+    if (car.checkLayoutChange) {
+      car.checkLayoutChange()
+    }
+  })
+}
+
+// 🎯 AI 預測更新處理器
+const handleUnifiedPrediction = (event) => {
+  const prediction = event.detail.prediction
+  console.log(`  預測物件:`, prediction)
+  console.log(`  東西向: ${prediction.east_west_seconds}秒`)
+  console.log(`  南北向: ${prediction.south_north_seconds}秒`)
+
+  aiPrediction.value = {
+    eastWest: prediction.east_west_seconds || 0,
+    northSouth: prediction.south_north_seconds || 0,
+    timestamp: new Date().toLocaleTimeString(),
+  }
+
+  console.log(`✅ [IndexPage 已更新] aiPrediction.value:`, aiPrediction.value)
+}
+
+// 🎯 診斷快捷鍵處理器 (Ctrl+Shift+M)
+const diagnosticKeydownHandler = (e) => {
+  if (e.ctrlKey && e.shiftKey && e.code === 'KeyM') {
+    e.preventDefault()
+    window.diagnostics?.showMemoryDiagnostics()
+  }
+}
+
+// 🎯 性能監控快捷鍵處理器 (Ctrl+Shift+P)
+const handlePerformanceKeydown = (e) => {
+  if (e.ctrlKey && e.shiftKey && e.code === 'KeyP') {
+    e.preventDefault()
+    if (window.performanceMonitor?.isMonitoring) {
+      window.performanceMonitor.stop()
+    } else {
+      window.performanceMonitor?.start()
+    }
+  }
+}
+
+// 🎯 統計摘要快捷鍵處理器 (Ctrl+Shift+S)
+const handleStatsKeydown = (e) => {
+  if (e.ctrlKey && e.shiftKey && e.code === 'KeyS') {
+    e.preventDefault()
+    const stats = window.performanceMonitor?.getStats()
+    logger.log('📊 性能統計摘要:', stats)
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+
 onMounted(async () => {
   logger.log('═══════════════════════════════════════════════════════════')
   logger.log('🚀 [IndexPage] onMounted 開始')
@@ -898,20 +969,7 @@ onMounted(async () => {
     }
 
     // ⚠️ 【修復】移除 DOM 事件監聽器（已遷移到 Store 訂閱）
-    const handleLayoutChange = async () => {
-      // 等待下一幀以確保DOM更新
-      await new Promise((resolve) => requestAnimationFrame(resolve))
-
-      // 1. 重新計算車道位置
-      trafficController.updateLanePositions(crossroadContainer.value)
-
-      // 3. 通知所有活躍車輛佈局發生了變化
-      activeCars.value.forEach((car) => {
-        if (car.checkLayoutChange) {
-          car.checkLayoutChange()
-        }
-      })
-    }
+    // handleLayoutChange 現在定義在頂層
 
     // 初始呼叫以設定初始位置和繪製點
     await handleLayoutChange()
@@ -938,21 +996,8 @@ onMounted(async () => {
       subtree: true,
     })
 
-    // 在組件卸載時清理監聽器
-    const cleanup = () => {
-      window.removeEventListener('resize', handleLayoutChange)
-      observer.disconnect()
-      autoTrafficGenerator.stop()
-      // 🚨 清除所有車道冷卻狀態
-      autoTrafficGenerator.clearLaneCooldown()
-      // 🚨 停止自適應流量控制器
-      if (adaptiveFlowController && adaptiveFlowController.isRunning) {
-        adaptiveFlowController.stop()
-      }
-    }
-
-    // 將清理函數保存到 window 對象，以便在需要時調用
-    window.trafficCleanup = cleanup
+    // 保存 observer 引用以便在 onUnmounted 清理
+    window.bodyMutationObserver = observer
     // 初始化交通燈控制系統
     const eastLight = crossroadContainer.value.querySelector('.traffic-light.bottom-left')
     const westLight = crossroadContainer.value.querySelector('.traffic-light.top-right')
@@ -1034,20 +1079,7 @@ onMounted(async () => {
     })
 
     // ✅ 【統一數據線】監聽統一的預測事件（新方式 - 優先使用）
-    const handleUnifiedPrediction = (event) => {
-      const prediction = event.detail.prediction
-      console.log(`  預測物件:`, prediction)
-      console.log(`  東西向: ${prediction.east_west_seconds}秒`)
-      console.log(`  南北向: ${prediction.south_north_seconds}秒`)
-
-      aiPrediction.value = {
-        eastWest: prediction.east_west_seconds || 0,
-        northSouth: prediction.south_north_seconds || 0,
-        timestamp: new Date().toLocaleTimeString(),
-      }
-
-      console.log(`✅ [IndexPage 已更新] aiPrediction.value:`, aiPrediction.value)
-    }
+    // handleUnifiedPrediction 現在定義在頂層
     window.addEventListener('trafficPredictionReady', handleUnifiedPrediction)
 
     // 【舊方式 - 向後兼容】設置AI預測更新回調
@@ -1119,6 +1151,11 @@ onMounted(async () => {
     // ✅ 設置天氣控制器到 Store
     store.setWeatherController(weatherController)
     console.log('✅ 天氣系統已初始化')
+
+    // 🚑 初始化救護車路權清除控制器
+    console.log('🚑 初始化救護車路權清除系統...')
+    ambulanceClearanceController = new AmbulanceClearanceController(trafficController, store)
+    console.log('✅ 救護車路權清除系統已初始化')
 
     // 🚑 監聽救護車隨機生成事件
     if (store) {
@@ -1196,15 +1233,8 @@ onMounted(async () => {
   }
 
   // 🚨 【新增】快捷鍵：Ctrl+Shift+M 查看內存診斷
-  // ✅ 【修復】保存 keydown 事件處理器引用，以便在 onUnmounted 時移除
-  const diagnosticKeydownHandler = (e) => {
-    if (e.ctrlKey && e.shiftKey && e.code === 'KeyM') {
-      e.preventDefault()
-      window.diagnostics?.showMemoryDiagnostics()
-    }
-  }
+  // diagnosticKeydownHandler 現在定義在頂層
   window.addEventListener('keydown', diagnosticKeydownHandler)
-  window.diagnosticKeydownHandler = diagnosticKeydownHandler // 保存引用用於清理
 
   console.log('✅ [診斷工具已啟用] 按 Ctrl+Shift+M 查看內存診斷')
 
@@ -1309,25 +1339,12 @@ onMounted(async () => {
   }
 
   // 🚨 【新增】快捷鍵：Ctrl+Shift+P 開始/停止性能監測
-  window.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.shiftKey && e.code === 'KeyP') {
-      e.preventDefault()
-      if (window.performanceMonitor.isMonitoring) {
-        window.performanceMonitor.stop()
-      } else {
-        window.performanceMonitor.start()
-      }
-    }
-  })
+  // handlePerformanceKeydown 現在定義在頂層
+  window.addEventListener('keydown', handlePerformanceKeydown)
 
   // 🚀 【新增】快捷鍵：Ctrl+Shift+S 顯示統計摘要
-  window.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.shiftKey && e.code === 'KeyS') {
-      e.preventDefault()
-      const stats = window.performanceMonitor.getStats()
-      logger.log('📊 性能統計摘要:', stats)
-    }
-  })
+  // handleStatsKeydown 現在定義在頂層
+  window.addEventListener('keydown', handleStatsKeydown)
 
   logger.log('✅ [性能監控已啟用] 按 Ctrl+Shift+P 開始/停止, Ctrl+Shift+S 查看統計')
 
@@ -1666,6 +1683,13 @@ onMounted(async () => {
         window.performanceMonitor.fps = Math.round(1000 / clampedDeltaTime)
       }
 
+      // ═══════════════════════════════════════════════════════════════════════
+      // 6. 🚑 救護車路權清除系統執行
+      // ═══════════════════════════════════════════════════════════════════════
+      if (ambulanceClearanceController) {
+        ambulanceClearanceController.execute(window.liveVehicles || [])
+      }
+
       // 請求下一幀
       rafId = requestAnimationFrame(mainSimulationLoop)
     } catch (error) {
@@ -1727,8 +1751,28 @@ onUnmounted(() => {
     trafficController.stop()
   }
 
-  // ⚠️ 【修復】已移除 DOM 事件監聽器（已遷移到 Store 訂閱）
-  // 不再需要 window.removeEventListener() - Store 訂閱在上面已清理
+  // ⚠️ 【修復】移除所有 DOM 事件監聽器（防止記憶體洩漏）
+  console.log('🛑 開始清理事件監聽器...')
+
+  // 移除 resize 監聽器
+  window.removeEventListener('resize', handleLayoutChange)
+
+  // 移除 trafficPredictionReady 監聽器
+  window.removeEventListener('trafficPredictionReady', handleUnifiedPrediction)
+
+  // 移除所有 keydown 監聽器
+  window.removeEventListener('keydown', diagnosticKeydownHandler)
+  window.removeEventListener('keydown', handlePerformanceKeydown)
+  window.removeEventListener('keydown', handleStatsKeydown)
+
+  // 停止 MutationObserver
+  if (window.bodyMutationObserver) {
+    window.bodyMutationObserver.disconnect()
+    delete window.bodyMutationObserver
+    console.log('🛑 [MutationObserver] 已停止')
+  }
+
+  console.log('✅ 所有事件監聽器已清理')
 
   // 清理車輛清理定時器
   // 清理動態清理間隔
@@ -1763,11 +1807,11 @@ onUnmounted(() => {
     weatherController = null
   }
 
-  // ✅ 【修復】移除 keydown 事件監聽器（防止記憶體洩漏）
-  if (window.diagnosticKeydownHandler) {
-    window.removeEventListener('keydown', window.diagnosticKeydownHandler)
-    window.diagnosticKeydownHandler = null
-    console.log('🛑 [診斷工具] 事件監聽器已移除')
+  // 🚑 完全清理救護車路權清除控制器
+  if (ambulanceClearanceController) {
+    console.log('🚑 清理救護車路權清除系統...')
+    ambulanceClearanceController.destroy()
+    ambulanceClearanceController = null
   }
 
   // ═══════════════════════════════════════════════════════════════════════

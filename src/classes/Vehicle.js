@@ -347,6 +347,71 @@ export default class Vehicle {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // 🚑 救護車路權清除系統專用方法
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * 設置緊急避讓速度倍數（外部控制專用）
+   * 由 AmbulanceClearanceController 調用，用於救護車通行時的路權清除
+   * @param {number} multiplier - 速度倍數 (0-2.0)
+   */
+  setEmergencyMultiplier(multiplier) {
+    if (this.emergencyMultiplier !== multiplier) {
+      this.emergencyMultiplier = multiplier
+      this.updateSpeed()
+    }
+  }
+
+  /**
+   * 緊急停車（救護車通行專用）
+   * 立即暫停車輛的 GSAP 時間軸，實現瞬時停止效果
+   */
+  emergencyStop() {
+    if (this.movementTimeline && !this.isEmergencyStopped) {
+      this.movementTimeline.pause()
+      this.isEmergencyStopped = true
+    }
+  }
+
+  /**
+   * 準備緊急停車
+   * 漸進式減速以準備停車，提供更平滑的視覺效果
+   */
+  prepareForEmergencyStop() {
+    // 設置低速倍數，配合 emergencyStop() 使用
+    if (this.emergencyMultiplier > 0.3) {
+      this.setEmergencyMultiplier(0.3)
+    }
+  }
+
+  /**
+   * 獲取車輛到路口中心的距離
+   * @returns {number} 距離（像素）
+   */
+  getDistanceToIntersectionCenter() {
+    // 路口中心座標（從 trafficConfig 或固定值）
+    const centerX = 400 // TODO: 從配置讀取
+    const centerY = 300
+
+    const pos = this.getCurrentPosition()
+    if (!pos) return Infinity
+
+    // 根據方向計算單軸距離
+    switch (this.direction) {
+      case 'east':
+      case 'west':
+        return Math.abs(pos.x - centerX)
+      case 'south':
+      case 'north':
+        return Math.abs(pos.y - centerY)
+      default:
+        return Infinity
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+
   // 🚨 新增：防停滯機制
   setupAntiStuckMechanism() {
     // ❌ 移除：setInterval（改由 IndexPage mainSimulationLoop 每 5 秒驅動 checkAndResolveStuckState()）
