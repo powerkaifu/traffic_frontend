@@ -281,7 +281,7 @@ export class LaneLabelUtils {
 
     // 根據方向設置位置和旋轉
     let labelTransform = this.getLabelTransform(direction)
-
+    // 修改 display: none 可以隱藏標籤
     label.style.cssText = `
       position: absolute;
       ${labelTransform}
@@ -296,7 +296,7 @@ export class LaneLabelUtils {
       pointer-events: none;
       width: 16px;
       height: 16px;
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       text-align: center;
