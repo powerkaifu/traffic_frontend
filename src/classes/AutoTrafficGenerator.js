@@ -2,7 +2,6 @@
  * AutoTrafficGenerator.js - 自動車流分派系統
  */
 import gsap from 'gsap'
-import { logger } from '../utils/logger.js' // 統一日誌工具
 import {
   getScenarioByTime,
   getScenarioByKey,
@@ -70,6 +69,7 @@ export default class AutoTrafficGenerator {
     // ==========================================
     this.currentScenarioMode = null // 當前情景模式: 'peak_hours', 'off_peak', 'late_night'
     this.scenarioModeTimer = null // 情景模式定時器
+    // ❌ 已移除：scenarioModeLastApplyTime 和 scenarioModeApplyInterval (未使用)
 
     // 🚗 交通配置現在由 trafficScenarioConfig.js 的 timeScenarios 統一管理
     // 移除了冗餘的硬編碼 trafficProfiles 和 vehicleMixes
@@ -384,8 +384,6 @@ export default class AutoTrafficGenerator {
       clearInterval(this.scenarioModeTimer)
       this.scenarioModeTimer = null
     }
-    this.scenarioModeLastApplyTime = null
-    this.scenarioModeApplyInterval = null
 
     // 🔧 CRITICAL FIX：清除 currentScenarioMode，防止 _getDisplayMultiplierAdjustment() 讀取舊配置
     if (this.currentScenarioMode) {
@@ -622,12 +620,6 @@ export default class AutoTrafficGenerator {
     // 立即套用一次該情景
     this._applyScenarioMode(scenarioKey)
 
-    // 🚀 優化：改用累積計時器而非 setInterval，由主循環驅動
-    // 改為：this.scenarioModeLastApplyTime = Date.now()
-    // 在 mainSimulationLoop 中每 2000ms 檢查一次
-    this.scenarioModeLastApplyTime = Date.now()
-    this.scenarioModeApplyInterval = 2000
-
     const scenarioName = this._getScenarioModeName(scenarioKey)
     console.log(`✅ [情景模式] 已成功切換至：${scenarioName}`)
     return true
@@ -762,11 +754,11 @@ export default class AutoTrafficGenerator {
     }
 
     // � 使用 pattern 數據或 targetFeatures 數據
-    let volumeM, volumeS, volumeL, occupancy, speed, volumeT, speedM, speedS, speedL
+    let volumeM, volumeS, volumeL, occupancy, speed, speedM, speedS, speedL
 
     if (this.isAutoMode && patternData) {
       // 自動模式：直接使用 pattern 數據
-      volumeT = patternData.Volume_T
+      // ❌ 已移除：volumeT（聯結車禁止進入，恆為 0）
       volumeM = patternData.Volume_M
       volumeS = patternData.Volume_S
       volumeL = patternData.Volume_L

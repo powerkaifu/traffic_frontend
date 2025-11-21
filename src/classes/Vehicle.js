@@ -247,19 +247,12 @@ export default class Vehicle {
 
       const { targetMultiplier } = event.detail
 
-      // 更新天氣倍數
-      this.weatherMultiplier = targetMultiplier
-
-      // 應用綜合速度
-      // 🚨 【修復】天氣改變時不立即更新現有車輛速度，避免動畫異常
-      // 新生成的車輛會自動應用新的 weatherMultiplier
-      // this.updateSpeed()
+      // 🚨 【修復】立即應用天氣速度改變
+      // 統一使用 updateWeatherSpeed 方法處理
+      this.updateWeatherSpeed(targetMultiplier)
 
       if (process.env.DEV && Math.random() < 0.01) {
-        logger.debug(
-          'Weather',
-          `[${this.id}] 天氣速度改變: ${targetMultiplier.toFixed(2)}x (僅更新狀態，不改變當前速度)`,
-        )
+        logger.debug('Weather', `[${this.id}] 天氣速度改變: ${targetMultiplier.toFixed(2)}x (立即生效)`)
       }
     }
     window.addEventListener('weatherSpeedChange', this.weatherSpeedChangeHandler)
@@ -932,22 +925,12 @@ export default class Vehicle {
     // 如果沒有動畫時間軸，直接返回
     if (!this.movementTimeline) return
 
-    // 🚨 【修復】只更新狀態，不執行變速動畫
-    // 這是為了防止現有車輛在天氣變化時突然變速導致的視覺問題
+    // 🚨 【修復】立即更新狀態並應用速度
+    // 根據用戶要求：天氣切換時，要立即影響場上車子
     this.weatherMultiplier = multiplier
 
-    /*
-    // 如果車輛已經停止（例如紅燈），不需要做任何事
-    // 當它恢復移動時，會讀取最新的 VehicleStaticManager.getWeatherSpeedMultiplier()
-    if (this.movementTimeline.timeScale() === 0) return
-
-    // 平滑過渡到新的速度倍數
-    gsap.to(this.movementTimeline, {
-      timeScale: multiplier,
-      duration: 2.0, // 2秒平滑過渡，模擬真實慣性
-      ease: 'power1.inOut',
-    })
-    */
+    // 立即調用 updateSpeed 應用新的 timeScale
+    this.updateSpeed()
   }
 
   // Static Method: 獲取距離配置
