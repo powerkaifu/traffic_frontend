@@ -263,11 +263,20 @@ export default class Vehicle {
   updateSpeed() {
     if (!this.movementTimeline) return
 
-    // 如果車輛已經停止（例如紅燈），不需要立即改變速度
-    if (this.movementTimeline.timeScale() === 0) return
+    // 🚨 【修復】即使車輛停止，也要更新 weatherMultiplier
+    // 這樣當車輛恢復移動時，會使用最新的天氣倍數
+    // 只有在車輛正在移動時才更新 timeScale
 
     // 計算最終倍數：天氣 * 緊急模式
     const finalMultiplier = this.weatherMultiplier * this.emergencyMultiplier
+
+    // 如果車輛已經停止（例如紅燈或 Panic Stop），不更新 timeScale
+    // 但 weatherMultiplier 已經更新，當車輛恢復時會使用新值
+    if (this.movementTimeline.timeScale() === 0) {
+      // 儲存最新的倍數，供恢復時使用
+      this._pendingSpeedMultiplier = finalMultiplier
+      return
+    }
 
     // console.log(`🚗 [${this.id}] 更新速度: 天氣=${this.weatherMultiplier}x, 緊急=${this.emergencyMultiplier}x, 最終=${finalMultiplier}x`)
 
