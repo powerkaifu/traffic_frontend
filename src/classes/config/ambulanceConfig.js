@@ -20,10 +20,10 @@
  */
 export const AMBULANCE_STAGES = {
   // 階段 1️⃣：預警階段 - 開始監測並標記衝突車道
-  WARNING_DISTANCE: 250, // 250px：提前預警，給系統準備時間
+  WARNING_DISTANCE: 400, // 🚨 400px：大幅提前預警（從250改為400），讓車輛更早知道
 
   // 階段 2️⃣：路權清除階段 - 主動清空衝突車道
-  CLEARANCE_DISTANCE: 200, // 200px：開始執行減速/停車指令
+  CLEARANCE_DISTANCE: 350, // 🚨 350px：提前執行減速（從200改為350），給予更多反應時間
 
   // 階段 3️⃣：通過階段 - 救護車進入路口核心區域
   TRANSIT_DISTANCE: 100, // 100px：進入路口，維持清空狀態
@@ -41,19 +41,22 @@ export const AMBULANCE_STAGES = {
  * - > 1.0 = 加速（用於快速清空路口）
  * - < 1.0 = 減速（用於避讓或停止）
  * - 0.0 = 完全停止
+ *
+ * 🚨 安全優先原則：所有速度倍數都設置得非常保守，
+ * 確保絕對不會發生碰撞，即使犧牲一些流暢度
  */
 export const SPEED_MULTIPLIERS = {
   // === 對向車輛（與救護車反向同軸線）===
-  OPPOSING_EMERGENCY_BRAKE: 0.3, // 對向車輛在路口內：緊急剎車
-  OPPOSING_SLOW: 0.5, // 對向車輛在路口外：減速觀望
+  OPPOSING_EMERGENCY_BRAKE: 0.0, // 🚨 對向車輛在路口內：完全停止（從0.3改為0.0）
+  OPPOSING_SLOW: 0.1, // 🚨 對向車輛在路口外：極慢速度（從0.5改為0.1）
 
   // === 垂直車道（與救護車垂直方向）===
-  PERPENDICULAR_ACCELERATE: 1.2, // 垂直車道綠燈且距離很近：加速通過清空路口
+  PERPENDICULAR_ACCELERATE: 0.0, // 🚨 禁用加速通過，改為停止（從1.2改為0.0）
   PERPENDICULAR_STOP: 0.0, // 垂直車道中距離：完全停止
-  PERPENDICULAR_SLOW: 0.6, // 垂直車道遠距離：減速觀望
+  PERPENDICULAR_SLOW: 0.2, // 🚨 垂直車道遠距離：極慢速度（從0.6改為0.2）
 
   // === 同向車輛（與救護車同方向）===
-  SAME_DIRECTION_YIELD: 0.2, // 同向前方車輛：大幅減速靠邊避讓
+  SAME_DIRECTION_YIELD: 0.1, // 🚨 同向前方車輛：幾乎停止（從0.2改為0.1）
 
   // === 恢復階段漸進速度 ===
   RECOVERY_STEP_1: 0.6, // 恢復第一步
@@ -64,18 +67,57 @@ export const SPEED_MULTIPLIERS = {
 // ===== 距離判定閾值配置 =====
 /**
  * 📏 各類車輛行為判定的距離閾值
+ *
+ * 🚨 安全優先：擴大停止範圍，提前減速/停止
  */
 export const DISTANCE_THRESHOLDS = {
   // 垂直車道車輛距離路口中心的判定
-  PERPENDICULAR_ACCELERATE_THRESHOLD: 50, // < 50px：加速通過
-  PERPENDICULAR_STOP_THRESHOLD: 150, // 50-150px：停止
+  PERPENDICULAR_ACCELERATE_THRESHOLD: 0, // 🚨 禁用加速通過（設為0，永遠不會觸發）
+  PERPENDICULAR_STOP_THRESHOLD: 250, // 🚨 大幅擴大停止範圍（從150改為250）
 
   // 對向車輛距離路口中心的判定
-  OPPOSING_EMERGENCY_THRESHOLD: 100, // < 100px：緊急剎車
-  OPPOSING_SLOW_THRESHOLD: 200, // 100-200px：減速
+  OPPOSING_EMERGENCY_THRESHOLD: 150, // 🚨 擴大緊急剎車範圍（從100改為150）
+  OPPOSING_SLOW_THRESHOLD: 250, // 🚨 擴大減速範圍（從200改為250）
 
   // 現有避讓半徑（擴展使用）
   YIELD_RADIUS: 150, // 150px：同向避讓範圍
+}
+
+// ===== 救護車影響範圍配置 =====
+/**
+ * 🎯 救護車偵測範圍控制（三階段）
+ *
+ * 階段A: 進場車道 - 救護車尚未通過停止線
+ * 階段B: 離開車道 - 救護車已完全離開路口中央
+ * 階段C: 路口中央 - 救護車在路口核心區域
+ *
+ * 邏輯：
+ * - A/B 階段（車道上）：小範圍偵測，避免影響遠處車輛
+ * - C 階段（路口中央）：大範圍偵測，整個路口矩形區域
+ */
+export const INFLUENCE_RANGE = {
+  // 🔵 車道階段（A: 進場, B: 離開）
+  // 救護車在車道上時，只影響附近車輛
+  ON_LANE: {
+    OPPOSING: 150, // 對向車輛：只影響距救護車 < 300px 的車
+    PERPENDICULAR: 200, // 垂直車輛：只影響距救護車 < 350px 的車
+    SAME_DIRECTION: 200, // 同向車輛：只影響距救護車 < 200px 的車
+  },
+
+  // 🔴 路口中央階段（C: 通過停止線後）
+  // 救護車在路口中央時，擴大到整個路口矩形區域
+  IN_INTERSECTION: {
+    OPPOSING: 500, // 對向車輛：整個路口區域
+    PERPENDICULAR: 500, // 垂直車輛：整個路口區域
+    SAME_DIRECTION: 200, // 同向車輛：擴大範圍
+  },
+
+  // 🎯 路口範圍判定閾值
+  // 用於判斷救護車是否在路口中央
+  INTERSECTION_BOUNDS: {
+    ENTRY_THRESHOLD: 0, // 進入路口：通過停止線（距路口 <= 0px）
+    EXIT_THRESHOLD: -200, // 離開路口：距路口 < -200px 時視為已離開
+  },
 }
 
 // ===== 恢復時間配置 =====
@@ -162,6 +204,7 @@ export default {
   AMBULANCE_STAGES,
   SPEED_MULTIPLIERS,
   DISTANCE_THRESHOLDS,
+  INFLUENCE_RANGE,
   RECOVERY_TIMING,
   DEBUG_CONFIG,
   getOppositeDirection,

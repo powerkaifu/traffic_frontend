@@ -17,6 +17,7 @@ import {
   AMBULANCE_STAGES,
   SPEED_MULTIPLIERS,
   DISTANCE_THRESHOLDS,
+  INFLUENCE_RANGE,
   RECOVERY_TIMING,
   DEBUG_CONFIG,
   getOppositeDirection,
@@ -53,10 +54,17 @@ export class AmbulanceClearanceController {
     // 🚑 篩選出所有救護車
     const ambulances = allVehicles.filter((v) => v.vehicleType === 'ambulance' && !v.isRemoved)
 
-    // 處理每輛救護車
+    // 🚨 【多救護車支持】收集所有車輛的速度要求
+    // key: vehicleId, value: { minMultiplier, shouldStop, affectedBy: Set<ambulanceId> }
+    const vehicleSpeedRequirements = new Map()
+
+    // 處理每輛救護車，收集速度要求（不立即應用）
     ambulances.forEach((ambulance) => {
-      this._processAmbulance(ambulance, allVehicles)
+      this._processAmbulance(ambulance, allVehicles, vehicleSpeedRequirements)
     })
+
+    // 🚨 【關鍵修復】統一應用最嚴格的速度限制
+    this._applyStrictestSpeedLimits(allVehicles, vehicleSpeedRequirements)
 
     // 清理已移除的救護車狀態
     this._cleanupRemovedAmbulances(ambulances)
@@ -65,8 +73,9 @@ export class AmbulanceClearanceController {
   /**
    * 處理單輛救護車
    * @private
+   * @param {Object} vehicleSpeedRequirements - 車輛速度要求收集器
    */
-  _processAmbulance(ambulance, allVehicles) {
+  _processAmbulance(ambulance, allVehicles, vehicleSpeedRequirements) {
     const ambulanceId = ambulance.id
 
     // 判斷當前階段
@@ -79,6 +88,7 @@ export class AmbulanceClearanceController {
         stage: currentStage,
         lastStage: null,
         affectedVehicles: new Set(),
+        hasRecovered: false, // 🚨 【新增】標記是否已執行過恢復
       }
       this.activeAmbulances.set(ambulanceId, ambulanceState)
     }
@@ -93,19 +103,34 @@ export class AmbulanceClearanceController {
       ambulanceState.stage = currentStage
     }
 
-    // 根據階段執行相應處理
+    // 🚨 【修復】如果已經執行過恢復，不再執行任何清除邏輯
+    // 這防止車輛在恢復後又被重新減速
+    if (ambulanceState.hasRecovered) {
+      // 只在完全離開追蹤範圍後才清理狀態
+      if (currentStage === 'RECOVERY') {
+        ambulanceState.canRemove = true
+      }
+      return
+    }
+
+    // 根據階段執行相應處理（改為收集速度要求，不直接應用）
     switch (currentStage) {
       case 'WARNING':
         this._handleWarningStage(ambulance, allVehicles, ambulanceState)
         break
       case 'CLEARANCE':
-        this._handleClearanceStage(ambulance, allVehicles, ambulanceState)
+        this._handleClearanceStage(ambulance, allVehicles, ambulanceState, vehicleSpeedRequirements)
         break
       case 'TRANSIT':
-        this._handleTransitStage(ambulance, allVehicles, ambulanceState)
+        this._handleClearanceStage(ambulance, allVehicles, ambulanceState, vehicleSpeedRequirements) // 通過階段：維持清空狀態，繼續執行清除邏輯
         break
       case 'RECOVERY':
-        this._handleRecoveryStage(ambulance, allVehicles, ambulanceState)
+        // 🚨 【修復】只在第一次進入恢復階段時執行恢復
+        if (!ambulanceState.hasRecovered) {
+          this._handleRecoveryStage(ambulance, allVehicles, ambulanceState)
+          ambulanceState.hasRecovered = true // 標記已恢復
+        }
+        ambulanceState.canRemove = true
         break
       default:
         // 未知階段，不處理
@@ -176,12 +201,13 @@ export class AmbulanceClearanceController {
   /**
    * 處理路權清除階段
    * @private
+   * @param {Object} vehicleSpeedRequirements - 車輛速度要求收集器
    */
-  _handleClearanceStage(ambulance, allVehicles, ambulanceState) {
-    // 分類處理不同方向的車輛
-    this._handleOpposingVehicles(ambulance, allVehicles, ambulanceState)
-    this._handlePerpendicularVehicles(ambulance, allVehicles, ambulanceState)
-    this._handleSameDirectionVehicles(ambulance, allVehicles, ambulanceState)
+  _handleClearanceStage(ambulance, allVehicles, ambulanceState, vehicleSpeedRequirements) {
+    // 分類處理不同方向的車輛（收集速度要求，不立即應用）
+    this._handleOpposingVehicles(ambulance, allVehicles, ambulanceState, vehicleSpeedRequirements)
+    this._handlePerpendicularVehicles(ambulance, allVehicles, ambulanceState, vehicleSpeedRequirements)
+    this._handleSameDirectionVehicles(ambulance, allVehicles, ambulanceState, vehicleSpeedRequirements)
   }
 
   /**
@@ -211,32 +237,57 @@ export class AmbulanceClearanceController {
 
     // 清空受影響車輛記錄
     ambulanceState.affectedVehicles.clear()
-
-    // 標記此救護車可以從追蹤列表中移除（下次清理時處理）
-    ambulanceState.canRemove = true
   }
 
   /**
    * 處理對向車輛（與救護車反向同軸線）
    * @private
+   * @param {Object} vehicleSpeedRequirements - 車輛速度要求收集器
    */
-  _handleOpposingVehicles(ambulance, allVehicles, ambulanceState) {
+  _handleOpposingVehicles(ambulance, allVehicles, ambulanceState, vehicleSpeedRequirements) {
     const oppositeDirection = getOppositeDirection(ambulance.direction)
+
+    // 🚨 三階段判定：車道上 (A/B) vs 路口中央 (C)
+    const distanceToStopLine = this._getDistanceToIntersection(ambulance)
+    const isInIntersection =
+      distanceToStopLine <= INFLUENCE_RANGE.INTERSECTION_BOUNDS.ENTRY_THRESHOLD &&
+      distanceToStopLine > INFLUENCE_RANGE.INTERSECTION_BOUNDS.EXIT_THRESHOLD
+    const influenceRange = isInIntersection
+      ? INFLUENCE_RANGE.IN_INTERSECTION.OPPOSING // C: 路口中央 - 大範圍
+      : INFLUENCE_RANGE.ON_LANE.OPPOSING // A/B: 車道上 - 小範圍
 
     allVehicles.forEach((vehicle) => {
       if (vehicle.direction !== oppositeDirection || vehicle.isRemoved || vehicle.id === ambulance.id) {
         return
       }
 
+      // 🚨 【關鍵修復】檢查車輛距離救護車的實際距離
+      const distanceToAmbulance = this._getDistanceBetweenVehicles(ambulance, vehicle)
+      if (distanceToAmbulance > influenceRange) {
+        return // 距離太遠，不影響
+      }
+
       const distanceToIntersection = vehicle.getDistanceToIntersectionCenter?.() ?? Infinity
 
-      // 根據距離設置不同的速度倍數
+      // 根據距離收集速度要求（不立即應用）
       if (distanceToIntersection < DISTANCE_THRESHOLDS.OPPOSING_EMERGENCY_THRESHOLD) {
         // 路口內：緊急剎車
-        this._setVehicleSpeed(vehicle, SPEED_MULTIPLIERS.OPPOSING_EMERGENCY_BRAKE, ambulanceState)
+        this._collectSpeedRequirement(
+          vehicle,
+          SPEED_MULTIPLIERS.OPPOSING_EMERGENCY_BRAKE,
+          ambulance.id,
+          ambulanceState,
+          vehicleSpeedRequirements,
+        )
       } else if (distanceToIntersection < DISTANCE_THRESHOLDS.OPPOSING_SLOW_THRESHOLD) {
         // 接近路口：減速
-        this._setVehicleSpeed(vehicle, SPEED_MULTIPLIERS.OPPOSING_SLOW, ambulanceState)
+        this._collectSpeedRequirement(
+          vehicle,
+          SPEED_MULTIPLIERS.OPPOSING_SLOW,
+          ambulance.id,
+          ambulanceState,
+          vehicleSpeedRequirements,
+        )
       }
     })
   }
@@ -244,13 +295,29 @@ export class AmbulanceClearanceController {
   /**
    * 處理垂直車道車輛（與救護車垂直方向）
    * @private
+   * @param {Object} vehicleSpeedRequirements - 車輛速度要求收集器
    */
-  _handlePerpendicularVehicles(ambulance, allVehicles, ambulanceState) {
+  _handlePerpendicularVehicles(ambulance, allVehicles, ambulanceState, vehicleSpeedRequirements) {
     const perpendicularDirections = getPerpendicularDirections(ambulance.direction)
+
+    // 🚨 三階段判定：車道上 (A/B) vs 路口中央 (C)
+    const distanceToStopLine = this._getDistanceToIntersection(ambulance)
+    const isInIntersection =
+      distanceToStopLine <= INFLUENCE_RANGE.INTERSECTION_BOUNDS.ENTRY_THRESHOLD &&
+      distanceToStopLine > INFLUENCE_RANGE.INTERSECTION_BOUNDS.EXIT_THRESHOLD
+    const influenceRange = isInIntersection
+      ? INFLUENCE_RANGE.IN_INTERSECTION.PERPENDICULAR // C: 路口中央 - 大範圍
+      : INFLUENCE_RANGE.ON_LANE.PERPENDICULAR // A/B: 車道上 - 小範圍
 
     allVehicles.forEach((vehicle) => {
       if (!perpendicularDirections.includes(vehicle.direction) || vehicle.isRemoved || vehicle.id === ambulance.id) {
         return
+      }
+
+      // 🚨 【關鍵修復】檢查車輛距離救護車的實際距離
+      const distanceToAmbulance = this._getDistanceBetweenVehicles(ambulance, vehicle)
+      if (distanceToAmbulance > influenceRange) {
+        return // 距離太遠，不影響
       }
 
       const distanceToIntersection = vehicle.getDistanceToIntersectionCenter?.() ?? Infinity
@@ -259,14 +326,26 @@ export class AmbulanceClearanceController {
       // 只處理綠燈行進中的車輛
       if (lightState === 'green' || lightState === 'leftGreen') {
         if (distanceToIntersection < DISTANCE_THRESHOLDS.PERPENDICULAR_ACCELERATE_THRESHOLD) {
-          // 距離很近：加速通過以清空路口
-          this._setVehicleSpeed(vehicle, SPEED_MULTIPLIERS.PERPENDICULAR_ACCELERATE, ambulanceState)
+          // 距離很近：加速通過以清空路口（實際已禁用，閾值=0）
+          this._collectSpeedRequirement(
+            vehicle,
+            SPEED_MULTIPLIERS.PERPENDICULAR_ACCELERATE,
+            ambulance.id,
+            ambulanceState,
+            vehicleSpeedRequirements,
+          )
         } else if (distanceToIntersection < DISTANCE_THRESHOLDS.PERPENDICULAR_STOP_THRESHOLD) {
           // 中距離：緊急停車
-          this._emergencyStopVehicle(vehicle, ambulanceState)
+          this._collectStopRequirement(vehicle, ambulance.id, ambulanceState, vehicleSpeedRequirements)
         } else {
           // 遠距離：減速觀望
-          this._setVehicleSpeed(vehicle, SPEED_MULTIPLIERS.PERPENDICULAR_SLOW, ambulanceState)
+          this._collectSpeedRequirement(
+            vehicle,
+            SPEED_MULTIPLIERS.PERPENDICULAR_SLOW,
+            ambulance.id,
+            ambulanceState,
+            vehicleSpeedRequirements,
+          )
         }
       }
       // 紅燈車輛無需處理（已停止）
@@ -276,8 +355,18 @@ export class AmbulanceClearanceController {
   /**
    * 處理同向車輛（與救護車同方向）
    * @private
+   * @param {Object} vehicleSpeedRequirements - 車輛速度要求收集器
    */
-  _handleSameDirectionVehicles(ambulance, allVehicles, ambulanceState) {
+  _handleSameDirectionVehicles(ambulance, allVehicles, ambulanceState, vehicleSpeedRequirements) {
+    // 🚨 三階段判定：車道上 (A/B) vs 路口中央 (C)
+    const distanceToStopLine = this._getDistanceToIntersection(ambulance)
+    const isInIntersection =
+      distanceToStopLine <= INFLUENCE_RANGE.INTERSECTION_BOUNDS.ENTRY_THRESHOLD &&
+      distanceToStopLine > INFLUENCE_RANGE.INTERSECTION_BOUNDS.EXIT_THRESHOLD
+    const influenceRange = isInIntersection
+      ? INFLUENCE_RANGE.IN_INTERSECTION.SAME_DIRECTION // C: 路口中央 - 大範圍
+      : INFLUENCE_RANGE.ON_LANE.SAME_DIRECTION // A/B: 車道上 - 小範圍
+
     allVehicles.forEach((vehicle) => {
       if (vehicle.direction !== ambulance.direction || vehicle.isRemoved || vehicle.id === ambulance.id) {
         return
@@ -286,8 +375,20 @@ export class AmbulanceClearanceController {
       // 判斷是否在救護車前方
       const isAhead = this._isVehicleAhead(ambulance, vehicle)
       if (isAhead) {
+        // 🚨 【關鍵修復】檢查車輛距離救護車的實際距離
+        const distanceToAmbulance = this._getDistanceBetweenVehicles(ambulance, vehicle)
+        if (distanceToAmbulance > influenceRange) {
+          return // 距離太遠，不影響
+        }
+
         // 前方車輛：減速靠邊避讓
-        this._setVehicleSpeed(vehicle, SPEED_MULTIPLIERS.SAME_DIRECTION_YIELD, ambulanceState)
+        this._collectSpeedRequirement(
+          vehicle,
+          SPEED_MULTIPLIERS.SAME_DIRECTION_YIELD,
+          ambulance.id,
+          ambulanceState,
+          vehicleSpeedRequirements,
+        )
       }
     })
   }
@@ -315,6 +416,111 @@ export class AmbulanceClearanceController {
         return false
     }
   }
+
+  /**
+   * 計算兩車之間的實際距離（歐幾里得距離）
+   * @private
+   * @param {Object} ambulance - 救護車
+   * @param {Object} vehicle - 普通車輛
+   * @returns {number} 距離（像素）
+   */
+  _getDistanceBetweenVehicles(ambulance, vehicle) {
+    const ambPos = ambulance.getCurrentPosition()
+    const vehPos = vehicle.getCurrentPosition()
+
+    if (!ambPos || !vehPos) return Infinity
+
+    const dx = vehPos.x - ambPos.x
+    const dy = vehPos.y - ambPos.y
+    return Math.sqrt(dx * dx + dy * dy)
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 🚨 【多救護車支持】速度要求收集與應用方法
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /**
+   * 收集車輛速度要求（不立即應用）
+   * @private
+   */
+  _collectSpeedRequirement(vehicle, multiplier, ambulanceId, ambulanceState, vehicleSpeedRequirements) {
+    if (!vehicleSpeedRequirements.has(vehicle.id)) {
+      vehicleSpeedRequirements.set(vehicle.id, {
+        minMultiplier: multiplier,
+        shouldStop: false,
+        affectedBy: new Set([ambulanceId]),
+      })
+    } else {
+      const req = vehicleSpeedRequirements.get(vehicle.id)
+      // 取最嚴格的速度限制（最小值）
+      req.minMultiplier = Math.min(req.minMultiplier, multiplier)
+      req.affectedBy.add(ambulanceId)
+    }
+
+    // 同時記錄到救護車的受影響車輛列表
+    ambulanceState.affectedVehicles.add(vehicle.id)
+  }
+
+  /**
+   * 收集車輛停止要求（不立即應用）
+   * @private
+   */
+  _collectStopRequirement(vehicle, ambulanceId, ambulanceState, vehicleSpeedRequirements) {
+    if (!vehicleSpeedRequirements.has(vehicle.id)) {
+      vehicleSpeedRequirements.set(vehicle.id, {
+        minMultiplier: 0,
+        shouldStop: true,
+        affectedBy: new Set([ambulanceId]),
+      })
+    } else {
+      const req = vehicleSpeedRequirements.get(vehicle.id)
+      // 停止優先於任何速度調整
+      req.shouldStop = true
+      req.minMultiplier = 0
+      req.affectedBy.add(ambulanceId)
+    }
+
+    // 同時記錄到救護車的受影響車輛列表
+    ambulanceState.affectedVehicles.add(vehicle.id)
+  }
+
+  /**
+   * 統一應用最嚴格的速度限制
+   * 🚨 這是多救護車支持的關鍵方法
+   * @private
+   */
+  _applyStrictestSpeedLimits(allVehicles, vehicleSpeedRequirements) {
+    for (const [vehicleId, requirement] of vehicleSpeedRequirements.entries()) {
+      const vehicle = allVehicles.find((v) => v.id === vehicleId)
+      if (!vehicle || vehicle.isRemoved) continue
+
+      if (requirement.shouldStop) {
+        // 需要緊急停止
+        if (vehicle.emergencyStop) {
+          vehicle.emergencyStop()
+          if (DEBUG_CONFIG.LOG_SPEED_ADJUSTMENTS) {
+            logger.debug(
+              'Ambulance',
+              `[${vehicle.id}] 緊急停止 (受 ${Array.from(requirement.affectedBy).join(', ')} 影響)`,
+            )
+          }
+        }
+      } else {
+        // 設置速度倍數
+        if (vehicle.setEmergencyMultiplier) {
+          vehicle.setEmergencyMultiplier(requirement.minMultiplier)
+          if (DEBUG_CONFIG.LOG_SPEED_ADJUSTMENTS) {
+            logger.debug(
+              'Ambulance',
+              `[${vehicle.id}] 速度調整至 ${requirement.minMultiplier}x (受 ${Array.from(requirement.affectedBy).join(', ')} 影響)`,
+            )
+          }
+        }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
 
   /**
    * 設置車輛速度倍數
@@ -363,20 +569,28 @@ export class AmbulanceClearanceController {
         clearTimeout(this.recoveryTimers.get(vehicle.id))
       }
 
-      // 執行分步恢復
-      steps.forEach((step) => {
+      // 🚨 【修復】如果車輛是緊急停止的，立即恢復 timeline 運行
+      // 不要等到最後一步才恢復，否則車輛會一直停止不動
+      if (vehicle.isEmergencyStopped && vehicle.movementTimeline) {
+        vehicle.movementTimeline.play()
+        vehicle.isEmergencyStopped = false
+        if (DEBUG_CONFIG.LOG_SPEED_ADJUSTMENTS) {
+          logger.debug('Ambulance', `[${vehicle.id}] 恢復 timeline 運行`)
+        }
+      }
+
+      // 執行分步恢復速度
+      steps.forEach((step, index) => {
         const timerId = setTimeout(() => {
           if (!vehicle.isRemoved && vehicle.setEmergencyMultiplier) {
             vehicle.setEmergencyMultiplier(step.multiplier)
+
+            if (DEBUG_CONFIG.LOG_SPEED_ADJUSTMENTS) {
+              logger.debug('Ambulance', `[${vehicle.id}] 恢復步驟 ${index + 1}/3: ${step.multiplier}x`)
+            }
           }
 
-          // 最後一步：恢復正常移動（如果是緊急停止的車輛）
-          if (step.multiplier === 1.0 && vehicle.isEmergencyStopped && vehicle.movementTimeline) {
-            vehicle.movementTimeline.play()
-            vehicle.isEmergencyStopped = false
-          }
-
-          // 移除計時器記錄
+          // 最後一步：移除計時器記錄
           if (step.multiplier === 1.0) {
             this.recoveryTimers.delete(vehicle.id)
           }
