@@ -718,31 +718,39 @@ function onSliderInput() {
   // 手動拖動拉桿時，根據拉桿位置判斷最接近的情景並更新高亮
   updateScenarioHighlightBySlider()
   updateGenerationConfig()
-  // isSliderActive 由 @mousedown/@mouseup/@touchstart/@touchend 控制
 }
 
 // 🎯 根據拉桿位置自動判斷最接近的情景
 function updateScenarioHighlightBySlider() {
-  const baseInterval = manualInterval.value
+  const sliderValue = manualInterval.value
 
-  const closestScenario = timeScenarios.reduce((closest, scenario) => {
-    const { min, max } = scenario.config.interval
-    const sliderValue = baseInterval
+  // 🔧 【正確邏輯】找到 normal 值 <= 滑桿值 的最大情境（向下取整）
+  // 只有當滑桿達到或超過該情境的 normal 值時，才切換到該情境
 
-    // 計算拉桿值與該情景中點的距離
-    const midpoint = (min + max) / 2
-    const distance = Math.abs(sliderValue - midpoint)
+  // 將情境按 normal 值排序（從小到大）
+  const sortedScenarios = [...timeScenarios].sort((a, b) => {
+    return a.config.interval.normal - b.config.interval.normal
+  })
 
-    // 選擇距離最近的情景
-    if (!closest) return { scenario, distance }
-    return distance < closest.distance ? { scenario, distance } : closest
-  }, null)
+  // 從後往前找，找到第一個 normal <= sliderValue 的情境
+  let selectedScenario = sortedScenarios[0] // 預設選第一個（最小的）
+
+  for (let i = sortedScenarios.length - 1; i >= 0; i--) {
+    if (sliderValue >= sortedScenarios[i].config.interval.normal) {
+      selectedScenario = sortedScenarios[i]
+      break
+    }
+  }
 
   // 更新按鈕高亮
-  if (closestScenario) {
-    currentTimeScenario.value = closestScenario.scenario.key
-    selectedVDScenario.value = closestScenario.scenario.key
-    if (process.env.DEV) console.log(`📍 [拉桿移動] 自動判斷為: ${closestScenario.scenario.name}`)
+  if (selectedScenario) {
+    currentTimeScenario.value = selectedScenario.key
+    selectedVDScenario.value = selectedScenario.key
+    if (process.env.DEV) {
+      const normalSec = (selectedScenario.config.interval.normal / 1000).toFixed(1)
+      const sliderSec = (sliderValue / 1000).toFixed(1)
+      console.log(`📍 [拉桿移動] ${sliderSec}s → ${selectedScenario.name} (normal=${normalSec}s)`)
+    }
   }
 }
 
