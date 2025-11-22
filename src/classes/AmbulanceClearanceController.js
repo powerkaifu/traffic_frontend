@@ -317,7 +317,7 @@ export class AmbulanceClearanceController {
     const currentStage = ambulanceState.stage
     const isInIntersection = currentStage === 'TRANSIT' || currentStage === 'RECOVERY'
     const influenceRange = isInIntersection
-      ? INFLUENCE_RANGE.IN_INTERSECTION.PERPENDICULAR // C: 路口中央 - 500px 大範圍
+      ? INFLUENCE_RANGE.IN_INTERSECTION.PERPENDICULAR // C: 路口中央 - 400px 大範圍
       : INFLUENCE_RANGE.ON_LANE.PERPENDICULAR // A/B: 車道上 - 小範圍
 
     allVehicles.forEach((vehicle) => {
@@ -331,35 +331,23 @@ export class AmbulanceClearanceController {
         return // 距離太遠，不影響
       }
 
+      // ✅ 【修復】移除燈號限制，確保所有車輛（包括紅燈等待的左轉車）都受影響
+      // 不管燈號如何，根據距離決定行為
       const distanceToIntersection = vehicle.getDistanceToIntersectionCenter?.() ?? Infinity
-      const lightState = this.trafficController?.getCurrentLightState(vehicle.direction)
 
-      // 只處理綠燈行進中的車輛
-      if (lightState === 'green' || lightState === 'leftGreen') {
-        if (distanceToIntersection < DISTANCE_THRESHOLDS.PERPENDICULAR_ACCELERATE_THRESHOLD) {
-          // 距離很近：加速通過以清空路口（實際已禁用，閾值=0）
-          this._collectSpeedRequirement(
-            vehicle,
-            SPEED_MULTIPLIERS.PERPENDICULAR_ACCELERATE,
-            ambulance.id,
-            ambulanceState,
-            vehicleSpeedRequirements,
-          )
-        } else if (distanceToIntersection < DISTANCE_THRESHOLDS.PERPENDICULAR_STOP_THRESHOLD) {
-          // 中距離：緊急停車
-          this._collectStopRequirement(vehicle, ambulance.id, ambulanceState, vehicleSpeedRequirements)
-        } else {
-          // 遠距離：減速觀望
-          this._collectSpeedRequirement(
-            vehicle,
-            SPEED_MULTIPLIERS.PERPENDICULAR_SLOW,
-            ambulance.id,
-            ambulanceState,
-            vehicleSpeedRequirements,
-          )
-        }
+      if (distanceToIntersection < DISTANCE_THRESHOLDS.PERPENDICULAR_STOP_THRESHOLD) {
+        // 靠近路口：確保停止（包括紅燈等待的車輛）
+        this._collectStopRequirement(vehicle, ambulance.id, ambulanceState, vehicleSpeedRequirements)
+      } else {
+        // 遠離路口：減速觀望
+        this._collectSpeedRequirement(
+          vehicle,
+          SPEED_MULTIPLIERS.PERPENDICULAR_SLOW,
+          ambulance.id,
+          ambulanceState,
+          vehicleSpeedRequirements,
+        )
       }
-      // 紅燈車輛無需處理（已停止）
     })
   }
 
