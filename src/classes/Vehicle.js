@@ -267,19 +267,12 @@ export default class Vehicle {
     const finalMultiplier = this.weatherMultiplier * this.emergencyMultiplier
 
     // 🚨 【修復】允許從救護車造成的停止狀態恢復
-    // 只有在「紅燈停止」或「Panic Stop」時才阻止更新
-    // 如果是救護車導致的停止（emergencyMultiplier = 0），但現在恢復了（> 0），則允許更新
     if (this.movementTimeline.timeScale() === 0) {
       // 檢查是否是救護車造成的停止，且現在可以恢復
-      if (this.emergencyMultiplier > 0) {
-        // 🚨 【關鍵修復】檢查是否在等紅燈
-        if (this.waitingForGreen || this.isAtStopLine) {
-          // 車輛在等紅燈，不應該恢復
-          this._pendingSpeedMultiplier = finalMultiplier
-          return
-        }
-        // ✅ 救護車已離開，且不是紅燈，允許恢復！
+      if (this.emergencyMultiplier > 0 && this.stoppedByAmbulance) {
+        // ✅ 這是救護車造成的停止，且救護車已離開，允許恢復！
         this.movementTimeline.timeScale(finalMultiplier)
+        this.stoppedByAmbulance = false // 清除標記
         if (process.env.DEV && Math.random() < 0.05) {
           logger.debug('Emergency', `[${this.id}] 從救護車停止狀態恢復，速度: ${finalMultiplier.toFixed(2)}x`)
         }
@@ -306,17 +299,18 @@ export default class Vehicle {
       return
     }
 
-    // 🚦 【關鍵修復】只影響正在移動的車輛
-    // 已經停止的車輛（紅燈排隊、碰撞停止等）不受救護車影響
-    if (!this.movementTimeline || this.movementTimeline.timeScale() === 0) {
-      return // 車輛已停止，不調整速度
+    // 🚦 【關鍵修復】只豁免紅燈排隊車輛
+    // 排隊且停止的車子不能被影響
+    if (this.waitingForGreen || this.isAtStopLine) {
+      return // 紅燈排隊中，不調整速度
     }
 
     // 2️⃣ 沒有救護車時恢復正常速度
+    // 這會讓救護車造成停止的車輛恢復 ✅
     if (!ambulances || ambulances.length === 0) {
       if (this.emergencyMultiplier !== 1.0) {
         this.emergencyMultiplier = 1.0
-        this.updateSpeed()
+        this.updateSpeed() // 會觸發恢復邏輯
       }
       return
     }
@@ -351,18 +345,18 @@ export default class Vehicle {
     }
 
     // 5️⃣ 根據距離決定速度倍數（多層級感應）
-    // 影響範圍：約 5 個車身內（200px）
+    // 影響範圍擴大到約 10 個車身內（400px），讓避讓更明顯
     let targetMultiplier = 1.0
 
-    if (minDistance < 75) {
-      // 🚨 極近距離：完全停止（約 2 個車身）
+    if (minDistance < 120) {
+      // 🚨 極近距離：完全停止
       targetMultiplier = 0.0
-    } else if (minDistance < 150) {
-      // ⚠️ 近距離：極慢速度（約 2-4 個車身）
+    } else if (minDistance < 250) {
+      // ⚠️ 近距離：極慢速度（明顯減速）
+      targetMultiplier = 0.15
+    } else if (minDistance < 400) {
+      // 📍 中距離：減速（提前預警）
       targetMultiplier = 0.3
-    } else if (minDistance < 200) {
-      // 📍 中距離：減速（約 4-5 個車身）
-      targetMultiplier = 0.6
     } else {
       // ✅ 遠距離：正常速度（不受影響）
       targetMultiplier = 1.0
@@ -370,8 +364,19 @@ export default class Vehicle {
 
     // 6️⃣ 只有當倍數改變時才更新（避免不必要的計算）
     if (this.emergencyMultiplier !== targetMultiplier) {
+      const wasMoving = this.movementTimeline && this.movementTimeline.timeScale() > 0
+
       this.emergencyMultiplier = targetMultiplier
       this.updateSpeed()
+
+      // 🚨 【關鍵標記】記錄是否被救護車停止
+      if (wasMoving && targetMultiplier === 0.0) {
+        // 車輛原本在移動，現在被救護車停止
+        this.stoppedByAmbulance = true
+      } else if (targetMultiplier > 0.0 && this.stoppedByAmbulance) {
+        // 救護車離開，清除標記
+        this.stoppedByAmbulance = false
+      }
 
       // 🔍 調試日誌
       if (process.env.DEV && Math.random() < 0.1) {
