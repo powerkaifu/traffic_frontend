@@ -1780,7 +1780,7 @@ export default class AutoTrafficGenerator {
       // 隨機選擇方向生成救護車
       const directions = ['east', 'west', 'south', 'north']
       const randomDirection = directions[Math.floor(Math.random() * directions.length)]
-      const laneNumber = Math.random() > 0.5 ? 1 : 2 // 緊急車輛走內側車道
+      const laneNumber = Math.floor(Math.random() * 4) + 1 // 隨機選擇車道 1~4
 
       // 透過 simulationStore 發送事件給 IndexPage
       if (this.simulationStore) {

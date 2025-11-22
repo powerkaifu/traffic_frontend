@@ -724,7 +724,7 @@ const spawnEmergencyVehicle = (type = 'ambulance') => {
   // 0. 優先定義方向變量（避免 Lumo 提示時未定義）
   const directions = ['east', 'west', 'south', 'north']
   const randomDirection = directions[Math.floor(Math.random() * directions.length)]
-  const laneNumber = Math.random() > 0.5 ? 1 : 2 // 緊急車輛通常走內側車道
+  const laneNumber = Math.floor(Math.random() * 4) + 1 // 隨機選擇車道 1~4
 
   // 方向中文映射
   const directionChinese = {
@@ -778,7 +778,7 @@ const spawnEmergencyVehicleWithDirection = (type = 'ambulance', direction = null
   // 使用傳入的方向和車道，或隨機選擇
   const directions = ['east', 'west', 'south', 'north']
   const randomDirection = direction || directions[Math.floor(Math.random() * directions.length)]
-  const laneNumber = lane || (Math.random() > 0.5 ? 1 : 2)
+  const laneNumber = lane || Math.floor(Math.random() * 4) + 1
 
   // 方向中文映射
   const directionChinese = {
