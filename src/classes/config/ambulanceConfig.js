@@ -36,8 +36,8 @@ export const SPEED_MULTIPLIERS = {
  */
 export const SPAWN_CONFIG = {
   ENABLED: true, // 是否啟用隨機救護車生成
-  MIN_INTERVAL: 60000, // 最小間隔（60秒）
-  MAX_INTERVAL: 500000, // 最大間隔（500秒）
+  MIN_INTERVAL: 120000, // 最小間隔（120秒）
+  MAX_INTERVAL: 300000, // 最大間隔（300秒）
 }
 
 // ===== 默認導出 =====
