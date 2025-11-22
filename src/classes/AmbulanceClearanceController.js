@@ -13,6 +13,7 @@
  * - Command Pattern：封裝車輛控制指令
  */
 
+import { gsap } from 'gsap'
 import {
   AMBULANCE_STAGES,
   SPEED_MULTIPLIERS,
@@ -575,7 +576,12 @@ export class AmbulanceClearanceController {
     affectedVehicles.forEach((vehicle) => {
       // 清除之前的恢復計時器
       if (this.recoveryTimers.has(vehicle.id)) {
-        clearTimeout(this.recoveryTimers.get(vehicle.id))
+        const oldTimer = this.recoveryTimers.get(vehicle.id)
+        // 🚨 【修復】gsap.delayedCall 返回的對象可以直接 kill()
+        if (oldTimer && oldTimer.kill) {
+          oldTimer.kill()
+        }
+        this.recoveryTimers.delete(vehicle.id)
       }
 
       // 🚨 【修復】如果車輛是緊急停止的，立即恢復 timeline 運行
@@ -589,8 +595,10 @@ export class AmbulanceClearanceController {
       }
 
       // 執行分步恢復速度
+      // 🚨 【關鍵修復】改用 gsap.delayedCall 替代 setTimeout
+      // 這樣車輛回收時 gsap.killTweensOf() 可以清理這些計時器
       steps.forEach((step, index) => {
-        const timerId = setTimeout(() => {
+        const delayedCall = gsap.delayedCall(step.delay / 1000, () => {
           if (!vehicle.isRemoved && vehicle.setEmergencyMultiplier) {
             vehicle.setEmergencyMultiplier(step.multiplier)
 
@@ -603,10 +611,11 @@ export class AmbulanceClearanceController {
           if (step.multiplier === 1.0) {
             this.recoveryTimers.delete(vehicle.id)
           }
-        }, step.delay)
+        })
 
+        // 只儲存延遲的 delayedCall（第一步立即執行，不需要儲存）
         if (step.delay > 0) {
-          this.recoveryTimers.set(vehicle.id, timerId)
+          this.recoveryTimers.set(vehicle.id, delayedCall)
         }
       })
     })
@@ -631,18 +640,52 @@ export class AmbulanceClearanceController {
   }
 
   /**
+   * 清理指定救護車的所有狀態和計時器
+   * @param {string} ambulanceId - 救護車 ID
+   */
+  cleanup(ambulanceId) {
+    const state = this.activeAmbulances.get(ambulanceId)
+    if (!state) return
+
+    // 清理所有受影響車輛的恢復計時器
+    state.affectedVehicles.forEach((vehicleId) => {
+      const timer = this.recoveryTimers.get(vehicleId)
+      if (timer) {
+        // 🚨 【修復】gsap.delayedCall 返回的對象可以直接 kill()
+        if (timer.kill) {
+          timer.kill()
+        }
+        this.recoveryTimers.delete(vehicleId)
+      }
+    })
+
+    // 移除救護車狀態
+    this.activeAmbulances.delete(ambulanceId)
+  }
+
+  /**
    * 停止控制器並清理資源
    */
   destroy() {
-    // 清除所有恢復計時器
-    for (const timerId of this.recoveryTimers.values()) {
-      clearTimeout(timerId)
+    // 🚨 【修復】清除所有恢復計時器（支持 gsap.delayedCall）
+    for (const timer of this.recoveryTimers.values()) {
+      if (timer && timer.kill) {
+        timer.kill() // gsap.delayedCall
+      } else if (typeof timer === 'number') {
+        clearTimeout(timer) // 兼容舊的 setTimeout（如果有）
+      }
     }
     this.recoveryTimers.clear()
 
     // 清空救護車狀態
     this.activeAmbulances.clear()
 
-    logger.log('🛑 AmbulanceClearanceController 已停止')
+    // 清理紅燈恢復計時器
+    if (this.trafficController && this.trafficController.allRedRestoreTimer) {
+      clearTimeout(this.trafficController.allRedRestoreTimer)
+      this.trafficController.allRedRestoreTimer = null
+    }
+
+    logger.log('🛑 AmbulanceClearanceController 已停止並清理')
   }
 }

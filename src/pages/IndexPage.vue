@@ -1799,16 +1799,13 @@ onUnmounted(() => {
   disposeVehiclePool()
 
   // 🌤️ 完全清理天氣控制器
-  if (weatherController) {
+  if (weatherController.value) {
     console.log('🌤️ 清理天氣系統...')
-    if (weatherController.destroy) {
-      weatherController.destroy()
-    }
-    weatherController = null
+    weatherController.value.destroy()
   }
 
-  // 🚑 完全清理救護車路權清除控制器
-  if (ambulanceClearanceController) {
+  // 🚑 清理救護車路權清除系統
+  if (ambulanceClearanceController.value) {
     console.log('🚑 清理救護車路權清除系統...')
     ambulanceClearanceController.destroy()
     ambulanceClearanceController = null
