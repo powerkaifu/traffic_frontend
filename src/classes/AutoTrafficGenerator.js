@@ -17,6 +17,7 @@ import {
 import VDNormalizationUtils from './utils/VDNormalizationUtils.js'
 import { getCurrentTimePeriod } from './config/vdNormalizationConfig.js'
 import { getTimeConfigForScenario, generateVDDataByPattern } from './config/vdPatternConfig.js'
+import { SPAWN_CONFIG } from './config/ambulanceConfig.js' // 🚑 導入：救護車生成配置
 
 export default class AutoTrafficGenerator {
   constructor(trafficController, simulationStore) {
@@ -86,11 +87,12 @@ export default class AutoTrafficGenerator {
     this.speedTransitionTimeline = null // 過度動畫的 GSAP timeline
 
     // 🚑 119 救護車隨機生成配置
+    // 使用集中配置，隨機邏輯在 _scheduleNextEmergencyVehicle() 中處理
     this.emergencyVehicleConfig = {
-      enabled: true, // 是否啟用隨機救護車生成
-      minInterval: 60000 + Math.random() * 100000, // 最小生成間隔（毫秒）- 60秒 + 隨機 100秒
-      maxInterval: 500000, // 最大生成間隔（毫秒）- 120秒
-      nextSpawnTime: 0, // 下次生成時間戳
+      enabled: SPAWN_CONFIG.ENABLED,
+      minInterval: SPAWN_CONFIG.MIN_INTERVAL,
+      maxInterval: SPAWN_CONFIG.MAX_INTERVAL,
+      nextSpawnTime: 0, // 運行時狀態，每次生成後更新
     }
     this._scheduleNextEmergencyVehicle() // 計劃第一次生成
   }

@@ -14,8 +14,8 @@
 export const DISTANCE_THRESHOLDS = {
   STOP: 120, // < 120px: 完全停止 (0.0x)
   SLOW: 250, // 120-250px: 極慢速度 (0.15x) - 提前減速
-  YIELD: 350, // 250-400px: 減速 (0.3x) - 預警範圍擴大
-  // > 400px: 正常速度 (1.0x) - 不受影響
+  YIELD: 350, // 250-350px: 減速 (0.3x) - 預警範圍擴大
+  // > 350px: 正常速度 (1.0x) - 不受影響
 }
 
 // ===== 速度倍數配置 =====
@@ -29,8 +29,20 @@ export const SPEED_MULTIPLIERS = {
   NORMAL: 1.0, // 正常速度
 }
 
+// ===== 救護車生成配置 =====
+/**
+ * 🚑 控制救護車的自動生成行為
+ * 每次生成後，會在 MIN_INTERVAL ~ MAX_INTERVAL 之間隨機選擇下次生成時間
+ */
+export const SPAWN_CONFIG = {
+  ENABLED: true, // 是否啟用隨機救護車生成
+  MIN_INTERVAL: 60000, // 最小間隔（60秒）
+  MAX_INTERVAL: 500000, // 最大間隔（500秒）
+}
+
 // ===== 默認導出 =====
 export default {
   DISTANCE_THRESHOLDS,
   SPEED_MULTIPLIERS,
+  SPAWN_CONFIG,
 }

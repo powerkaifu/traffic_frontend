@@ -18,6 +18,7 @@ import {
   TURN_SPEED_CONFIG,
 } from './config/vehicleConfig.js' // 🚀 整合：車輛行為配置
 import { STOP_LINE_CONFIG } from './config/stopLineConfig.js' // 🚀 導入：停止線配置
+import { DISTANCE_THRESHOLDS, SPEED_MULTIPLIERS } from './config/ambulanceConfig.js' // 🚑 導入：救護車配置
 import {
   VehicleStaticManager,
   VehiclePositionSpeedUtils,
@@ -345,21 +346,21 @@ export default class Vehicle {
     }
 
     // 5️⃣ 根據距離決定速度倍數（多層級感應）
-    // 影響範圍擴大到約 10 個車身內（400px），讓避讓更明顯
-    let targetMultiplier = 1.0
+    // 使用集中配置，所有參數從 ambulanceConfig.js 讀取
+    let targetMultiplier = SPEED_MULTIPLIERS.NORMAL
 
-    if (minDistance < 120) {
+    if (minDistance < DISTANCE_THRESHOLDS.STOP) {
       // 🚨 極近距離：完全停止
-      targetMultiplier = 0.0
-    } else if (minDistance < 250) {
+      targetMultiplier = SPEED_MULTIPLIERS.STOP
+    } else if (minDistance < DISTANCE_THRESHOLDS.SLOW) {
       // ⚠️ 近距離：極慢速度（明顯減速）
-      targetMultiplier = 0.15
-    } else if (minDistance < 400) {
+      targetMultiplier = SPEED_MULTIPLIERS.SLOW
+    } else if (minDistance < DISTANCE_THRESHOLDS.YIELD) {
       // 📍 中距離：減速（提前預警）
-      targetMultiplier = 0.3
+      targetMultiplier = SPEED_MULTIPLIERS.YIELD
     } else {
       // ✅ 遠距離：正常速度（不受影響）
-      targetMultiplier = 1.0
+      targetMultiplier = SPEED_MULTIPLIERS.NORMAL
     }
 
     // 6️⃣ 只有當倍數改變時才更新（避免不必要的計算）
