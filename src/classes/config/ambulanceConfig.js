@@ -20,16 +20,16 @@
  */
 export const AMBULANCE_STAGES = {
   // 階段 1️⃣：預警階段 - 開始監測並標記衝突車道
-  WARNING_DISTANCE: 400, // 🚨 400px：大幅提前預警（從250改為400），讓車輛更早知道
+  WARNING_DISTANCE: 300, // 300px：提前預警，讓車輛準備避讓
 
   // 階段 2️⃣：路權清除階段 - 主動清空衝突車道
-  CLEARANCE_DISTANCE: 350, // 🚨 350px：提前執行減速（從200改為350），給予更多反應時間
+  CLEARANCE_DISTANCE: 250, // 250px：開始執行減速/停止指令（必須 < WARNING_DISTANCE）
 
   // 階段 3️⃣：通過階段 - 救護車進入路口核心區域
-  TRANSIT_DISTANCE: 100, // 100px：進入路口，維持清空狀態
+  TRANSIT_DISTANCE: 100, // 100px：進入路口，維持清空狀態（必須 < CLEARANCE_DISTANCE）
 
   // 階段 4️⃣：恢復階段 - 救護車已通過，恢復正常交通
-  RECOVERY_DISTANCE: -100, // 🚨 -100px：提早恢復（從-150改為-100），避免救護車在路口消失
+  RECOVERY_DISTANCE: -100, // -100px：救護車已離開，開始恢復（必須 < TRANSIT_DISTANCE，負值表示已通過停止線）
 }
 
 // ===== 速度調整倍數配置 =====
@@ -72,15 +72,15 @@ export const SPEED_MULTIPLIERS = {
  */
 export const DISTANCE_THRESHOLDS = {
   // 垂直車道車輛距離路口中心的判定
-  PERPENDICULAR_ACCELERATE_THRESHOLD: 0, // 🚨 禁用加速通過（設為0，永遠不會觸發）
-  PERPENDICULAR_STOP_THRESHOLD: 250, // 🚨 大幅擴大停止範圍（從150改為250）
+  PERPENDICULAR_ACCELERATE_THRESHOLD: 0, // 禁用加速通過（設為0，永遠不會觸發）
+  PERPENDICULAR_STOP_THRESHOLD: 200, // 200px：垂直車輛停止範圍（應 ≤ IN_INTERSECTION 範圍）
 
   // 對向車輛距離路口中心的判定
-  OPPOSING_EMERGENCY_THRESHOLD: 150, // 🚨 擴大緊急剎車範圍（從100改為150）
-  OPPOSING_SLOW_THRESHOLD: 250, // 🚨 擴大減速範圍（從200改為250）
+  OPPOSING_EMERGENCY_THRESHOLD: 150, // 150px：對向車輛緊急剎車範圍
+  OPPOSING_SLOW_THRESHOLD: 200, // 200px：對向車輛減速範圍（應 ≤ IN_INTERSECTION 範圍）
 
-  // 現有避讓半徑（擴展使用）
-  YIELD_RADIUS: 150, // 150px：同向避讓範圍
+  // 同向避讓半徑
+  YIELD_RADIUS: 150, // 150px：同向車輛避讓範圍
 }
 
 // ===== 救護車影響範圍配置 =====
@@ -92,12 +92,12 @@ export const DISTANCE_THRESHOLDS = {
  * 階段C: 路口中央 - 救護車在路口核心區域
  *
  * 邏輯：
- * - A/B 階段（車道上）：只影響同向前方車輛
- * - C 階段（路口中央）：500px 半徑影響所有車輛
+ * - A/B 階段（車道上）：只影響同向前方車輛（200px 範圍）
+ * - C 階段（路口中央）：300px 半徑影響所有車輛
  *
  * 🎯 左轉車自動處理：
  * - 左轉前：只影響原車道同向車
- * - 左轉中：進入路口中央，500px 全影響
+ * - 左轉中：進入路口中央，300px 全影響
  * - 左轉後：只影響新車道同向車
  */
 export const INFLUENCE_RANGE = {
@@ -110,9 +110,9 @@ export const INFLUENCE_RANGE = {
 
   // 🔴 路口中央階段（C: 通過停止線後）
   IN_INTERSECTION: {
-    OPPOSING: 400, // 對向車輛：500px 半徑範圍
-    PERPENDICULAR: 400, // 垂直車輛：500px 半徑範圍
-    SAME_DIRECTION: 400, // 同向車輛：500px 半徑範圍（統一）
+    OPPOSING: 300, // 300px：對向車輛影響範圍（策略 A：輕度縮小）
+    PERPENDICULAR: 300, // 300px：垂直車輛影響範圍（策略 A：輕度縮小）
+    SAME_DIRECTION: 300, // 300px：同向車輛影響範圍（統一設置，策略 A：輕度縮小）
   },
 
   // 🎯 路口範圍判定閾值

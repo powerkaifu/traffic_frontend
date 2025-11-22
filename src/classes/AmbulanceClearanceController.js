@@ -281,18 +281,30 @@ export class AmbulanceClearanceController {
 
       const distanceToIntersection = vehicle.getDistanceToIntersectionCenter?.() ?? Infinity
 
-      // 根據距離收集速度要求（不立即應用）
+      // 🚨 【智能決策】根據救護車階段和車輛位置決定行為
       if (distanceToIntersection < DISTANCE_THRESHOLDS.OPPOSING_EMERGENCY_THRESHOLD) {
-        // 路口內：緊急剎車
-        this._collectSpeedRequirement(
-          vehicle,
-          SPEED_MULTIPLIERS.OPPOSING_EMERGENCY_BRAKE,
-          ambulance.id,
-          ambulanceState,
-          vehicleSpeedRequirements,
-        )
+        // 車輛在路口內 (< 150px)
+        if (currentStage === 'WARNING' || currentStage === 'CLEARANCE') {
+          // 救護車還很遠 → 加速離開路口！
+          this._collectSpeedRequirement(
+            vehicle,
+            1.2, // 加速通過
+            ambulance.id,
+            ambulanceState,
+            vehicleSpeedRequirements,
+          )
+        } else {
+          // 救護車已很接近 (TRANSIT) → 緊急停止！
+          this._collectSpeedRequirement(
+            vehicle,
+            SPEED_MULTIPLIERS.OPPOSING_EMERGENCY_BRAKE,
+            ambulance.id,
+            ambulanceState,
+            vehicleSpeedRequirements,
+          )
+        }
       } else if (distanceToIntersection < DISTANCE_THRESHOLDS.OPPOSING_SLOW_THRESHOLD) {
-        // 接近路口：減速
+        // 接近路口：減速觀望
         this._collectSpeedRequirement(
           vehicle,
           SPEED_MULTIPLIERS.OPPOSING_SLOW,
@@ -335,9 +347,34 @@ export class AmbulanceClearanceController {
       // 不管燈號如何，根據距離決定行為
       const distanceToIntersection = vehicle.getDistanceToIntersectionCenter?.() ?? Infinity
 
+      // 🚨 【智能決策】根據救護車階段和車輛位置決定行為
       if (distanceToIntersection < DISTANCE_THRESHOLDS.PERPENDICULAR_STOP_THRESHOLD) {
-        // 靠近路口：確保停止（包括紅燈等待的車輛）
-        this._collectStopRequirement(vehicle, ambulance.id, ambulanceState, vehicleSpeedRequirements)
+        // 車輛在路口附近 (< 200px)
+        if (currentStage === 'WARNING' || currentStage === 'CLEARANCE') {
+          // 救護車還很遠 → 根據位置決定
+          if (distanceToIntersection < 100) {
+            // 已經在路口內 → 加速離開！
+            this._collectSpeedRequirement(
+              vehicle,
+              1.2, // 加速通過
+              ambulance.id,
+              ambulanceState,
+              vehicleSpeedRequirements,
+            )
+          } else {
+            // 靠近路口但未進入 → 減速觀望
+            this._collectSpeedRequirement(
+              vehicle,
+              SPEED_MULTIPLIERS.PERPENDICULAR_SLOW,
+              ambulance.id,
+              ambulanceState,
+              vehicleSpeedRequirements,
+            )
+          }
+        } else {
+          // 救護車已很接近 (TRANSIT) → 確保停止！
+          this._collectStopRequirement(vehicle, ambulance.id, ambulanceState, vehicleSpeedRequirements)
+        }
       } else {
         // 遠離路口：減速觀望
         this._collectSpeedRequirement(
