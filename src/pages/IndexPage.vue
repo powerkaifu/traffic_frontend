@@ -366,7 +366,7 @@ import { logger } from '../utils/logger.js' // 統一日誌工具
 import LumoAssistant from '../components/LumoAssistant.vue'
 import EmergencyOverlay from '../components/EmergencyOverlay.vue'
 import WeatherController from '../classes/WeatherController.js'
-import { AmbulanceClearanceController } from '../classes/AmbulanceClearanceController.js'
+// import { AmbulanceClearanceController } from '../classes/AmbulanceClearanceController.js' // 【已停用】改用被動感應模式
 import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
 import { GENERATION_CONFIG } from '../classes/config/vehicleConfig.js'
 import { useSimulationStore } from '../stores/simulationStore.js'
@@ -574,7 +574,8 @@ const {
 
 // ===== 天氣效果相關 =====
 let weatherController = null // 天氣控制器實例
-let ambulanceClearanceController = null // 🚑 救護車路權清除控制器實例
+// 🚑 【已停用】救護車路權清除控制器（改用被動感應模式）
+// let ambulanceClearanceController = null
 const currentWeather = ref(WEATHER_TYPES.CLEAR) // 當前天氣
 const showWeatherMenu = ref(false) // 是否顯示天氣選單
 
@@ -1152,10 +1153,10 @@ onMounted(async () => {
     store.setWeatherController(weatherController)
     console.log('✅ 天氣系統已初始化')
 
-    // 🚑 初始化救護車路權清除控制器
-    console.log('🚑 初始化救護車路權清除系統...')
-    ambulanceClearanceController = new AmbulanceClearanceController(trafficController, store)
-    console.log('✅ 救護車路權清除系統已初始化')
+    // 🚑 【已停用】救護車路權清除系統（改用被動感應模式）
+    // 新架構：每輛車自己偵測救護車距離並調整速度（Vehicle.updateEmergencyProximity）
+    // ambulanceClearanceController = new AmbulanceClearanceController(trafficController, store)
+    console.log('✅ 救護車被動感應系統已啟用（由 Vehicle.updateEmergencyProximity 處理）')
 
     // 🚑 監聽救護車隨機生成事件
     if (store) {
@@ -1683,12 +1684,11 @@ onMounted(async () => {
         window.performanceMonitor.fps = Math.round(1000 / clampedDeltaTime)
       }
 
-      // ═══════════════════════════════════════════════════════════════════════
-      // 6. 🚑 救護車路權清除系統執行
-      // ═══════════════════════════════════════════════════════════════════════
-      if (ambulanceClearanceController) {
-        ambulanceClearanceController.execute(window.liveVehicles || [])
-      }
+      // 🚑 【已停用】救護車路權清除系統執行
+      // 新架構：由 Vehicle.updateEmergencyProximity() 處理（已在上方步驟4執行）
+      // if (ambulanceClearanceController) {
+      //   ambulanceClearanceController.execute(window.liveVehicles || [])
+      // }
 
       // 請求下一幀
       rafId = requestAnimationFrame(mainSimulationLoop)
@@ -1805,11 +1805,12 @@ onUnmounted(() => {
   }
 
   // 🚑 清理救護車路權清除系統
-  if (ambulanceClearanceController.value) {
-    console.log('🚑 清理救護車路權清除系統...')
-    ambulanceClearanceController.destroy()
-    ambulanceClearanceController = null
-  }
+  // 🚑 【已停用】救護車路權清除系統清理
+  // if (ambulanceClearanceController) {
+  //   logger.log('🛑 停止救護車路權清除系統')
+  //   ambulanceClearanceController.destroy()
+  //   ambulanceClearanceController = null
+  // }
 
   // ═══════════════════════════════════════════════════════════════════════
   // 【Step 3 清理】✨ 停止 RAF 主循環 ✨

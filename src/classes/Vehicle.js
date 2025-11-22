@@ -263,29 +263,41 @@ export default class Vehicle {
   updateSpeed() {
     if (!this.movementTimeline) return
 
-    // 🚨 【修復】即使車輛停止，也要更新 weatherMultiplier
-    // 這樣當車輛恢復移動時，會使用最新的天氣倍數
-    // 只有在車輛正在移動時才更新 timeScale
-
     // 計算最終倍數：天氣 * 緊急模式
     const finalMultiplier = this.weatherMultiplier * this.emergencyMultiplier
 
-    // 如果車輛已經停止（例如紅燈或 Panic Stop），不更新 timeScale
-    // 但 weatherMultiplier 已經更新，當車輛恢復時會使用新值
+    // 🚨 【修復】允許從救護車造成的停止狀態恢復
+    // 只有在「紅燈停止」或「Panic Stop」時才阻止更新
+    // 如果是救護車導致的停止（emergencyMultiplier = 0），但現在恢復了（> 0），則允許更新
     if (this.movementTimeline.timeScale() === 0) {
-      // 儲存最新的倍數，供恢復時使用
+      // 檢查是否是救護車造成的停止，且現在可以恢復
+      if (this.emergencyMultiplier > 0) {
+        // 🚨 【關鍵修復】檢查是否在等紅燈
+        if (this.waitingForGreen || this.isAtStopLine) {
+          // 車輛在等紅燈，不應該恢復
+          this._pendingSpeedMultiplier = finalMultiplier
+          return
+        }
+        // ✅ 救護車已離開，且不是紅燈，允許恢復！
+        this.movementTimeline.timeScale(finalMultiplier)
+        if (process.env.DEV && Math.random() < 0.05) {
+          logger.debug('Emergency', `[${this.id}] 從救護車停止狀態恢復，速度: ${finalMultiplier.toFixed(2)}x`)
+        }
+        return
+      }
+      // 否則是紅燈或其他原因的停止，儲存倍數供日後恢復使用
       this._pendingSpeedMultiplier = finalMultiplier
       return
     }
 
-    // console.log(`🚗 [${this.id}] 更新速度: 天氣=${this.weatherMultiplier}x, 緊急=${this.emergencyMultiplier}x, 最終=${finalMultiplier}x`)
-
+    // 正常更新速度
     this.movementTimeline.timeScale(finalMultiplier)
   }
 
-  // 🚨 【新增】檢查與救護車的距離並調整速度（局部避讓效應）
+  // 🚨 【新架構】檢查與救護車的距離並調整速度（被動感應模式）
+  // 每輛車自己偵測周圍救護車並決定避讓行為
   updateEmergencyProximity(ambulances) {
-    // 如果自己是救護車，不需要避讓
+    // 1️⃣ 救護車豁免：救護車不需要避讓其他救護車
     if (this.vehicleType === 'ambulance') {
       if (this.emergencyMultiplier !== 1.0) {
         this.emergencyMultiplier = 1.0
@@ -294,7 +306,13 @@ export default class Vehicle {
       return
     }
 
-    // 如果沒有救護車，恢復正常速度
+    // 🚦 【關鍵修復】只影響正在移動的車輛
+    // 已經停止的車輛（紅燈排隊、碰撞停止等）不受救護車影響
+    if (!this.movementTimeline || this.movementTimeline.timeScale() === 0) {
+      return // 車輛已停止，不調整速度
+    }
+
+    // 2️⃣ 沒有救護車時恢復正常速度
     if (!ambulances || ambulances.length === 0) {
       if (this.emergencyMultiplier !== 1.0) {
         this.emergencyMultiplier = 1.0
@@ -303,20 +321,20 @@ export default class Vehicle {
       return
     }
 
-    // 尋找最近的救護車距離
-    let minDistance = Infinity
-
-    // 獲取自己的位置
+    // 3️⃣ 獲取自己的位置
     const myPos = this.getCurrentPosition()
     if (!myPos) return
+
+    // 4️⃣ 尋找最近的救護車距離
+    let minDistance = Infinity
+    let nearestAmbulanceId = null // 🔍 調試用
 
     for (const ambulance of ambulances) {
       // 忽略自己（雖然前面已經檢查過 vehicleType）
       if (ambulance.id === this.id) continue
 
-      // 🚨 【修改】只檢查同方向的救護車
-      // 不同方向的車輛不需要避讓，避免影響對向交通
-      if (ambulance.direction !== this.direction) continue
+      // 🚨 【關鍵修復】過濾已移除的救護車
+      if (ambulance.isRemoved) continue
 
       const ambPos = ambulance.getCurrentPosition()
       if (!ambPos) continue
@@ -328,85 +346,46 @@ export default class Vehicle {
 
       if (distance < minDistance) {
         minDistance = distance
+        nearestAmbulanceId = ambulance.id // 🔍 調試用
       }
     }
 
-    // 判斷是否在避讓範圍內 (150px)
-    const YIELD_RADIUS = 150
-    const targetMultiplier = minDistance < YIELD_RADIUS ? 0.5 : 1.0
+    // 5️⃣ 根據距離決定速度倍數（多層級感應）
+    // 影響範圍：約 5 個車身內（200px）
+    let targetMultiplier = 1.0
 
-    // 只有當倍數改變時才更新
+    if (minDistance < 75) {
+      // 🚨 極近距離：完全停止（約 2 個車身）
+      targetMultiplier = 0.0
+    } else if (minDistance < 150) {
+      // ⚠️ 近距離：極慢速度（約 2-4 個車身）
+      targetMultiplier = 0.3
+    } else if (minDistance < 200) {
+      // 📍 中距離：減速（約 4-5 個車身）
+      targetMultiplier = 0.6
+    } else {
+      // ✅ 遠距離：正常速度（不受影響）
+      targetMultiplier = 1.0
+    }
+
+    // 6️⃣ 只有當倍數改變時才更新（避免不必要的計算）
     if (this.emergencyMultiplier !== targetMultiplier) {
       this.emergencyMultiplier = targetMultiplier
       this.updateSpeed()
 
-      // 僅在進入避讓模式時記錄日誌
-      if (targetMultiplier < 1.0 && process.env.DEV && Math.random() < 0.05) {
-        logger.debug('Emergency', `[${this.id}] 進入救護車避讓範圍 (${Math.round(minDistance)}px)，減速至 0.5x`)
+      // 🔍 調試日誌
+      if (process.env.DEV && Math.random() < 0.1) {
+        if (targetMultiplier < 1.0) {
+          // 進入避讓模式
+          logger.debug(
+            'Emergency',
+            `[${this.id}] 偵測到救護車 ${nearestAmbulanceId}，距離=${Math.round(minDistance)}px，減速至 ${targetMultiplier}x`,
+          )
+        } else if (targetMultiplier === 1.0) {
+          // 恢復正常速度
+          logger.debug('Emergency', `[${this.id}] 救護車已離開，恢復正常速度 1.0x`)
+        }
       }
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // 🚑 救護車路權清除系統專用方法
-  // ═══════════════════════════════════════════════════════════════════════
-
-  /**
-   * 設置緊急避讓速度倍數（外部控制專用）
-   * 由 AmbulanceClearanceController 調用，用於救護車通行時的路權清除
-   * @param {number} multiplier - 速度倍數 (0-2.0)
-   */
-  setEmergencyMultiplier(multiplier) {
-    if (this.emergencyMultiplier !== multiplier) {
-      this.emergencyMultiplier = multiplier
-      this.updateSpeed()
-    }
-  }
-
-  /**
-   * 緊急停車（救護車通行專用）
-   * 立即暫停車輛的 GSAP 時間軸，實現瞬時停止效果
-   */
-  emergencyStop() {
-    if (this.movementTimeline && !this.isEmergencyStopped) {
-      this.movementTimeline.pause()
-      this.isEmergencyStopped = true
-    }
-  }
-
-  /**
-   * 準備緊急停車
-   * 漸進式減速以準備停車，提供更平滑的視覺效果
-   */
-  prepareForEmergencyStop() {
-    // 設置低速倍數，配合 emergencyStop() 使用
-    if (this.emergencyMultiplier > 0.3) {
-      this.setEmergencyMultiplier(0.3)
-    }
-  }
-
-  /**
-   * 獲取車輛到路口中心的距離
-   * @returns {number} 距離（像素）
-   */
-  getDistanceToIntersectionCenter() {
-    // 路口中心座標（從 trafficConfig 或固定值）
-    const centerX = 400 // TODO: 從配置讀取
-    const centerY = 300
-
-    const pos = this.getCurrentPosition()
-    if (!pos) return Infinity
-
-    // 根據方向計算單軸距離
-    switch (this.direction) {
-      case 'east':
-      case 'west':
-        return Math.abs(pos.x - centerX)
-      case 'south':
-      case 'north':
-        return Math.abs(pos.y - centerY)
-      default:
-        return Infinity
     }
   }
 
