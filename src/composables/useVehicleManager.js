@@ -238,8 +238,13 @@ export function useVehicleManager(store, vehicleContainerRef, crossroadContainer
       if (vehiclePool) {
         vehiclePool.release(vehicle)
       } else {
-        // 備用：如果池未初始化，直接調用 reset
-        vehicle.reset(vehicle.direction, vehicle.laneNumber, vehicle.vehicleType, store)
+        // 備用：如果池未初始化，直接銷毀車輛以防洩漏
+        // 🚨【修復】不能只 reset，必須完全清理以移除監聽器
+        if (vehicle.performCleanup && typeof vehicle.performCleanup === 'function') {
+          vehicle.performCleanup().catch((e) => console.warn(`⚠️ 備用清理異常: ${e.message}`))
+        } else {
+          vehicle.reset(vehicle.direction, vehicle.laneNumber, vehicle.vehicleType, store)
+        }
       }
     } else {
       // ⚠️ 車輛已被移除，但仍收到回調，確保隱藏

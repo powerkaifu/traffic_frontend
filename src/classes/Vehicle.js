@@ -2039,6 +2039,11 @@ export default class Vehicle {
     logger.debug('Cleanup', `[${this.id}] 已完成清理`)
   }
 
+  // 🚨 新增：dispose 別名，保持命名一致性
+  dispose() {
+    return this.performCleanup()
+  }
+
   // 🚨 新增：綠燈跟車檢查
   // 🚨 新增：簡化直接燈號響應邏輯
   directTrafficLightResponse(trafficController) {

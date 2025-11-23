@@ -180,6 +180,11 @@ export class VehiclePool {
       while (pool.length > 0) {
         const vehicle = pool.pop()
         try {
+          // 🚨【修復】在移除 DOM 之前先執行清理，確保事件監聽器被移除
+          if (vehicle.performCleanup && typeof vehicle.performCleanup === 'function') {
+            vehicle.performCleanup()
+          }
+
           if (vehicle.element && vehicle.element.parentNode) {
             vehicle.element.parentNode.removeChild(vehicle.element)
           }
