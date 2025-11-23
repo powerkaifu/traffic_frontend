@@ -253,9 +253,9 @@ export class RandomSpeedUtils {
     const finalSpeed = Math.round(randomSpeed)
 
     // 🚑 調試：記錄救護車速度
-    if (vehicleType === 'ambulance') {
-      console.log(`🚑 [RandomSpeedUtils] 救護車速度: ${finalSpeed} km/h (範圍: ${range.min}-${range.max})`)
-    }
+    // if (vehicleType === 'ambulance') {
+    //   console.log(`🚑 [RandomSpeedUtils] 救護車速度: ${finalSpeed} km/h (範圍: ${range.min}-${range.max})`)
+    // }
 
     return finalSpeed
   }

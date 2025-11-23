@@ -62,11 +62,6 @@ export default class VehicleEventBroadcaster {
 
     // 添加到全部車輛集合
     this.allVehicles.add(vehicle)
-
-    logger.debug(
-      'Broadcaster',
-      `[${vehicle.id}] 已註冊 - ${vehicle.direction} 方向車輛數: ${this.vehiclesByDirection[vehicle.direction]?.size || 0}`,
-    )
   }
 
   /**
@@ -83,11 +78,6 @@ export default class VehicleEventBroadcaster {
 
     // 從全部車輛集合移除
     this.allVehicles.delete(vehicle)
-
-    logger.debug(
-      'Broadcaster',
-      `[${vehicle.id}] 已取消註冊 - ${vehicle.direction} 方向剩餘車輛數: ${this.vehiclesByDirection[vehicle.direction]?.size || 0}`,
-    )
   }
 
   /**

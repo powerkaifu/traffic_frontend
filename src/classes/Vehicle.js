@@ -356,11 +356,11 @@ export default class Vehicle {
     const myProgress = this.progress || 0
 
     // 🔍 【調試】偶爾輸出車輛狀態
-    if (process.env.DEV && Math.random() < 0.02) {
-      console.log(
-        `🚗 [${this.id}] 偵測救護車：方向=${this.direction}, 車道=${this.laneNumber}, progress=${myProgress.toFixed(3)}`,
-      )
-    }
+    // if (process.env.DEV && Math.random() < 0.02) {
+    //   console.log(
+    //     `🚗 [${this.id}] 偵測救護車：方向=${this.direction}, 車道=${this.laneNumber}, progress=${myProgress.toFixed(3)}`,
+    //   )
+    // }
 
     // 3️⃣ 遍歷所有救護車，計算距離
     for (const ambulance of ambulances) {
@@ -371,13 +371,6 @@ export default class Vehicle {
 
       // 🔧 同樣修復：救護車也使用 ambulance.progress
       const ambProgress = ambulance.progress || 0
-
-      // 🔍 【調試】偶爾輸出細節
-      if (process.env.DEV && Math.random() < 0.02) {
-        console.log(
-          `  🚑 救護車 ${ambulance.id}：方向=${ambulance.direction}, 車道=${ambulance.laneNumber}, progress=${ambProgress.toFixed(3)}, 是否偵測=${shouldDetect}`,
-        )
-      }
 
       const myPos = this.getCurrentPosition()
       const ambulancePos = ambulance.getCurrentPosition()
@@ -460,18 +453,18 @@ export default class Vehicle {
     const meInCenter = myProgress >= MIN_PROGRESS && myProgress <= MAX_PROGRESS
 
     // 🔍 【調試】輸出偵測決策過程
-    if (process.env.DEV && Math.random() < 0.1 && !isSameDirection) {
-      console.log(`🔶 [${this.id}] 對向/垂直偵測判斷：`, {
-        myDir: this.direction,
-        ambDir: ambulance.direction,
-        myProgress: myProgress.toFixed(3),
-        ambProgress: ambulanceProgress.toFixed(3),
-        meInCenter,
-        ambulanceInCenter,
-        willDetect: ambulanceInCenter && meInCenter,
-        centralZone: `${MIN_PROGRESS}-${MAX_PROGRESS}`,
-      })
-    }
+    // if (process.env.DEV && Math.random() < 0.1 && !isSameDirection) {
+    //   console.log(`🔶 [${this.id}] 對向/垂直偵測判斷：`, {
+    //     myDir: this.direction,
+    //     ambDir: ambulance.direction,
+    //     myProgress: myProgress.toFixed(3),
+    //     ambProgress: ambulanceProgress.toFixed(3),
+    //     meInCenter,
+    //     ambulanceInCenter,
+    //     willDetect: ambulanceInCenter && meInCenter,
+    //     centralZone: `${MIN_PROGRESS}-${MAX_PROGRESS}`,
+    //   })
+    // }
 
     // 雙方都在中央區域時才偵測（符合真實情況）
     if (ambulanceInCenter && meInCenter) {

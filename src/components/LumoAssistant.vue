@@ -62,8 +62,6 @@ const eventHandlers = {
 
 function pauseAllAnimations() {
   if (!isAnimationsPaused) {
-    console.log('📍 [Lumo] 標籤頁隱藏 - 暫停所有動畫')
-
     try {
       // 1️⃣ 暫停全局時間軸
       gsap.globalTimeline.pause()
@@ -100,8 +98,6 @@ function pauseAllAnimations() {
 
 function resumeAllAnimations() {
   if (isAnimationsPaused) {
-    console.log('📍 [Lumo] 標籤頁顯示 - 恢復所有動畫')
-
     // 1️⃣ 恢復全局時間軸
     gsap.globalTimeline.play()
 
@@ -241,10 +237,8 @@ watch(
   (newValue) => {
     if (state.app && state.app.ticker) {
       if (newValue) {
-        console.log('🚀 [Lumo P1] Ticker Start - 助手變為可見')
         state.app.ticker.start()
       } else {
-        console.log('⏸️ [Lumo P1] Ticker Stop - 助手隱藏，停止渲染')
         state.app.ticker.stop()
       }
     }
@@ -260,7 +254,6 @@ async function initialize() {
     if (document.fonts && document.fonts.ready) {
       try {
         await document.fonts.ready
-        console.log('✅ [Lumo 字體] 字體已預加載完成')
       } catch (e) {
         console.warn('⚠️ [Lumo 字體] 字體預加載無法完成（非致命):', e)
       }
@@ -269,7 +262,6 @@ async function initialize() {
     // ========================================
     // 💥 P3 修復：動態加載 Live2D 資源
     // ========================================
-    console.log('📦 [Lumo P3] 開始動態加載 Live2D 資源...')
 
     // 輔助函式：動態載入 JS
     function loadScript(src) {
@@ -292,7 +284,6 @@ async function initialize() {
         script.src = src
         script.async = true
         script.onload = () => {
-          console.log(`✅ [Lumo P3] 已加載: ${src}`)
           resolve()
         }
         script.onerror = () => {
@@ -307,21 +298,16 @@ async function initialize() {
     // 加載三個必要的庫
     try {
       if (typeof window.PIXI === 'undefined') {
-        console.log('📥 [Lumo P3] 加載 PIXI...')
         await loadScript('/libs/pixi.min.js')
       }
 
       if (typeof window.Live2DCubismCore === 'undefined') {
-        console.log('📥 [Lumo P3] 加載 Live2D Cubism Core...')
         await loadScript('/libs/live2dcubismcore.min.js')
       }
 
       if (typeof window.LIVE2DCUBISM4 === 'undefined') {
-        console.log('📥 [Lumo P3] 加載 Cubism4...')
         await loadScript('/libs/cubism4.js')
       }
-
-      console.log('✅ [Lumo P3] 所有 Live2D 資源已動態加載完成')
     } catch (error) {
       console.error('❌ [Lumo P3] 動態加載 Live2D 資源失敗:', error)
       return
@@ -384,7 +370,6 @@ async function initialize() {
 
     // 🎯 P1 修復：初始化時檢查 visible，如果不可見就停止 ticker
     if (!props.visible && state.app && state.app.ticker) {
-      console.log('⏸️ [Lumo P1] 初始化時助手已隱藏，停止 ticker')
       state.app.ticker.stop()
     }
 
@@ -1141,8 +1126,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  console.log('🧹 [LumoAssistant] 開始清理資源...')
-
   // ✅ 【修復】移除所有事件監聽器
   if (eventHandlers.pointerMove) {
     window.removeEventListener('pointermove', eventHandlers.pointerMove)
@@ -1174,7 +1157,6 @@ onBeforeUnmount(() => {
 
   // 🎬 殺死所有活躍的 GSAP tweens（包括打字效果）
   gsap.killTweensOf('*')
-  console.log('✅ [LumoAssistant] GSAP 動畫已清理')
 
   // 🎨 安全地銷毀 PIXI 應用
   if (state.app) {
@@ -1193,7 +1175,6 @@ onBeforeUnmount(() => {
       // removeView: false 避免 canvas 相關錯誤，其他參數確保紋理被完全釋放
       state.app.destroy(false, { children: true, texture: true, baseTexture: true })
       state.app = null
-      console.log('✅ [LumoAssistant] PIXI 應用已安全銷毀')
     } catch (error) {
       console.warn('⚠️ [LumoAssistant] PIXI 銷毀時出現錯誤（已忽略）:', error)
     }
@@ -1206,7 +1187,6 @@ onBeforeUnmount(() => {
         state.model.destroy()
       }
       state.model = null
-      console.log('✅ [LumoAssistant] Live2D 模型已銷毀')
     } catch (error) {
       console.warn('⚠️ [LumoAssistant] Live2D 模型銷毀時出現錯誤（已忽略）:', error)
     }
@@ -1222,8 +1202,6 @@ onBeforeUnmount(() => {
 
   clearTimeout(state.resizeTimer)
   window.removeEventListener('resize', onResize)
-
-  console.log('✅ [LumoAssistant] 資源清理完成')
 })
 </script>
 

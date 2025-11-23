@@ -1281,8 +1281,6 @@ onMounted(async () => {
   // diagnosticKeydownHandler 現在定義在頂層
   window.addEventListener('keydown', diagnosticKeydownHandler)
 
-  console.log('✅ [診斷工具已啟用] 按 Ctrl+Shift+M 查看內存診斷')
-
   // 🚨 【新增】實時性能監測工具 - 按 Ctrl+Shift+P 查看
   window.performanceMonitor = {
     isMonitoring: false,
@@ -1390,8 +1388,6 @@ onMounted(async () => {
   // 🚀 【新增】快捷鍵：Ctrl+Shift+S 顯示統計摘要
   // handleStatsKeydown 現在定義在頂層
   window.addEventListener('keydown', handleStatsKeydown)
-
-  logger.log('✅ [性能監控已啟用] 按 Ctrl+Shift+P 開始/停止, Ctrl+Shift+S 查看統計')
 
   // ═══════════════════════════════════════════════════════════════════════
   // 【Step 3】✨ 統一的 RAF 主循環 - 驅動所有模擬邏輯 ✨

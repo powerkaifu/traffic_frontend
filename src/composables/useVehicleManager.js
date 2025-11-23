@@ -122,7 +122,6 @@ export function useVehicleManager(store, vehicleContainerRef, crossroadContainer
 
     // ✨ 【新增】註冊車輛到全域事件廣播器
     broadcaster.register(vehicle)
-    console.log(`📡 [${vehicle.id}] 已註冊到 VehicleEventBroadcaster`)
 
     // 🚀 【關鍵修復】啟動車輛動畫
     startVehicleAnimation(vehicle)
@@ -201,7 +200,7 @@ export function useVehicleManager(store, vehicleContainerRef, crossroadContainer
       // ✨ 【新增】從 broadcaster 取消註冊
       if (vehicleToRemove) {
         broadcaster.unregister(vehicleToRemove)
-        console.log(`🚫 [${vehicleToRemove.id}] 已從 VehicleEventBroadcaster 取消註冊`)
+        // console.log(`🚫 [${vehicleToRemove.id}] 已從 VehicleEventBroadcaster 取消註冊`)
       }
 
       // 3. 從 window.liveVehicles 移除
@@ -236,7 +235,7 @@ export function useVehicleManager(store, vehicleContainerRef, crossroadContainer
 
       // ✨ 【新增】從 broadcaster 取消註冊
       broadcaster.unregister(vehicle)
-      console.log(`🚫 [${vehicle.id}] 已從 VehicleEventBroadcaster 取消註冊`)
+      // console.log(`🚫 [${vehicle.id}] 已從 VehicleEventBroadcaster 取消註冊`)
 
       // 從 window.liveVehicles 移除
       if (window.liveVehicles) {
