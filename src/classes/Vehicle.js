@@ -18,7 +18,7 @@ import {
   TURN_SPEED_CONFIG,
 } from './config/vehicleConfig.js' // 🚀 整合：車輛行為配置
 import { STOP_LINE_CONFIG } from './config/stopLineConfig.js' // 🚀 導入：停止線配置
-import { DISTANCE_THRESHOLDS, SPEED_MULTIPLIERS } from './config/ambulanceConfig.js' // 🚑 導入：救護車配置
+import { DISTANCE_THRESHOLDS, SPEED_MULTIPLIERS, CENTRAL_ZONE_CONFIG } from './config/ambulanceConfig.js' // 🚑 導入：救護車配置
 import {
   VehicleStaticManager,
   VehiclePositionSpeedUtils,
@@ -452,10 +452,12 @@ export default class Vehicle {
     }
 
     // 🔶 對向/垂直方向：只在中央區域內偵測
-    // 中央區域 = 路口內的複雜交叉區域（10-50% 擴大範圍以增加觸發機會）
+    // 從配置讀取中央區域範圍，方便調整
+    const { MIN_PROGRESS, MAX_PROGRESS } = CENTRAL_ZONE_CONFIG
+
     const ambulanceProgress = ambulance.progress || 0
-    const ambulanceInCenter = ambulanceProgress >= 0.1 && ambulanceProgress <= 0.5
-    const meInCenter = myProgress >= 0.1 && myProgress <= 0.5
+    const ambulanceInCenter = ambulanceProgress >= MIN_PROGRESS && ambulanceProgress <= MAX_PROGRESS
+    const meInCenter = myProgress >= MIN_PROGRESS && myProgress <= MAX_PROGRESS
 
     // 🔍 【調試】輸出偵測決策過程
     if (process.env.DEV && Math.random() < 0.1 && !isSameDirection) {
@@ -467,6 +469,7 @@ export default class Vehicle {
         meInCenter,
         ambulanceInCenter,
         willDetect: ambulanceInCenter && meInCenter,
+        centralZone: `${MIN_PROGRESS}-${MAX_PROGRESS}`,
       })
     }
 
