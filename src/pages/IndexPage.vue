@@ -369,6 +369,7 @@ import WeatherController from '../classes/WeatherController.js'
 // import { AmbulanceClearanceController } from '../classes/AmbulanceClearanceController.js' // 【已停用】改用被動感應模式
 import { WEATHER_TYPES } from '../classes/config/weatherConfig.js'
 import { GENERATION_CONFIG } from '../classes/config/vehicleConfig.js'
+import { SPAWN_CONTROL } from '../classes/config/ambulanceConfig.js' // 🚑 救護車生成控制
 import { useSimulationStore } from '../stores/simulationStore.js'
 import { numberAnimator } from '../classes/NumberAnimator.js'
 import { useLanePaths } from '../composables/useLanePaths.js'
@@ -720,8 +721,50 @@ const clearAllVehicles = () => {
 }
 
 // 🚨 生成緊急車輛
+// 🔒 防連點：記錄上次生成時間和當前救護車數量
+let lastAmbulanceSpawnTime = 0
+let activeAmbulanceCount = 0
+
 const spawnEmergencyVehicle = (type = 'ambulance') => {
   console.log(`🚨 呼叫緊急車輛: ${type}`)
+
+  // 🚫 防連點檢查 1：冷卻時間
+  const now = Date.now()
+  const { COOLDOWN_TIME, MAX_ACTIVE_AMBULANCES, SHOW_COOLDOWN_TOAST } = SPAWN_CONTROL
+
+  if (now - lastAmbulanceSpawnTime < COOLDOWN_TIME) {
+    const remainingTime = Math.ceil((COOLDOWN_TIME - (now - lastAmbulanceSpawnTime)) / 1000)
+    if (SHOW_COOLDOWN_TOAST) {
+      $q.notify({
+        type: 'warning',
+        message: `請稍候 ${remainingTime} 秒後再呼叫救護車`,
+        position: 'top',
+        timeout: 2000,
+      })
+    }
+    console.log(`⏰ 救護車冷卻中，還需等待 ${remainingTime} 秒`)
+    return
+  }
+
+  // 🚫 防連點檢查 2：數量限制
+  // 計算當前活躍的救護車數量
+  activeAmbulanceCount = store.getLiveVehicles().filter((v) => v.vehicleType === 'ambulance').length
+
+  if (activeAmbulanceCount >= MAX_ACTIVE_AMBULANCES) {
+    if (SHOW_COOLDOWN_TOAST) {
+      $q.notify({
+        type: 'warning',
+        message: `同時救護車數量已達上限 (${MAX_ACTIVE_AMBULANCES} 輛)`,
+        position: 'top',
+        timeout: 2000,
+      })
+    }
+    console.log(`🚫 救護車數量已達上限：${activeAmbulanceCount}/${MAX_ACTIVE_AMBULANCES}`)
+    return
+  }
+
+  // ✅ 通過檢查，更新時間戳
+  lastAmbulanceSpawnTime = now
 
   // 0. 優先定義方向變量（避免 Lumo 提示時未定義）
   const directions = ['east', 'west', 'south', 'north']
