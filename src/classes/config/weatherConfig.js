@@ -152,7 +152,7 @@ export const WEATHER_SPEED_MULTIPLIERS = {
   // 大雨 + 閃電
   [WEATHER_TYPES.HEAVY_RAIN]: {
     name: '大雨',
-    multiplier: 0.6, // 70% 速度
+    multiplier: 0.55, // 60% 速度
     description: '大雨伴隨閃電，降速 30%',
   },
 
