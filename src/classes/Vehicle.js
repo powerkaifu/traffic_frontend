@@ -253,12 +253,25 @@ export default class Vehicle {
     // 計算最終倍數：天氣 * 緊急模式
     const finalMultiplier = this.weatherMultiplier * this.emergencyMultiplier
 
-    // 🚨 【修復】允許從救護車造成的停止狀態恢復
-    // 只要有任一倍數不為 0，就可以恢復移動
-    if (this.currentState === 'stopped' && finalMultiplier > 0) {
-      this.resumeIfSafe()
+    // 🚨 【修復】只恢復救護車造成的停止，不影響紅燈排隊
+    // 檢查 timeScale 是否為 0（真正停止）
+    if (this.movementTimeline.timeScale() === 0) {
+      // 檢查是否是救護車造成的停止，且現在可以恢復
+      if (this.emergencyMultiplier > 0 && this.stoppedByAmbulance) {
+        // ✅ 這是救護車造成的停止，且救護車已離開，允許恢復！
+        this.movementTimeline.timeScale(finalMultiplier)
+        this.stoppedByAmbulance = false // 清除標記
+        if (process.env.DEV && Math.random() < 0.05) {
+          logger.debug('Emergency', `[${this.id}] 從救護車停止狀態恢復，速度: ${finalMultiplier.toFixed(2)}x`)
+        }
+        return
+      }
+      // 否則是紅燈或其他原因的停止，儲存倍數供日後恢復使用
+      this._pendingSpeedMultiplier = finalMultiplier
+      return
     }
 
+    // 正常更新速度
     this.movementTimeline.timeScale(finalMultiplier)
 
     if (process.env.DEV && Math.random() < 0.05) {
