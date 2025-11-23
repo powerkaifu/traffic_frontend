@@ -250,6 +250,12 @@ export default class Vehicle {
   updateSpeed() {
     if (!this.movementTimeline) return
 
+    // 🚦 【精準保護】只保護真正在等紅燈的車輛，避免它們被救護車影響而移動
+    // isAtStopLine 的車輛可能還在調整位置，所以不完全保護
+    if (this.waitingForGreen && this.movementTimeline.timeScale() === 0) {
+      return
+    }
+
     // 計算最終倍數：天氣 * 緊急模式
     const finalMultiplier = this.weatherMultiplier * this.emergencyMultiplier
 
@@ -334,9 +340,9 @@ export default class Vehicle {
       return
     }
 
-    // 🚦 【關鍵修復】只豁免紅燈排隊車輛
-    // 排隊且停止的車子不能被影響
-    if (this.waitingForGreen || this.isAtStopLine) {
+    // 🚦 【精準保護】只保護真正靜止等紅燈的車輛
+    // 避免移動中的車輛被誤判為排隊而不避讓救護車
+    if (this.waitingForGreen && this.movementTimeline && this.movementTimeline.timeScale() === 0) {
       return
     }
 
