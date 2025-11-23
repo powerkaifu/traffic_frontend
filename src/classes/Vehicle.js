@@ -239,24 +239,10 @@ export default class Vehicle {
         })
       }
     }
-    window.addEventListener('lightStateChanged', this.lightStateChangeHandler)
-
-    // 🌤️ 【新增】監聽天氣速度改變事件
-    this.weatherSpeedChangeHandler = (event) => {
-      // 🚀 效能優化：如果車輛不活躍（在物件池中），直接忽略事件
-      if (!this.isActive) return
-
-      const { targetMultiplier } = event.detail
-
-      // 🚨 【修復】立即應用天氣速度改變
-      // 統一使用 updateWeatherSpeed 方法處理
-      this.updateWeatherSpeed(targetMultiplier)
-
-      if (process.env.DEV && Math.random() < 0.01) {
-        logger.debug('Weather', `[${this.id}] 天氣速度改變: ${targetMultiplier.toFixed(2)}x (立即生效)`)
-      }
-    }
-    window.addEventListener('weatherSpeedChange', this.weatherSpeedChangeHandler)
+    // ✨ 【優化】事件處理現在由 VehicleEventBroadcaster 管理
+    // 不再直接添加全域監聽器，而是通過 broadcaster 的回調機制
+    // 這樣可以將 400+ 個監聽器減少到 2 個全域監聽器
+    // 參考方法：onLightStateChanged() 和 onWeatherSpeedChange()
   }
 
   // 🚀 【新增】綜合速度更新方法
@@ -268,24 +254,59 @@ export default class Vehicle {
     const finalMultiplier = this.weatherMultiplier * this.emergencyMultiplier
 
     // 🚨 【修復】允許從救護車造成的停止狀態恢復
-    if (this.movementTimeline.timeScale() === 0) {
-      // 檢查是否是救護車造成的停止，且現在可以恢復
-      if (this.emergencyMultiplier > 0 && this.stoppedByAmbulance) {
-        // ✅ 這是救護車造成的停止，且救護車已離開，允許恢復！
-        this.movementTimeline.timeScale(finalMultiplier)
-        this.stoppedByAmbulance = false // 清除標記
-        if (process.env.DEV && Math.random() < 0.05) {
-          logger.debug('Emergency', `[${this.id}] 從救護車停止狀態恢復，速度: ${finalMultiplier.toFixed(2)}x`)
-        }
-        return
-      }
-      // 否則是紅燈或其他原因的停止，儲存倍數供日後恢復使用
-      this._pendingSpeedMultiplier = finalMultiplier
-      return
+    // 只要有任一倍數不為 0，就可以恢復移動
+    if (this.currentState === 'stopped' && finalMultiplier > 0) {
+      this.resumeIfSafe()
     }
 
-    // 正常更新速度
     this.movementTimeline.timeScale(finalMultiplier)
+
+    if (process.env.DEV && Math.random() < 0.05) {
+      logger.debug(
+        'Speed',
+        `[${this.id}] 速度更新: 天氣=${this.weatherMultiplier.toFixed(2)}x, 緊急=${this.emergencyMultiplier.toFixed(2)}x, 最終=${finalMultiplier.toFixed(2)}x`,
+      )
+    }
+  }
+
+  // ✨ 【VehicleEventBroadcaster 回調】處理紅綠燈狀態變化
+  // 由 VehicleEventBroadcaster 調用，替代原本的 lightStateChangeHandler
+  onLightStateChanged(state, direction) {
+    // 🚀 效能優化：如果車輛不活躍（在物件池中），直接忽略
+    if (!this.isActive) return
+
+    // 確保是同方向的燈號變化
+    if (direction !== this.direction) return
+
+    // 原本 lightStateChangeHandler 的邏輯
+    const isMyDirectionGreen = state === 'green'
+
+    if (isMyDirectionGreen && this.waitingForGreen) {
+      this.waitingForGreen = false
+
+      if (process.env.DEV && Math.random() < 0.1) {
+        logger.debug('Light', `[${this.id}] 接收綠燈信號 ${direction}`)
+      }
+
+      // 重置狀態以便重新檢查停止線邏輯
+      this.isAtStopLine = false
+      this.waitingForGreen = false
+    }
+  }
+
+  // ✨ 【VehicleEventBroadcaster 回調】處理天氣速度變化
+  // 由 VehicleEventBroadcaster 調用，替代原本的 weatherSpeedChangeHandler
+  onWeatherSpeedChange(targetMultiplier) {
+    // 🚀 效能優化：如果車輛不活躍（在物件池中），直接忽略
+    if (!this.isActive) return
+
+    // 🚨 【修復】立即應用天氣速度改變
+    // 統一使用 updateWeatherSpeed 方法處理
+    this.updateWeatherSpeed(targetMultiplier)
+
+    if (process.env.DEV && Math.random() < 0.01) {
+      logger.debug('Weather', `[${this.id}] 天氣速度改變: ${targetMultiplier.toFixed(2)}x (立即生效)`)
+    }
   }
 
   // 🚨 【新架構】檢查與救護車的距離並調整速度（被動感應模式）
@@ -2016,17 +2037,9 @@ export default class Vehicle {
       this.collisionFollowingController = null
     }
 
-    // 🚦 【新增】移除燈號變化事件監聽器
-    if (this.lightStateChangeHandler) {
-      window.removeEventListener('lightStateChanged', this.lightStateChangeHandler)
-      this.lightStateChangeHandler = null
-    }
-
-    // 🌤️ 【新增】移除天氣速度改變事件監聽器
-    if (this.weatherSpeedChangeHandler) {
-      window.removeEventListener('weatherSpeedChange', this.weatherSpeedChangeHandler)
-      this.weatherSpeedChangeHandler = null
-    }
+    // ✨ 【優化】事件監聽器現在由 VehicleEventBroadcaster 管理
+    // 車輛的註冊/取消註冊在 useVehicleManager 中處理
+    // 這裡不需要手動移除監聽器
 
     // 移除DOM元素
     if (this.element && this.element.parentNode) {

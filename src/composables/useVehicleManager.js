@@ -7,11 +7,15 @@ import { ref } from 'vue'
 import { gsap } from 'gsap'
 import Vehicle from '../classes/Vehicle.js'
 import VehiclePool from '../classes/VehiclePool.js'
+import { useVehicleEventBroadcaster } from './useVehicleEventBroadcaster.js'
 
 export function useVehicleManager(store, vehicleContainerRef, crossroadContainerRef) {
   // ========== 狀態管理 ==========
   const activeCars = ref([]) // 維護活躍車輛列表
   let vehiclePool = null // 會在初始化時設置
+
+  // ✨ 【新增】獲取全域事件廣播器
+  const broadcaster = useVehicleEventBroadcaster()
 
   // ========== 物件池初始化 ==========
   /**
@@ -116,6 +120,10 @@ export function useVehicleManager(store, vehicleContainerRef, crossroadContainer
     if (!window.liveVehicles) window.liveVehicles = []
     window.liveVehicles.push(vehicle)
 
+    // ✨ 【新增】註冊車輛到全域事件廣播器
+    broadcaster.register(vehicle)
+    console.log(`📡 [${vehicle.id}] 已註冊到 VehicleEventBroadcaster`)
+
     // 🚀 【關鍵修復】啟動車輛動畫
     startVehicleAnimation(vehicle)
 
@@ -181,12 +189,20 @@ export function useVehicleManager(store, vehicleContainerRef, crossroadContainer
     try {
       // 1. 從 activeCars.value 移除
       const idx = activeCars.value.findIndex((v) => v.id === vehicleId)
+      let vehicleToRemove = null
       if (idx !== -1) {
+        vehicleToRemove = activeCars.value[idx]
         activeCars.value.splice(idx, 1)
       }
 
       // 2. 從 Store 移除
       store.removeVehicle(vehicleId)
+
+      // ✨ 【新增】從 broadcaster 取消註冊
+      if (vehicleToRemove) {
+        broadcaster.unregister(vehicleToRemove)
+        console.log(`🚫 [${vehicleToRemove.id}] 已從 VehicleEventBroadcaster 取消註冊`)
+      }
 
       // 3. 從 window.liveVehicles 移除
       if (window.liveVehicles) {
@@ -217,6 +233,10 @@ export function useVehicleManager(store, vehicleContainerRef, crossroadContainer
 
       // 從 Store 移除
       store.removeVehicle(vehicle.id)
+
+      // ✨ 【新增】從 broadcaster 取消註冊
+      broadcaster.unregister(vehicle)
+      console.log(`🚫 [${vehicle.id}] 已從 VehicleEventBroadcaster 取消註冊`)
 
       // 從 window.liveVehicles 移除
       if (window.liveVehicles) {

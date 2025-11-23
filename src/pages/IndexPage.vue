@@ -374,6 +374,7 @@ import { numberAnimator } from '../classes/NumberAnimator.js'
 import { useLanePaths } from '../composables/useLanePaths.js'
 import { useVehicleManager } from '../composables/useVehicleManager.js'
 import { useTrafficLightSystem } from '../composables/useTrafficLightSystem.js'
+import { destroyVehicleEventBroadcaster } from '../composables/useVehicleEventBroadcaster.js'
 
 // 註冊 GSAP MotionPathPlugin 和 MotionPathHelper
 gsap.registerPlugin(MotionPathPlugin, MotionPathHelper)
@@ -1824,6 +1825,10 @@ onUnmounted(() => {
   // ✅ 完全重置 Store 狀態
   console.log('🔄 重置 Pinia Store...')
   store.reset()
+
+  // �� 【新增】清理全域事件管理器
+  console.log('📡 清理 VehicleEventBroadcaster...')
+  destroyVehicleEventBroadcaster()
 
   // ✨ 停止所有數字動畫
   numberAnimator.stopAll()
