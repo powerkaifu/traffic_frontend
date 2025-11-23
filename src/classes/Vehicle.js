@@ -322,7 +322,7 @@ export default class Vehicle {
     }
   }
 
-  // 🚨 【新架構】檢查與救護車的距離並調整速度（被動感應模式）
+  // 🚨 【新架構】檢查與救護車的距離並調整速度（被動感應模式 + 方向感知）
   // 每輛車自己偵測周圍救護車並決定避讓行為
   updateEmergencyProximity(ambulances) {
     // 1️⃣ 救護車豁免：救護車不需要避讓其他救護車
@@ -337,96 +337,162 @@ export default class Vehicle {
     // 🚦 【關鍵修復】只豁免紅燈排隊車輛
     // 排隊且停止的車子不能被影響
     if (this.waitingForGreen || this.isAtStopLine) {
-      return // 紅燈排隊中，不調整速度
-    }
-
-    // 2️⃣ 沒有救護車時恢復正常速度
-    // 這會讓救護車造成停止的車輛恢復 ✅
-    if (!ambulances || ambulances.length === 0) {
-      if (this.emergencyMultiplier !== 1.0) {
-        this.emergencyMultiplier = 1.0
-        this.updateSpeed() // 會觸發恢復邏輯
-      }
       return
     }
 
-    // 3️⃣ 獲取自己的位置
-    const myPos = this.getCurrentPosition()
-    if (!myPos) return
-
-    // 4️⃣ 尋找最近的救護車距離
+    // 2️⃣ 檢查所有救護車，找出最近的一輛
     let minDistance = Infinity
-    let nearestAmbulanceId = null // 🔍 調試用
+    let targetMultiplier = 1.0 // 預設：正常速度
+    let nearestAmbulanceId = null
 
+    // 🔧 【修復】使用 this.progress 而非 this.position.progress
+    // getCurrentPosition() 只返回 {x, y}，沒有 progress
+    const myProgress = this.progress || 0
+
+    // 🔍 【調試】偶爾輸出車輛狀態
+    if (process.env.DEV && Math.random() < 0.02) {
+      console.log(
+        `🚗 [${this.id}] 偵測救護車：方向=${this.direction}, 車道=${this.laneNumber}, progress=${myProgress.toFixed(3)}`,
+      )
+    }
+
+    // 3️⃣ 遍歷所有救護車，計算距離
     for (const ambulance of ambulances) {
-      // 忽略自己（雖然前面已經檢查過 vehicleType）
-      if (ambulance.id === this.id) continue
+      // 🧭 方向檢查：只偵測需要避讓的救護車
+      const shouldDetect = this._shouldDetectAmbulance(ambulance, myProgress)
 
-      // 🚨 【關鍵修復】過濾已移除的救護車
-      if (ambulance.isRemoved) continue
+      if (!shouldDetect) continue
 
-      const ambPos = ambulance.getCurrentPosition()
-      if (!ambPos) continue
+      // 🔧 同樣修復：救護車也使用 ambulance.progress
+      const ambProgress = ambulance.progress || 0
 
-      // 計算歐幾里得距離
-      const dx = myPos.x - ambPos.x
-      const dy = myPos.y - ambPos.y
+      // 🔍 【調試】偶爾輸出細節
+      if (process.env.DEV && Math.random() < 0.02) {
+        console.log(
+          `  🚑 救護車 ${ambulance.id}：方向=${ambulance.direction}, 車道=${ambulance.laneNumber}, progress=${ambProgress.toFixed(3)}, 是否偵測=${shouldDetect}`,
+        )
+      }
+
+      const myPos = this.getCurrentPosition()
+      const ambulancePos = ambulance.getCurrentPosition()
+
+      if (!myPos || !ambulancePos) continue
+
+      // 計算車輛間的實際距離
+      const dx = myPos.x - ambulancePos.x
+      const dy = myPos.y - ambulancePos.y
       const distance = Math.sqrt(dx * dx + dy * dy)
 
       if (distance < minDistance) {
         minDistance = distance
-        nearestAmbulanceId = ambulance.id // 🔍 調試用
+        nearestAmbulanceId = ambulance.id
+
+        // 根據距離設定速度倍數
+        // 📊 閾值從 ambulanceConfig.js 讀取
+        const thresholds = DISTANCE_THRESHOLDS
+        // const thresholds = {
+        //   STOP: 120,
+        //   YIELD: 250,
+        //   CAUTION: 350,
+        // }
+
+        if (distance < thresholds.STOP) {
+          targetMultiplier = 0.0 // 完全停止
+        } else if (distance < thresholds.YIELD) {
+          targetMultiplier = 0.15 // 緩慢前進
+        } else if (distance < thresholds.CAUTION) {
+          targetMultiplier = 0.3 // 減速
+        } else {
+          targetMultiplier = 1.0 // 正常速度
+        }
       }
     }
 
-    // 5️⃣ 根據距離決定速度倍數（多層級感應）
-    // 使用集中配置，所有參數從 ambulanceConfig.js 讀取
-    let targetMultiplier = SPEED_MULTIPLIERS.NORMAL
-
-    if (minDistance < DISTANCE_THRESHOLDS.STOP) {
-      // 🚨 極近距離：完全停止
-      targetMultiplier = SPEED_MULTIPLIERS.STOP
-    } else if (minDistance < DISTANCE_THRESHOLDS.SLOW) {
-      // ⚠️ 近距離：極慢速度（明顯減速）
-      targetMultiplier = SPEED_MULTIPLIERS.SLOW
-    } else if (minDistance < DISTANCE_THRESHOLDS.YIELD) {
-      // 📍 中距離：減速（提前預警）
-      targetMultiplier = SPEED_MULTIPLIERS.YIELD
-    } else {
-      // ✅ 遠距離：正常速度（不受影響）
-      targetMultiplier = SPEED_MULTIPLIERS.NORMAL
-    }
-
-    // 6️⃣ 只有當倍數改變時才更新（避免不必要的計算）
-    if (this.emergencyMultiplier !== targetMultiplier) {
-      const wasMoving = this.movementTimeline && this.movementTimeline.timeScale() > 0
-
+    // 4️⃣ 更新速度倍數（如果有變化）
+    const oldMultiplier = this.emergencyMultiplier
+    if (oldMultiplier !== targetMultiplier) {
       this.emergencyMultiplier = targetMultiplier
       this.updateSpeed()
 
-      // 🚨 【關鍵標記】記錄是否被救護車停止
-      if (wasMoving && targetMultiplier === 0.0) {
-        // 車輛原本在移動，現在被救護車停止
+      // 🔒 鎖定車輛（接近停止線時繼續保持停止狀態）
+      if (targetMultiplier === 0.0 && !this.stoppedByAmbulance) {
         this.stoppedByAmbulance = true
       } else if (targetMultiplier > 0.0 && this.stoppedByAmbulance) {
-        // 救護車離開，清除標記
         this.stoppedByAmbulance = false
       }
 
-      // 🔍 調試日誌
+      // 調試日誌
       if (process.env.DEV && Math.random() < 0.1) {
         if (targetMultiplier < 1.0) {
-          // 進入避讓模式
           logger.debug(
             'Emergency',
             `[${this.id}] 偵測到救護車 ${nearestAmbulanceId}，距離=${Math.round(minDistance)}px，減速至 ${targetMultiplier}x`,
           )
         } else if (targetMultiplier === 1.0) {
-          // 恢復正常速度
           logger.debug('Emergency', `[${this.id}] 救護車已離開，恢復正常速度 1.0x`)
         }
       }
     }
+  }
+
+  // 🎯 【精確版】判斷是否需要偵測某輛救護車
+  // 策略：同向永遠偵測，對向/垂直只在中央區域內互相影響
+  _shouldDetectAmbulance(ambulance, myProgress) {
+    const isSameDirection = this.direction === ambulance.direction
+
+    // ✅ 同向：永遠偵測（摩西分海效果）
+    if (isSameDirection) {
+      return true
+    }
+
+    // 🔶 對向/垂直方向：只在中央區域內偵測
+    // 中央區域 = 路口內的複雜交叉區域（10-50% 擴大範圍以增加觸發機會）
+    const ambulanceProgress = ambulance.progress || 0
+    const ambulanceInCenter = ambulanceProgress >= 0.1 && ambulanceProgress <= 0.5
+    const meInCenter = myProgress >= 0.1 && myProgress <= 0.5
+
+    // 🔍 【調試】輸出偵測決策過程
+    if (process.env.DEV && Math.random() < 0.1 && !isSameDirection) {
+      console.log(`🔶 [${this.id}] 對向/垂直偵測判斷：`, {
+        myDir: this.direction,
+        ambDir: ambulance.direction,
+        myProgress: myProgress.toFixed(3),
+        ambProgress: ambulanceProgress.toFixed(3),
+        meInCenter,
+        ambulanceInCenter,
+        willDetect: ambulanceInCenter && meInCenter,
+      })
+    }
+
+    // 雙方都在中央區域時才偵測（符合真實情況）
+    if (ambulanceInCenter && meInCenter) {
+      return true
+    }
+
+    // 其他情況：不偵測
+    return false
+  }
+
+  // 🧭 判斷兩個方向是否對向
+  _isOppositeDirection(dir1, dir2) {
+    const opposites = {
+      east: 'west',
+      west: 'east',
+      north: 'south',
+      south: 'north',
+    }
+    return opposites[dir1] === dir2
+  }
+
+  // 🧭 判斷兩個方向是否垂直
+  _isPerpendicularDirection(dir1, dir2) {
+    const perpendiculars = {
+      east: ['north', 'south'],
+      west: ['north', 'south'],
+      north: ['east', 'west'],
+      south: ['east', 'west'],
+    }
+    return perpendiculars[dir1]?.includes(dir2) || false
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -1306,6 +1372,12 @@ export default class Vehicle {
 
               if (!this.element) {
                 return
+              }
+
+              // 🔧 【救護車修復】更新 this.progress，供救護車偵測邏輯使用
+              // GSAP timeline.progress() 返回 0-1 的進度值
+              if (this.movementTimeline) {
+                this.progress = this.movementTimeline.progress()
               }
 
               this.lastMovementTime = Date.now()
