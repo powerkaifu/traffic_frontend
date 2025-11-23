@@ -154,13 +154,9 @@ export default class Vehicle {
     // 若外部有 speed，優先用；否則用原本隨機
     this.initialSpeed = externalSpeed || this.generateRandomSpeed()
 
-    // 🌤️ 【修復】新生成的車輛也必須受到當前天氣的影響
-    // 獲取當前的天氣速度倍數並應用到初始速度
+    // 🌤️ 【修復】初始化天氣速度倍數（不修改 initialSpeed，而是在動畫時透過 timeScale 應用）
+    // 獲取當前的天氣速度倍數，新車輛會在動畫創建時使用此倍數
     this.weatherMultiplier = VehicleStaticManager.getWeatherSpeedMultiplier() || 1.0
-    if (this.weatherMultiplier !== 1) {
-      this.initialSpeed *= this.weatherMultiplier
-      // console.log(`🚗 [${this.id}] 應用天氣速度倍數: ${this.weatherMultiplier}x, 調整後速度: ${this.initialSpeed.toFixed(2)}`)
-    }
 
     // 🚨 【新增】初始化緊急模式倍數
     this.emergencyMultiplier = 1.0
@@ -323,8 +319,11 @@ export default class Vehicle {
     // 統一使用 updateWeatherSpeed 方法處理
     this.updateWeatherSpeed(targetMultiplier)
 
-    if (process.env.DEV && Math.random() < 0.01) {
-      logger.debug('Weather', `[${this.id}] 天氣速度改變: ${targetMultiplier.toFixed(2)}x (立即生效)`)
+    // 🔍 臨時調試：強制輸出以確認事件接收
+    if (process.env.DEV && Math.random() < 0.05) {
+      console.log(
+        `🌤️ [${this.id}] 收到天氣速度變化: ${targetMultiplier.toFixed(2)}x, 當前速度: ${this.movementTimeline?.timeScale().toFixed(2)}x`,
+      )
     }
   }
 
@@ -1460,6 +1459,16 @@ export default class Vehicle {
             ease: 'none',
             // 🚨 使用 gsap.set() 預先定位，而不使用 progress 物件
           })
+
+          // 🌤️ 【修復】動畫創建後立即應用天氣速度倍數
+          // 確保新車輛一開始就受到當前天氣的影響
+          const initialTimeScale = this.weatherMultiplier * this.emergencyMultiplier
+          if (initialTimeScale !== 1.0) {
+            this.movementTimeline.timeScale(initialTimeScale)
+            console.log(
+              `🌤️ [${this.id}] 新車輛應用初始速度倍數: ${initialTimeScale.toFixed(2)}x (天氣=${this.weatherMultiplier.toFixed(2)}x, 緊急=${this.emergencyMultiplier.toFixed(2)}x)`,
+            )
+          }
 
           // 🚨 移除：不再在初始化時暫停車輛
           // 所有車輛（包括1號左轉車道）都應該立即開始移動到停止線排隊

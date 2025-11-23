@@ -125,6 +125,11 @@ export default class VehicleEventBroadcaster {
       return
     }
 
+    // 🔍 臨時調試：強制輸出以確認事件接收
+    console.log(
+      `🌤️ [VehicleEventBroadcaster] 收到 weatherSpeedChange: ${multiplier.toFixed(2)}x, 將通知 ${this.allVehicles.size} 輛車`,
+    )
+
     // 通知所有車輛
     logger.debug('Broadcast', `🌤️ 分發天氣變化 ${multiplier}x → ${this.allVehicles.size} 輛車`)
 

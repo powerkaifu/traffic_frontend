@@ -17,6 +17,7 @@ import {
   WEATHER_SPEED_MULTIPLIERS,
   WEATHER_SYSTEM_CONFIG,
 } from './config/weatherConfig.js'
+import { VehicleStaticManager } from './utils/VehicleUtilities.js' // 用於更新全域天氣速度倍數
 
 export class WeatherController {
   constructor(container) {
@@ -201,6 +202,9 @@ export class WeatherController {
     // - 2s+: 完成過度，回到正常狀態
     const weatherMultiplier = this.getSpeedMultiplier()
 
+    // 🚨 【修復】更新全域靜態變數，讓新生成的車輛也使用正確的天氣速度
+    VehicleStaticManager.setWeatherSpeedMultiplier(weatherMultiplier)
+
     // 廣播天氣改變事件（用於 AutoTrafficGenerator 和其他系統）
     window.dispatchEvent(
       new CustomEvent('weatherChanged', {
@@ -211,6 +215,23 @@ export class WeatherController {
         },
       }),
     )
+
+    // 🚨 【修復】廣播天氣速度變化事件（用於 VehicleEventBroadcaster 通知所有車輛）
+    window.dispatchEvent(
+      new CustomEvent('weatherSpeedChange', {
+        detail: {
+          multiplier: weatherMultiplier,
+          weather: weatherType,
+          timestamp: Date.now(),
+        },
+      }),
+    )
+
+    // 🔍 臨時調試：強制輸出以確認事件發送
+    console.log(
+      `🌤️ [WeatherController] 已發送 weatherSpeedChange 事件: ${weatherType} = ${weatherMultiplier.toFixed(2)}x (全域倍數已更新)`,
+    )
+
     logger.debug('Weather', `廣播天氣改變事件: ${weatherType} (倍數: ${weatherMultiplier.toFixed(2)}x)`)
   }
 
