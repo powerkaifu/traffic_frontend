@@ -730,7 +730,8 @@ const spawnEmergencyVehicle = (type = 'ambulance') => {
 
   // 🚫 防連點檢查 1：冷卻時間
   const now = Date.now()
-  const { COOLDOWN_TIME, MAX_ACTIVE_AMBULANCES, SHOW_COOLDOWN_TOAST } = SPAWN_CONTROL
+  const { COOLDOWN_SECONDS, MAX_ACTIVE_AMBULANCES, SHOW_COOLDOWN_TOAST } = SPAWN_CONTROL
+  const COOLDOWN_TIME = COOLDOWN_SECONDS * 1000 // 轉換為毫秒
 
   if (now - lastAmbulanceSpawnTime < COOLDOWN_TIME) {
     const remainingTime = Math.ceil((COOLDOWN_TIME - (now - lastAmbulanceSpawnTime)) / 1000)

@@ -36,7 +36,7 @@ export const SPEED_MULTIPLIERS = {
 
 // 🚨 救護車生成控制配置（防止連點濫用）
 export const SPAWN_CONTROL = {
-  COOLDOWN_TIME: 3000, // 冷卻時間（毫秒）- 3秒內不能重複生成
+  COOLDOWN_SECONDS: 4, // ⚙️ 冷卻時間（秒數）- 改這個參數就能變動冷卻時間
   MAX_ACTIVE_AMBULANCES: 3, // 同時存在的最大救護車數量
   SHOW_COOLDOWN_TOAST: true, // 是否顯示冷卻提示
 }
