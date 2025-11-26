@@ -1611,7 +1611,7 @@ onUnmounted(() => {
 }
 
 .traffic-zone {
-  padding: 10px 15px;
+  padding: 10px 6px;
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
@@ -2071,6 +2071,10 @@ onUnmounted(() => {
     transform: translateY(0);
   }
 
+  .traffic-zone {
+    padding: 10px 6px;
+  }
+
   .system-info {
     transform: translateY(10px);
   }
@@ -2084,6 +2088,10 @@ onUnmounted(() => {
   .south-zone,
   .north-zone {
     transform: translateY(25px);
+  }
+
+  .compact-dispatch-system {
+    padding: 16px 12px;
   }
 }
 

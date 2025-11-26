@@ -2568,6 +2568,16 @@ onUnmounted(() => {
   }
 }
 
+@media (min-width: 1920px) and (min-height: 950px) {
+  .ai-empty-state {
+    min-height: 62vh;
+  }
+
+  .ai-result-content {
+    min-height: 54.5vh;
+  }
+}
+
 @media (min-width: 2560px) {
   .ai-empty-state {
     min-height: 860px;
