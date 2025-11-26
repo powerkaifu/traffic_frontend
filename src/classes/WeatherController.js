@@ -418,20 +418,148 @@ export class WeatherController {
   }
 
   /**
-   * 創建霧天效果
+   * 創建 SVG 濾鏡 (用於霧氣紋理)
+   */
+  createFogFilter() {
+    if (document.getElementById('fog-turbulence-filter')) {
+      return // 已經存在,不重複創建
+    }
+
+    const config = FOG_CONFIG.ANIMATION.SVG_TURBULENCE
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    svg.setAttribute('style', 'position:absolute;width:0;height:0;visibility:hidden')
+    svg.setAttribute('aria-hidden', 'true')
+
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs')
+
+    const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter')
+    filter.setAttribute('id', 'fog-turbulence-filter')
+    filter.setAttribute('x', '0%')
+    filter.setAttribute('y', '0%')
+    filter.setAttribute('width', '100%')
+    filter.setAttribute('height', '100%')
+
+    // 紊流效果
+    const turbulence = document.createElementNS('http://www.w3.org/2000/svg', 'feTurbulence')
+    turbulence.setAttribute('type', 'fractalNoise')
+    turbulence.setAttribute('baseFrequency', config.baseFrequency)
+    turbulence.setAttribute('numOctaves', config.numOctaves)
+    turbulence.setAttribute('seed', config.seed)
+    turbulence.setAttribute('result', 'turbulence')
+
+    // 色彩矩陣 (將紊流轉為灰階)
+    const colorMatrix = document.createElementNS('http://www.w3.org/2000/svg', 'feColorMatrix')
+    colorMatrix.setAttribute('in', 'turbulence')
+    colorMatrix.setAttribute('type', 'saturate')
+    colorMatrix.setAttribute('values', '0')
+    colorMatrix.setAttribute('result', 'grayscale')
+
+    // 組合
+    const composite = document.createElementNS('http://www.w3.org/2000/svg', 'feComposite')
+    composite.setAttribute('in', 'SourceGraphic')
+    composite.setAttribute('in2', 'grayscale')
+    composite.setAttribute('operator', 'in')
+
+    filter.appendChild(turbulence)
+    filter.appendChild(colorMatrix)
+    filter.appendChild(composite)
+    defs.appendChild(filter)
+    svg.appendChild(defs)
+
+    document.body.appendChild(svg)
+
+    // 動畫 baseFrequency (讓紋理緩慢變化)
+    if (FOG_CONFIG.ANIMATION.TURBULENCE_ANIMATION) {
+      gsap.to(turbulence, {
+        attr: { baseFrequency: '0.018 0.010' },
+        duration: 15,
+        repeat: -1,
+        yoyo: true,
+        ease: 'sine.inOut',
+      })
+    }
+  }
+
+  /**
+   * 創建柔順的霧氣飄移動畫
+   */
+  createMultiDirectionAnimation(element, layerConfig, layerIndex) {
+    const timeline = gsap.timeline({ repeat: -1 })
+
+    // 更小的移動範圍,但路徑更複雜
+    const xRange = 6 + layerIndex * 0.8 // 再減小 X 軸移動範圍
+    const yRange = 4 + layerIndex * 0.6 // 再減小 Y 軸移動範圍
+
+    const duration = layerConfig.speed * 1.5 // 放慢速度,讓飄移更悠閒
+
+    // 創建柔順的連續飄移路徑 (5個關鍵幀,形成流暢的循環)
+    timeline
+      // 關鍵幀 1: 緩慢向右上飄
+      .to(element, {
+        x: `${xRange * 0.6}%`,
+        y: `${-yRange * 0.3}%`,
+        opacity: layerConfig.opacity[0] + (layerConfig.opacity[1] - layerConfig.opacity[0]) * 0.3,
+        rotation: 0.1,
+        duration: duration / 5,
+        ease: 'power1.inOut', // 柔和的過渡
+      })
+      // 關鍵幀 2: 繼續向右飄移
+      .to(element, {
+        x: `${xRange}%`,
+        y: `${yRange * 0.2}%`,
+        opacity: layerConfig.opacity[1],
+        rotation: 0.15,
+        duration: duration / 5,
+        ease: 'power1.inOut',
+      })
+      // 關鍵幀 3: 開始向左下飄
+      .to(element, {
+        x: `${xRange * 0.3}%`,
+        y: `${yRange * 0.8}%`,
+        opacity: layerConfig.opacity[0] + (layerConfig.opacity[1] - layerConfig.opacity[0]) * 0.6,
+        rotation: 0.05,
+        duration: duration / 5,
+        ease: 'power1.inOut',
+      })
+      // 關鍵幀 4: 向左飄移
+      .to(element, {
+        x: `${-xRange * 0.5}%`,
+        y: `${yRange * 0.5}%`,
+        opacity: layerConfig.opacity[0],
+        rotation: -0.1,
+        duration: duration / 5,
+        ease: 'power1.inOut',
+      })
+      // 關鍵幀 5: 回到原點
+      .to(element, {
+        x: '0%',
+        y: '0%',
+        opacity: layerConfig.opacity[0] + (layerConfig.opacity[1] - layerConfig.opacity[0]) * 0.5,
+        rotation: 0,
+        duration: duration / 5,
+        ease: 'power1.inOut',
+      })
+
+    this.animations.push(timeline)
+  }
+
+  /**
+   * 創建霧天效果 (多層霧氣 + SVG 濾鏡)
    */
   createFog() {
     const config = FOG_CONFIG
 
-    logger.log('🌫️ 創建霧天效果')
+    logger.log('🌫️ 創建增強型霧天效果 (多層飄移)')
 
-    // 🚀 優化：使用漸進式生成 (Progressive Generation)
+    // 1. 創建 SVG 濾鏡
+    if (config.ANIMATION.USE_SVG_FILTER) {
+      this.createFogFilter()
+    }
+
+    // 2. 使用漸進式生成
     let createdLayerCount = 0
     const totalLayers = config.APPEARANCE.LAYERS
-    // 霧氣層數較少，可以一次生成一層，或者分批
-    // 由於層數通常很少 (例如 3-5 層)，我們可以每幀生成一層，或者一次生成所有 (如果數量少)
-    // 為了保持一致性，我們使用分批邏輯，但 batchSize 設為 1 或 2
-
     const batchSize = 2
 
     const generateBatch = () => {
@@ -442,51 +570,57 @@ export class WeatherController {
       }
 
       const fragment = document.createDocumentFragment()
-
-      // 1. 處理霧氣層
       const limit = Math.min(totalLayers - createdLayerCount, batchSize)
 
       for (let i = 0; i < limit; i++) {
         const layerIndex = createdLayerCount + i
+        const layerConfig = config.APPEARANCE.LAYER_CONFIG[layerIndex]
+
         const fogLayer = document.createElement('div')
         fogLayer.className = 'fog-layer'
+        fogLayer.dataset.layerDepth = layerConfig.depth
 
-        const opacity =
-          config.ANIMATION.OPACITY_RANGE[0] +
-          Math.random() * (config.ANIMATION.OPACITY_RANGE[1] - config.ANIMATION.OPACITY_RANGE[0])
+        // 設定樣式 (增加範圍避免看到邊緣)
+        const useFilter = config.ANIMATION.USE_SVG_FILTER
+        const filterStyle = useFilter ? 'url(#fog-turbulence-filter)' : ''
 
         fogLayer.style.cssText = `
           position: absolute;
-          top: ${layerIndex * 30}%;
-          left: -10%;
-          width: 120%;
-          height: 100%;
+          width: 200%;
+          height: 200%;
+          top: -50%;
+          left: -50%;
           background: ${config.APPEARANCE.COLOR};
-          opacity: ${opacity};
-          filter: blur(${config.APPEARANCE.BLUR_AMOUNT});
+          filter: blur(${layerConfig.blur}) ${filterStyle};
+          opacity: ${layerConfig.opacity[0]};
+          transform: scale(${layerConfig.scale});
+          z-index: ${layerConfig.depth};
+          will-change: transform, opacity;
         `
 
         fragment.appendChild(fogLayer)
         this.particles.push(fogLayer)
 
-        // 飄移動畫
-        const tween = gsap.to(fogLayer, {
-          x: '10%',
-          duration: config.ANIMATION.DRIFT_SPEED,
-          ease: 'none',
-          repeat: -1,
-          yoyo: true,
-        })
-
-        this.animations.push(tween)
+        // 3. 創建複雜動畫
+        if (config.ANIMATION.MULTI_DIRECTION) {
+          this.createMultiDirectionAnimation(fogLayer, layerConfig, layerIndex)
+        } else {
+          // 降級為簡單動畫
+          const tween = gsap.to(fogLayer, {
+            x: '10%',
+            duration: layerConfig.speed,
+            ease: 'none',
+            repeat: -1,
+            yoyo: true,
+          })
+          this.animations.push(tween)
+        }
       }
 
       createdLayerCount += limit
 
-      // 2. 如果霧氣層生成完畢，且還沒添加能見度層，則添加
-      // 這裡簡化邏輯：最後一批次時添加能見度層
+      // 4. 添加能見度效果層
       if (createdLayerCount >= totalLayers && !this.hasAddedFogVisibility) {
-        // 添加能見度效果
         const visibilityOverlay = document.createElement('div')
         visibilityOverlay.className = 'fog-visibility'
         visibilityOverlay.style.cssText = `
@@ -495,9 +629,10 @@ export class WeatherController {
           left: 0;
           width: 100%;
           height: 100%;
-          background: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.08);
           filter: ${config.VISIBILITY.FILTER};
           opacity: ${config.VISIBILITY.OPACITY};
+          pointer-events: none;
         `
         fragment.appendChild(visibilityOverlay)
         this.particles.push(visibilityOverlay)
@@ -509,7 +644,7 @@ export class WeatherController {
       if (createdLayerCount >= totalLayers) {
         gsap.ticker.remove(generateBatch)
         this.generationTask = null
-        this.hasAddedFogVisibility = false // 重置標記供下次使用
+        this.hasAddedFogVisibility = false
       }
     }
 
@@ -520,7 +655,7 @@ export class WeatherController {
     // 淡入效果
     gsap.from(this.weatherLayer, {
       opacity: 0,
-      duration: TRANSITION_CONFIG.FADE_DURATION,
+      duration: TRANSITION_CONFIG.FADE_DURATION * 2, // 霧氣淡入稍慢一點
     })
   }
 

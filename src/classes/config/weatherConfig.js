@@ -63,21 +63,36 @@ export const RAIN_CONFIG = {
 export const FOG_CONFIG = {
   // 霧氣外觀設定
   APPEARANCE: {
-    COLOR: 'rgba(200, 200, 200, 0.3)', // 霧氣顏色
-    BLUR_AMOUNT: '10px', // 模糊程度
-    LAYERS: 3, // 霧氣層數
+    COLOR: 'rgba(220, 220, 220, 0.35)', // 霧氣顏色 (稍微降低透明度)
+    LAYERS: 4, // 霧氣層數 (減少到 4 層)
+
+    // 每層的詳細配置 (由遠到近)
+    LAYER_CONFIG: [
+      { blur: '50px', opacity: [0.2, 0.3], speed: 40, scale: 1.15, depth: 1 }, // 遠景層
+      { blur: '35px', opacity: [0.25, 0.35], speed: 30, scale: 1.05, depth: 2 }, // 中景層
+      { blur: '25px', opacity: [0.3, 0.4], speed: 22, scale: 0.95, depth: 3 }, // 近景層
+      { blur: '18px', opacity: [0.35, 0.45], speed: 16, scale: 0.88, depth: 4 }, // 最近層
+    ],
   },
 
   // 霧氣動畫設定
   ANIMATION: {
-    DRIFT_SPEED: 30, // 飄移速度（秒）
-    OPACITY_RANGE: [0.2, 0.5], // 透明度範圍
+    USE_SVG_FILTER: true, // 啟用 SVG 濾鏡 (創造自然紋理)
+    MULTI_DIRECTION: true, // 啟用多方向移動 (X + Y 軸)
+    TURBULENCE_ANIMATION: true, // 啟用紊流動畫
+
+    // SVG 濾鏡參數
+    SVG_TURBULENCE: {
+      baseFrequency: '0.012 0.006', // 紊流基礎頻率 (降低頻率讓紋理更平滑)
+      numOctaves: 2, // 細節層次 (減少到 2)
+      seed: 0, // 隨機種子
+    },
   },
 
   // 能見度設定
   VISIBILITY: {
-    FILTER: 'brightness(0.8) contrast(0.9)', // 降低亮度和對比度
-    OPACITY: 0.85, // 整體透明度
+    FILTER: 'brightness(0.85) contrast(0.92)', // 降低亮度和對比度
+    OPACITY: 0.88, // 整體透明度
   },
 
   // 速度影響
