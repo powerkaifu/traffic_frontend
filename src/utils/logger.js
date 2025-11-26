@@ -43,7 +43,7 @@ export const logger = {
   /**
    * 調試日誌（已禁用以減少控制台噪音）
    */
-  debug: (label, ...args) => {
+  debug: (/* label, ...args */) => {
     // logger.debug 已禁用以保持控制台清潔
     // if (isDev) console.log(`[DEBUG] ${label}`, ...args)
   },

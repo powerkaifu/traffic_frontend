@@ -9,7 +9,7 @@
  */
 
 let remainingSeconds = 0
-let isRunning = false
+// let isRunning = false // 暫時未使用
 let interval = null
 
 /**
@@ -22,7 +22,7 @@ self.onmessage = (event) => {
     // ✅ 開始倒數
     // console.log(`[Worker] 開始倒數：${seconds} 秒`)
     remainingSeconds = seconds
-    isRunning = true
+    // isRunning = true
 
     // 清除舊的計時器
     if (interval) clearInterval(interval)
@@ -39,7 +39,7 @@ self.onmessage = (event) => {
         })
       } else {
         // ⏹️ 倒數完成
-        isRunning = false
+        // isRunning = false
         clearInterval(interval)
         self.postMessage({
           type: 'completed',
@@ -57,7 +57,7 @@ self.onmessage = (event) => {
   } else if (action === 'stop') {
     // ⏹️ 停止倒數
     // console.log('[Worker] 停止倒數')
-    isRunning = false
+    // isRunning = false
     if (interval) clearInterval(interval)
     self.postMessage({
       type: 'stopped',
@@ -66,7 +66,7 @@ self.onmessage = (event) => {
   } else if (action === 'reset') {
     // 🔄 重置倒數
     // console.log('[Worker] 重置倒數')
-    isRunning = false
+    // isRunning = false
     remainingSeconds = 0
     if (interval) clearInterval(interval)
     self.postMessage({
@@ -76,7 +76,7 @@ self.onmessage = (event) => {
   } else if (action === 'pause') {
     // ⏸️ 暫停倒數（保留當前秒數）
     // console.log(`[Worker] 暫停倒數（剩餘 ${remainingSeconds} 秒）`)
-    isRunning = false
+    // isRunning = false
     if (interval) clearInterval(interval)
     self.postMessage({
       type: 'paused',
@@ -86,7 +86,7 @@ self.onmessage = (event) => {
   } else if (action === 'resume') {
     // ▶️ 繼續倒數
     // console.log(`[Worker] 繼續倒數（剩餘 ${remainingSeconds} 秒）`)
-    isRunning = true
+    // isRunning = true
 
     if (interval) clearInterval(interval)
 
@@ -99,7 +99,7 @@ self.onmessage = (event) => {
           timestamp: Date.now(),
         })
       } else {
-        isRunning = false
+        // isRunning = false
         clearInterval(interval)
         self.postMessage({
           type: 'completed',
