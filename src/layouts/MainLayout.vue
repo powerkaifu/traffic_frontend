@@ -1605,47 +1605,29 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: 5px 10px;
+  gap: 15px 20px;
+  height: 100%;
+  align-items: center;
 }
 
 .traffic-zone {
-  padding: 5px 10px;
+  padding: 10px 15px;
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
   position: relative;
+  min-height: 0;
 }
 
 .zone-title {
   position: absolute;
-  top: -18px;
-  right: 10px;
+  top: -16px;
+  right: 15px;
   color: white;
   font-size: 14px;
   font-weight: bold;
   opacity: 0.9;
   text-align: right;
-}
-
-.east-zone {
-  position: relative;
-  top: 0px;
-  left: -3px;
-}
-.west-zone {
-  position: relative;
-  top: 0px;
-  left: 13px;
-}
-.south-zone {
-  position: relative;
-  top: 42px;
-  left: -4px;
-}
-.north-zone {
-  position: relative;
-  top: 42px;
-  left: 14px;
 }
 
 .zone-data {
@@ -1790,11 +1772,10 @@ onUnmounted(() => {
     width: 150px;
   }
   .traffic-data-grid {
-    gap: 10px;
-    min-height: 250px;
+    gap: 12px 15px;
   }
   .traffic-zone {
-    padding: 8px;
+    padding: 8px 10px;
   }
   .data-row,
   .data-row.main-stats,
@@ -1823,11 +1804,10 @@ onUnmounted(() => {
     padding: 10px;
   }
   .traffic-data-grid {
-    gap: 8px;
-    min-height: 200px;
+    gap: 10px 12px;
   }
   .traffic-zone {
-    padding: 6px;
+    padding: 6px 8px;
   }
   .data-row,
   .data-row.main-stats,
@@ -1849,11 +1829,10 @@ onUnmounted(() => {
     max-width: 60px;
   }
   .traffic-data-grid {
-    gap: 6px;
-    min-height: 180px;
+    gap: 8px 10px;
   }
   .traffic-zone {
-    padding: 4px;
+    padding: 4px 6px;
   }
   .data-row,
   .data-row.main-stats,
@@ -1927,32 +1906,10 @@ onUnmounted(() => {
     min-height: 200px;
   }
 
-  /* 調整交通數據網格，使數據更靠上顯示 */
+  /* 調整交通數據網格 - 2560px 優化 */
   .traffic-data-grid {
-    gap: 8px 15px;
-    margin-top: -20px; /* 向上調整數據位置 */
-    transform: translateY(-10px); /* 額外向上微調 */
-  }
-
-  /* 優化各個方向區域的位置 - 進一步微調 */
-  .east-zone {
-    top: 20px; /* 向下掉 */
-    left: -5px;
-  }
-
-  .west-zone {
-    top: 20px; /* 向下掉 */
-    left: 18px;
-  }
-
-  .south-zone {
-    top: 100px; /* 從 25px 進一步下移到 35px */
-    left: -6px;
-  }
-
-  .north-zone {
-    top: 100px; /* 從 25px 進一步下移到 35px */
-    left: 19px;
+    gap: 25px 30px;
+    padding: 20px 10px;
   }
 
   /* 優化數據行顯示 */
@@ -1992,16 +1949,9 @@ onUnmounted(() => {
     font-size: 1rem;
   }
 
-  .east-zone,
-  .west-zone {
-    position: relative;
-    top: -30px;
-  }
-
-  .south-zone,
-  .north-zone {
-    position: relative;
-    top: 90px;
+  /* Grid 會自動處理垂直空間分配,不需要手動調整 */
+  .traffic-zone {
+    padding: 15px 20px;
   }
 
   .east-zone .zone-title,
