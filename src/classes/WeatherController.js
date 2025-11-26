@@ -492,10 +492,10 @@ export class WeatherController {
 
     // 🌫️ 簡單的左右飄移範圍 (交錯方向：偶數層往右，奇數層往左)
     const direction = layerIndex % 2 === 0 ? 1 : -1
-    const xRange = (4 + layerIndex * 0.5) * direction
+    const xRange = (4 + layerIndex * 0.5) * direction + 5
 
-    // 🐌 緩慢的飄移速度 (0.5 = 適中的速度)
-    const duration = layerConfig.speed * 0.5
+    // 🐌 緩慢的飄移速度 (0.2 = 較快的流動感)
+    const duration = layerConfig.speed * 0.2
 
     // 創建簡單的左右飄移 (yoyo 會自動往返)
     timeline.to(element, {
@@ -570,7 +570,7 @@ export class WeatherController {
         } else {
           // 降級為簡單動畫
           const tween = gsap.to(fogLayer, {
-            x: '10%',
+            x: '30%',
             duration: layerConfig.speed,
             ease: 'none',
             repeat: -1,

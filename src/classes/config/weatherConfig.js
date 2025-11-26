@@ -68,10 +68,10 @@ export const FOG_CONFIG = {
 
     // 每層的詳細配置 (由遠到近)
     LAYER_CONFIG: [
-      { blur: '50px', opacity: [0.2, 0.3], speed: 40, scale: 1.15, depth: 1 }, // 遠景層
-      { blur: '35px', opacity: [0.25, 0.35], speed: 30, scale: 1.05, depth: 2 }, // 中景層
-      { blur: '25px', opacity: [0.3, 0.4], speed: 22, scale: 0.95, depth: 3 }, // 近景層
-      { blur: '18px', opacity: [0.35, 0.45], speed: 16, scale: 0.88, depth: 4 }, // 最近層
+      { blur: '50px', opacity: [0.2, 0.3], speed: 40, scale: 1.2, depth: 1 }, // 遠景層
+      { blur: '35px', opacity: [0.25, 0.35], speed: 30, scale: 1.2, depth: 2 }, // 中景層
+      { blur: '25px', opacity: [0.3, 0.4], speed: 22, scale: 1.2, depth: 3 }, // 近景層
+      { blur: '18px', opacity: [0.35, 0.45], speed: 16, scale: 1.2, depth: 4 }, // 最近層
     ],
   },
 
@@ -79,7 +79,7 @@ export const FOG_CONFIG = {
   ANIMATION: {
     USE_SVG_FILTER: true, // 啟用 SVG 濾鏡 (創造自然紋理)
     MULTI_DIRECTION: true, // 啟用多方向移動 (X + Y 軸)
-    TURBULENCE_ANIMATION: true, // 啟用紊流動畫
+    TURBULENCE_ANIMATION: false, // 🚫 禁用紊流動畫 (避免紋理蠕動造成上下移動錯覺)
 
     // SVG 濾鏡參數
     SVG_TURBULENCE: {
