@@ -484,62 +484,25 @@ export class WeatherController {
   /**
    * 創建柔順的霧氣飄移動畫
    */
+  /**
+   * 創建簡單的霧氣左右飄移動畫
+   */
   createMultiDirectionAnimation(element, layerConfig, layerIndex) {
-    const timeline = gsap.timeline({ repeat: -1 })
+    const timeline = gsap.timeline({ repeat: -1, yoyo: true })
 
-    // 更小的移動範圍,但路徑更複雜
-    const xRange = 6 + layerIndex * 0.8 // 再減小 X 軸移動範圍
-    const yRange = 4 + layerIndex * 0.6 // 再減小 Y 軸移動範圍
+    // 🌫️ 簡單的左右飄移範圍 (交錯方向：偶數層往右，奇數層往左)
+    const direction = layerIndex % 2 === 0 ? 1 : -1
+    const xRange = (4 + layerIndex * 0.5) * direction
 
-    const duration = layerConfig.speed * 1.5 // 放慢速度,讓飄移更悠閒
+    // 🐌 緩慢的飄移速度 (0.5 = 適中的速度)
+    const duration = layerConfig.speed * 0.5
 
-    // 創建柔順的連續飄移路徑 (5個關鍵幀,形成流暢的循環)
-    timeline
-      // 關鍵幀 1: 緩慢向右上飄
-      .to(element, {
-        x: `${xRange * 0.6}%`,
-        y: `${-yRange * 0.3}%`,
-        opacity: layerConfig.opacity[0] + (layerConfig.opacity[1] - layerConfig.opacity[0]) * 0.3,
-        rotation: 0.1,
-        duration: duration / 5,
-        ease: 'power1.inOut', // 柔和的過渡
-      })
-      // 關鍵幀 2: 繼續向右飄移
-      .to(element, {
-        x: `${xRange}%`,
-        y: `${yRange * 0.2}%`,
-        opacity: layerConfig.opacity[1],
-        rotation: 0.15,
-        duration: duration / 5,
-        ease: 'power1.inOut',
-      })
-      // 關鍵幀 3: 開始向左下飄
-      .to(element, {
-        x: `${xRange * 0.3}%`,
-        y: `${yRange * 0.8}%`,
-        opacity: layerConfig.opacity[0] + (layerConfig.opacity[1] - layerConfig.opacity[0]) * 0.6,
-        rotation: 0.05,
-        duration: duration / 5,
-        ease: 'power1.inOut',
-      })
-      // 關鍵幀 4: 向左飄移
-      .to(element, {
-        x: `${-xRange * 0.5}%`,
-        y: `${yRange * 0.5}%`,
-        opacity: layerConfig.opacity[0],
-        rotation: -0.1,
-        duration: duration / 5,
-        ease: 'power1.inOut',
-      })
-      // 關鍵幀 5: 回到原點
-      .to(element, {
-        x: '0%',
-        y: '0%',
-        opacity: layerConfig.opacity[0] + (layerConfig.opacity[1] - layerConfig.opacity[0]) * 0.5,
-        rotation: 0,
-        duration: duration / 5,
-        ease: 'power1.inOut',
-      })
+    // 創建簡單的左右飄移 (yoyo 會自動往返)
+    timeline.to(element, {
+      x: `${xRange}%`, // 水平移動 (正負交錯)
+      duration: duration,
+      ease: 'sine.inOut', // 🌟 柔和的來回飄動
+    })
 
     this.animations.push(timeline)
   }
