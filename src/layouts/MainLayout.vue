@@ -1644,7 +1644,7 @@ onUnmounted(() => {
   font-size: 12px;
   font-weight: bold;
   background: rgba(255, 255, 255, 0.05);
-  padding: 2px 10px;
+  padding: 3px 10px;
   border-radius: 4px;
   margin-bottom: 2px;
 }
@@ -1652,12 +1652,10 @@ onUnmounted(() => {
 .data-row.main-stats {
   font-weight: bold;
   font-size: 12px;
-  padding: 4px 10px;
 }
 .data-row.speed-stat {
   font-size: 12px;
   font-weight: bold;
-  padding: 4px 10px;
   opacity: 1;
 }
 .data-label {
@@ -1921,12 +1919,10 @@ onUnmounted(() => {
 
   .data-row.main-stats {
     font-size: 14px;
-    padding: 5px 12px;
   }
 
   .data-row.speed-stat {
     font-size: 14px;
-    padding: 5px 12px;
   }
 
   .data-value {
@@ -2074,8 +2070,20 @@ onUnmounted(() => {
   .north-zone .zone-data {
     transform: translateY(0);
   }
+
   .system-info {
     transform: translateY(10px);
+  }
+
+  .data-row {
+    padding: 6px 10px;
+  }
+
+  .east-zone,
+  .west-zone,
+  .south-zone,
+  .north-zone {
+    transform: translateY(25px);
   }
 }
 
@@ -2083,37 +2091,88 @@ onUnmounted(() => {
    🎯 微調區域 4 - 2560x1440 全螢幕 (F11)
    ======================================== */
 /* 寬度 ≥ 2560px + 高度 ≥ 1440px (F11 全螢幕) */
-@media (min-width: 2560px) and (min-height: 1440px) {
-  /* 往東 (左上) */
+@media (min-width: 2560px) {
+  .traffic-zone {
+    padding: 15px 0;
+  }
+
   .east-zone .zone-title {
-    /* transform: translateY(0); 微調標題垂直位置 */
+    transform: translateY(-20px);
   }
   .east-zone .zone-data {
-    /* transform: translateY(0); 微調數據區域垂直位置 */
+    transform: translateY(-20px);
   }
 
   /* 往西 (右上) */
   .west-zone .zone-title {
-    /* transform: translateY(0); */
+    transform: translateY(-20px);
   }
   .west-zone .zone-data {
-    /* transform: translateY(0); */
+    transform: translateY(-20px);
   }
 
   /* 往南 (左下) */
   .south-zone .zone-title {
-    /* transform: translateY(0); */
+    transform: translateY(25px);
   }
   .south-zone .zone-data {
-    /* transform: translateY(0); */
+    transform: translateY(10px);
   }
 
   /* 往北 (右下) */
   .north-zone .zone-title {
-    /* transform: translateY(0); */
+    transform: translateY(25px);
   }
   .north-zone .zone-data {
-    /* transform: translateY(0); */
+    transform: translateY(10px);
+  }
+}
+
+@media (min-height: 1440px) {
+  .traffic-zone {
+    padding: 15px 0;
+  }
+
+  .east-zone .zone-title {
+    transform: translateY(-50px);
+  }
+  .east-zone .zone-data {
+    transform: translateY(-50px);
+  }
+
+  /* 往西 (右上) */
+  .west-zone .zone-title {
+    transform: translateY(-50px);
+  }
+  .west-zone .zone-data {
+    transform: translateY(-50px);
+  }
+
+  /* 往南 (左下) */
+  .south-zone .zone-title {
+    transform: translateY(-10px);
+  }
+  .south-zone .zone-data {
+    transform: translateY(-20px);
+  }
+
+  /* 往北 (右下) */
+  .north-zone .zone-title {
+    transform: translateY(-10px);
+  }
+  .north-zone .zone-data {
+    transform: translateY(-20px);
+  }
+
+  .data-row {
+    padding: 10px 10px;
+  }
+
+  .east-zone,
+  .west-zone,
+  .south-zone,
+  .north-zone {
+    transform: translateY(65px);
   }
 }
 </style>
