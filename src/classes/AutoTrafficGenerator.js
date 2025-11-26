@@ -262,7 +262,7 @@ export default class AutoTrafficGenerator {
     window.dispatchEvent(
       new CustomEvent('weatherSpeedChange', {
         detail: {
-          targetMultiplier,
+          multiplier: targetMultiplier, // ✅ 修正：屬性名稱應為 multiplier
           duration: 0, // 立即生效
           timestamp: Date.now(),
         },

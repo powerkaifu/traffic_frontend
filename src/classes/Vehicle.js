@@ -1465,9 +1465,9 @@ export default class Vehicle {
           const initialTimeScale = this.weatherMultiplier * this.emergencyMultiplier
           if (initialTimeScale !== 1.0) {
             this.movementTimeline.timeScale(initialTimeScale)
-            console.log(
-              `🌤️ [${this.id}] 新車輛應用初始速度倍數: ${initialTimeScale.toFixed(2)}x (天氣=${this.weatherMultiplier.toFixed(2)}x, 緊急=${this.emergencyMultiplier.toFixed(2)}x)`,
-            )
+            // console.log(
+            //   `🌤️ [${this.id}] 新車輛應用初始速度倍數: ${initialTimeScale.toFixed(2)}x (天氣=${this.weatherMultiplier.toFixed(2)}x, 緊急=${this.emergencyMultiplier.toFixed(2)}x)`,
+            // )
           }
 
           // 🚨 移除：不再在初始化時暫停車輛
