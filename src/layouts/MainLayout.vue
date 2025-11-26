@@ -2001,4 +2001,119 @@ onUnmounted(() => {
     background-position: 0% 50%;
   }
 }
+
+/* ========================================
+   🎯 微調區域 1 - 1920x1080 視窗模式
+   ======================================== */
+/* 寬度 1920px + 高度 < 1080px (有瀏覽器 UI) */
+/* 往東 (左上) */
+.east-zone .zone-title {
+  transform: translateY(15px);
+}
+.east-zone .zone-data {
+  transform: translateY(15px);
+}
+
+/* 往西 (右上) */
+.west-zone .zone-title {
+  transform: translateY(15px);
+}
+.west-zone .zone-data {
+  transform: translateY(15px);
+}
+
+/* 往南 (左下) */
+.south-zone .zone-title {
+  transform: translateY(28px);
+}
+.south-zone .zone-data {
+  transform: translateY(28px);
+}
+
+/* 往北 (右下) */
+.north-zone .zone-title {
+  transform: translateY(30px);
+}
+.north-zone .zone-data {
+  transform: translateY(28px);
+}
+
+/* ========================================
+   🎯 微調區域 2 - 1920x1080 全螢幕 (F11)
+   ======================================== */
+/* 寬度 1920px + 高度 ≥ 1080px (F11 全螢幕) */
+@media (min-width: 1920px) and (min-height: 1080px) {
+  /* 往東 (左上) */
+  .east-zone .zone-title {
+    transform: translateY(-10px);
+  }
+  .east-zone .zone-data {
+    transform: translateY(-10px);
+  }
+
+  /* 往西 (右上) */
+  .west-zone .zone-title {
+    transform: translateY(-10px);
+  }
+  .west-zone .zone-data {
+    transform: translateY(-10px);
+  }
+
+  /* 往南 (左下) */
+  .south-zone .zone-title {
+    transform: translateY(0);
+  }
+  .south-zone .zone-data {
+    transform: translateY(0);
+  }
+
+  /* 往北 (右下) */
+  .north-zone .zone-title {
+    transform: translateY(0);
+  }
+  .north-zone .zone-data {
+    transform: translateY(0);
+  }
+  .system-info {
+    transform: translateY(10px);
+  }
+}
+
+/* ========================================
+   🎯 微調區域 4 - 2560x1440 全螢幕 (F11)
+   ======================================== */
+/* 寬度 ≥ 2560px + 高度 ≥ 1440px (F11 全螢幕) */
+@media (min-width: 2560px) and (min-height: 1440px) {
+  /* 往東 (左上) */
+  .east-zone .zone-title {
+    /* transform: translateY(0); 微調標題垂直位置 */
+  }
+  .east-zone .zone-data {
+    /* transform: translateY(0); 微調數據區域垂直位置 */
+  }
+
+  /* 往西 (右上) */
+  .west-zone .zone-title {
+    /* transform: translateY(0); */
+  }
+  .west-zone .zone-data {
+    /* transform: translateY(0); */
+  }
+
+  /* 往南 (左下) */
+  .south-zone .zone-title {
+    /* transform: translateY(0); */
+  }
+  .south-zone .zone-data {
+    /* transform: translateY(0); */
+  }
+
+  /* 往北 (右下) */
+  .north-zone .zone-title {
+    /* transform: translateY(0); */
+  }
+  .north-zone .zone-data {
+    /* transform: translateY(0); */
+  }
+}
 </style>
