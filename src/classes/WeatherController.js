@@ -681,6 +681,21 @@ export class WeatherController {
 
     // 啟動閃電循環
     this.scheduleLightning()
+
+    // 🆕 創建閃電檢查循環
+    // 由於 scheduleLightning 只是設置了時間，我們需要一個循環來檢查時間並觸發閃電
+    this.lightningLoop = () => {
+      if (!this.isActive || this.currentWeather !== WEATHER_TYPES.HEAVY_RAIN) {
+        return
+      }
+
+      if (this.lightningNextScheduleTime && Date.now() >= this.lightningNextScheduleTime) {
+        this.triggerLightning()
+      }
+    }
+
+    // 添加到 GSAP ticker
+    gsap.ticker.add(this.lightningLoop)
   }
 
   /**
@@ -778,6 +793,12 @@ export class WeatherController {
         // 🚀 優化：從 GSAP ticker 移除
         gsap.ticker.remove(this.generationTask)
         this.generationTask = null
+      }
+
+      // 🆕 移除閃電循環
+      if (this.lightningLoop) {
+        gsap.ticker.remove(this.lightningLoop)
+        this.lightningLoop = null
       }
 
       // 清除閃電圖層引用
