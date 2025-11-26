@@ -125,7 +125,7 @@ export default class VehicleEventBroadcaster {
       return
     }
 
-    // 🔍 臨時調試：強制輸出以確認事件接收
+    // 🔍 強制輸出以確認事件接收
     console.log(
       `🌤️ [VehicleEventBroadcaster] 收到 weatherSpeedChange: ${multiplier.toFixed(2)}x, 將通知 ${this.allVehicles.size} 輛車`,
     )
@@ -133,16 +133,25 @@ export default class VehicleEventBroadcaster {
     // 通知所有車輛
     logger.debug('Broadcast', `🌤️ 分發天氣變化 ${multiplier}x → ${this.allVehicles.size} 輛車`)
 
+    let successCount = 0
+    let failCount = 0
+
     this.allVehicles.forEach((vehicle) => {
       try {
         // 調用車輛的回調方法
         if (vehicle && typeof vehicle.onWeatherSpeedChange === 'function') {
           vehicle.onWeatherSpeedChange(multiplier)
+          successCount++
+        } else {
+          failCount++
         }
       } catch (error) {
         logger.warn(`⚠️ [VehicleEventBroadcaster] 車輛 ${vehicle?.id} 處理天氣變化失敗:`, error)
+        failCount++
       }
     })
+
+    console.log(`✅ [VehicleEventBroadcaster] 天氣速度變化通知完成: 成功 ${successCount} 輛, 失敗 ${failCount} 輛`)
   }
 
   /**

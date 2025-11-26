@@ -595,6 +595,37 @@ const toggleWeatherMenu = () => {
   showWeatherMenu.value = !showWeatherMenu.value
 }
 
+// 🎯 點擊外部關閉天氣選單
+const handleClickOutsideWeatherMenu = (event) => {
+  // 如果天氣選單未打開,不處理
+  if (!showWeatherMenu.value) return
+
+  // 檢查點擊目標是否在天氣選單內部
+  const weatherMenu = document.querySelector('.weather-menu')
+  if (weatherMenu && weatherMenu.contains(event.target)) return
+
+  // 檢查是否點擊了天氣切換按鈕本身 (通過檢查父元素)
+  const clickedElement = event.target
+  const toolbarBtn = clickedElement.closest('.toolbar-btn')
+  if (toolbarBtn && toolbarBtn.getAttribute('title') === '天氣效果') return
+
+  // 點擊在外部,關閉選單
+  showWeatherMenu.value = false
+}
+
+// 監聽天氣選單的開關狀態
+watch(showWeatherMenu, (isOpen) => {
+  if (isOpen) {
+    // 延遲添加監聽器,避免立即觸發
+    setTimeout(() => {
+      document.addEventListener('click', handleClickOutsideWeatherMenu)
+    }, 100)
+  } else {
+    // 移除監聽器
+    document.removeEventListener('click', handleClickOutsideWeatherMenu)
+  }
+})
+
 // 獲取當前天氣圖標
 const getWeatherIcon = () => {
   const option = weatherOptions.value.find((w) => w.type === currentWeather.value)
@@ -2074,7 +2105,8 @@ onUnmounted(() => {
   cursor: pointer;
   transition: transform 0.3s ease;
   /* background: rgba(255, 255, 255, 0.1); */
-  z-index: 10;
+  z-index: 9999;
+  pointer-events: none;
 }
 
 .robot-assistant img {

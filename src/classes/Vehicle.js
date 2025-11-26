@@ -318,13 +318,6 @@ export default class Vehicle {
     // 🚨 【修復】立即應用天氣速度改變
     // 統一使用 updateWeatherSpeed 方法處理
     this.updateWeatherSpeed(targetMultiplier)
-
-    // 🔍 臨時調試：強制輸出以確認事件接收
-    if (process.env.DEV && Math.random() < 0.05) {
-      console.log(
-        `🌤️ [${this.id}] 收到天氣速度變化: ${targetMultiplier.toFixed(2)}x, 當前速度: ${this.movementTimeline?.timeScale().toFixed(2)}x`,
-      )
-    }
   }
 
   // 🚨 【新架構】檢查與救護車的距離並調整速度（被動感應模式 + 方向感知）
