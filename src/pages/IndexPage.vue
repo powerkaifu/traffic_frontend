@@ -262,8 +262,8 @@
       <div
         class="stop-line central-reference"
         :style="{
-          width: 260 + 'px',
-          height: 260 + 'px',
+          width: 270 + 'px',
+          height: 270 + 'px',
           border: '1px solid rgba(255, 255, 255, 0.2)',
           opacity: 1,
         }"
@@ -572,6 +572,7 @@ const {
   showPathTooltip,
   hidePathTooltip,
   updateTooltipPosition,
+  exportPathData,
 } = useLanePaths()
 
 // ===== 天氣效果相關 =====
