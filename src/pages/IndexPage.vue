@@ -2038,7 +2038,7 @@ onUnmounted(() => {
 .traffic-light.bottom-left {
   top: 50%;
   left: 50%;
-  transform: translate(-250%, 350%) rotate(90deg);
+  transform: translate(-230%, 310%) rotate(90deg);
 }
 .traffic-light.bottom-left::before {
   content: 'RoadA 往東 ➡️';
@@ -2058,7 +2058,7 @@ onUnmounted(() => {
 .traffic-light.top-right {
   top: 50%;
   right: 50%;
-  transform: translate(250%, -450%) rotate(90deg);
+  transform: translate(230%, -410%) rotate(90deg);
 }
 .traffic-light.top-right::before {
   content: 'RoadB 往西 ⬅️';
@@ -2078,7 +2078,7 @@ onUnmounted(() => {
 .traffic-light.top-left {
   top: 50%;
   left: 50%;
-  transform: translate(-290%, -400%);
+  transform: translate(-260%, -350%);
 }
 .traffic-light.top-left::before {
   content: 'RoadC 往南 ⬇️';
@@ -2099,7 +2099,7 @@ onUnmounted(() => {
 .traffic-light.bottom-right {
   left: 50%;
   top: 50%;
-  transform: translate(185%, 290%);
+  transform: translate(165%, 250%);
 }
 .traffic-light.bottom-right::before {
   content: 'RoadD 往北 ⬆️';
