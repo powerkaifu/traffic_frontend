@@ -262,8 +262,8 @@
       <div
         class="stop-line central-reference"
         :style="{
-          width: 225 + 'px',
-          height: 225 + 'px',
+          width: 260 + 'px',
+          height: 260 + 'px',
           border: '1px solid rgba(255, 255, 255, 0.2)',
           opacity: 1,
         }"
@@ -1924,7 +1924,7 @@ onUnmounted(() => {
   width: 1000px;
   height: calc(100vh - 100px);
   background-image: url('/images/crossroad.png');
-  background-size: contain;
+  background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   border-radius: 8px;
@@ -2018,7 +2018,7 @@ onUnmounted(() => {
 .traffic-light.bottom-left {
   top: 50%;
   left: 50%;
-  transform: translate(-220%, 290%) rotate(90deg);
+  transform: translate(-250%, 350%) rotate(90deg);
 }
 .traffic-light.bottom-left::before {
   content: 'RoadA 往東 ➡️';
@@ -2038,7 +2038,7 @@ onUnmounted(() => {
 .traffic-light.top-right {
   top: 50%;
   right: 50%;
-  transform: translate(220%, -390%) rotate(90deg);
+  transform: translate(250%, -450%) rotate(90deg);
 }
 .traffic-light.top-right::before {
   content: 'RoadB 往西 ⬅️';
@@ -2058,7 +2058,7 @@ onUnmounted(() => {
 .traffic-light.top-left {
   top: 50%;
   left: 50%;
-  transform: translate(-250%, -340%);
+  transform: translate(-290%, -400%);
 }
 .traffic-light.top-left::before {
   content: 'RoadC 往南 ⬇️';
@@ -2079,7 +2079,7 @@ onUnmounted(() => {
 .traffic-light.bottom-right {
   left: 50%;
   top: 50%;
-  transform: translate(150%, 240%);
+  transform: translate(185%, 290%);
 }
 .traffic-light.bottom-right::before {
   content: 'RoadD 往北 ⬆️';
