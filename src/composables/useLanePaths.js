@@ -98,6 +98,14 @@ export function useLanePaths() {
       'northLane4Straight',
     ]
 
+    // 1. 初始化暫存路徑，確保 Vue 綁定正確
+    editablePathIds.forEach((pathId) => {
+      const el = document.getElementById(pathId)
+      if (el) {
+        tempEditedPaths.value[pathId] = el.getAttribute('d')
+      }
+    })
+
     console.log('🔧 開始為可編輯路徑啟用 MotionPathHelper...')
 
     editablePathIds.forEach((pathId) => {
@@ -248,9 +256,9 @@ export function useLanePaths() {
         mutations.forEach((mutation) => {
           if (mutation.type === 'attributes' && mutation.attributeName === 'd') {
             const newPathData = pathElement.getAttribute('d')
-            console.log(`🔄 檢測到路徑 ${pathId} 變化:`, newPathData)
+            // console.log(`🔄 檢測到路徑 ${pathId} 變化:`, newPathData)
             tempEditedPaths.value[pathId] = newPathData
-            console.log(`📝 暫存路徑 ${pathId} 編輯結果`)
+            // console.log(`📝 暫存路徑 ${pathId} 編輯結果`)
           }
         })
       })

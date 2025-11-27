@@ -26,7 +26,7 @@
         <!-- 往東車道1 直行路徑（車輛從畫面外進入到離開畫面） - 可編輯 -->
         <path
           id="eastLane1Straight"
-          :d="getEastLane1Path()"
+          :d="eastLane1PathD"
           :stroke="isPathEditMode ? 'rgba(255, 200, 100, 0.9)' : 'rgba(255, 100, 100, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           :opacity="isPathVisible ? 1 : 0"
@@ -57,7 +57,7 @@
         <!-- 往東車道4 直行路徑（車輛從畫面外進入到離開畫面） - 可編輯 -->
         <path
           id="eastLane4Straight"
-          :d="getEastLane4Path()"
+          :d="eastLane4PathD"
           :stroke="isPathEditMode ? 'rgba(255, 200, 100, 0.9)' : 'rgba(255, 160, 160, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           :opacity="isPathVisible ? 1 : 0"
@@ -70,7 +70,7 @@
         <!--往西車道1 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
         <path
           id="westLane1Straight"
-          :d="getWestLane1Path()"
+          :d="westLane1PathD"
           :stroke="isPathEditMode ? 'rgba(100, 200, 255, 0.9)' : 'rgba(100, 150, 255, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           :opacity="isPathVisible ? 1 : 0"
@@ -101,7 +101,7 @@
         <!--往西車道4 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
         <path
           id="westLane4Straight"
-          :d="getWestLane4Path()"
+          :d="westLane4PathD"
           :stroke="isPathEditMode ? 'rgba(100, 200, 255, 0.9)' : 'rgba(160, 210, 255, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           :opacity="isPathVisible ? 1 : 0"
@@ -114,7 +114,7 @@
         <!--往南車道1 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
         <path
           id="southLane1Straight"
-          :d="getSouthLane1Path()"
+          :d="southLane1PathD"
           :stroke="isPathEditMode ? 'rgba(100, 255, 200, 0.9)' : 'rgba(100, 255, 150, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           :opacity="isPathVisible ? 1 : 0"
@@ -145,7 +145,7 @@
         <!--往南車道4 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
         <path
           id="southLane4Straight"
-          :d="getSouthLane4Path()"
+          :d="southLane4PathD"
           :stroke="isPathEditMode ? 'rgba(100, 255, 200, 0.9)' : 'rgba(160, 255, 210, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           :opacity="isPathVisible ? 1 : 0"
@@ -158,7 +158,7 @@
         <!--往北車道1 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
         <path
           id="northLane1Straight"
-          :d="getNorthLane1Path()"
+          :d="northLane1PathD"
           :stroke="isPathEditMode ? 'rgba(255, 100, 255, 0.9)' : 'rgba(200, 100, 255, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           :opacity="isPathVisible ? 1 : 0"
@@ -189,7 +189,7 @@
         <!--往北車道4 直行路徑（車輛從畫面外進入到離開畫面）- 可編輯 -->
         <path
           id="northLane4Straight"
-          :d="getNorthLane4Path()"
+          :d="northLane4PathD"
           :stroke="isPathEditMode ? 'rgba(255, 100, 255, 0.9)' : 'rgba(255, 160, 255, 0.6)'"
           :stroke-width="isPathEditMode ? '3' : '2'"
           :opacity="isPathVisible ? 1 : 0"
@@ -262,8 +262,8 @@
       <div
         class="stop-line central-reference"
         :style="{
-          width: 270 + 'px',
-          height: 270 + 'px',
+          width: 234 + 'px',
+          height: 234 + 'px',
           border: '1px solid rgba(255, 255, 255, 0.2)',
           opacity: 1,
         }"
@@ -571,9 +571,36 @@ const {
   disablePathEditing: disablePathEditingComposable,
   showPathTooltip,
   hidePathTooltip,
-  updateTooltipPosition,
   exportPathData,
 } = useLanePaths()
+
+// 🎯 本地路徑數據 Refs (避免 Vue 響應式重繪導致編輯丟失)
+const eastLane1PathD = ref('')
+const eastLane4PathD = ref('')
+const westLane1PathD = ref('')
+const westLane4PathD = ref('')
+const southLane1PathD = ref('')
+const southLane4PathD = ref('')
+const northLane1PathD = ref('')
+const northLane4PathD = ref('')
+
+// 監聽 pathFunctions 變化並更新本地 refs
+watch(
+  pathFunctions,
+  (funcs) => {
+    if (funcs) {
+      eastLane1PathD.value = funcs.getEastLane1Path()
+      eastLane4PathD.value = funcs.getEastLane4Path()
+      westLane1PathD.value = funcs.getWestLane1Path()
+      westLane4PathD.value = funcs.getWestLane4Path()
+      southLane1PathD.value = funcs.getSouthLane1Path()
+      southLane4PathD.value = funcs.getSouthLane4Path()
+      northLane1PathD.value = funcs.getNorthLane1Path()
+      northLane4PathD.value = funcs.getNorthLane4Path()
+    }
+  },
+  { immediate: true, deep: true },
+)
 
 // ===== 天氣效果相關 =====
 let weatherController = null // 天氣控制器實例
@@ -893,26 +920,18 @@ const spawnEmergencyVehicleWithDirection = (type = 'ambulance', direction = null
 }
 
 // 路徑計算函數現在由 useLanePaths composable 提供
-// 為了向後兼容，創建引用
-const getEastLane1Path = () => pathFunctions.value.getEastLane1Path()
+// Lane 2 和 Lane 3 使用這些包裝函數（模板中直接調用）
 const getEastLane2Path = () => pathFunctions.value.getEastLane2Path()
 const getEastLane3Path = () => pathFunctions.value.getEastLane3Path()
-const getEastLane4Path = () => pathFunctions.value.getEastLane4Path()
 
-const getWestLane1Path = () => pathFunctions.value.getWestLane1Path()
 const getWestLane2Path = () => pathFunctions.value.getWestLane2Path()
 const getWestLane3Path = () => pathFunctions.value.getWestLane3Path()
-const getWestLane4Path = () => pathFunctions.value.getWestLane4Path()
 
-const getSouthLane1Path = () => pathFunctions.value.getSouthLane1Path()
 const getSouthLane2Path = () => pathFunctions.value.getSouthLane2Path()
 const getSouthLane3Path = () => pathFunctions.value.getSouthLane3Path()
-const getSouthLane4Path = () => pathFunctions.value.getSouthLane4Path()
 
-const getNorthLane1Path = () => pathFunctions.value.getNorthLane1Path()
 const getNorthLane2Path = () => pathFunctions.value.getNorthLane2Path()
 const getNorthLane3Path = () => pathFunctions.value.getNorthLane3Path()
-const getNorthLane4Path = () => pathFunctions.value.getNorthLane4Path()
 
 // ═══════════════════════════════════════════════════════════════════════
 // ✅ 【修復】事件處理器定義 - 移到頂層以便 onUnmounted 時清理
@@ -1925,7 +1944,7 @@ onUnmounted(() => {
   width: 1000px;
   height: calc(100vh - 100px);
   background-image: url('/images/crossroad.png');
-  background-size: cover;
+  background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
   border-radius: 8px;
