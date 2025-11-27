@@ -2126,7 +2126,6 @@ onUnmounted(() => {
   transition: transform 0.3s ease;
   /* background: rgba(255, 255, 255, 0.1); */
   z-index: 9999;
-  pointer-events: none;
 }
 
 .robot-assistant img {
@@ -2242,10 +2241,9 @@ onUnmounted(() => {
 /* Photoshop 風格左側工具欄 ---------------------------------------- */
 .photoshop-toolbar {
   position: fixed;
-  top: 50%;
+  top: 50cqb;
   left: 0;
   transform: translateY(-50%);
-  z-index: 1001;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -2259,6 +2257,7 @@ onUnmounted(() => {
     4px 0 15px rgba(63, 117, 205, 0.3);
   padding: 10px 0;
   filter: saturate(1.1) contrast(1.1);
+  z-index: 1001;
 }
 
 .toolbar-btn {
@@ -2370,7 +2369,7 @@ onUnmounted(() => {
     0 4px 20px rgba(0, 0, 0, 0.5),
     0 0 10px rgba(63, 117, 205, 0.3);
   backdrop-filter: blur(10px);
-  z-index: 1001;
+  z-index: 10000;
 }
 
 .weather-menu-header {
