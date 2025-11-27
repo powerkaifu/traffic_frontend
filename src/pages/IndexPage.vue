@@ -262,8 +262,8 @@
       <div
         class="stop-line central-reference"
         :style="{
-          width: 234 + 'px',
-          height: 234 + 'px',
+          width: 226 + 'px',
+          height: 226 + 'px',
           border: '1px solid rgba(255, 255, 255, 0.2)',
           opacity: 1,
         }"
@@ -1289,6 +1289,46 @@ onMounted(async () => {
         }
       },
     )
+
+    // 🖥️ 監聽全螢幕切換，自動重新整理
+    // F11 原生全螢幕不會設置 document.fullscreenElement，需要透過視窗大小判斷
+    const isInFullscreen = () => {
+      // 檢查視窗大小是否接近螢幕大小（容許小誤差）
+      return (
+        Math.abs(window.innerWidth - window.screen.width) < 20 &&
+        Math.abs(window.innerHeight - window.screen.height) < 20
+      )
+    }
+
+    let lastFullscreenState = isInFullscreen()
+    let resizeTimeout = null
+
+    // 監聽視窗大小變化
+    const handleResizeForFullscreen = () => {
+      clearTimeout(resizeTimeout)
+      resizeTimeout = setTimeout(() => {
+        const currentFullscreenState = isInFullscreen()
+
+        // 檢測全螢幕狀態是否改變
+        if (currentFullscreenState !== lastFullscreenState) {
+          lastFullscreenState = currentFullscreenState
+
+          // 延遲重新整理
+          setTimeout(() => {
+            window.location.reload()
+          }, 500)
+        }
+      }, 300) // 延遲 300ms 確保 resize 結束
+    }
+
+    // 註冊監聽器
+    window.addEventListener('resize', handleResizeForFullscreen)
+
+    // 保存清理函數
+    window.fullscreenCleanup = () => {
+      window.removeEventListener('resize', handleResizeForFullscreen)
+      clearTimeout(resizeTimeout)
+    }
   }
 
   console.log('═══════════════════════════════════════════════════════════')
@@ -1865,6 +1905,12 @@ onUnmounted(() => {
   }
 
   console.log('✅ 所有事件監聽器已清理')
+
+  // 🖥️ 清理全螢幕監聽器
+  if (window.fullscreenCleanup) {
+    window.fullscreenCleanup()
+    delete window.fullscreenCleanup
+  }
 
   // 清理車輛清理定時器
   // 清理動態清理間隔
